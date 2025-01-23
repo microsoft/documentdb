@@ -35,7 +35,64 @@ By building on PostgreSQL, DocumentDB leverages these strengths to provide a pow
 
 ### Pre-requisite
 
-- Ensure PostgreSQL is installed on the machine.
+- Ensure [Docker](https://docs.docker.com/engine/install/) is installed on your system.
+
+### Building DocumentDB with Docker
+
+Step 1: Clone the DocumentDB repo.
+
+```bash
+git clone https://github.com/microsoft/documentdb.git
+```
+
+Step 2: Create the docker image. Navigate to cloned repo.
+
+```bash
+docker build . -f .devcontainer/Dockerfile -t documentdb 
+```
+
+Note: Validate using `docker image ls`
+
+Step 3: Run the Image as a container
+
+```bash
+docker run -v $(pwd):/home/documentdb/code -it documentdb /bin/bash 
+
+cd code
+```
+
+(Aligns local location with docker image created, allows de-duplicating cloning repo again within image).<br>
+Note: Validate container is running `docker container ls`
+
+Step 4: Build & Deploy the binaries
+
+```bash
+make 
+```
+
+Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/DocumentDB/code` within image.
+
+```bash
+sudo make install
+```
+
+Note: To run backend postgresql tests after installing you can run `make check`.
+
+### Connecting to the Server
+
+Step 1: Run `start_oss_server.sh` to initialize the DocumentDB server and manage dependencies.
+
+```bash
+./scripts/start_oss_server.sh
+```
+
+Step 2: Connect to `psql` shell
+
+```bash
+psql -p 9712 -h localhost -d postgres
+```
+
+You are all set to work with DocumentDB.
 
 ### Building DocumentDB locally
 
@@ -123,24 +180,17 @@ Once you have your `DocumentDB` set up running, you can start with creating coll
 
 ### Create a collection
 
-DocumentDB provides `documentdb_api.create_collection` function to create a new collection within a specified database, enabling you to manage and organize your BSON documents effectively.
+DocumentDB provides [documentdb_api.create_collection](https://github.com/microsoft/documentdb/wiki/Functions#create_collection) function to create a new collection within a specified database, enabling you to manage and organize your BSON documents effectively.
 
 ```sql
 SELECT documentdb_api.create_collection('documentdb','patient');
 ```
 
-#### Parameters
-
-| | Description |
-| --- | --- |
-| **`documentdb`** | The name of the database where the collection will be created. |
-| **`patient`** | The name of the collection to be created. |
-
 ### Perform CRUD operations
 
 #### Insert documents
 
-The `insertOne()` command is used to add a single document into a collection.
+The [insertOne()](https://github.com/microsoft/documentdb/wiki/Functions#insert_one) command is used to add a single document into a collection.
 
 ```sql
 select documentdb_api.insert_one('documentdb','patient', '{ "patient_id": "P001", "name": "Alice Smith", "age": 30, "phone_number": "555-0123", "registration_year": "2023","conditions": ["Diabetes", "Hypertension"]}');
@@ -149,14 +199,6 @@ select documentdb_api.insert_one('documentdb','patient', '{ "patient_id": "P003"
 select documentdb_api.insert_one('documentdb','patient', '{ "patient_id": "P004", "name": "Diana Prince", "age": 40, "phone_number": "555-0987", "registration_year": "2024", "conditions": ["Migraine"]}');
 select documentdb_api.insert_one('documentdb','patient', '{ "patient_id": "P005", "name": "Edward Norton", "age": 55, "phone_number": "555-1111", "registration_year": "2025", "conditions": ["Hypertension", "Heart Disease"]}');
 ```
-
-##### Parameters
-
-| | Description |
-| --- | --- |
-| **`documentdb`** | The name of the database where the collection exists. |
-| **`patient`** | The name of the collection where data is inserted. |
-| **'{}'** | Provide the valid json document to be inserted. |
 
 #### Read document from a collection
 
@@ -184,7 +226,7 @@ WHERE document @@ '{ "$and": [{ "age": { "$gte": 10 } },{ "age": { "$lte": 35 } 
 
 #### Update document in a collection
 
-`DocumentDB` uses the `documentdb_api.update` function to modify existing documents within a collection.
+`DocumentDB` uses the [documentdb_api.update](https://github.com/microsoft/documentdb/wiki/Functions#update) function to modify existing documents within a collection.
 
 The SQL command updates the `age` for patient `P004`.
 
@@ -198,36 +240,15 @@ Similarly, we can update multiple documents using `multi` property.
 SELECT documentdb_api.update('documentdb', '{"update":"patient", "updates":[{"q":{},"u":{"$set":{"age":50}},"multi":true}]}');
 ```
 
-##### Parameters
-
- | | Description |
- | --- | --- |
- | **`documentdb`** | The name of the database where the collection exists. |
- | **`update`** | The name of the collection which contains the document to be updated. |
- | **`updates`** | The operation to be performed on collection. |
- | **`q: {}`** | The query to qualify records for operation. An empty object {} matches all documents in the collection. |
- | **`u`** | This defines the update operation to perform. |
- | **`multi`** | Indicates that the update is applied to single or multiple matching documents. |
-
 #### Delete document from the collection
 
- DocumentDB uses the `documentdb_api.delete` function for precise document removal based on specified criteria.
+ DocumentDB uses the [documentdb_api.delete](https://github.com/microsoft/documentdb/wiki/Functions#delete) function for precise document removal based on specified criteria.
 
  The SQL command deletes the document for patient `P002`.
 
  ```sql
  SELECT documentdb_api.delete('documentdb', '{"delete": "patient", "deletes": [{"q": {"patient_id": "P002"}, "limit": 1}]}');
  ```
-
-##### Parameters
-
-| | Description |
-| --- | --- |
-| **`documentdb`** | The name of the database where the collection exists. |
-| **`delete`** | The name of the collection to perform the deletion from. |
-| **`deletes`** | The operation to be performed on collection. |
-| **`q: {}`** | The query to qualify records for operation. An empty object {} matches all documents in the collection. |
-| **`limit`** | Enables control towards the removal of matching documents. It could either be `0` for removing all documents Or `1` for removing single record |
 
 ### Collection management
 
@@ -266,14 +287,6 @@ The SQL command demonstrates how to create a `compound index` on fields age and 
 ```sql
 SELECT * FROM documentdb_api.create_indexes_background('documentdb', '{ "createIndexes": "patient", "indexes": [{ "key": {"registration_year": 1, "age": 1},"name": "idx_regyr_age"}]}');
 ```
-
-The SQL command allows reviewing the current status of index creation. Successful index creation won't appear in the result.
-
-```sql
-SELECT * FROM documentdb_api_catalog.documentdb_index_queue;
-```
-
-`IndexCmdStatus` field represent different status. Value of `0` means `Unknown`, `1` means `Queued`, `2` means `InProgress`, `3` means `Failed` and `4` means `Skippable`.
 
 #### Drop an Index
 
