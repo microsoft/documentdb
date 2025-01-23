@@ -78,6 +78,8 @@ sudo make install
 
 Note: To run backend postgresql tests after installing you can run `make check`.
 
+You are all set to work with DocumentDB.
+
 ### Connecting to the Server
 
 Step 1: Run `start_oss_server.sh` to initialize the DocumentDB server and manage dependencies.
@@ -91,88 +93,6 @@ Step 2: Connect to `psql` shell
 ```bash
 psql -p 9712 -h localhost -d postgres
 ```
-
-You are all set to work with DocumentDB.
-
-### Building DocumentDB locally
-
-#### Installing on Windows
-
-We require installing linux sub-system to work on Windows.
-
-Step 1: Install Ubuntu from PowerShell.
-
-```bash
-wsl --install
-```
-
-Step 2: In your WSL window, create your repo by cloning the DocumentDB repo.
-
-```bash
-git clone https://github.com/microsoft/documentdb.git
-```
-
-Step 3: Build & deploy the binaries
-
-```bash
-make 
-```
-
-Step 4: To install your locally built binaries into postgres.
-
-```bash
-sudo make install
-```
-
-Note: To run backend postgresql tests after installing you can run `make check`.
-
-Step 5: Run `start_oss_server.sh` to initialize the DocumentDB server and manage dependencies.
-
-```bash
-./scripts/start_oss_server.sh
-```
-
-Step 6: Connect to `psql` shell
-
-```bash
-psql -p 9712 -h localhost -d postgres
-```
-
-#### Installing on Linux
-
-Step 1: Create your repo by cloning DocumentDB.
-
-```bash
-git clone https://github.com/microsoft/documentdb.git
-```
-
-Step 2: Build & deploy the binaries
-
-```bash
-make 
-```
-
-Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/DocumentDB/code` within image.
-
-Step 3: Build & deploy the binaries
-
-```bash
-sudo make install
-```
-
-Step 4: Run `start_oss_server.sh` to initialize the DocumentDB server and manage dependencies.
-
-```bash
-./scripts/start_oss_server.sh
-```
-
-Step 5: Connect to `psql` shell
-
-```bash
-psql -p 9712 -h localhost -d postgres
-```
-
-You are all set to work with DocumentDB.
 
 ## Usage
 
@@ -190,7 +110,7 @@ SELECT documentdb_api.create_collection('documentdb','patient');
 
 #### Insert documents
 
-The [insertOne()](https://github.com/microsoft/documentdb/wiki/Functions#insert_one) command is used to add a single document into a collection.
+The [documentdb_api.insertOne()](https://github.com/microsoft/documentdb/wiki/Functions#insert_one) command is used to add a single document into a collection.
 
 ```sql
 select documentdb_api.insert_one('documentdb','patient', '{ "patient_id": "P001", "name": "Alice Smith", "age": 30, "phone_number": "555-0123", "registration_year": "2023","conditions": ["Diabetes", "Hypertension"]}');
@@ -226,7 +146,7 @@ WHERE document @@ '{ "$and": [{ "age": { "$gte": 10 } },{ "age": { "$lte": 35 } 
 
 #### Update document in a collection
 
-`DocumentDB` uses the [documentdb_api.update](https://github.com/microsoft/documentdb/wiki/Functions#update) function to modify existing documents within a collection.
+DocumentDB uses the [documentdb_api.update](https://github.com/microsoft/documentdb/wiki/Functions#update) function to modify existing documents within a collection.
 
 The SQL command updates the `age` for patient `P004`.
 
@@ -242,13 +162,13 @@ SELECT documentdb_api.update('documentdb', '{"update":"patient", "updates":[{"q"
 
 #### Delete document from the collection
 
- DocumentDB uses the [documentdb_api.delete](https://github.com/microsoft/documentdb/wiki/Functions#delete) function for precise document removal based on specified criteria.
+DocumentDB uses the [documentdb_api.delete](https://github.com/microsoft/documentdb/wiki/Functions#delete) function for precise document removal based on specified criteria.
 
- The SQL command deletes the document for patient `P002`.
+The SQL command deletes the document for patient `P002`.
 
- ```sql
- SELECT documentdb_api.delete('documentdb', '{"delete": "patient", "deletes": [{"q": {"patient_id": "P002"}, "limit": 1}]}');
- ```
+```sql
+SELECT documentdb_api.delete('documentdb', '{"delete": "patient", "deletes": [{"q": {"patient_id": "P002"}, "limit": 1}]}');
+```
 
 ### Collection management
 
@@ -274,7 +194,7 @@ select * from cron.job;
 
 #### Create an Index
 
-`DocumentDB` uses the `documentdb_api.create_indexes_background` function, which allows background index creation without disrupting database operations.
+DocumentDB uses the `documentdb_api.create_indexes_background` function, which allows background index creation without disrupting database operations.
 
 The SQL command demonstrates how to create a `single field` index on `age` on the `patient` collection of the `documentdb`.
 
