@@ -157,7 +157,7 @@ select documentdb_api.update('documentdb', '{"update":"patient", "updates":[{"q"
 Similarly, we can update multiple documents using `multi` property.
 
 ```sql
-SELECT documentdb_api.update('documentdb', '{"update":"patient", "updates":[{"q":{},"u":{"$set":{"age":50}},"multi":true}]}');
+SELECT documentdb_api.update('documentdb', '{"update":"patient", "updates":[{"q":{},"u":{"$set":{"age":24}},"multi":true}]}');
 ```
 
 #### Delete document from the collection
@@ -172,16 +172,16 @@ SELECT documentdb_api.delete('documentdb', '{"delete": "patient", "deletes": [{"
 
 ### Collection management
 
-We can review for the available collections and databases by querying `documentdb_api_catalog.collections`.
+We can review for the available collections and databases by querying [documentdb_api.list_collections_cursor_first_page](https://github.com/microsoft/documentdb/wiki/Functions#list_collections_cursor_first_page).
 
 ```sql
-SELECT * FROM documentdb_api_catalog.collections;
+SELECT * FROM documentdb_api.list_collections_cursor_first_page('documentdb', '{ "listCollections": 1 }');
 ```
 
-`documentdb_api_catalog.collection_indexes` allows reviewing for the existing indexes on a collection. We can find collection_id from `documentdb_api_catalog.collections`.
+[documentdb_api.list_indexes_cursor_first_page](https://github.com/microsoft/documentdb/wiki/Functions#list_indexes_cursor_first_page) allows reviewing for the existing indexes on a collection. We can find collection_id from `documentdb_api.list_collections_cursor_first_page`.
 
 ```sql
-SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 2;
+SELECT documentdb_api.list_indexes_cursor_first_page('documentdb','{"listIndexes": "patient"}');
 ```
 
 `ttl` indexes by default gets scheduled through the `pg_cron` scheduler, which could be reviewed by querying the `cron.job` table.
@@ -210,7 +210,7 @@ SELECT * FROM documentdb_api.create_indexes_background('documentdb', '{ "createI
 
 #### Drop an Index
 
-`DocumentDB` uses the `documentdb_api.drop_indexes` function, which allows you to remove an existing index from a collection. The SQL command demonstrates how to drop the index named `id_ab_1` from the `first_collection` collection of the `documentdb`.
+DocumentDB uses the `documentdb_api.drop_indexes` function, which allows you to remove an existing index from a collection. The SQL command demonstrates how to drop the index named `id_ab_1` from the `first_collection` collection of the `documentdb`.
 
 ```sql
 CALL documentdb_api.drop_indexes('documentdb', '{"dropIndexes": "patient", "index":"idx_age"}');
@@ -218,25 +218,25 @@ CALL documentdb_api.drop_indexes('documentdb', '{"dropIndexes": "patient", "inde
 
 ### Perform aggregations `Group by`
 
-DocumentDB provides the `documentdb_api_catalog.bson_aggregation_pipeline` function, for performing aggregations over the document store.
+DocumentDB provides the [documentdb_api.aggregate_cursor_first_page](https://github.com/microsoft/documentdb/wiki/Functions#aggregate_cursor_first_page) function, for performing aggregations over the document store.
 
 The example projects an aggregation on number of patients registered over the years.
 
 ```sql
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$group": { "_id": "$registration_year", "count_patients": { "$count": {} } } } ] }');
+SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$group": { "_id": "$registration_year", "count_patients": { "$count": {} } } } ] , "cursor": { "batchSize": 3 } }');
 ```
 
 We can perform more complex operations, listing below a few more usage examples.
 The example demonstrates an aggregation on patients, categorizing them into buckets defined by registration_year boundaries.
 
 ```sql
-SELECT document FROM bson_aggregation_pipeline('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$bucket": { "groupBy": "$registration_year", "boundaries": ["2022","2023","2024"], "default": "unknown" } } ] }');
+SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$bucket": { "groupBy": "$registration_year", "boundaries": ["2022","2023","2024"], "default": "unknown" } } ], "cursor": { "batchSize": 3 } }');
 ```
 
 This query performs an aggregation on the `patient` collection to group documents by `registration_year`. It collects unique patient conditions for each registration year using the `$addToSet` operator.
 
 ```sql
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$group": { "_id": "$registration_year", "conditions": { "$addToSet": { "conditions" : "$conditions" } } } } ] }');
+SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$group": { "_id": "$registration_year", "conditions": { "$addToSet": { "conditions" : "$conditions" } } } } ], "cursor": { "batchSize": 3 } }');
 ```
 
 ### Join data from multiple collections
@@ -255,7 +255,7 @@ select documentdb_api.insert_one('documentdb','appointment', '{ "appointment_id"
 The example presents each patient along with the doctors visited.
 
 ```sql
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$lookup": { "from": "appointment","localField": "patient_id", "foreignField": "patient_id", "as": "appointment" } },{"$unwind":"$appointment"},{"$project":{"_id":0,"name":1,"appointment.doctor_name":1,"appointment.appointment_date":1}} ]}');
+SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', '{ "aggregate": "patient", "pipeline": [ { "$lookup": { "from": "appointment","localField": "patient_id", "foreignField": "patient_id", "as": "appointment" } },{"$unwind":"$appointment"},{"$project":{"_id":0,"name":1,"appointment.doctor_name":1,"appointment.appointment_date":1}} ], "cursor": { "batchSize": 3 } }');
 ```
 
 ### Community
