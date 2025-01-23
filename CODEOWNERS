@@ -1,4 +1,3 @@
 * @microsoft/documentdb-contributors
 
 /.pipelines/documentdb-oss-sync.yml @shuaitian-git @lichoil
-/.pipelines/documentdb-internal-compatibility.yml @shuaitian-git @lichoil
