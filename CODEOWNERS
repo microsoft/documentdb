@@ -1,4 +1,4 @@
-* @microsoft/heliodb-contributors
+* @microsoft/documentdb-contributors
 
-/.pipelines/heliodb-oss-sync.yml @gledis69 @mtuncer
-/.pipelines/heliodb-internal-compatibility.yml @gledis69 @mtuncer
+/.pipelines/documentdb-oss-sync.yml @gledis69 @mtuncer @shuaitian-git @lichoil
+/.pipelines/documentdb-internal-compatibility.yml @gledis69 @mtuncer @shuaitian-git @lichoil

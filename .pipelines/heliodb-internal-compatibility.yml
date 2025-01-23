@@ -52,7 +52,7 @@ steps:
       project = "$(PROJECT)"
       branch_name = "refs/heads/$(branchName)"
       commit_id = "$(current_commit_hash)"
-      build_name = "heliodb-oss-sync"
+      build_name = "documentdb-oss-sync"
 
       url = f"https://dev.azure.com/{organization}/{project}/_apis/build/builds?api-version=7.1&branchName={branch_name}"
 
@@ -108,36 +108,36 @@ steps:
 - script: |
     set -euo pipefail
 
-    git config --global user.name "heliodb-internal-compatibility pipeline"
+    git config --global user.name "documentdb-internal-compatibility pipeline"
 
     cd ..
 
-    git clone -b helio-oss/submoduled-main https://$(System.AccessToken)@$(INTERNAL_REPO_URL) internal-repo
+    git clone -b documentdb-oss/submoduled-main https://$(System.AccessToken)@$(INTERNAL_REPO_URL) internal-repo
     cd internal-repo
     git fetch origin > /dev/null 2>&1
 
-    if ! git show-ref --verify --quiet refs/remotes/origin/helio-oss/$(branchName); then
+    if ! git show-ref --verify --quiet refs/remotes/origin/documentdb-oss/$(branchName); then
       # If the branch does not exist, create it
-      git checkout -b helio-oss/$(branchName)
+      git checkout -b documentdb-oss/$(branchName)
       sed -i "s|branch = .*|branch = $(branchName)|" .gitmodules
       git add .
       git commit -m "$(current_commit_hash)"
-      git push -u origin helio-oss/$(branchName)
-    elif git merge-base --is-ancestor helio-oss/submoduled-main origin/helio-oss/$(branchName) && \
-         [ "$(git log origin/helio-oss/$(branchName) -1 --pretty=%s)" == "$(current_commit_hash)" ]; then
-      # If the branch exists, is up to date with main, and the last commit message is the same as the current heliodb commit hash
+      git push -u origin documentdb-oss/$(branchName)
+    elif git merge-base --is-ancestor documentdb-oss/submoduled-main origin/documentdb-oss/$(branchName) && \
+         [ "$(git log origin/documentdb-oss/$(branchName) -1 --pretty=%s)" == "$(current_commit_hash)" ]; then
+      # If the branch exists, is up to date with main, and the last commit message is the same as the current documentdb commit hash
       # do nothing
       echo "No changes to push to internal repo"
     else
-      # If the branch exists, but is not up to date with main OR its last commit message is not the same as the current heliodb commit hash
-      # merge with main and push with a new commit with message as the current heliodb commit hash
-      git checkout helio-oss/$(branchName)
-      git merge helio-oss/submoduled-main
+      # If the branch exists, but is not up to date with main OR its last commit message is not the same as the current documentdb commit hash
+      # merge with main and push with a new commit with message as the current documentdb commit hash
+      git checkout documentdb-oss/$(branchName)
+      git merge documentdb-oss/submoduled-main
       # cause a change in the repo to trigger a new build
       echo $(date) > timestamp.txt
       git add -f timestamp.txt
       git commit -m "$(current_commit_hash)"
-      git push origin helio-oss/$(branchName)
+      git push origin documentdb-oss/$(branchName)
     fi
 
     last_commit_hash_internal_repo=$(git rev-parse HEAD)
@@ -161,7 +161,7 @@ steps:
 
       organization = "$(ORGANIZATION)"
       project = "$(PROJECT)"
-      branch_name = "refs/heads/helio-oss/$(branchName)"
+      branch_name = "refs/heads/documentdb-oss/$(branchName)"
       commit_id = "$(last_commit_hash_internal_repo)"
       build_name = "$(INTERNAL_BUILD_NAME)"
 
