@@ -91,7 +91,7 @@ Step 1: Run `start_oss_server.sh` to initialize the DocumentDB server and manage
 Step 2: Connect to `psql` shell
 
 ```bash
-psql -p 9712 -h localhost -d postgres
+psql -p 9712 -d postgres
 ```
 
 ## Usage
@@ -128,20 +128,19 @@ The `documentdb_api.collection` function is used for retrieving the documents in
 SELECT document FROM documentdb_api.collection('documentdb','patient');
 ```
 
-Alternatively, we can apply filter for specific condition using `@@` or `@=`
+Alternatively, we can apply filter to our queries.
 
 ```sql
-SET search_path TO documentdb_api, documentdb_api_catalog,documentdb_core;
+SET search_path TO documentdb_api, documentdb_core;
 SET documentdb_core.bsonUseEJson TO true;
 
-SELECT document FROM documentdb_api.collection('documentdb','patient') WHERE document @@ '{"patient_id":"P005"}';
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('documentdb', '{ "find" : "patient", "filter" : {"patient_id":"P005"}}');
 ```
 
 We can perform range queries as well.
 
 ```sql
-SELECT document FROM documentdb_api.collection('documentdb','patient')
-WHERE document @@ '{ "$and": [{ "age": { "$gte": 10 } },{ "age": { "$lte": 35 } }] }';
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('documentdb', '{ "find" : "patient", "filter" : { "$and": [{ "age": { "$gte": 10 } },{ "age": { "$lte": 35 } }] }}');
 ```
 
 #### Update document in a collection
