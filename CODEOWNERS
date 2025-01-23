@@ -1,3 +1,4 @@
 * @microsoft/documentdb-contributors
 
-/.pipelines/documentdb-oss-sync.yml @shuaitian-git @lichoil
+/.pipelines/ @shuaitian-git @lichoil
+/.github/workflows/ @shuaitian-git @lichoil
