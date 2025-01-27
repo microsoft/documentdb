@@ -35,6 +35,7 @@ By building on PostgreSQL, DocumentDB leverages these strengths to provide a pow
 
 ### Pre-requisite
 
+- If you're on a Windows computer, make sure you have [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) downloaded.
 - Ensure [Docker](https://docs.docker.com/engine/install/) is installed on your system.
 
 ### Building DocumentDB with Docker
