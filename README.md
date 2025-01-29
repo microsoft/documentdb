@@ -11,8 +11,6 @@ The project comprises of two primary components, which work together to support 
 - **pg_documentdb :** The public API surface for DocumentDB providing CRUD functionality on documents in the store.
 - **pg_documentdb_core :** An extension for PostgreSQL introducing BSON datatype support and operations for native Postgres.
 
-![Architecture](images/architecture.png)
-
 ## Why DocumentDB ?
 
 At DocumentDB, we believe in the power of open-source to drive innovation and collaboration. Our commitment to being a fully open-source document database means that we are dedicated to transparency, community involvement, and continuous improvement. We are open-sourced under the most permissive [MIT](https://opensource.org/license/mit) license, where developers and organizations alike have no restrictions incorporating the project into new and existing solutions of their own. DocumentDB introduces the BSON data type and provides APIs for seamless operation within native PostgreSQL, enhancing efficiency and aligning with operational advantages.
