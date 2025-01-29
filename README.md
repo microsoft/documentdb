@@ -8,7 +8,7 @@
 
 The project comprises of two primary components, which work together to support document operations.
 
-- **pg_documentdb_core :** PostgreSQL extension introducing BSON datatype support and operations for native Postgres.
+- **pg_documentdb_core :** An extension for PostgreSQL introducing BSON datatype support and operations for native Postgres.
 - **pg_documentdb :** The public API surface for DocumentDB providing CRUD functionality on documents in the store.
 
 ![Architecture](images/architecture.png)
