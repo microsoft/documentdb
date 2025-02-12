@@ -317,11 +317,12 @@ bson_dollar_merge_handle_when_matched(PG_FUNCTION_ARGS)
 		{
 			pgbson_writer writer;
 			ValidateAndAddObjectIdToWriter(&writer, sourceDocument, targetDocument);
-			bson_iter_t iter;
-			PgbsonInitIterator(targetDocument, &iter);
+			bson_iter_t iterTarget, iterSource;
+			PgbsonInitIterator(targetDocument, &iterTarget);
+			PgbsonInitIterator(sourceDocument, &iterSource);
 
 			/* _id is already written to writer as first field of writer. so ignore for target document. */
-			if (!bson_iter_next(&iter) || strcmp(bson_iter_key(&iter), "_id") != 0)
+			if (!bson_iter_next(&iterTarget) || strcmp(bson_iter_key(&iterTarget), "_id") != 0)
 			{
 				/* In target document we expect _id to be first field. */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
@@ -334,92 +335,132 @@ bson_dollar_merge_handle_when_matched(PG_FUNCTION_ARGS)
 			HTAB *hashTable = CreatePgbsonElementOrderedHashSet();
 			PgbsonElementHashEntryOrdered *head = NULL;
 			PgbsonElementHashEntryOrdered *tail = NULL;
+			/* Last entry added by target to prioritize target order */
+			PgbsonElementHashEntryOrdered *tailTarget = NULL;
 
-			/* step 1 : Add target document to the hashmap with values and maintain order using PgbsonElementHashEntryOrdered linked list */
-			while (bson_iter_next(&iter))
+			bool hasNextTarget = bson_iter_next(&iterTarget);
+			bool hasNextSource = bson_iter_next(&iterSource);
+
+			/* Iterate through the source and target documents to merge them */
+			while (hasNextSource || hasNextTarget)
 			{
-				pgbsonelement element = {
-					.path = bson_iter_key(&iter),
-					.pathLength = bson_iter_key_len(&iter),
-					.bsonValue = *bson_iter_value(&iter)
-				};
+				if (hasNextTarget)
+                {
+					pgbsonelement elementT = {
+						.path = bson_iter_key(&iterTarget),
+						.pathLength = bson_iter_key_len(&iterTarget),
+						.bsonValue = *bson_iter_value(&iterTarget)
+					};
 
-				PgbsonElementHashEntryOrdered hashEntry = {
-					.element = element,
-					.next = NULL,
-				};
+					PgbsonElementHashEntryOrdered hashEntryT = {
+						.element = elementT,
+						.next = NULL,
+					};
 
-				bool found = false;
-				PgbsonElementHashEntryOrdered *currNode = hash_search(hashTable,
-																	  &hashEntry,
-																	  HASH_ENTER, &found);
+					PgbsonElementHashEntryOrdered *currNode = hash_search(hashTable, 
+																		  &hashEntryT, 
+																		  HASH_ENTER, 
+																		  NULL);
 
-				if (head == NULL)
-				{
-					head = currNode;
-					tail = currNode;
+					if (head == NULL)
+					{
+						/* Add initial element to LinkedList */
+						head = currNode;
+						tail = currNode;
+						tailTarget = currNode;
+					}
+					else
+					{
+						/* If target tail has next entry, means added by source iterator. Need to shift references to preserve target order.*/
+						if(tailTarget->next != NULL)
+						{
+							/* If next entry points to current node, set to NULL to avoid circular reference/infinite loop */
+							if (tailTarget->next->next == currNode)
+							{
+								tailTarget->next->next = NULL;
+							}
+							/* If current node is different from next reference, current node now points to previous reference */
+							/* Source: C -> B -> A */
+							/* Target: A -> B -> C */
+							/* Before: A -> C      */
+							/* After : A -> B -> C */
+							else if (tailTarget->next != currNode)
+							{
+								currNode->next = tailTarget->next;
+							}
+							/* Link tail with current node */
+							tailTarget->next = currNode;
+						}
+						else
+						{
+							/* Links tail to current node and move tail */
+							tail->next = currNode;
+							tail = currNode;
+						}
+
+						/* Sets current node as new target tail */
+						tailTarget = currNode;
+					}
+
+					/* Move target iterator to the next element*/
+					hasNextTarget = bson_iter_next(&iterTarget);
 				}
-				else
+
+				if (hasNextSource)
 				{
-					tail->next = currNode;
-					tail = currNode;
+					const char *keySource = bson_iter_key(&iterSource);
+
+					/* ensure we're not rewriting the _id to something else. */
+					if (strcmp(keySource, "_id") != 0)
+					{
+						pgbsonelement elementS = {
+							.path = keySource,
+							.pathLength = bson_iter_key_len(&iterSource),
+							.bsonValue = *bson_iter_value(&iterSource)
+						};
+
+						PgbsonElementHashEntryOrdered hashEntryS = {
+							.element = elementS,
+							.next = NULL,
+						};
+
+						bool found = false;
+						PgbsonElementHashEntryOrdered *currNode = hash_search(hashTable, 
+																			  &hashEntryS, 
+																			  HASH_ENTER, 
+																			  &found);
+
+						if (found)
+						{
+							/* Replace the existing value with the value from the source document */
+							currNode->element.bsonValue = elementS.bsonValue;
+						}
+						else if (head == NULL)
+						{
+							/* Add initial element to LinkedList */
+							head = currNode;
+							tail = currNode;
+							tailTarget = currNode;
+						}
+						else
+						{
+							/* Add current node to the tail of LinkedList */
+							tail->next = currNode;
+							tail = currNode;
+						}
+					}
+
+					/* Move source iterator to the next element*/
+					hasNextSource = bson_iter_next(&iterSource);
 				}
-			}
+			}				
 
-			/* step 2 : let's add source document to hashmap with values and update the tail of the linked list if a new element is inserted */
-
-			PgbsonInitIterator(sourceDocument, &iter);
-			while (bson_iter_next(&iter))
-			{
-				/* _id is already written to writer as the first field, so ignore it here */
-				if (strcmp(bson_iter_key(&iter), "_id") == 0)
-				{
-					continue;
-				}
-
-				pgbsonelement element = {
-					.path = bson_iter_key(&iter),
-					.pathLength = bson_iter_key_len(&iter),
-					.bsonValue = *bson_iter_value(&iter)
-				};
-
-				PgbsonElementHashEntryOrdered hashEntry = {
-					.element = element,
-					.next = NULL,
-				};
-
-				bool found = false;
-				PgbsonElementHashEntryOrdered *currNode = hash_search(hashTable,
-																	  &hashEntry,
-																	  HASH_ENTER,
-																	  &found);
-
-				if (found)
-				{
-					/* Replace the existing value with the value from the source document */
-					currNode->element.bsonValue = element.bsonValue;
-				}
-				else if (head == NULL)
-				{
-					/* If the target document contains only the _id field, we reach here */
-					head = currNode;
-					tail = currNode;
-				}
-				else
-				{
-					tail->next = currNode;
-					tail = currNode;
-				}
-			}
-
-
-			/* step 3: Iterate through the linked list to fetch elements in order and write them to the final BSON */
+			/* Iterate through the linked list to fetch elements in order and write them to the final BSON */
 			while (head != NULL)
 			{
-				PgbsonElementHashEntryOrdered *temp = head;
-				PgbsonWriterAppendValue(&writer, temp->element.path,
-										temp->element.pathLength,
-										&temp->element.bsonValue);
+				PgbsonWriterAppendValue(&writer, head->element.path,
+										head->element.pathLength,
+										&head->element.bsonValue);
 				head = head->next;
 			}
 
