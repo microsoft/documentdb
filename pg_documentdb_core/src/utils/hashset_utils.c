@@ -72,7 +72,8 @@ PgbsonElementHashEntryHashFunc(const void *obj, size_t objsize)
  * on string_compare()) used to determine if keys of the bson elements hold
  * by given two PgbsonElementHashEntry objects are the same.
  *
- * Returns 0 if those two bson element keys are same, +ve Int if first is greater otherwise -ve Int.
+ * Returns 0 if those two bson element keys are same and non-0 if element keys are different.
+ * Ref.: hsearch.h -> HashCompareFunc
  */
 static int
 PgbsonElementHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsize)
@@ -87,7 +88,7 @@ PgbsonElementHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsi
 	}
 
 	// If lengths are equal, compare the paths
-	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
+	return memcmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
 
 
@@ -211,7 +212,8 @@ PgbsonElementOrderedHashEntryFunc(const void *obj, size_t objsize)
  * on string_compare()) used to determine if keys of the bson elements hold
  * by given two PgbsonElementHashEntryOrdered objects are the same.
  *
- * Returns 0 if those two bson element keys are same, +ve Int if first is greater otherwise -ve Int.
+ * Returns 0 if those two bson element keys are same and non-0 if element keys are different.
+ * Ref.: hsearch.h -> HashCompareFunc
  */
 static int
 PgbsonElementOrderedHashCompareFunc(const void *obj1, const void *obj2, Size objsize)
@@ -226,5 +228,5 @@ PgbsonElementOrderedHashCompareFunc(const void *obj1, const void *obj2, Size obj
 	}
 
 	// If lengths are equal, compare the paths
-	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
+	return memcmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
