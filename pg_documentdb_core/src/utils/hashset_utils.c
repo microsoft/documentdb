@@ -88,7 +88,7 @@ PgbsonElementHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsi
 	}
 
 	// If lengths are equal, compare the paths
-	return memcmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
+	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
 
 
@@ -228,5 +228,5 @@ PgbsonElementOrderedHashCompareFunc(const void *obj1, const void *obj2, Size obj
 	}
 
 	// If lengths are equal, compare the paths
-	return memcmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
+	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
