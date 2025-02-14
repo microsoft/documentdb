@@ -72,7 +72,8 @@ PgbsonElementHashEntryHashFunc(const void *obj, size_t objsize)
  * on string_compare()) used to determine if keys of the bson elements hold
  * by given two PgbsonElementHashEntry objects are the same.
  *
- * Returns 0 if those two bson element keys are same, +ve Int if first is greater otherwise -ve Int.
+ * Returns 0 if those two bson element keys are same and non-0 if element keys are different.
+ * Ref.: hsearch.h -> HashCompareFunc
  */
 static int
 PgbsonElementHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsize)
@@ -80,14 +81,14 @@ PgbsonElementHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsi
 	const PgbsonElementHashEntry *hashEntry1 = obj1;
 	const PgbsonElementHashEntry *hashEntry2 = obj2;
 
-	int minLength = Min(hashEntry1->element.pathLength, hashEntry2->element.pathLength);
-	int result = strncmp(hashEntry1->element.path, hashEntry2->element.path, minLength);
-
-	if (result == 0)
-	{
-		return hashEntry1->element.pathLength - hashEntry2->element.pathLength;
+	// First, compare the lengths
+	int lenDiff = hashEntry1->element.pathLength - hashEntry2->element.pathLength;
+	if (lenDiff != 0) {
+		return lenDiff;
 	}
-	return result;
+
+	// If lengths are equal, compare the paths
+	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
 
 
@@ -211,7 +212,8 @@ PgbsonElementOrderedHashEntryFunc(const void *obj, size_t objsize)
  * on string_compare()) used to determine if keys of the bson elements hold
  * by given two PgbsonElementHashEntryOrdered objects are the same.
  *
- * Returns 0 if those two bson element keys are same, +ve Int if first is greater otherwise -ve Int.
+ * Returns 0 if those two bson element keys are same and non-0 if element keys are different.
+ * Ref.: hsearch.h -> HashCompareFunc
  */
 static int
 PgbsonElementOrderedHashCompareFunc(const void *obj1, const void *obj2, Size objsize)
@@ -219,15 +221,12 @@ PgbsonElementOrderedHashCompareFunc(const void *obj1, const void *obj2, Size obj
 	const PgbsonElementHashEntryOrdered *hashEntry1 = obj1;
 	const PgbsonElementHashEntryOrdered *hashEntry2 = obj2;
 
-	int minPathLength = Min(hashEntry1->element.pathLength,
-							hashEntry2->element.pathLength);
-	int result = strncmp(hashEntry1->element.path, hashEntry2->element.path,
-						 minPathLength);
-
-	if (result == 0)
-	{
-		return hashEntry1->element.pathLength - hashEntry2->element.pathLength;
+	// First, compare the lengths
+	int lenDiff = hashEntry1->element.pathLength - hashEntry2->element.pathLength;
+	if (lenDiff != 0) {
+		return lenDiff;
 	}
 
-	return result;
+	// If lengths are equal, compare the paths
+	return strncmp(hashEntry1->element.path, hashEntry2->element.path, hashEntry1->element.pathLength);
 }
