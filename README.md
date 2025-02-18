@@ -44,13 +44,32 @@ Step 1: Clone the DocumentDB repo.
 git clone https://github.com/microsoft/documentdb.git
 ```
 
-Step 2: Create the docker image. Navigate to cloned repo.
-
+Step 2: Create the docker image. Navigate to cloned repo. Before building, make sure gcc* libs were installed on your system. The easy way is just install them all by:
 ```bash
+cd documentdb/
 docker build . -f .devcontainer/Dockerfile -t documentdb 
 ```
 
 Note: Validate using `docker image ls`
+
+Important Notice: If you keep building error by "gzip: stdin: unexpected end of file" on step [Step 14/46 : RUN [ "bin/bash", "-c", "export MAKE_PROGRAM=cmake && /tmp/install_setup/install_setup_libbson.sh" ]], check the content of "scripts/install_setup_libbson.sh" for line "curl -s -L ... | tar -C ...". Consider converting to wget instead of it.
+```bash
+1. Build error occured:
+  Step 14/46 : RUN [ "bin/bash", "-c", "export MAKE_PROGRAM=cmake && /tmp/install_setup/install_setup_libbson.sh" ]
+ ---> Running in xxxx
+scriptDir: /tmp/install_setup
+/tmp/install_setup /
+
+gzip: stdin: unexpected end of file
+tar: Child returned status 1
+tar: Error is not recoverable: exiting now
+
+2. Check line:
+  curl -s -L https://github.com/mongodb/mongo-c-driver/releases/download/$MONGO_DRIVER_VERSION/mongo-c-driver-$MONGO_DRIVER_VERSION.tar.gz | tar -C $INSTALL_DEPENDENCIES_ROOT -zx --transform="s|mongo-c-driver-$MONGO_DRIVER_VERSION|mongo-c-driver|"
+
+3. Simply modify by insering line blow before "curl -s -L ...", it may works by using the wget cache.
+  wget https://github.com/mongodb/mongo-c-driver/releases/download/$MONGO_DRIVER_VERSION/mongo-c-driver-$MONGO_DRIVER_VERSION.tar.gz -O /tmp/mongo-c-driver-$MONGO_DRIVER_VERSION.tar.gz
+```
 
 Step 3: Run the Image as a container
 
