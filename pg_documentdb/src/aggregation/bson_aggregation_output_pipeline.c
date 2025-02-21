@@ -1272,7 +1272,9 @@ AddTargetCollectionRTEDollarMerge(Query *query, MongoCollection *targetCollectio
 	RangeTblEntry *existingrte = list_nth(query->rtable, 0);
 	query->rtable = list_make2(rte, existingrte);
 	query->resultRelation = 1;
+	#if PG_VERSION_NUM < 170000
 	query->mergeUseOuterJoin = true;
+	#endif
 	query->targetList = NIL;
 }
 
