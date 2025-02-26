@@ -30,6 +30,7 @@ jobs:
         pg_version:
           - 15
           - 16
+          - 17
         os_name:
           - ubuntu-22.04
     steps:
