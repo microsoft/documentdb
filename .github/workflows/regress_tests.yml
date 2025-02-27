@@ -37,7 +37,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          name: regress tests log
           path: *.log
 
       - name: Install package dependencies
