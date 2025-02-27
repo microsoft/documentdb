@@ -131,7 +131,7 @@ jobs:
           export LANGUAGE=en_US
           export LC_COLLATE=en_US.UTF-8
           export LC_CTYPE=en_US.UTF-8
-          make check
+          make -C internal/pg_documentdb_distributed/ check-dist-minimal EXTRA_TESTS=bson_query_operator_near_nearsphere
 
       - name: Citus Indent
         run: |

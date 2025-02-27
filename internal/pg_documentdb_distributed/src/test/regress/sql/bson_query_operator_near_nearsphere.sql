@@ -79,7 +79,7 @@ SELECT documentdb_api.update('db', '{"update":"near_sphere", "updates":[{"q":{},
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "near_sphere", "indexes": [{"key": {"t": 1}, "name": "my_invalid_idx", "partialFilterExpression": {"geo": {"$near": [1,1]}} }]}', true);
 
 
-BEGIN;
+-- BEGIN;
 -- $near operator
 
 -- Test with legacy coordinate pair
@@ -87,6 +87,7 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filt
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0], "$minDistance": 6}}}');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0], "$maxDistance": 6}}}');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0], "$minDistance": 5, "$maxDistance": 8}}}');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0, 6]}}}');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0, 6]}}}');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"x": 0, "y": 0}}}}');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"x": 0, "y": 0, "z": 6}}}}');
@@ -170,7 +171,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point", "coordinates": [0, 0]}, "$minDistance": 500000, "$maxDistance": 1500000}}}}');
 
 
-ROLLBACK;
+-- ROLLBACK;
 
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.geo": { "$nearSphere": [0, 0]}}}');
 
