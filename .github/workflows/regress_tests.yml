@@ -141,8 +141,11 @@ jobs:
         run: |
           ./scripts/validate_extension_file_state.sh
       
+      - name: Debug - Find all log files
+        run: find . -name "*.log"
+
       - name: Upload Log Files
         uses: actions/upload-artifact@v4
         with:
           name: logs
-          path: "*.log"
+          path: "**/*.log"
