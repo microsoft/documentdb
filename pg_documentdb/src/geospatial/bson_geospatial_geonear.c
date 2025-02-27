@@ -680,7 +680,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 						if (IsBsonValueInfinity(distValue))
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg("maxDistance must be non-negative")));
+											errmsg("maxDistance must be non-negative, value is %s, type is %s",
+							   BsonValueToJsonForLogging(value), BsonTypeName(value->value_type))));
 						}
 
 						PgbsonWriterAppendValue(&writer, "maxDistance", 11, distValue);
@@ -1169,6 +1170,7 @@ CheckGeonearEmptyKeyCanUseIndex(GeonearRequest *request,
 static double
 GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 {
+	elog(INFO, "GetDoubleValueForDistance: value is %s, value type is %s", BsonValueToJsonForLogging(value), BsonTypeName(value->value_type));
 	if (!BsonValueIsNumber(value))
 	{
 		ereport(ERROR, (
@@ -1179,7 +1181,8 @@ GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 	else if (isnan(value->value.v_double))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("%s must be non-negative", opName),
+						errmsg("%s must be non-negative, value is %s, type is %s", opName, 
+							   BsonValueToJsonForLogging(value), BsonTypeName(value->value_type)),
 						errdetail_log("%s must be non-negative", opName)));
 	}
 
