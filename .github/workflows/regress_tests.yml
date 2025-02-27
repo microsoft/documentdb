@@ -149,5 +149,6 @@ jobs:
         if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: logs
+          name: logs_${{ matrix.pg_version }}
+          overwrite: true
           path: "**/*.log"
