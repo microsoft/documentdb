@@ -1178,7 +1178,7 @@ GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 	}
 
 	double distValue = BsonValueAsDouble(value);
-	if (isnan(value->value.v_double))
+	if (isnan(distValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg("%s must be non-negative", opName),
