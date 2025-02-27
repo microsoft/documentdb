@@ -36,8 +36,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: *.log
 
       - name: Install package dependencies
         run: |
@@ -142,3 +140,9 @@ jobs:
       - name: Validate sanity of files
         run: |
           ./scripts/validate_extension_file_state.sh
+      
+      - name: Upload Log Files
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: "*.log"
