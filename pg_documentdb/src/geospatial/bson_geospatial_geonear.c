@@ -1178,12 +1178,17 @@ GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 	}
 
 	double distValue = BsonValueAsDouble(value);
-	if (isnan(distValue) || distValue < 0.0)
+	if (isnan(value->value.v_double))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("%s must be non-negative, but got value %s with type %s", opName, 
-							   BsonValueToJsonForLogging(value), BsonTypeName(value->value_type)),
+						errmsg("%s must be non-negative", opName),
 						errdetail_log("%s must be non-negative", opName)));
+	}
+	else if (distValue < 0.0)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("%s must be nonnegative", opName),
+						errdetail_log("%s must be nonnegative", opName)));
 	}
 
 	return distValue;
