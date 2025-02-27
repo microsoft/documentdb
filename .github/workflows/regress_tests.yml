@@ -131,7 +131,7 @@ jobs:
           export LANGUAGE=en_US
           export LC_COLLATE=en_US.UTF-8
           export LC_CTYPE=en_US.UTF-8
-          make -C internal/pg_documentdb_distributed/ check-dist-minimal EXTRA_TESTS=bson_query_operator_near_nearsphere
+          make check
 
       - name: Citus Indent
         run: |
@@ -140,15 +140,11 @@ jobs:
       - name: Validate sanity of files
         run: |
           ./scripts/validate_extension_file_state.sh
-      
-      - name: Debug - Find all log files
-        if: always() 
-        run: find . -name "*.log"
 
       - name: Upload Log Files
         if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.pg_version }}
+          name: logs_${{ matrix.os_name }}_PG${{ matrix.pg_version }}
           overwrite: true
           path: "**/*.log"
