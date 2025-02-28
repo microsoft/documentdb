@@ -1,0 +1,27 @@
+trigger:
+  branches:
+    include:
+      - "users/yangqiao/AddTriggeringPipeline"
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:  
+- stage: TriggerCompatTestPipeline  
+  displayName: "Extract Source Branch Name"  
+  jobs:  
+  - job: TriggerCompatTest  
+    steps:  
+    - script: |  
+        echo "TriggerCompatTest"
+      displayName: "TriggerCompatTest"  
+  
+- stage: MonitorCompatPipeline  
+  displayName: "Monitor Compat Pipeline"  
+  dependsOn: TriggerCompatTestPipeline  
+  jobs:  
+  - job: MonitorCompatJob  
+    steps:  
+    - script: |  
+        echo "MonitorCompatJob"  
+      displayName: "MonitorCompatJob"  
