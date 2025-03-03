@@ -1,0 +1,84 @@
+trigger:
+  branches:
+    include:
+      - "users/yangqiao/AddTriggeringPipeline"
+
+pool:
+  vmImage: "ubuntu-latest"
+
+stages:
+  - stage: TriggerCompatTestPipeline
+    displayName: "Extract Source Branch Name"
+    jobs:
+      - job: TriggerCompatTest
+        steps:
+          - powershell: |
+              $body = '
+              { 
+                      "definition": {
+                          "id": 45276
+                      },
+                      "templateParameters": {
+                        "sourceBranch": "$(Build.SourceBranch)",
+                        "sourceCommit": "$(Build.SourceVersion)"
+                    }
+              }
+              '
+              Write-Host $body
+              $personalToken = "$(System.AccessToken)"
+              $token =   [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes(":$($personalToken)"))
+              $header = @{authorization = "Basic $token"}
+              $Uri = "https://dev.azure.com/$(INTERNAL_ORGANIZATION)/$(System.TeamProject)/_apis/build/builds?api-version=7.1"
+              Write-Host $Uri
+              $buildresponse = Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $Uri -Body $body -Headers $header
+              Write-Host $buildresponse
+              Write-Host "BuildId: $($buildresponse.id)"
+              Write-Host "BuildNumber: $($buildresponse.buildNumber)"
+              Write-Host "##vso[task.setvariable variable=TriggeredBuildId;isOutput=true]$($buildresponse.id)"
+            displayName: "Trigger Compat Test"
+            name: TriggerCompatTest
+          - powershell: |
+              Write-Host "Triggered Build Id: $(TriggerCompatTest.TriggeredBuildId)"
+            displayName: "Print Triggered Build Id"
+
+  - stage: MonitorCompatPipeline
+    displayName: "Monitor Compat Pipeline"
+    dependsOn: TriggerCompatTestPipeline
+    jobs:
+      - job: MonitorCompatJob
+        variables:
+          buildId: $[ stageDependencies.TriggerCompatTestPipeline.TriggerCompatTest.outputs['TriggerCompatTest.TriggeredBuildId'] ]
+        steps:
+          - powershell: |
+              # Wait for the triggered build to start
+              Start-Sleep -Seconds 30
+              $personalToken = "$(System.AccessToken)"  
+              $token = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes(":$($personalToken)"))  
+              $header = @{authorization = "Basic $token"}  
+              Write-Host "BuildId: $(buildId)"
+              $Uri = "https://dev.azure.com/$(INTERNAL_ORGANIZATION)/$(System.TeamProject)/_apis/build/builds/$(buildId)?api-version=7.1"  
+              Write-Host $Uri  
+
+              $status = "" 
+              $result = "" 
+              do {  
+                Start-Sleep -Seconds 15  
+                $response = Invoke-RestMethod -Method Get -Uri $Uri -Headers $header  
+                $status = $response.status  
+                $result = $response.result
+                Write-Host "Run result: $result"
+                Write-Host "Current Status: $status"  
+              } while ($status -eq "inProgress" -or $status -eq "notStarted")  
+                
+              if ($status -ne "completed") {  
+                Write-Error "Build did not complete successfully. Final status: $status"  
+                exit 1  
+              }  
+              # If the build is completed, check the result
+              if ($result -ne "succeeded") {  
+                Write-Error "Build completed unsuccessfully. Final result: $result"  
+                exit 1  
+              } 
+
+              Write-Host "Build completed successfully. Status: $status"
+            displayName: "MonitorCompatJob"
