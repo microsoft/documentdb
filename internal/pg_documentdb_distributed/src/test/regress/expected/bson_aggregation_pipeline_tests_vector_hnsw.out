@@ -3012,7 +3012,7 @@ EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 1981_1
+   ->  Distributed Subplan X_X
          ->  Limit
                Output: remote_scan.document, remote_scan."?sort?"
                ->  Sort
@@ -3036,11 +3036,11 @@ EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, public.l2_distance(public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true), public.vector(documentdb_api_internal.bson_extract_vector('{ "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ], "k" : { "$numberInt" : "2" }, "path" : "v", "efSearch" : { "$numberInt" : "1" }, "exact" : true }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('1981_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, public.l2_distance(public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true), public.vector(documentdb_api_internal.bson_extract_vector('{ "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ], "k" : { "$numberInt" : "2" }, "path" : "v", "efSearch" : { "$numberInt" : "1" }, "exact" : true }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('X_X'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                Output: documentdb_api_internal.bson_document_add_score_field(intermediate_result.document, l2_distance(vector(documentdb_api_internal.bson_extract_vector(intermediate_result.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
-               Function Call: read_intermediate_result('1981_1'::text, 'binary'::citus_copy_format)
+               Function Call: read_intermediate_result('X_X'::text, 'binary'::citus_copy_format)
 (31 rows)
 
 COMMIT;

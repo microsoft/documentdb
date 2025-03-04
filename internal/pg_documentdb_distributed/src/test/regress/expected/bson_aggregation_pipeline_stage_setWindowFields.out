@@ -348,7 +348,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 78_1
+   ->  Distributed Subplan X_X
          ->  WindowAgg
                Output: remote_scan.document, bsonsum(documentdb_api_internal.bson_expression_get(remote_scan.total, '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson, true, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)) OVER (?), remote_scan."?partitionBy?"
                ->  Sort
@@ -366,11 +366,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(document, documentdb_core.bson_repath_and_build('total'::text, total)) AS document FROM (SELECT intermediate_result.document, intermediate_result.total FROM read_intermediate_result('78_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, total documentdb_core.bson)) agg_stage_0
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(document, documentdb_core.bson_repath_and_build('total'::text, total)) AS document FROM (SELECT intermediate_result.document, intermediate_result.total FROM read_intermediate_result('X_X'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, total documentdb_core.bson)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                Output: documentdb_api_internal.bson_dollar_merge_documents(intermediate_result.document, documentdb_core.bson_repath_and_build('total'::text, intermediate_result.total))
-               Function Call: read_intermediate_result('78_1'::text, 'binary'::citus_copy_format)
+               Function Call: read_intermediate_result('X_X'::text, 'binary'::citus_copy_format)
 (25 rows)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
@@ -441,7 +441,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 97_1
+   ->  Distributed Subplan X_X
          ->  WindowAgg
                Output: remote_scan.document, bsonsum(documentdb_api_internal.bson_expression_get(remote_scan.total, '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson, true, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)) OVER (?), remote_scan."?partitionBy?"
                ->  Sort
@@ -459,11 +459,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(document, documentdb_core.bson_repath_and_build('total'::text, total)) AS document FROM (SELECT intermediate_result.document, intermediate_result.total FROM read_intermediate_result('97_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, total documentdb_core.bson)) agg_stage_0
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(document, documentdb_core.bson_repath_and_build('total'::text, total)) AS document FROM (SELECT intermediate_result.document, intermediate_result.total FROM read_intermediate_result('X_X'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, total documentdb_core.bson)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                Output: documentdb_api_internal.bson_dollar_merge_documents(intermediate_result.document, documentdb_core.bson_repath_and_build('total'::text, intermediate_result.total))
-               Function Call: read_intermediate_result('97_1'::text, 'binary'::citus_copy_format)
+               Function Call: read_intermediate_result('X_X'::text, 'binary'::citus_copy_format)
 (25 rows)
 
 ---------------------------------------------------------------------
