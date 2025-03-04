@@ -507,7 +507,7 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
                                                                                                                 QUERY PLAN                                                                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
-   ->  Distributed Subplan 142_1
+   ->  Distributed Subplan X_X
          ->  HashAggregate
                Group Key: remote_scan.c2
                ->  Custom Scan (Citus Adaptive)
@@ -529,7 +529,7 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
                                                                                                                 QUERY PLAN                                                                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
-   ->  Distributed Subplan 144_1
+   ->  Distributed Subplan X_X
          ->  HashAggregate
                Group Key: remote_scan.c2
                ->  Custom Scan (Citus Adaptive)
