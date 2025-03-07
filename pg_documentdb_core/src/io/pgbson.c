@@ -449,7 +449,7 @@ PgbsonToLegacyJson(const pgbson *bsonDocument)
 	}
 
 	/* since bson strings are palloced - we can simply return the string created. */
-	return bson_as_json(&bson, NULL);
+	return bson_as_legacy_extended_json(&bson, NULL);
 }
 
 
