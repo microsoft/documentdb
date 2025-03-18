@@ -8,4 +8,4 @@ RUN git config --global --add safe.directory /home/DocumentDB/code
 RUN make  && sudo make install
   
 # Set the entry point to run the new script at container startup  
-ENTRYPOINT ["/home/documentdb/code/scripts/start_services.sh"]  
+CMD ["bash", "-c", "/home/documentdb/code/scripts/start_oss_server.sh & tail -f /dev/null"]
