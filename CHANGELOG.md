@@ -1,3 +1,5 @@
+### documentdb v0.103-0 (Unreleased) ###
+
 ### documentdb v0.102-0 (Unreleased) ###
 * Support index pushdown for vector search queries *[Bugfix]*
 * Support exact search for vector search queries *[Feature]*
