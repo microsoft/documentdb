@@ -105,6 +105,7 @@ function InitDatabaseExtended()
 {
   local _directory=$1
   local _preloadLibraries=$2
+  local enableHostAccess=$3;
   
   echo "Deleting directory $_directory"
   rm -rf $_directory
@@ -112,7 +113,7 @@ function InitDatabaseExtended()
 
   echo "Calling initdb for $_directory"
   $(GetInitDB) -D $_directory
-  SetupPostgresConfigurations $_directory "$_preloadLibraries"
+  SetupPostgresConfigurations $_directory "$_preloadLibraries" $enableHostAccess
 }
 
 
@@ -120,8 +121,17 @@ function SetupPostgresConfigurations()
 {
   local installdir=$1;
   local preloadLibraries=$2;
+  local enableHostAccess=$3;
   requiredLibraries="citus, pg_cron, ${preloadLibraries}";
   echo shared_preload_libraries = \'$requiredLibraries\' | tee -a $installdir/postgresql.conf
   echo cron.database_name = \'postgres\' | tee -a $installdir/postgresql.conf
   echo ssl = off | tee -a $installdir/postgresql.conf
+
+  if [ "$enableHostAccess" == "true" ]; then
+    echo "Enabling external access to PostgreSQL..."
+    sed -i "s/^#listen_addresses = 'localhost'/listen_addresses = '*'/" "$installdir/postgresql.conf"
+
+    local allowedIpRange="${allowedIpRange:-0.0.0.0/0}"
+    echo "host    all    all    $allowedIpRange    scram-sha-256" >> "$installdir/pg_hba.conf"
+  fi
 }
