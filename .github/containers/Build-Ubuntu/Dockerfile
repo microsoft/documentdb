@@ -20,8 +20,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     pkg-config \
     cmake \
     git \
-	locales \
-	gcc \
+    locales \
+    gcc \
     gdb \
     libipc-run-perl \
     unzip \
