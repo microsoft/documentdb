@@ -1,19 +1,19 @@
-trigger:
-  branches:
-    include:
-      - main
-  paths:
-    exclude:
-      - .github/*
-
-# pr:
+# trigger:
 #   branches:
 #     include:
-#       - '*'
+#       - main
+#   paths:
+#     exclude:
+#       - .github/*
 
 pr:
-- main
-- users/yangqiao/AddTriggeringPipeline
+  branches:
+    include:
+      - '*'
+
+# pr:
+# - main
+# - users/yangqiao/AddTriggeringPipeline
 
 pool:
   vmImage: "ubuntu-latest"
