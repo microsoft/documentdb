@@ -69,7 +69,7 @@ Step 4: Build & Deploy the binaries
 make 
 ```
 
-Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/DocumentDB/code` within image.
+Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/documentdb/code` within image.
 
 ```bash
 sudo make install
