@@ -1,5 +1,4 @@
-name: build packages
-run-name: ${{ github.event.pull_request.title || '' }}
+name: Build deb packages
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -9,6 +8,12 @@ on:
   push:
     branches:
       - 'main'
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
     paths-ignore:
       - 'docs/**'
       - '.devcontainer/**'
