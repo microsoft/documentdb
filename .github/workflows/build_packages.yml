@@ -1,0 +1,46 @@
+name: build packages
+run-name: ${{ github.event.pull_request.title || '' }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
+
+jobs:
+  build-deb-packages:
+    runs-on: ${{ matrix.os_name }}
+    name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_version:
+          - 15
+          - 16
+          - 17
+        os_name:
+          - deb11
+          - deb12
+          - ubuntu-22.04
+          - ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build .deb package
+        run: ./packaging/build_packages.sh --os $OS --pg $PG_VERSION --test-clean-install
+
+      - name: Upload .deb package as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-package-${{ matrix.os }}-pg${{ matrix.pg }}
+          path: build/*.deb
+          retention-days: 7
