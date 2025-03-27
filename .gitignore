@@ -70,5 +70,5 @@ build/
 # temp schedules
 *.tmp
 
-# FerretDB packages
+# deb packages
 *.deb
