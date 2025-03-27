@@ -1,3 +1,6 @@
+# all C files (implementation and header) use our style...
+*.[ch] citus-style
+
 * text=auto
 *.sh text eol=lf
 *.md text eol=lf
