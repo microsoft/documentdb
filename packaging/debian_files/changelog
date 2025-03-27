@@ -1,0 +1,5 @@
+documentdb (DOCUMENTDB_VERSION) Unreleased; urgency=low
+
+  * Initial release.
+
+ -- DocumentDB Packages <shuaitian@microsoft.com>  Wed, 26 Mar 2026 12:00:00 +0000
