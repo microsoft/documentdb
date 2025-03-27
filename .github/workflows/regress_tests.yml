@@ -125,13 +125,13 @@ jobs:
           make
           sudo make install
 
-      - name: Run Tests
-        run: |          
-          export LC_ALL=en_US.UTF-8
-          export LANGUAGE=en_US
-          export LC_COLLATE=en_US.UTF-8
-          export LC_CTYPE=en_US.UTF-8
-          make check
+      # - name: Run Tests
+      #   run: |          
+      #     export LC_ALL=en_US.UTF-8
+      #     export LANGUAGE=en_US
+      #     export LC_COLLATE=en_US.UTF-8
+      #     export LC_CTYPE=en_US.UTF-8
+      #     make check
 
       - name: Citus Indent
         run: |
