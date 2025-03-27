@@ -143,6 +143,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the <bigint> OPERATOR(pg_catalog.=) <bigint> operator */
 	Oid BigintEqualOperatorId;
 
+	/* OID of hte <bigint> > <bigint> operator */
+	Oid BigIntGreaterOperatorId;
+
 	/* OID of the <text> OPERATOR(pg_catalog.=) <text> operator */
 	Oid TextEqualOperatorId;
 
@@ -1082,6 +1085,12 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* Oid of ApiInternalSchemaName.bson_query_match with collation and let */
 	Oid BsonQueryMatchWithLetAndCollationFunctionId;
+
+	/* Opclass for the integer ops */
+	Oid IntegerOpsOpFamilyOid;
+
+	/* OpFamily for the Bson BTree ops */
+	Oid BsonBtreeOpFamilyOid;
 } DocumentDBApiOidCacheData;
 
 static DocumentDBApiOidCacheData Cache;
@@ -1341,6 +1350,27 @@ BigintEqualOperatorId(void)
 	}
 
 	return Cache.BigintEqualOperatorId;
+}
+
+
+/*
+ * BigintEqualOperatorId returns the OID of the <bigint> = <bigint> operator.
+ */
+Oid
+BigIntGreaterOperatorId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BigIntGreaterOperatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString("pg_catalog"),
+											makeString(">"));
+
+		Cache.BigIntGreaterOperatorId =
+			OpernameGetOprid(operatorNameList, INT8OID, INT8OID);
+	}
+
+	return Cache.BigIntGreaterOperatorId;
 }
 
 
@@ -6341,6 +6371,42 @@ ApiCatalogCollectionIndexIdSequenceId(void)
 	}
 
 	return Cache.CollectionIndexIdSequenceId;
+}
+
+
+Oid
+IntegerOpsOpFamilyOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.IntegerOpsOpFamilyOid == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.IntegerOpsOpFamilyOid = get_opfamily_oid(
+			BTREE_AM_OID, list_make2(makeString("pg_catalog"), makeString(
+										 "integer_ops")),
+			missingOk);
+	}
+
+	return Cache.IntegerOpsOpFamilyOid;
+}
+
+
+Oid
+BsonBtreeOpFamilyOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonBtreeOpFamilyOid == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.BsonBtreeOpFamilyOid = get_opfamily_oid(
+			BTREE_AM_OID, list_make2(makeString(CoreSchemaName), makeString(
+										 "bson_btree_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonBtreeOpFamilyOid;
 }
 
 

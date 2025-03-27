@@ -114,6 +114,9 @@ bool EnableLetAndCollationForQueryMatch =
 #define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
 bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 
+#define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
+bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
+
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -340,5 +343,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable in indexbounds tracking for partial filter expressions."),
 		NULL, &EnableIndexOperatorBounds,
 		DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enablePrimaryKeyCursorScan", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable primary key cursor scan for streaming cursors."),
+		NULL, &EnablePrimaryKeyCursorScan,
+		DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
