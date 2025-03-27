@@ -33,8 +33,11 @@ bool EnableVectorPreFilterV2 = DEFAULT_ENABLE_VECTOR_PRE_FILTER_V2;
 #define DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN false
 bool EnableVectorForceIndexPushdown = DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN;
 
-#define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS false
+#define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
+
+#define DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS true
+bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS;
 
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN false
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
@@ -65,17 +68,8 @@ bool SkipFailOnCollation = DEFAULT_SKIP_FAIL_ON_COLLATION;
 bool EnableLookupIdJoinOptimizationOnCollation =
 	DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION;
 
-/* Can remove post V0.25 */
-#define DEFAULT_ENABLE_FASTPATH_POINTLOOKUP_PLANNER true
-bool EnableFastPathPointLookupPlanner =
-	DEFAULT_ENABLE_FASTPATH_POINTLOOKUP_PLANNER;
-
 #define DEFAULT_ENABLE_USER_CRUD false
 bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
-
-/* Can remove post V0.25 */
-#define DEFAULT_ENABLE_SHARDING_OR_FILTERS true
-bool EnableShardingOrFilters = DEFAULT_ENABLE_SHARDING_OR_FILTERS;
 
 #define DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY false
 bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
@@ -99,9 +93,7 @@ bool AllowNestedAggregationFunctionInQueries =
 #define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
 bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
 
-/* Whether or not to enforce a per command backend timeout */
-/* TODO: Enable in V0.25 */
-#define DEFAULT_ENABLE_STATEMENT_TIMEOUT false
+#define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
 bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 
 #define DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS true
@@ -115,9 +107,12 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 bool EnableMatchWithLetInLookup =
 	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
 
-#define DEFAULT_ENABLE_COLLATION_LET_FOR_WRITE_COMMANDS false
-bool EnableCollationAndLetForQueryMatch =
-	DEFAULT_ENABLE_COLLATION_LET_FOR_WRITE_COMMANDS;
+#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
+bool EnableLetAndCollationForQueryMatch =
+	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
+
+#define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
+bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)
@@ -154,6 +149,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		psprintf("%s.enable_large_unique_index_keys", newGucPrefix),
 		gettext_noop("Whether or not to enable large index keys on unique indexes."),
 		NULL, &DefaultEnableLargeUniqueIndexKeys, DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.disable_statistics_for_unique_columns", newGucPrefix),
+		gettext_noop(
+			"Whether or not to disable statistics for unique columns in analyze"),
+		NULL, &DisableStatisticsForUniqueColumns,
+		DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -277,15 +280,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableFastPathPointLookupPlanner", newGucPrefix),
-		gettext_noop(
-			"Determines whether or not the fast path planner for point lookup queries is enabled."),
-		NULL, &EnableFastPathPointLookupPlanner,
-		DEFAULT_ENABLE_FASTPATH_POINTLOOKUP_PLANNER,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
 	DefineCustomBoolVariable(
 		psprintf("%s.enableUserCrud", newGucPrefix),
 		gettext_noop(
@@ -294,10 +288,11 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableShardingOrFilters", newGucPrefix),
+		psprintf("%s.enableNowSystemVariable", newGucPrefix),
 		gettext_noop(
-			"Whether to enable OR filter based detection for the shard key."),
-		NULL, &EnableShardingOrFilters, DEFAULT_ENABLE_SHARDING_OR_FILTERS,
+			"Enables support for the $$NOW time system variable."),
+		NULL, &EnableNowSystemVariable,
+		DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -305,14 +300,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Whether to enable per statement backend timeout override in the backend."),
 		NULL, &EnableBackendStatementTimeout, DEFAULT_ENABLE_STATEMENT_TIMEOUT,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableNowSystemVariable", newGucPrefix),
-		gettext_noop(
-			"Enables support for the $$NOW time system variable."),
-		NULL, &EnableNowSystemVariable,
-		DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -340,10 +327,18 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableCollationAndLetForQueryMatch", newGucPrefix),
+		psprintf("%s.enableLetAndCollationForQueryMatch", newGucPrefix),
 		gettext_noop(
-			"Whether or not to enable collation and let for write commands."),
-		NULL, &EnableCollationAndLetForQueryMatch,
-		DEFAULT_ENABLE_COLLATION_LET_FOR_WRITE_COMMANDS,
+			"Whether or not to enable collation and let for query match and write commands."),
+		NULL, &EnableLetAndCollationForQueryMatch,
+		DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableindexboundsoperators", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable in indexbounds tracking for partial filter expressions."),
+		NULL, &EnableIndexOperatorBounds,
+		DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

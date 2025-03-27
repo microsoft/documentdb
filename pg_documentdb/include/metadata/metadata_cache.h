@@ -91,7 +91,7 @@ Oid ApiCurrentCursorStateFunctionId(void);
 Oid ExtensionTableSampleSystemRowsFunctionId(void);
 Oid BsonInRangeNumericFunctionId(void);
 Oid BsonInRangeIntervalFunctionId(void);
-Oid BsonQueryMatchWithCollationAndLetFunctionId(void);
+Oid BsonQueryMatchWithLetAndCollationFunctionId(void);
 
 /* bson_value functions */
 Oid BsonValueEqualMatchFunctionId(void);
@@ -117,6 +117,8 @@ Oid BsonNotLessThanEqualFunctionId(void);
 Oid BsonNotLessThanFunctionId(void);
 Oid BsonNotGreaterThanFunctionId(void);
 Oid BsonNotGreaterThanEqualFunctionId(void);
+Oid BsonIndexBoundsEqualOperatorId(void);
+Oid BsonIndexBoundsEqualOperatorFuncId(void);
 
 /* operators */
 Oid BigintEqualOperatorId(void);
@@ -148,6 +150,8 @@ Oid IndexSpecTypeId(void);
 Oid MongoCatalogCollectionsTypeOid(void);
 Oid GetClusterBsonQueryTypeId(void);
 Oid GetBsonArrayTypeOid(void);
+Oid BsonIndexBoundsTypeId(void);
+Oid GetBsonIndexBoundsArrayTypeOid(void);
 
 /* sequences */
 Oid ApiCatalogCollectionIdSequenceId(void);
@@ -174,6 +178,7 @@ Oid PostgresMakeIntervalFunctionId(void);
 Oid PostgresDateBinFunctionId(void);
 Oid PostgresAgeBetweenTimestamp(void);
 Oid PostgresDatePartFromInterval(void);
+Oid PostgresUUIDInFunctionId(void);
 
 /* Index AM */
 Oid RumIndexAmId(void);
@@ -281,13 +286,16 @@ Oid BsonCovariancePopAggregateFunctionOid(void);
 Oid BsonCovarianceSampAggregateFunctionOid(void);
 Oid BsonDollarAddFieldsFunctionOid(void);
 Oid BsonDollarAddFieldsWithLetFunctionOid(void);
+Oid BsonDollarAddFieldsWithLetAndCollationFunctionOid(void);
 Oid BsonDollarMergeDocumentAtPathFunctionOid(void);
 Oid BsonDollaMergeDocumentsFunctionOid(void);
 Oid BsonDollarProjectGeonearFunctionOid(void);
 Oid BsonDollarInverseMatchFunctionId(void);
 Oid BsonDollarProjectFunctionOid(void);
 Oid BsonDollarProjectWithLetFunctionOid(void);
+Oid BsonDollarProjectWithLetAndCollationFunctionOid(void);
 Oid BsonDollarRedactWithLetFunctionOid(void);
+Oid BsonDollarRedactWithLetAndCollationFunctionOid(void);
 Oid BsonDollarMergeHandleWhenMatchedFunctionOid(void);
 Oid BsonDollarMergeAddObjectIdFunctionOid(void);
 Oid BsonDollarMergeGenerateObjectId(void);
@@ -296,10 +304,12 @@ Oid BsonDollarMergeExtractFilterFunctionOid(void);
 Oid BsonDollarMergeJoinFunctionOid(void);
 Oid BsonDollarProjectFindFunctionOid(void);
 Oid BsonDollarProjectFindWithLetFunctionOid(void);
+Oid BsonDollarProjectFindWithLetAndCollationFunctionOid(void);
 Oid BsonDollarUnwindFunctionOid(void);
 Oid BsonDollarUnwindWithOptionsFunctionOid(void);
 Oid BsonDollarReplaceRootFunctionOid(void);
 Oid BsonDollarReplaceRootWithLetFunctionOid(void);
+Oid BsonDollarReplaceRootWithLetAndCollationFunctionOid(void);
 Oid BsonSumAggregateFunctionOid(void);
 Oid BsonIntegralAggregateFunctionOid(void);
 Oid BsonDerivativeAggregateFunctionOid(void);

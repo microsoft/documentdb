@@ -330,3 +330,140 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 RESET citus.explain_all_tasks;
 RESET citus.max_adaptive_executor_pool_size;
+
+-- query match
+-- enableLetAndCollationForQueryMatch GUC off: ignore variableSpec
+SET documentdb.enableLetAndCollationForQueryMatch TO off;
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"a": "$$varRef"} }', '{ "let": {"varRef": "cat"} }', NULL);
+
+-- enableLetAndCollationForQueryMatch GUC on: use variableSpec
+SET documentdb.enableLetAndCollationForQueryMatch TO on;
+
+-- query match: wrong access of variable in query (outside $expr)
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"a": "$$varRef"}', '{ "let": {"varRef": "cat"} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 5}', '{"a": {"$lt": "$$varRef"} }', '{ "let": {"varRef": 10} }', NULL);
+
+-- query match: using $expr
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"$eq": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "cat"} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat", "b": "dog"}', '{"$expr": {"$and": [{"$eq": ["$a", "$$varRef1"] }, {"$eq": ["$b", "$$varRef2"] } ]} }', '{ "let": {"varRef1": "cat", "varRef2": "dog"} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"$ne": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "dog"} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 2}', '{"$expr": {"$gt": ["$a", "$$varRef"] } }', '{ "let": {"varRef": 5} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 2}', '{"$expr": {"$gte": ["$a", "$$varRef"] } }', '{ "let": {"varRef": -2} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 2}', '{"$expr": {"$or": [{"$lt": ["$a", "$$varRef1"] }, {"$gt": ["$b", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 2} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 2}', '{"$expr": {"$and": [{"$lt": ["$a", "$$varRef1"] }, {"$gt": ["$b", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 2} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": 2}', '{"$expr": {"$not": {"$lt": ["$a", "$$varRef"] } } }', '{ "let": {"varRef": 5} }', NULL);
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"$in": ["$a", ["$$varRef1", "$$varRef2"]] } }', '{ "let": {"varRef1": "cat", "varRef2": "dog"} }', NULL);
+
+-- query match: sharded collection
+SELECT documentdb_api.shard_collection('db', 'coll_query_op_let', '{ "_id": "hashed" }', false);
+SELECT documentdb_api.insert_one('db', 'coll_query_op_let', '{"_id": 1, "a": "cat" }', NULL);
+SELECT documentdb_api.insert_one('db', 'coll_query_op_let', '{"_id": 2, "a": "dog" }', NULL);
+
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE documentdb_api_internal.bson_query_match(document, '{"$expr": {"$eq": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "cat"} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$ne": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "dog"} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$in": ["$a", ["$$varRef1", "$$varRef2"]] } }', '{ "let": {"varRef1": "cat", "varRef2": "dog"} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$and": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$or": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$not": {"$lt": ["$_id", "$$varRef"] } } }', '{ "let": {"varRef": 1} }', NULL);
+
+RESET documentdb.enableLetAndCollationForQueryMatch;
+
+
+-- let with geonear
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "agg_geonear_let", "indexes": [{"key": {"a.b": "2d"}, "name": "my_2d_ab_idx" }, {"key": {"a.b": "2dsphere"}, "name": "my_2ds_ab_idx" }]}');
+SELECT documentdb_api.insert_one('db','agg_geonear_let','{ "_id": 1, "a": { "b": [ 5, 5]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_geonear_let','{ "_id": 2, "a": { "b": [ 5, 6]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_geonear_let','{ "_id": 3, "a": { "b": [ 5, 7]} }', NULL);
+
+SELECT document FROM bson_aggregation_pipeline('db', $$
+{
+    "aggregate": "agg_geonear_let", 
+    "pipeline": [
+      {
+        "$geoNear":
+          { 
+            "near": "$location", 
+            "distanceField": "dist.calculated",
+            "key": "a.b" 
+          } 
+      } 
+    ]
+}
+$$);
+
+SELECT document FROM bson_aggregation_pipeline('db', $$
+{
+    "aggregate": "agg_geonear_let", 
+    "pipeline": [
+      {
+        "$geoNear":
+          { 
+            "near": { "$literal" : "Not a valid point" }, 
+            "distanceField": "dist.calculated",
+            "key": "a.b" 
+          } 
+      } 
+    ],
+    "let": { "pointRef": [5, 6], "dist1": 0, "dist2": 2}
+}
+$$);
+
+SELECT document FROM bson_aggregation_pipeline('db', $$
+{
+    "aggregate": "agg_geonear_let", 
+    "pipeline": [
+      {
+        "$geoNear":
+          { 
+            "near": { "$literal" : [5, 6] }, 
+            "distanceField": "dist.calculated",
+            "minDistance": "$p",
+            "key": "a.b" 
+          } 
+      } 
+    ],
+    "let": { "pointRef": [5, 6], "dist1": 0, "dist2": 2}
+}
+$$);
+
+SELECT document FROM bson_aggregation_pipeline('db', $$ 
+{
+    "aggregate": "agg_geonear_let", 
+    "pipeline": [
+      {
+        "$geoNear":
+          { 
+            "near": { "$literal" : [5, 6] }, 
+            "distanceField": "dist.calculated",
+            "maxDistance": { "$literal": [1, 2] },
+            "key": "a.b" 
+          } 
+      } 
+    ],
+    "let": { "pointRef": [5, 6], "dist1": 0, "dist2": 2}
+}
+$$);
+
+-- a valid query
+SELECT document FROM bson_aggregation_pipeline('db', $spec$
+{
+    "aggregate": "agg_geonear_let", 
+    "pipeline": [
+      {
+        "$geoNear":
+          { 
+            "near": "$$pointRef", 
+            "distanceField": "dist.calculated",
+            "minDistance": "$$dist1",
+            "maxDistance": "$$dist2",
+            "key": "a.b" 
+          } 
+      } 
+    ],
+    "let": { "pointRef": [5, 5], "dist1": 0, "dist2": 2}
+}
+$spec$);

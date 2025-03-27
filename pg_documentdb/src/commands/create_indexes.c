@@ -36,6 +36,7 @@
 #include <utils/ruleutils.h>
 #include <utils/snapmgr.h>
 #include <utils/syscache.h>
+#include <catalog/index.h>
 
 #include "api_hooks.h"
 #include "io/bson_core.h"
@@ -183,7 +184,9 @@ extern int IndexTruncationLimitOverride;
 extern int MaxWildcardIndexKeySize;
 extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
-extern bool ForceEnableNewUniqueOpClass;
+extern bool DisableStatisticsForUniqueColumns;
+
+char *AlternateIndexHandler = NULL;
 
 #define WILDCARD_INDEX_SUFFIX "$**"
 #define DOT_WILDCARD_INDEX_SUFFIX "." WILDCARD_INDEX_SUFFIX
@@ -211,6 +214,7 @@ PG_FUNCTION_INFO_V1(generate_create_index_arg);
 PG_FUNCTION_INFO_V1(command_create_indexes_non_concurrently);
 PG_FUNCTION_INFO_V1(command_create_temp_indexes_non_concurrently);
 PG_FUNCTION_INFO_V1(command_index_build_is_in_progress);
+PG_FUNCTION_INFO_V1(command_fix_unique_index_stats_for_collection);
 
 static ReIndexResult reindex_concurrently(Datum dbNameDatum,
 										  Datum collectionNameDatum);
@@ -309,7 +313,8 @@ static char * GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexD
 								   indexDefWildcardProjTree,
 								   const char *indexName, const char *defaultLanguage,
 								   const char *languageOverride,
-								   bool enableLargeIndexKeys);
+								   bool enableLargeIndexKeys,
+								   bool supportsAlternateIndexHandler);
 static char * Generate2dsphereIndexExprStr(const IndexDefKey *indexDefKey);
 static char * Generate2dsphereSparseExprStr(const IndexDefKey *indexDefKey);
 static char * GenerateIndexFilterStr(uint64 collectionId, Expr *indexDefPartFilterExpr);
@@ -379,6 +384,21 @@ ComputeIndexTermLimit(uint32_t baseIndexTermLimit)
 	}
 
 	return indexTermLimit;
+}
+
+
+/*
+ * Helper function to get the name of the index handler to use.
+ */
+inline static char *
+GetIndexAmHandlerName(bool supportsAlternateIndexHandler)
+{
+	if (supportsAlternateIndexHandler && AlternateIndexHandler != NULL)
+	{
+		return AlternateIndexHandler;
+	}
+
+	return "rum";
 }
 
 
@@ -472,6 +492,44 @@ command_create_temp_indexes_non_concurrently(PG_FUNCTION_ARGS)
 	}
 
 	PG_RETURN_POINTER(MakeCreateIndexesMsg(&result));
+}
+
+
+/*
+ * Update the index stats for unique indexes uuid column for the given collection to be 0
+ * so that analyze doesn't run on such index columns.
+ */
+Datum
+command_fix_unique_index_stats_for_collection(PG_FUNCTION_ARGS)
+{
+	uint64 collectionId = (uint64) PG_GETARG_INT64(0);
+
+	MongoCollection *collection = GetMongoCollectionByColId(collectionId,
+															AccessShareLock);
+	if (collection == NULL)
+	{
+		ereport(NOTICE, errmsg("Collection is null"));
+		PG_RETURN_VOID();
+	}
+
+	List *indexList = CollectionIdGetValidIndexes(collectionId, true, true);
+	List *indexIdList = NIL;
+	ListCell *cell;
+	foreach(cell, indexList)
+	{
+		IndexDetails *det = lfirst(cell);
+		if (det->indexSpec.indexUnique == BoolIndexOption_True)
+		{
+			indexIdList = lappend_int(indexIdList, det->indexId);
+		}
+	}
+
+	if (indexIdList != NIL)
+	{
+		UpdateIndexStatsForPostgresIndex(collectionId, indexIdList);
+	}
+
+	PG_RETURN_VOID();
 }
 
 
@@ -928,6 +986,9 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 		bool isTempCollection = false;
 		CreatePostgresIndex(collectionId, indexDef, indexId, createIndexesConcurrently,
 							isTempCollection, isUnsharded);
+
+		/* Set statistics for the created indexes */
+		UpdateIndexStatsForPostgresIndex(collectionId, list_make1_int(indexId));
 	}
 
 	/*
@@ -4047,6 +4108,9 @@ TryCreateCollectionIndexes(uint64 collectionId, List *indexDefList,
 	ResourceOwner oldOwner = CurrentResourceOwner;
 	BeginInternalSubTransaction(NULL);
 
+	/* Set statistics for the created indexes */
+	UpdateIndexStatsForPostgresIndex(collectionId, indexIdList);
+
 	/* declared volatile because of the longjmp in PG_CATCH */
 	volatile bool markedIndexesAsValid = false;
 	PG_TRY();
@@ -4367,6 +4431,7 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 			enableLargeIndexKeys = true;
 		}
 
+		bool supportsAlternateIndexHandler = false;
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_rum (%s) %s%s%s",
@@ -4376,7 +4441,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->name,
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
-											  enableLargeIndexKeys),
+											  enableLargeIndexKeys,
+											  supportsAlternateIndexHandler),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4497,15 +4563,30 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 								   BoolIndexOption_False;
 		}
 
+		/* Currently alternate index handler is only supported for single path simple indexes, this will be updated as we add more support. */
+		bool supportsAlternateIndexHandler = AlternateIndexHandler != NULL &&
+											 !indexDef->unique &&
+											 indexDef->wildcardProjectionTree == NULL &&
+											 !indexDef->key->isWildcard &&
+											 list_length(indexDef->key->keyPathList) ==
+											 1 &&
+											 ((IndexDefKeyPath *) linitial(
+												  indexDef->key->keyPathList))->indexKind
+											 == MongoIndexKind_Regular;
+
+		char *indexAmSuffix = GetIndexAmHandlerName(supportsAlternateIndexHandler);
+
 		appendStringInfo(cmdStr,
-						 " USING %s_rum (%s) %s%s%s",
+						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
+						 indexAmSuffix,
 						 GenerateIndexExprStr(unique, sparse, indexDef->key,
 											  indexDef->wildcardProjectionTree,
 											  indexDef->name,
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
-											  enableLargeIndexKeys),
+											  enableLargeIndexKeys,
+											  supportsAlternateIndexHandler),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4837,9 +4918,12 @@ static char *
 GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
-					 const char *languageOverride, bool enableLargeIndexKeys)
+					 const char *languageOverride, bool enableLargeIndexKeys,
+					 bool supportsAlternateIndexHandler)
 {
 	StringInfo indexExprStr = makeStringInfo();
+
+	char *indexOpClassAmName = GetIndexAmHandlerName(supportsAlternateIndexHandler);
 
 	char *languageOptionKey = "";
 	char *languageOptionValue = "";
@@ -4862,8 +4946,7 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 	bool enableTruncation = enableLargeIndexKeys || ForceIndexTermTruncation;
 
 	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys &&
-									  (ForceEnableNewUniqueOpClass ||
-									   IsClusterVersionAtleast(DocDB_V0, 24, 0));
+									  IsClusterVersionAtleast(DocDB_V0, 24, 0);
 
 	/* For unique with truncation, instead of creating a unique hash for every column, we simply create a single
 	 * value with a new operator that handles unique constraints. That way for a composite unique index, we support
@@ -4909,9 +4992,10 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 		if (indexDefKey->hasTextIndexes)
 		{
 			appendStringInfo(indexExprStr,
-							 "%s document %s.bson_rum_text_path_ops(weights=%s%s%s%s%s%s)",
+							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
+							 indexOpClassAmName,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
 							 list_length(indexDefKey->textPathList) == 0 ?
@@ -4923,10 +5007,11 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 		else if (!indexDefWildcardProjTree)
 		{
 			appendStringInfo(indexExprStr,
-							 "%s document %s.bson_rum_single_path_ops"
+							 "%s document %s.bson_%s_single_path_ops"
 							 "(path='', iswildcard=true%s%s)",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
+							 indexOpClassAmName,
 							 indexTermSizeLimitArg,
 							 wildcardIndexTruncatedPathLimit);
 
@@ -4950,10 +5035,11 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 			 */
 			bool includeId = wpPathOps->idFieldInclusion == WP_IM_INCLUDE;
 			appendStringInfo(indexExprStr,
-							 "%s document %s.bson_rum_wildcard_project_path_ops"
+							 "%s document %s.bson_%s_wildcard_project_path_ops"
 							 "(includeid=%s%s%s",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
+							 indexOpClassAmName,
 							 includeId ? "true" : "false",
 							 indexTermSizeLimitArg,
 							 wildcardIndexTruncatedPathLimit);
@@ -5049,9 +5135,10 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 					}
 
 					appendStringInfo(indexExprStr,
-									 "%s document %s.bson_rum_single_path_ops(path=%s%s%s%s)",
+									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
 									 ApiCatalogSchemaName,
+									 indexOpClassAmName,
 									 quote_literal_cstr(keyPath),
 									 indexKeyPath->isWildcard ? ",iswildcard=true" : "",
 									 indexTermSizeLimitArg,
@@ -5089,10 +5176,11 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 					}
 
 					appendStringInfo(indexExprStr,
-									 "%s document %s.%s_rum_hashed_ops(path=%s)",
+									 "%s document %s.%s_%s_hashed_ops(path=%s)",
 									 firstColumnWritten ? "," : "",
 									 ApiCatalogSchemaName,
 									 ExtensionObjectPrefix,
+									 indexOpClassAmName,
 									 quote_literal_cstr(keyPath));
 					break;
 				}
@@ -5107,9 +5195,10 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 					}
 
 					appendStringInfo(indexExprStr,
-									 "%s document %s.bson_rum_text_path_ops(weights=%s%s%s%s%s%s)",
+									 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
 									 ApiCatalogSchemaName,
+									 indexOpClassAmName,
 									 quote_literal_cstr(SerializeWeightedPaths(
 															indexDefKey->textPathList)),
 									 indexKeyPath->isWildcard ? ", iswildcard=true" : "",
@@ -5156,9 +5245,10 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 		if (indexDefKey->hasTextIndexes && !textOptionsIndexWritten)
 		{
 			appendStringInfo(indexExprStr,
-							 "%s document %s.bson_rum_text_path_ops(weights=%s%s%s%s%s%s)",
+							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
+							 indexOpClassAmName,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
 							 indexDefKey->isWildcard ? ", iswildcard=true" : "",
@@ -5796,4 +5886,72 @@ GenerateUniqueProjectionSpec(IndexDefKey *indexDefKey)
 	/* Now get the pgbson */
 	pgbson *bson = PgbsonWriterGetPgbson(&writer);
 	return PgbsonToHexadecimalString(bson);
+}
+
+
+void
+UpdateIndexStatsForPostgresIndex(uint64 collectionId, List *indexIdList)
+{
+	if (!DisableStatisticsForUniqueColumns)
+	{
+		return;
+	}
+
+	StringInfo indexExprStringInfo = makeStringInfo();
+	ListCell *cell;
+	foreach(cell, indexIdList)
+	{
+		int indexId = lfirst_int(cell);
+
+		char indexName[NAMEDATALEN];
+		sprintf(indexName, DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT, indexId);
+
+		Oid indexOid = get_relname_relid(indexName, ApiDataNamespaceOid());
+		List *columnNumbers = NIL;
+		if (indexOid != InvalidOid)
+		{
+			Relation indexRel = index_open(indexOid, AccessShareLock);
+			IndexInfo *indexInfo = BuildIndexInfo(indexRel);
+			RelationClose(indexRel);
+
+			/* Only do this for RUM indexes. Vectore and GEO indexes do need statistics. */
+			if (indexInfo->ii_Am != RumIndexAmId())
+			{
+				continue;
+			}
+
+			/* Only do this if there's index expressions (which is only true for unique indexes) */
+			if (indexInfo->ii_Expressions != NIL)
+			{
+				for (int i = 0; i < indexInfo->ii_NumIndexAttrs; i++)
+				{
+					int keycol = indexInfo->ii_IndexAttrNumbers[i];
+					if (keycol == 0)
+					{
+						/* This is an index expression. */
+						columnNumbers = lappend_int(columnNumbers, i + 1);
+					}
+				}
+			}
+		}
+
+		if (columnNumbers != NIL)
+		{
+			ListCell *numberCell;
+			foreach(numberCell, columnNumbers)
+			{
+				resetStringInfo(indexExprStringInfo);
+				appendStringInfo(indexExprStringInfo,
+								 "ALTER INDEX %s.%s ALTER COLUMN %d SET STATISTICS 0",
+								 ApiDataSchemaName, indexName, lfirst_int(numberCell));
+				bool readOnly = false;
+				bool isNullIgnore;
+				ExtensionExecuteQueryViaSPI(indexExprStringInfo->data, readOnly,
+											SPI_OK_UTILITY, &isNullIgnore);
+			}
+
+			list_free(columnNumbers);
+			columnNumbers = NIL;
+		}
+	}
 }

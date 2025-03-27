@@ -60,6 +60,9 @@ typedef enum CacheValidityValue
 static void InvalidateDocumentDBApiCache(Datum argument, Oid relationId);
 static Oid GetBinaryOperatorId(Oid *operatorId, Oid leftTypeOid, char *operatorName,
 							   Oid rightTypeOid);
+static Oid GetInternalBinaryOperatorId(Oid *operatorId, Oid leftTypeOid,
+									   char *operatorName,
+									   Oid rightTypeOid);
 static Oid GetCoreBinaryOperatorId(Oid *operatorId, Oid leftTypeOid, char *operatorName,
 								   Oid rightTypeOid);
 static Oid GetBinaryOperatorFunctionIdWithSchema(Oid *operatorFuncId, char *operatorName,
@@ -428,6 +431,12 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the $eq function function for bson_values */
 	Oid BsonValueEqualMatchFunctionId;
 
+	/* OID of the <bson> ##= <bsonindexbounds> operator */
+	Oid BsonIndexBoundsEqualOperatorId;
+
+	/* OID of the bson_dollar_eq(<bson>, <bsonindexbounds>) */
+	Oid BsonIndedBoundsEqualOperatorFuncId;
+
 	/* OID of the $gt function function for bson_values */
 	Oid BsonValueGreaterMatchFunctionId;
 
@@ -552,6 +561,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* Oid of the extract_interval postgres function which extracts a given date part from interval. */
 	Oid PostgresDatePartFromInterval;
 
+	/* OID of the uuid_in postgres method which converts a string to uuid */
+	Oid PostgresUUIDInFunctionIdOid;
+
 	/* OID of Rum Index access methods */
 	Oid RumIndexAmId;
 
@@ -633,6 +645,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_dollar_add_fields with let function */
 	Oid ApiCatalogBsonDollarAddFieldsWithLetFunctionOid;
 
+	/* OID of the bson_dollar_add_fields with let and collation function */
+	Oid ApiCatalogBsonDollarAddFieldsWithLetAndCollationFunctionOid;
+
 	/* OID of the bson_dollar_inverse_match function */
 	Oid ApiCatalogBsonDollarInverseMatchFunctionOid;
 
@@ -666,8 +681,14 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_dollar_redact(bson, bson, text, bson) function */
 	Oid ApiInternalBsonDollarRedactWithLetFunctionOid;
 
+	/* OID of the bson_dollar_redact(bson, bson, text, bson, text) function */
+	Oid ApiInternalBsonDollarRedactWithLetAndCollationFunctionOid;
+
 	/* OID of the bson_dollar_project function with let */
 	Oid ApiCatalogBsonDollarProjectWithLetFunctionOid;
+
+	/* Oid of the bson_dollar_project function with let and collation */
+	Oid ApiCatalogBsonDollarProjectWithLetAndCollationFunctionOid;
 
 	/* OID of the bson_dollar_project_expression function */
 	Oid ApiCatalogBsonDollarLookupExpressionEvalMergeOid;
@@ -678,6 +699,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_dollar_project_find with let args function */
 	Oid ApiCatalogBsonDollarProjectFindWithLetFunctionOid;
 
+	/* OID of the bson_dollar_project_find with let and collation function */
+	Oid ApiCatalogBsonDollarProjectFindWithLetAndCollationFunctionOid;
+
 	/* OID of the bson_dollar_unwind(bson, text) function */
 	Oid ApiCatalogBsonDollarUnwindFunctionOid;
 
@@ -687,8 +711,11 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_dollar_replace_root function */
 	Oid ApiCatalogBsonDollarReplaceRootFunctionOid;
 
-	/* OID of the bson_dollar_replace_root function */
+	/* OID of the bson_dollar_replace_root with let function */
 	Oid ApiCatalogBsonDollarReplaceRootWithLetFunctionOid;
+
+	/* OID of the bson_dollar_replace_root with let and collation function  */
+	Oid ApiCatalogBsonDollarReplaceRootWithLetAndCollationFunctionOid;
 
 	/* OID of the bson_rank window function */
 	Oid ApiCatalogBsonRankFunctionOid;
@@ -1047,8 +1074,14 @@ typedef struct DocumentDBApiOidCacheData
 	/* Oid of array type for bson */
 	Oid BsonArrayTypeOid;
 
+	/* OID of the bson index bounds type */
+	Oid BsonIndexBoundsTypeOid;
+
+	/* OID of the bsonindexbounds[] type */
+	Oid BsonIndexBoundsArrayTypeOid;
+
 	/* Oid of ApiInternalSchemaName.bson_query_match with collation and let */
-	Oid BsonQueryMatchWithCollationAndLetFunctionId;
+	Oid BsonQueryMatchWithLetAndCollationFunctionId;
 } DocumentDBApiOidCacheData;
 
 static DocumentDBApiOidCacheData Cache;
@@ -1496,20 +1529,20 @@ BsonQueryMatchFunctionId(void)
 
 
 /*
- * BsonQueryMatchWithCollationAndLetFunctionId returns the OID of ApiCatalogSchemaName.bson_query_match function
+ * BsonQueryMatchWithLetAndCollationFunctionId returns the OID of ApiCatalogSchemaName.bson_query_match function
  * with collation and let arguments.
  */
 Oid
-BsonQueryMatchWithCollationAndLetFunctionId(void)
+BsonQueryMatchWithLetAndCollationFunctionId(void)
 {
 	int nargs = 4;
 	Oid bsonTypeId = BsonTypeId();
-	Oid argTypes[4] = { bsonTypeId, bsonTypeId, TEXTOID, bsonTypeId };
+	Oid argTypes[4] = { bsonTypeId, bsonTypeId, bsonTypeId, TEXTOID };
 	bool missingOk = true;
 
 	return GetSchemaFunctionIdWithNargs(
-		&Cache.BsonQueryMatchWithCollationAndLetFunctionId,
-		ApiInternalSchemaName,
+		&Cache.BsonQueryMatchWithLetAndCollationFunctionId,
+		DocumentDBApiInternalSchemaName,
 		"bson_query_match", nargs,
 		argTypes, missingOk);
 }
@@ -2071,6 +2104,27 @@ BsonValueEqualMatchFunctionId(void)
 
 
 /*
+ * Returns the OID of the <bson> ##= <bsonindexbounds> operator.
+ */
+Oid
+BsonIndexBoundsEqualOperatorId(void)
+{
+	return GetInternalBinaryOperatorId(
+		&Cache.BsonIndexBoundsEqualOperatorId,
+		BsonTypeId(), "##=", BsonIndexBoundsTypeId());
+}
+
+
+Oid
+BsonIndexBoundsEqualOperatorFuncId(void)
+{
+	return GetBinaryOperatorFunctionIdWithSchema(
+		&Cache.BsonIndedBoundsEqualOperatorFuncId,
+		"bson_dollar_eq", BsonTypeId(), BsonIndexBoundsTypeId(), ApiInternalSchemaNameV2);
+}
+
+
+/*
  * Returns the OID of the <bson_value_t> $gt <bson> function.
  */
 Oid
@@ -2559,6 +2613,16 @@ PostgresDatePartFromInterval(void)
 {
 	return GetPostgresInternalFunctionId(&Cache.PostgresDatePartFromInterval,
 										 "interval_part");
+}
+
+
+/*
+ * Returns the OID of the "uuid_in" internal postgres method
+ */
+Oid
+PostgresUUIDInFunctionId(void)
+{
+	return GetPostgresInternalFunctionId(&Cache.PostgresUUIDInFunctionIdOid, "uuid_in");
 }
 
 
@@ -3124,6 +3188,17 @@ BsonDollarAddFieldsWithLetFunctionOid(void)
 
 
 Oid
+BsonDollarAddFieldsWithLetAndCollationFunctionOid(void)
+{
+	return GetOperatorFunctionIdFourArgs(
+		&Cache.ApiCatalogBsonDollarAddFieldsWithLetAndCollationFunctionOid,
+		DocumentDBApiInternalSchemaName, "bson_dollar_add_fields",
+		DocumentDBCoreBsonTypeId(),
+		DocumentDBCoreBsonTypeId(), DocumentDBCoreBsonTypeId(), TEXTOID);
+}
+
+
+Oid
 BsonDollaMergeDocumentsFunctionOid(void)
 {
 	bool missingOk = false;
@@ -3167,6 +3242,17 @@ BsonDollarProjectWithLetFunctionOid(void)
 
 
 Oid
+BsonDollarProjectWithLetAndCollationFunctionOid(void)
+{
+	return GetOperatorFunctionIdFourArgs(
+		&Cache.ApiCatalogBsonDollarProjectWithLetAndCollationFunctionOid,
+		DocumentDBApiInternalSchemaName, "bson_dollar_project",
+		DocumentDBCoreBsonTypeId(), DocumentDBCoreBsonTypeId(),
+		DocumentDBCoreBsonTypeId(), TEXTOID);
+}
+
+
+Oid
 BsonDollarRedactWithLetFunctionOid(void)
 {
 	return GetOperatorFunctionIdFourArgs(
@@ -3175,6 +3261,18 @@ BsonDollarRedactWithLetFunctionOid(void)
 		"bson_dollar_redact",
 		BsonTypeId(), BsonTypeId(),
 		TEXTOID, BsonTypeId());
+}
+
+
+Oid
+BsonDollarRedactWithLetAndCollationFunctionOid(void)
+{
+	return GetOperatorFunctionIdFiveArgs(
+		&Cache.ApiInternalBsonDollarRedactWithLetAndCollationFunctionOid,
+		DocumentDBApiInternalSchemaName,
+		"bson_dollar_redact",
+		BsonTypeId(), BsonTypeId(),
+		TEXTOID, BsonTypeId(), TEXTOID);
 }
 
 
@@ -3255,6 +3353,20 @@ BsonDollarProjectFindWithLetFunctionOid(void)
 
 
 Oid
+BsonDollarProjectFindWithLetAndCollationFunctionOid(void)
+{
+	return GetOperatorFunctionIdFiveArgs(
+		&Cache.ApiCatalogBsonDollarProjectFindWithLetAndCollationFunctionOid,
+		DocumentDBApiInternalSchemaName,
+		"bson_dollar_project_find",
+		DocumentDBCoreBsonTypeId(), DocumentDBCoreBsonTypeId(),
+		DocumentDBCoreBsonTypeId(),
+		DocumentDBCoreBsonTypeId(),
+		TEXTOID);
+}
+
+
+Oid
 BsonDollarMergeHandleWhenMatchedFunctionOid(void)
 {
 	InitializeDocumentDBApiExtensionCache();
@@ -3264,11 +3376,30 @@ BsonDollarMergeHandleWhenMatchedFunctionOid(void)
 		List *functionNameList = list_make2(makeString(DocumentDBApiInternalSchemaName),
 											makeString(
 												"bson_dollar_merge_handle_when_matched"));
-		Oid paramOids[3] = { BsonTypeId(), BsonTypeId(), INT4OID };
+		Oid *paramOids;
+		int nargs = 3;
+		if (IsClusterVersionAtleast(DocDB_V0, 102, 0))
+		{
+			paramOids = (Oid *) palloc(sizeof(Oid) * 5);
+			paramOids[0] = BsonTypeId();
+			paramOids[1] = BsonTypeId();
+			paramOids[2] = INT4OID;
+			paramOids[3] = BsonTypeId();
+			paramOids[4] = INT4OID;
+			nargs = 5;
+		}
+		else
+		{
+			paramOids = (Oid *) palloc(sizeof(Oid) * 3);
+			paramOids[0] = BsonTypeId();
+			paramOids[1] = BsonTypeId();
+			paramOids[2] = INT4OID;
+		}
+
 		bool missingOK = false;
 
 		Cache.ApiInternalBsonDollarMergeHandleWhenMatchedFunctionId =
-			LookupFuncName(functionNameList, 3, paramOids, missingOK);
+			LookupFuncName(functionNameList, nargs, paramOids, missingOK);
 	}
 
 	return Cache.ApiInternalBsonDollarMergeHandleWhenMatchedFunctionId;
@@ -3285,11 +3416,27 @@ BsonDollarMergeAddObjectIdFunctionOid(void)
 		List *functionNameList = list_make2(makeString(DocumentDBApiInternalSchemaName),
 											makeString(
 												"bson_dollar_merge_add_object_id"));
-		Oid paramOids[2] = { BsonTypeId(), BsonTypeId() };
+		Oid *paramOids;
+		int nargs = 2;
+		if (IsClusterVersionAtleast(DocDB_V0, 102, 0))
+		{
+			paramOids = (Oid *) palloc(sizeof(Oid) * 3);
+			paramOids[0] = BsonTypeId();
+			paramOids[1] = BsonTypeId();
+			paramOids[2] = BsonTypeId();
+			nargs = 3;
+		}
+		else
+		{
+			paramOids = (Oid *) palloc(sizeof(Oid) * 2);
+			paramOids[0] = BsonTypeId();
+			paramOids[1] = BsonTypeId();
+		}
+
 		bool missingOK = false;
 
 		Cache.ApiInternalBsonDollarMergeAddObjectIdFunctionId =
-			LookupFuncName(functionNameList, 2, paramOids, missingOK);
+			LookupFuncName(functionNameList, nargs, paramOids, missingOK);
 	}
 
 	return Cache.ApiInternalBsonDollarMergeAddObjectIdFunctionId;
@@ -3417,6 +3564,18 @@ BsonDollarReplaceRootWithLetFunctionOid(void)
 		"bson_dollar_replace_root",
 		DocumentDBCoreBsonTypeId(), DocumentDBCoreBsonTypeId(),
 		DocumentDBCoreBsonTypeId());
+}
+
+
+Oid
+BsonDollarReplaceRootWithLetAndCollationFunctionOid(void)
+{
+	Oid bsonTypeId = DocumentDBCoreBsonTypeId();
+	return GetOperatorFunctionIdFourArgs(
+		&Cache.ApiCatalogBsonDollarReplaceRootWithLetAndCollationFunctionOid,
+		DocumentDBApiInternalSchemaName,
+		"bson_dollar_replace_root",
+		bsonTypeId, bsonTypeId, bsonTypeId, TEXTOID);
 }
 
 
@@ -5900,6 +6059,25 @@ GetBinaryOperatorId(Oid *operatorId, Oid leftTypeOid, char *operatorName,
 }
 
 
+static Oid
+GetInternalBinaryOperatorId(Oid *operatorId, Oid leftTypeOid, char *operatorName,
+							Oid rightTypeOid)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (*operatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString(ApiInternalSchemaNameV2),
+											makeString(operatorName));
+
+		*operatorId =
+			OpernameGetOprid(operatorNameList, leftTypeOid, rightTypeOid);
+	}
+
+	return *operatorId;
+}
+
+
 /*
  * Gets the BinaryOperatorId similar to the function above, except in the CORE schema
  * and not the API catalog schema.
@@ -6271,6 +6449,37 @@ GetBsonArrayTypeOid(void)
 	}
 
 	return Cache.BsonArrayTypeOid;
+}
+
+
+Oid
+BsonIndexBoundsTypeId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonIndexBoundsTypeOid == InvalidOid)
+	{
+		List *bsonTypeNameList = list_make2(makeString(ApiInternalSchemaNameV2),
+											makeString("bsonindexbounds"));
+		TypeName *bsonTypeName = makeTypeNameFromNameList(bsonTypeNameList);
+		Cache.BsonIndexBoundsTypeOid = typenameTypeId(NULL, bsonTypeName);
+	}
+
+	return Cache.BsonIndexBoundsTypeOid;
+}
+
+
+Oid
+GetBsonIndexBoundsArrayTypeOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonIndexBoundsArrayTypeOid == InvalidOid)
+	{
+		Cache.BsonIndexBoundsArrayTypeOid = get_array_type(BsonIndexBoundsTypeId());
+	}
+
+	return Cache.BsonIndexBoundsArrayTypeOid;
 }
 
 

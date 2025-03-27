@@ -943,12 +943,18 @@ DoMultiUpdate(MongoCollection *collection, List *updates, text *transactionId,
 	PG_CATCH();
 	{
 		MemoryContextSwitchTo(oldContext);
-		FlushErrorState();
+		ErrorData *errorData = CopyErrorDataAndFlush();
 
 		/* Abort the inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 		MemoryContextSwitchTo(oldContext);
 		CurrentResourceOwner = oldOwner;
+
+		if (IsOperatorInterventionError(errorData))
+		{
+			ReThrowError(errorData);
+		}
+
 		*recordsUpdated = 0;
 		updateCount = 0;
 	}
@@ -2355,7 +2361,8 @@ UpdateOneInternal(MongoCollection *collection, UpdateOneParams *updateOneParams,
 			if (EnableSchemaValidation && stateForSchemaValidation != NULL)
 			{
 				bson_value_t newDocValue = ConvertPgbsonToBsonValue(newDoc);
-				ValidateSchemaOnDocumentInsert(stateForSchemaValidation, &newDocValue);
+				ValidateSchemaOnDocumentInsert(stateForSchemaValidation, &newDocValue,
+											   FAILED_VALIDATION_ERROR_MSG);
 			}
 
 			if (newShardKeyHash == shardKeyHash)
@@ -2410,7 +2417,7 @@ UpdateOneInternal(MongoCollection *collection, UpdateOneParams *updateOneParams,
 				ValidateSchemaOnDocumentUpdate(
 					collection->schemaValidator.validationLevel, stateForSchemaValidation,
 					sourceDocument,
-					updatedPgbson);
+					updatedPgbson, FAILED_VALIDATION_ERROR_MSG);
 			}
 
 			if (newShardKeyHash == shardKeyHash)
@@ -2895,7 +2902,8 @@ UpsertDocument(MongoCollection *collection, pgbson *update,
 	if (EnableSchemaValidation && stateForSchemaValidation != NULL)
 	{
 		bson_value_t newDocValue = ConvertPgbsonToBsonValue(newDoc);
-		ValidateSchemaOnDocumentInsert(stateForSchemaValidation, &newDocValue);
+		ValidateSchemaOnDocumentInsert(stateForSchemaValidation, &newDocValue,
+									   FAILED_VALIDATION_ERROR_MSG);
 	}
 
 	DoInsertForUpdate(collection, newShardKeyHash, objectId, newDoc,
