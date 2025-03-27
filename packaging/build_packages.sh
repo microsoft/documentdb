@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
                     OS=$1
                     ;;
                 *)
-                    error_exit "Invalid --os value. Allowed values are [deb11, deb12, ubuntu22.04, ubuntu24.04]"
+                    echo "Invalid --os value. Allowed values are [deb11, deb12, ubuntu22.04, ubuntu24.04]"
                     ;;
             esac
             ;;
@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
                     PG=$1
                     ;;
                 *)
-                    error_exit "Invalid --pg value. Allowed values are [15, 16, 17]"
+                    echo "Invalid --pg value. Allowed values are [15, 16, 17]"
                     ;;
             esac
             ;;
