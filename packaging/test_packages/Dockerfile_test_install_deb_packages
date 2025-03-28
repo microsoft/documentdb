@@ -13,7 +13,8 @@ RUN apt-get install -y --no-install-recommends \
     gnupg2 \
     lsb-release \
     ca-certificates \
-    locales
+    locales \
+    python3
 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen en_US.UTF-8

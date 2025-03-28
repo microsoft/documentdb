@@ -26,7 +26,7 @@ OS=""
 PG=""
 DOCUMENTDB_VERSION=""
 TEST_CLEAN_INSTALL=false
-OUTPUT_DIR="packaging"  # Default value for output directory	
+OUTPUT_DIR="packaging"  # Default value for output directory
 
 # Process arguments to convert long options to short ones
 while [[ $# -gt 0 ]]; do
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
     shift
-done	
+done
 
 # Check mandatory arguments
 if [[ -z "$OS" ]]; then
