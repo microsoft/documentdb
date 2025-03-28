@@ -306,13 +306,15 @@ gin_bson_pre_consistent(PG_FUNCTION_ARGS)
 	Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6);
 
 	bytea *options = (bytea *) PG_GET_OPCLASS_OPTIONS();
+	bool isPreconsistent = true;
 	bool res = GinBsonConsistentCore(strategy,
 									 check,
 									 extra_data,
 									 numKeys,
 									 recheck,
 									 queryKeys,
-									 options);
+									 options,
+									 isPreconsistent);
 
 	PG_RETURN_BOOL(res);
 }
@@ -349,13 +351,15 @@ gin_bson_consistent(PG_FUNCTION_ARGS)
 	}
 
 	bytea *options = (bytea *) PG_GET_OPCLASS_OPTIONS();
+	bool isPreconsistent = false;
 	res = GinBsonConsistentCore(strategy,
 								check,
 								extra_data,
 								numKeys,
 								recheck,
 								queryKeys,
-								options);
+								options,
+								isPreconsistent);
 	PG_RETURN_BOOL(res);
 }
 

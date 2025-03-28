@@ -42,6 +42,9 @@ bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_C
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN false
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 
+#define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
+bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
+
 #define DEFAULT_ENABLE_SCHEMA_VALIDATION false
 bool EnableSchemaValidation =
 	DEFAULT_ENABLE_SCHEMA_VALIDATION;
@@ -177,6 +180,17 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL,
 		&EnableRumIndexScan,
 		DEFAULT_ENABLE_RUM_INDEX_SCAN,
+		PGC_USERSET,
+		0,
+		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableRumInOperatorFastPath", newGucPrefix),
+		gettext_noop(
+			"Allow rum in operator fast path."),
+		NULL,
+		&EnableRumInOperatorFastPath,
+		DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH,
 		PGC_USERSET,
 		0,
 		NULL, NULL, NULL);

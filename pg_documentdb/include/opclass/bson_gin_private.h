@@ -56,7 +56,7 @@ int32_t GinBsonComparePartialCore(BsonIndexStrategy strategy, BsonIndexTerm *que
 								  BsonIndexTerm *compareValue, Pointer extraData);
 bool GinBsonConsistentCore(BsonIndexStrategy strategy, bool *check,
 						   Pointer *extra_data, int32_t numKeys, bool *recheck,
-						   Datum *queryKeys, bytea *options);
+						   Datum *queryKeys, bytea *options, bool isPreconsistent);
 int32_t GinBsonComparePartialElemMatchExpression(BsonIndexTerm *queryValue,
 												 BsonIndexTerm *compareValue,
 												 BsonElemMatchIndexExprState *exprState);

@@ -683,13 +683,15 @@ GetElemMatchQualConsistentResult(BsonElemMatchBoolFilterState *expression,
 		{
 			BsonElemMatchConsistentState *state = lfirst(cell);
 			bool recheckIgnore;
+			bool isPreconsistent = false;
 			bool res = GinBsonConsistentCore(state->strategy,
 											 &checkArray[state->baseTermIndex],
 											 state->extra_data,
 											 state->numKeys,
 											 &recheckIgnore,
 											 state->queryKeys,
-											 state->indexClassOptions);
+											 state->indexClassOptions,
+											 isPreconsistent);
 			if (!res)
 			{
 				return false;
@@ -716,13 +718,15 @@ GetElemMatchQualConsistentResult(BsonElemMatchBoolFilterState *expression,
 		{
 			BsonElemMatchConsistentState *state = lfirst(cell);
 			bool recheckIgnore;
+			bool isPreconsistent = false;
 			bool res = GinBsonConsistentCore(state->strategy,
 											 &checkArray[state->baseTermIndex],
 											 state->extra_data,
 											 state->numKeys,
 											 &recheckIgnore,
 											 state->queryKeys,
-											 state->indexClassOptions);
+											 state->indexClassOptions,
+											 isPreconsistent);
 			if (res)
 			{
 				return true;

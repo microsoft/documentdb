@@ -150,6 +150,11 @@ BEGIN;
 SET LOCAL enable_seqscan to OFF;
 -- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Index Path
 SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
+ROLLBACK;
+
+BEGIN;
+SET LOCAL enable_seqscan to OFF;
+-- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Index Path
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
 ROLLBACK;
 
@@ -158,6 +163,12 @@ SET LOCAL enable_seqscan to ON;
 SET LOCAL documentdb.ForceUseIndexIfAvailable to OFF;
 -- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Seq Scan Path
 SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
+ROLLBACK;
+
+BEGIN;
+SET LOCAL enable_seqscan to ON;
+SET LOCAL documentdb.ForceUseIndexIfAvailable to OFF;
+-- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Seq Scan Path
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
 ROLLBACK;
 
