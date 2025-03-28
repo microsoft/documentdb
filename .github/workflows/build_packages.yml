@@ -40,12 +40,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build .deb package
-        run: ./packaging/build_packages.sh --os $OS --pg $PG_VERSION --test-clean-install
+      - name: Extract and Format Default Version
+        id: extract_version
+        run: |
+          DOCUMENTDB_VERSION=$(grep -E "^default_version" pg_documentdb_core/documentdb_core.control | sed -E "s/.*'([0-9]+\.[0-9]+-[0-9]+)'.*/\1/")
+          DOCUMENTDB_VERSION=$(echo $DOCUMENTDB_VERSION | sed "s/-/./g")
+          echo "Extracted Version: $DOCUMENTDB_VERSION"
+          echo "DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION" >> $GITHUB_ENV
 
-      - name: Upload .deb package as an artifact
+      - name: Build Debian Package
+        run: |
+          ./packaging/build_packages.sh --os ${{ matrix.os_name }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
+
+      - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debian-package-${{ matrix.os }}-pg${{ matrix.pg }}
-          path: build/*.deb
+          name: debian-package-${{ matrix.os_name }}-pg${{ matrix.pg_version }}-${{ env.DOCUMENTDB_VERSION }}
+          path: packaging/*.deb
           retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
