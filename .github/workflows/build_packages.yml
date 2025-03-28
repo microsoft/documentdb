@@ -55,7 +55,7 @@ jobs:
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debian-package-${{ matrix.os_name }}-pg${{ matrix.pg_version }}-${{ env.DOCUMENTDB_VERSION }}
+          name: archive-${{ matrix.os_name }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
           path: packaging/*.deb
           retention-days: 7
           if-no-files-found: error
