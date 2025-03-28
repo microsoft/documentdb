@@ -1,0 +1,62 @@
+name: Build deb packages
+concurrency:
+  group: build-packages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
+
+jobs:
+  build-deb-packages:
+    runs-on: ${{ matrix.os_name }}
+    name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_version:
+          - 15
+          - 16
+          - 17
+        os_name:
+          - deb11
+          - deb12
+          - ubuntu22.04
+          - ubuntu24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract and Format Default Version
+        id: extract_version
+        run: |
+          DOCUMENTDB_VERSION=$(grep -E "^default_version" pg_documentdb_core/documentdb_core.control | sed -E "s/.*'([0-9]+\.[0-9]+-[0-9]+)'.*/\1/")
+          DOCUMENTDB_VERSION=$(echo $DOCUMENTDB_VERSION | sed "s/-/./g")
+          echo "Extracted Version: $DOCUMENTDB_VERSION"
+          echo "DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION" >> $GITHUB_ENV
+
+      - name: Build Debian Package
+        run: |
+          ./packaging/build_packages.sh --os ${{ matrix.os_name }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
+
+      - name: Upload Debian Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.os_name }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
+          path: packaging/*.deb
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
