@@ -1,6 +1,6 @@
 name: Build deb packages
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: build-packages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
