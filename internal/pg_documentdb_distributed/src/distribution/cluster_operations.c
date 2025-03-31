@@ -73,6 +73,7 @@ static void ParseVersionString(ExtensionVersion *extensionVersion, char *version
 static bool SetupCluster(bool isInitialize);
 static void SetPermissionsForReadOnlyRole(void);
 static void CheckAndReplicateReferenceTable(const char *schema, const char *tableName);
+static void UpdateChangesTableOwnerToAdminRole(void);
 
 
 PG_FUNCTION_INFO_V1(command_initialize_cluster);
@@ -325,6 +326,11 @@ SetupCluster(bool isInitialize)
 	if (ShouldRunSetupForVersion(&versions, DocDB_V0, 101, 0))
 	{
 		AlterCreationTime();
+	}
+
+	if (ShouldRunSetupForVersion(&versions, DocDB_V0, 102, 0))
+	{
+		UpdateChangesTableOwnerToAdminRole();
 	}
 
 	/* we call the post setup cluster hook to allow the extension to do any additional setup */
@@ -1101,4 +1107,41 @@ UpdateClusterMetadata(bool isInitialize)
 	ExtensionExecuteQueryWithArgsViaSPI(updateQuery, 1, updateTypes, updateArgs, NULL,
 										false, SPI_OK_UPDATE, &isNull);
 	return clusterVersion;
+}
+
+
+/* If the changes table exists, then update the owner to the cluster admin role */
+static void
+UpdateChangesTableOwnerToAdminRole(void)
+{
+	/* First query if the changes table exists */
+	const char *query = FormatSqlQuery(
+		"SELECT relowner::regrole::text FROM pg_class WHERE relname = 'changes' AND relnamespace = %d",
+		ApiDataNamespaceOid());
+	bool isNull = false;
+	Datum resultDatum = ExtensionExecuteQueryViaSPI(query, true, SPI_OK_SELECT, &isNull);
+
+	if (isNull)
+	{
+		/* Changes table does not exist, can bail */
+		return;
+	}
+
+	/* Get the current owner of the changes table */
+	char *currentOwner = TextDatumGetCString(resultDatum);
+
+	/* If the current owner is already the cluster admin role, no need to change */
+	if (strcmp(currentOwner, ApiAdminRole) == 0 ||
+		strcmp(currentOwner, ApiAdminRoleV2) == 0)
+	{
+		return;
+	}
+
+	/* Otherwise update the owner to the ApiAdminRole */
+	const char *alterQuery = FormatSqlQuery(
+		"ALTER TABLE %s.changes OWNER TO %s;",
+		ApiDataSchemaName, ApiAdminRole);
+
+	/* Execute the query to change the owner */
+	ExtensionExecuteQueryViaSPI(alterQuery, false, SPI_OK_UTILITY, &isNull);
 }

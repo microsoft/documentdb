@@ -306,7 +306,7 @@ SELECT * FROM bson_dollar_project('{ "_id": 16, "group": 2, "obj": { "a": 1, "b"
 SELECT insert_one('db','test_get_field',' { "_id": 0, "a": 1, "b": "test" }');
 NOTICE:  creating collection
                               insert_one                              
-----------------------------------------------------------------------
+---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
@@ -329,7 +329,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField"
 -- field is a path
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "test_get_field", "pipeline":  [{"$project": {"result": {"fieldValue": {"$getField": {"field": "$b", "input": {"test": { "b": 3 }}}}}}}]}');
                                               document                                              
-----------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "0" }, "result" : { "fieldValue" : { "b" : { "$numberInt" : "3" } } } }
 (1 row)
 
