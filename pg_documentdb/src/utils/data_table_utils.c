@@ -16,8 +16,22 @@
 #include "api_hooks_def.h"
 
 static inline bool IsUpdateForVersion(ExtensionVersion inputVersion,
-									  ExtensionVersion expectedVersion);
+									  MajorVersion expectedMajor, int expectedMinor, int
+									  expectedPatch);
 PG_FUNCTION_INFO_V1(apply_extension_data_table_upgrade);
+
+
+/*
+ * Check if the input version is same as the expected version.
+ */
+static inline bool
+IsUpdateForVersion(ExtensionVersion inputVersion,
+				   MajorVersion expectedMajor, int expectedMinor, int expectedPatch)
+{
+	return ((MajorVersion) inputVersion.Major == expectedMajor &&
+			inputVersion.Minor == expectedMinor &&
+			inputVersion.Patch == expectedPatch);
+}
 
 
 /*
@@ -32,9 +46,14 @@ apply_extension_data_table_upgrade(PG_FUNCTION_ARGS)
 	int patch = PG_GETARG_INT32(2);
 
 	ExtensionVersion inputVersion = { majorVersion, minorVersion, patch };
-	ExtensionVersion expectedVersion = { 0, 102, 0 };
+	if (!ShouldUpgradeDataTables)
+	{
+		/* No upgrade required for data tables */
+		PG_RETURN_VOID();
+	}
 
-	if (ShouldUpgradeDataTables && IsUpdateForVersion(inputVersion, expectedVersion))
+	if (IsUpdateForVersion(inputVersion, DocDB_V0, 102, 0) ||
+		IsUpdateForVersion(inputVersion, DocDB_V0, 102, 1))
 	{
 		AlterCreationTime();
 	}
@@ -100,17 +119,4 @@ AlterCreationTime()
 		ExtensionExecuteQueryViaSPI(cmdStr->data, readOnly, SPI_OK_UTILITY,
 									&isNull);
 	}
-}
-
-
-/*
- * Check if the input version is same as the expected version.
- */
-static inline bool
-IsUpdateForVersion(ExtensionVersion inputVersion,
-				   ExtensionVersion expectedVersion)
-{
-	return (inputVersion.Major == expectedVersion.Major &&
-			inputVersion.Minor == expectedVersion.Minor &&
-			inputVersion.Patch == expectedVersion.Patch);
 }
