@@ -5,6 +5,11 @@ WORKDIR /home/documentdb/code
 COPY . /home/documentdb/code  
 
 RUN git config --global --add safe.directory /home/DocumentDB/code
+
+RUN sudo chown -R documentdb:documentdb /home/documentdb/code
+
+USER documentdb
+
 RUN make  && sudo make install
   
 # Set the entry point to run the new script at container startup  
