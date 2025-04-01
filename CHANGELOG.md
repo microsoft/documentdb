@@ -1,5 +1,6 @@
 ### documentdb v0.103-0 (Unreleased) ###
 * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
+* Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
 
 ### documentdb v0.102-0 (March 26, 2025) ###
 * Support index pushdown for vector search queries *[Bugfix]*
