@@ -9,13 +9,6 @@ on:
     branches:
       - 'main'
     paths-ignore:
-      - 'docs/**'
-      - '.devcontainer/**'
-      - '*.md'
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths-ignore:
-      - 'docs/**'
       - '.devcontainer/**'
       - '*.md'
 
@@ -26,15 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pg_version:
-          - 15
-          - 16
-          - 17
         os_name:
           - deb11
           - deb12
           - ubuntu22.04
           - ubuntu24.04
+        pg_version:
+          - 15
+          - 16
+          - 17
 
     steps:
       - name: Checkout repository
