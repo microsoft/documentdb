@@ -93,8 +93,9 @@ jobs:
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_rum_oss.sh
           cp ./scripts/install_setup_citus_core_oss.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_citus_core_oss.sh ${CITUS_VERSION}
-          cp ./scripts/install_citus_indent.sh /tmp/install_setup/
-          sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT /tmp/install_setup/install_citus_indent.sh
+          # cp ./scripts/install_citus_indent.sh /tmp/install_setup/
+          # skip citus indent temporarily until we can fix the cmake version issue and sync the change
+          # sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT /tmp/install_setup/install_citus_indent.sh
           cp ./scripts/install_setup_system_rows.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_system_rows.sh
           cp ./scripts/install_setup_pg_cron.sh /tmp/install_setup/
@@ -133,9 +134,9 @@ jobs:
           export LC_CTYPE=en_US.UTF-8
           make check
 
-      - name: Citus Indent
-        run: |
-          citus_indent --check || (echo ""; echo "citus_indent failed, refer to CONTRIBUTING.md on how to use citus_indent"; exit 1)
+      # - name: Citus Indent
+      #   run: |
+      #     citus_indent --check || (echo ""; echo "citus_indent failed, refer to CONTRIBUTING.md on how to use citus_indent"; exit 1)
 
       - name: Validate sanity of files
         run: |
