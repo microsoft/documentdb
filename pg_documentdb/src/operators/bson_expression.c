@@ -453,6 +453,8 @@ static MongoOperatorExpression OperatorExpressions[] = {
 	  FEATURE_AGG_OPERATOR_TOOBJECTID },
 	{ "$toString", &ParseDollarToString, &HandlePreParsedDollarToString,
 	  FEATURE_AGG_OPERATOR_TOSTRING },
+	{ "$toUUID", &ParseDollarToUUID, &HandlePreParsedDollarToUUID,
+	  FEATURE_AGG_OPERATOR_TOUUID },
 	{ "$toUpper", &ParseDollarToUpper, &HandlePreParsedDollarToUpper,
 	  FEATURE_AGG_OPERATOR_TOUPPER },
 	{ "$trim", &ParseDollarTrim, &HandlePreParsedDollarTrim,
@@ -2528,6 +2530,7 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 	BsonValueInitIterator(value, &docIter);
 
 	BuildBsonPathTreeContext context = { 0 };
+	context.parseAggregationContext.collationString = parseContext->collationString;
 	context.buildPathTreeFuncs = &DefaultPathTreeFuncs;
 	BsonIntermediatePathNode *treeNode = BuildBsonPathTree(&docIter, &context,
 														   forceLeafExpression,

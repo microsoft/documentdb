@@ -600,6 +600,11 @@ ProcessBatchDeletion(MongoCollection *collection, BatchDeletionSpec *batchSpec,
 			MemoryContextSwitchTo(oldContext);
 			CurrentResourceOwner = oldOwner;
 
+			if (IsOperatorInterventionError(errorData))
+			{
+				ReThrowError(errorData);
+			}
+
 			batchResult->writeErrors = lappend(batchResult->writeErrors,
 											   GetWriteErrorFromErrorData(errorData,
 																		  deleteIndex));
@@ -1064,7 +1069,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	SPI_connect();
 
 	/*
-	 * We construct a query that Citus can route to a single shard, which
+	 * We construct a query that the distribution layer can route to a single shard, which
 	 * also allows us to use LIMIT 1 and FOR UPDATE in a subquery.
 	 *
 	 * The LIMIT 1 ensures we only delete a single row even if there are many

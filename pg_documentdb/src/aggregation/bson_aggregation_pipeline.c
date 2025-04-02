@@ -73,7 +73,6 @@
 extern bool EnableCursorsOnAggregationQueryRewrite;
 extern bool EnableLookupUnwindSupport;
 extern bool EnableCollation;
-extern bool EnableFastPathPointLookupPlanner;
 extern bool DefaultInlineWriteOperations;
 extern bool EnableSimplifyGroupAccumulators;
 extern bool EnableSortbyIdPushDownToPrimaryKey;
@@ -1416,6 +1415,8 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 		else if (StringViewEqualsCString(&keyView, "projection"))
 		{
 			/* Validation handled in the stage processing */
+			/* TODO - Mongo validates projection even if collection is not present */
+			/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
 			projection = *value;
 		}
 		else if (StringViewEqualsCString(&keyView, "skip"))
@@ -1625,7 +1626,7 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 	}
 
 	queryData->namespaceName = context.namespaceName;
-	if (EnableFastPathPointLookupPlanner && context.isPointReadQuery &&
+	if (context.isPointReadQuery &&
 		context.allowShardBaseTable && queryData->batchSize >= 1)
 	{
 		/* If we're still targeting the local shard && we have a point read
@@ -1835,7 +1836,7 @@ GenerateCountQuery(Datum databaseDatum, pgbson *countSpec, bool setStatementTime
 	pgbson *addFieldsSpec = PgbsonWriterGetPgbson(&addFieldsWriter);
 	bson_value_t addFieldsValue = ConvertPgbsonToBsonValue(addFieldsSpec);
 	query = HandleSimpleProjectionStage(&addFieldsValue, query, &context, "$addFields",
-										BsonDollaMergeDocumentsFunctionOid(), NULL);
+										BsonDollaMergeDocumentsFunctionOid(), NULL, NULL);
 
 	return query;
 }
@@ -2120,7 +2121,8 @@ Query *
 HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 							AggregationPipelineBuildContext *context,
 							const char *stageName, Oid functionOid,
-							Oid (*functionOidWithLet)(void))
+							Oid (*functionOidWithLet)(void),
+							Oid (*functionOidWithLetAndCollation)(void))
 {
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
@@ -2145,7 +2147,24 @@ HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 	Const *addFieldsProcessed = MakeBsonConst(docBson);
 
 	List *args;
-	if (context->variableSpec != NULL && functionOidWithLet != NULL)
+
+	/* if valid collation is specified, we use the function with both let and collation support, if applicable */
+	/* else if only variableSpec is given, we use the function with let support, if applicable */
+	/* else the base function */
+	bool addLetAndCollationArg = IsCollationApplicable(context->collationString) &&
+								 functionOidWithLetAndCollation != NULL;
+	bool addOnlyVariableSpecArg = context->variableSpec != NULL && functionOidWithLet !=
+								  NULL;
+
+	if (addLetAndCollationArg && IsClusterVersionAtleast(DocDB_V0, 102, 0))
+	{
+		Const *collationConst = MakeTextConst(context->collationString, strlen(
+												  context->collationString));
+		args = list_make4(currentProjection, addFieldsProcessed, context->variableSpec,
+						  collationConst);
+		functionOid = functionOidWithLetAndCollation();
+	}
+	else if (addOnlyVariableSpecArg)
 	{
 		args = list_make3(currentProjection, addFieldsProcessed,
 						  context->variableSpec);
@@ -2532,9 +2551,11 @@ HandleAddFields(const bson_value_t *existingValue, Query *query,
 				AggregationPipelineBuildContext *context)
 {
 	ReportFeatureUsage(FEATURE_STAGE_ADD_FIELDS);
+
 	return HandleSimpleProjectionStage(existingValue, query, context, "$addFields",
 									   BsonDollarAddFieldsFunctionOid(),
-									   BsonDollarAddFieldsWithLetFunctionOid);
+									   BsonDollarAddFieldsWithLetFunctionOid,
+									   BsonDollarAddFieldsWithLetAndCollationFunctionOid);
 }
 
 
@@ -2948,7 +2969,8 @@ HandleProject(const bson_value_t *existingValue, Query *query,
 	ReportFeatureUsage(FEATURE_STAGE_PROJECT);
 	return HandleSimpleProjectionStage(existingValue, query, context, "$project",
 									   BsonDollarProjectFunctionOid(),
-									   BsonDollarProjectWithLetFunctionOid);
+									   BsonDollarProjectWithLetFunctionOid,
+									   BsonDollarProjectWithLetAndCollationFunctionOid);
 }
 
 
@@ -3009,13 +3031,36 @@ HandleRedact(const bson_value_t *existingValue, Query *query,
 	 * existingValue->value.value_type is BSON_TYPE_UTF8.
 	 * In this case, BsonDollarRedactWithLetFunctionOid() takes four parameters, currentProjection, redactSpec, redactSpecText, variableSpec.
 	 * redactSpec is set to empty document and redactSpecText is the string.
+	 *
+	 * If context->collationString is valid, we use BsonDollarRedactWithLetAndCollationFunctionOid() instead.
+	 * BsonDollarRedactWithLetAndCollationFunctionOid() takes five parameters, currentProjection, redactSpec, redactSpecText, variableSpec,
+	 * collationString.
 	 */
-	List *args = list_make4(currentProjection, redactSpec, redactSpecText,
-							context->variableSpec == NULL ? (Expr *) MakeBsonConst(
-								PgbsonInitEmpty()) : context->variableSpec);
+
+	List *args = NIL;
+	Oid funcOid = BsonDollarRedactWithLetFunctionOid();
+
+	Expr *variableSpecConst = context->variableSpec == NULL ?
+							  (Expr *) MakeBsonConst(PgbsonInitEmpty()) :
+							  context->variableSpec;
+
+	if (IsClusterVersionAtleast(DocDB_V0, 102, 0) &&
+		IsCollationApplicable(context->collationString))
+	{
+		Const *collationStringConst = MakeTextConst(context->collationString, strlen(
+														context->collationString));
+		args = list_make5(currentProjection, redactSpec, redactSpecText,
+						  variableSpecConst, collationStringConst);
+		funcOid = BsonDollarRedactWithLetAndCollationFunctionOid();
+	}
+	else
+	{
+		args = list_make4(currentProjection, redactSpec, redactSpecText,
+						  variableSpecConst);
+	}
 
 	FuncExpr *resultExpr = makeFuncExpr(
-		BsonDollarRedactWithLetFunctionOid(), BsonTypeId(), args, InvalidOid,
+		funcOid, BsonTypeId(), args, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
 	firstEntry->expr = (Expr *) resultExpr;
@@ -3064,7 +3109,19 @@ HandleProjectFind(const bson_value_t *existingValue, const bson_value_t *queryVa
 
 	List *args;
 	Oid funcOid = BsonDollarProjectFindFunctionOid();
-	if (context->variableSpec != NULL)
+	if (IsCollationApplicable(context->collationString) && IsClusterVersionAtleast(
+			DocDB_V0, 102, 0))
+	{
+		pgbson *queryDoc = queryValue->value_type == BSON_TYPE_EOD ? PgbsonInitEmpty() :
+						   PgbsonInitFromDocumentBsonValue(queryValue);
+		Const *collationStringConst = MakeTextConst(context->collationString,
+													strlen(context->collationString));
+
+		args = list_make5(currentProjection, projectProcessed, MakeBsonConst(queryDoc),
+						  context->variableSpec, collationStringConst);
+		funcOid = BsonDollarProjectFindWithLetAndCollationFunctionOid();
+	}
+	else if (context->variableSpec != NULL)
 	{
 		pgbson *queryDoc = queryValue->value_type == BSON_TYPE_EOD ? PgbsonInitEmpty() :
 						   PgbsonInitFromDocumentBsonValue(queryValue);
@@ -3083,7 +3140,6 @@ HandleProjectFind(const bson_value_t *existingValue, const bson_value_t *queryVa
 		args = list_make3(currentProjection, projectProcessed, queryDocProcessed);
 	}
 
-
 	FuncExpr *resultExpr = makeFuncExpr(funcOid, BsonTypeId(), args, InvalidOid,
 										InvalidOid, COERCE_EXPLICIT_CALL);
 
@@ -3100,9 +3156,14 @@ HandleReplaceRoot(const bson_value_t *existingValue, Query *query,
 				  AggregationPipelineBuildContext *context)
 {
 	ReportFeatureUsage(FEATURE_STAGE_REPLACE_ROOT);
+
+	Oid (*replaceRootWithLetAndCollationFuncOid)(void) =
+		BsonDollarReplaceRootWithLetAndCollationFunctionOid;
+
 	return HandleSimpleProjectionStage(existingValue, query, context, "$replaceRoot",
 									   BsonDollarReplaceRootFunctionOid(),
-									   &BsonDollarReplaceRootWithLetFunctionOid);
+									   &BsonDollarReplaceRootWithLetFunctionOid,
+									   replaceRootWithLetAndCollationFuncOid);
 }
 
 
@@ -3615,7 +3676,7 @@ AddShardKeyAndIdFilters(const bson_value_t *existingValue, Query *query,
 			!(isCollationAware && IsCollationApplicable(context->collationString)))
 		{
 			existingQuals = lappend(existingQuals, idFilter);
-			context->isPointReadQuery = EnableFastPathPointLookupPlanner && isPointRead;
+			context->isPointReadQuery = isPointRead;
 		}
 	}
 
@@ -3985,7 +4046,15 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 						rte->rtekind)));
 	}
 
-	const pgbson *geoNearQueryDoc = PgbsonInitFromDocumentBsonValue(existingValue);
+	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (
+					errcode(ERRCODE_DOCUMENTDB_LOCATION10065),
+					errmsg("invalid parameter: expected an object ($geoNear)")));
+	}
+
+	pgbson *geoNearQueryDoc = EvaluateGeoNearConstExpression(existingValue,
+															 context->variableSpec);
 
 	/*
 	 * Create a $geoNear query of this form:
@@ -5135,7 +5204,7 @@ AddPercentileMedianGroupAccumulator(Query *query, const bson_value_t *accumulato
  * The aggregates are then pushed to a subquery and then an outer query
  * with the bson_repath_and_build is added as part of the group.
  * This is done because without this, sharded multi-node group by fails
- * due to a quirk in citus's worker query generation.
+ * due to a quirk in the distribution layer's worker query generation.
  *
  * TODO: Support n(elementsToFetch) as an expression for firstN, lastN, topN, bottomN
  */
@@ -5459,14 +5528,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$maxN"))
 		{
-			if (!IsClusterVersionAtleast(DocDB_V0, 22, 0))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg("Accumulator $maxN is not implemented yet"),
-								errdetail_log(
-									"Accumulator $maxN is not implemented yet")));
-			}
-
 			repathArgs = AddMaxMinNGroupAccumulator(query,
 													&accumulatorElement.bsonValue,
 													repathArgs,
@@ -5479,14 +5540,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$minN"))
 		{
-			if (!(IsClusterVersionAtleast(DocDB_V0, 22, 0)))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg("Accumulator $minN is not implemented yet"),
-								errdetail_log(
-									"Accumulator $minN is not implemented yet")));
-			}
-
 			repathArgs = AddMaxMinNGroupAccumulator(query,
 													&accumulatorElement.bsonValue,
 													repathArgs,

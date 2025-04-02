@@ -105,7 +105,7 @@ static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundP
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
 extern bool AllowNestedAggregationFunctionInQueries;
-extern bool EnableCollationAndLetForQueryMatch;
+extern bool EnableLetAndCollationForQueryMatch;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -864,8 +864,8 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 			}
 		}
 
-		if (EnableCollationAndLetForQueryMatch &&
-			funcExpr->funcid == BsonQueryMatchWithCollationAndLetFunctionId())
+		if (EnableLetAndCollationForQueryMatch &&
+			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{
 			queryFlags->mongoQueryFlags |= HAS_QUERY_MATCH_FUNCTION;
 		}

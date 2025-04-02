@@ -1,3 +1,4 @@
+1
 # Introduction
 
 `DocumentDB` is the engine powering vCore-based Azure Cosmos DB for MongoDB. It offers a native implementation of document-oriented NoSQL database, enabling seamless CRUD operations on BSON data types within a PostgreSQL framework. Beyond basic operations, DocumentDB empowers you to execute complex workloads, including full-text searches, geospatial queries, and vector embeddings on your dataset, delivering robust functionality and flexibility for diverse data management needs.
@@ -69,7 +70,7 @@ Step 4: Build & Deploy the binaries
 make 
 ```
 
-Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/DocumentDB/code` within image.
+Note: Run in case of an unsuccessful build `git config --global --add safe.directory /home/documentdb/code` within image.
 
 ```bash
 sudo make install

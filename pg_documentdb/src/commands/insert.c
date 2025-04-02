@@ -634,6 +634,11 @@ DoMultiInsertWithoutTransactionId(MongoCollection *collection, List *inserts, Oi
 		CurrentResourceOwner = oldOwner;
 		insertCount = 0;
 
+		if (IsOperatorInterventionError(errorData))
+		{
+			ReThrowError(errorData);
+		}
+
 		int errorCode = errorData->sqlerrcode;
 		const char *errorCodeStr = unpack_sql_state(errorCode);
 		if (EreportCodeIsDocumentDBError(errorCode))
@@ -1315,7 +1320,7 @@ PreprocessInsertionDoc(const bson_value_t *docValue, MongoCollection *collection
 	if (evalState != NULL)
 	{
 		ValidateSchemaOnDocumentInsert(
-			evalState, docValue);
+			evalState, docValue, FAILED_VALIDATION_ERROR_MSG);
 	}
 
 	/* make sure the document has an _id and it is in the right place */
