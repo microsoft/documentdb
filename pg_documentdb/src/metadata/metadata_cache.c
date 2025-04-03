@@ -1088,6 +1088,9 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* OpFamily for the Bson BTree ops */
 	Oid BsonBtreeOpFamilyOid;
+
+	/* Opfamily for the bson */
+	Oid BsonRumCompositeIndexOperatorFamily;
 } DocumentDBApiOidCacheData;
 
 static DocumentDBApiOidCacheData Cache;
@@ -6394,6 +6397,24 @@ BsonBtreeOpFamilyOid(void)
 	}
 
 	return Cache.BsonBtreeOpFamilyOid;
+}
+
+
+Oid
+BsonRumCompositeIndexOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumCompositeIndexOperatorFamily == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.BsonRumCompositeIndexOperatorFamily = get_opfamily_oid(
+			RumIndexAmId(), list_make2(makeString(ApiInternalSchemaNameV2), makeString(
+										   "bson_rum_composite_path_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonRumCompositeIndexOperatorFamily;
 }
 
 

@@ -16,6 +16,10 @@
 #include <nodes/pathnodes.h>
 
 IndexAmRoutine *GetRumIndexHandler(PG_FUNCTION_ARGS);
+
+void extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
+							  ScanKey orderbys, int norderbys, amrescan_function
+							  core_rescanfunc);
 void extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double
 							   loop_count,
 							   Cost *indexStartupCost, Cost *indexTotalCost,

@@ -147,6 +147,7 @@ Oid PostgresInt4EqualOperatorOid(void);
 /* Opclass */
 Oid IntegerOpsOpFamilyOid(void);
 Oid BsonBtreeOpFamilyOid(void);
+Oid BsonRumCompositeIndexOperatorFamily(void);
 
 /* types */
 Oid BsonQueryTypeId(void);

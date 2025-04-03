@@ -177,4 +177,9 @@ int32_t GinBsonComparePartialOrderBy(BsonIndexTerm *queryValue,
 
 IndexTermCreateMetadata GetIndexTermMetadata(void *indexOptions);
 
+IndexTraverseOption GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy,
+														void *contextOptions, const
+														char *currentPath, uint32_t
+														currentPathLength,
+														bson_type_t bsonType);
 #endif

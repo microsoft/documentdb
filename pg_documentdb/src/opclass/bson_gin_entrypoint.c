@@ -809,6 +809,16 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 			break;
 		}
 
+		case IndexOptionsType_Composite:
+		{
+			traverse = GetCompositePathIndexTraverseOption(
+				strategy, options,
+				filterElement.path,
+				filterElement.pathLength,
+				filterElement.bsonValue.value_type);
+			break;
+		}
+
 		case IndexOptionsType_Hashed:
 		{
 			/* Hash index only supports $eq today */
@@ -923,6 +933,13 @@ ValidateIndexForQualifierPathForDollarIn(bytea *indexOptions, const StringView *
 			break;
 		}
 
+		case IndexOptionsType_Composite:
+		{
+			/* TODO: Support $lookup pushdown to composite index */
+			traverse = IndexTraverse_Invalid;
+			break;
+		}
+
 		case IndexOptionsType_UniqueShardKey:
 		{
 			traverse = IndexTraverse_Invalid;
@@ -970,6 +987,11 @@ GetIndexTermMetadata(void *indexOptions)
 			Get_Index_Path_Option(singlePathOptions, path, pathPrefix.string,
 								  pathPrefix.length);
 			isWildcard = singlePathOptions->isWildcard;
+		}
+		else if (options->type == IndexOptionsType_Composite)
+		{
+			pathPrefix.string = "$";
+			pathPrefix.length = 1;
 		}
 		else if (options->type == IndexOptionsType_Wildcard)
 		{
