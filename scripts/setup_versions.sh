@@ -27,6 +27,7 @@ PGVECTOR_VERSION=v0.8.0
 POSTGIS_VERSION=3.4.3
 INTEL_DECIMAL_MATH_LIB_VERSION=applied/2.0u3-1
 PCRE2_VERSION=10.40
+UNCRUSTIFY_VERSION=uncrustify-0.68.1
 
 function GetPostgresSourceRef()
 {
@@ -92,4 +93,9 @@ function GetPcre2Version()
 function GetPostgisVersion()
 {
   echo $POSTGIS_VERSION
+}
+
+function GetUncrustifyVersion()
+{
+  echo $UNCRUSTIFY_VERSION
 }

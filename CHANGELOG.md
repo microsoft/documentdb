@@ -1,6 +1,7 @@
 ### documentdb v0.103-0 (Unreleased) ###
 * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
 * Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
+* Support ARM64 architecture when building docker container *[Preview]*
 
 ### documentdb v0.102-0 (March 26, 2025) ###
 * Support index pushdown for vector search queries *[Bugfix]*
@@ -21,7 +22,6 @@
 * Support Partial filter pushdown for `$in` predicates *[Perf]*
 * Support the $dateFromString operator with full functionality *[Feature]*
 * Support extended syntax for `$getField` aggregation operator. Now the value of 'field' could be an expression that resolves to a string. *[Feature]*
-* Support ARM64 architecture *[Preview]*
 
 ### documentdb v0.101-0 (February 12, 2025) ###
 * Push $graphlookup recursive CTE JOIN filters to index *[Perf]*
