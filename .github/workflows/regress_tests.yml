@@ -22,7 +22,7 @@ on:
 
 jobs:
   ubuntu_build:
-    runs-on: ${{ matrix.os_name }}
+    runs-on: ubuntu-latest
     name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
     strategy:
       fail-fast: false
@@ -36,6 +36,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: check cmake version
+        run: |
+          cmake --version
 
       - name: Install package dependencies
         run: |
