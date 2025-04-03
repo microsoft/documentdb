@@ -47,27 +47,29 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
 
 -- test when one doesn't exist
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "b": [ true, false ] }', '[ "a", "b" ]', 2000, false);
- gin_bson_get_composite_path_generated_terms 
----------------------------------------------
- { "$" : [ null, [ true, false ] ] }
- { "$" : [ null, true ] }
- { "$" : [ null, false ] }
-(3 rows)
+      gin_bson_get_composite_path_generated_terms       
+--------------------------------------------------------
+ { "$" : [ { "$undefined" : true }, [ true, false ] ] }
+ { "$" : [ { "$undefined" : true }, true ] }
+ { "$" : [ { "$undefined" : true }, false ] }
+ { "" : { "$undefined" : true } }
+(4 rows)
 
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
-                          gin_bson_get_composite_path_generated_terms                           
-------------------------------------------------------------------------------------------------
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], null ] }
- { "$" : [ { "$numberInt" : "1" }, null ] }
- { "$" : [ { "$numberInt" : "2" }, null ] }
- { "$" : [ { "$numberInt" : "3" }, null ] }
-(4 rows)
+                                    gin_bson_get_composite_path_generated_terms                                    
+-------------------------------------------------------------------------------------------------------------------
+ { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$undefined" : true } ] }
+ { "$" : [ { "$numberInt" : "1" }, { "$undefined" : true } ] }
+ { "$" : [ { "$numberInt" : "2" }, { "$undefined" : true } ] }
+ { "$" : [ { "$numberInt" : "3" }, { "$undefined" : true } ] }
+ { "" : { "$undefined" : true } }
+(5 rows)
 
 -- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
- gin_bson_get_composite_path_generated_terms 
----------------------------------------------
- { "$" : [ "aaaaaaaaaaaa" ], "t" : true }
+         gin_bson_get_composite_path_generated_terms          
+--------------------------------------------------------------
+ { "$" : [ "aaaaaaaa", { "$numberInt" : "1" } ], "t" : true }
  { "" : { "$maxKey" : 1 }, "t" : true }
 (2 rows)
 
@@ -192,4 +194,134 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
  document 
 ----------
 (0 rows)
+
+-- now add some cross-type members
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 5, "a": "string1", "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 6, "a": "string2", "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 7, "a": { "key": "string2" }, "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- has cross type values
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$exists": true }, "b": true } }');
+                                                      document                                                       
+---------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : true }
+ { "_id" : { "$numberInt" : "2" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : true }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "5" }, "a" : "string1", "b" : true }
+ { "_id" : { "$numberInt" : "6" }, "a" : "string2", "b" : true }
+ { "_id" : { "$numberInt" : "7" }, "a" : { "key" : "string2" }, "b" : true }
+(7 rows)
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gte": { "$minKey": 1 } }, "b": true } }');
+                                                      document                                                       
+---------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : true }
+ { "_id" : { "$numberInt" : "2" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : true }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "5" }, "a" : "string1", "b" : true }
+ { "_id" : { "$numberInt" : "6" }, "a" : "string2", "b" : true }
+ { "_id" : { "$numberInt" : "7" }, "a" : { "key" : "string2" }, "b" : true }
+(7 rows)
+
+-- applies type bracketing
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gt": 0 }, "b": true } }');
+                                                      document                                                       
+---------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : true }
+ { "_id" : { "$numberInt" : "2" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : true }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
+(4 rows)
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gte": "string0" }, "b": true } }');
+                            document                             
+-----------------------------------------------------------------
+ { "_id" : { "$numberInt" : "5" }, "a" : "string1", "b" : true }
+ { "_id" : { "$numberInt" : "6" }, "a" : "string2", "b" : true }
+(2 rows)
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "string" }, "b": true } }');
+                            document                             
+-----------------------------------------------------------------
+ { "_id" : { "$numberInt" : "5" }, "a" : "string1", "b" : true }
+ { "_id" : { "$numberInt" : "6" }, "a" : "string2", "b" : true }
+(2 rows)
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "object" }, "b": true } }');
+                                  document                                   
+-----------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "7" }, "a" : { "key" : "string2" }, "b" : true }
+(1 row)
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "number" }, "b": true } }');
+                                                      document                                                       
+---------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : true }
+ { "_id" : { "$numberInt" : "2" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : true }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : [ true, false ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
+(4 rows)
+
+-- runtime recheck
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$regex": ".+2$" }, "b": true } }');
+                            document                             
+-----------------------------------------------------------------
+ { "_id" : { "$numberInt" : "6" }, "a" : "string2", "b" : true }
+(1 row)
+
+-- add large keys
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', FORMAT('{ "_id": 8, "a": { "key": "%s" }, "b": "%s" }', repeat('a', 10000), repeat('a', 10000))::bson);
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 5000), repeat('a', 5000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+ document 
+----------
+(0 rows)
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 8000), repeat('a', 8000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+ document 
+----------
+(0 rows)
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000), repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+              document              
+------------------------------------
+ { "_id" : { "$numberInt" : "8" } }
+(1 row)
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" } }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+              document              
+------------------------------------
+ { "_id" : { "$numberInt" : "8" } }
+(1 row)
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+              document              
+------------------------------------
+ { "_id" : { "$numberInt" : "8" } }
+(1 row)
 

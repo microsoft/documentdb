@@ -3108,7 +3108,9 @@ static void
 PopulateRangeStateFromQuery(DollarRangeParams *params, const
 							pgbson *filter)
 {
-	*params = *ParseQueryDollarRange((pgbson *) filter);
+	pgbsonelement filterElement = { 0 };
+	PgbsonToSinglePgbsonElement(filter, &filterElement);
+	*params = *ParseQueryDollarRange(&filterElement);
 	Assert(params != NULL);
 }
 

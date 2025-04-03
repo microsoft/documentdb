@@ -51,3 +51,42 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b":  { "$gt": false } } }');
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 2, "b":  { "$gt": false } } }');
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b":  { "$gt": true } } }');
+
+-- now add some cross-type members
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 5, "a": "string1", "b": true }');
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 6, "a": "string2", "b": true }');
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 7, "a": { "key": "string2" }, "b": true }');
+
+-- has cross type values
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$exists": true }, "b": true } }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gte": { "$minKey": 1 } }, "b": true } }');
+
+-- applies type bracketing
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gt": 0 }, "b": true } }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$gte": "string0" }, "b": true } }');
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "string" }, "b": true } }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "object" }, "b": true } }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$type": "number" }, "b": true } }');
+
+-- runtime recheck
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$regex": ".+2$" }, "b": true } }');
+
+-- add large keys
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', FORMAT('{ "_id": 8, "a": { "key": "%s" }, "b": "%s" }', repeat('a', 10000), repeat('a', 10000))::bson);
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 5000), repeat('a', 5000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 8000), repeat('a', 8000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000), repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "a": { "key": "%s" } }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+
+SELECT FORMAT('{ "find": "comp_collection", "filter": { "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);

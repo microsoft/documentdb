@@ -30,6 +30,7 @@
 #include "opclass/bson_gin_private.h"
 #include "opclass/bson_gin_index_mgmt.h"
 #include "opclass/bson_gin_index_term.h"
+#include "opclass/bson_gin_index_types_core.h"
 #include "io/bson_core.h"
 #include "aggregation/bson_query_common.h"
 #include "query/bson_compare.h"
@@ -1682,7 +1683,7 @@ GinBsonExtractQueryDollarRange(BsonExtractQueryArgs *args)
 	}
 	DollarRangeValues *rangeValues = palloc0(sizeof(DollarRangeValues));
 
-	DollarRangeParams *params = ParseQueryDollarRange(filter);
+	DollarRangeParams *params = ParseQueryDollarRange(&filterElement);
 	rangeValues->params = *params;
 
 	pgbsonelement maxElement =
@@ -2835,17 +2836,7 @@ GinBsonExtractQueryDollarType(BsonExtractQueryArgs *args)
 	if (documentElement.bsonValue.value_type == BSON_TYPE_UTF8)
 	{
 		const char *typeNameStr = documentElement.bsonValue.value.v_utf8.str;
-		bson_type_t type;
-		if (strcmp(typeNameStr, "number") == 0)
-		{
-			/* Since $type on index only validates sort order, int32 is sufficient */
-			type = BSON_TYPE_INT32;
-		}
-		else
-		{
-			type = BsonTypeFromName(typeNameStr);
-		}
-
+		bson_type_t type = GetBsonTypeNameFromStringForDollarType(typeNameStr);
 		extraDataPtr[index++] = Int32GetDatum((int32_t) type);
 	}
 	/**

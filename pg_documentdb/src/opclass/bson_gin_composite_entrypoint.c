@@ -27,11 +27,13 @@
  #include <funcapi.h>
  #include <lib/stringinfo.h>
 
+ #include "io/bson_core.h"
+ #include "aggregation/bson_query_common.h"
  #include "opclass/bson_gin_common.h"
  #include "opclass/bson_gin_private.h"
  #include "opclass/bson_gin_index_mgmt.h"
  #include "opclass/bson_gin_index_term.h"
- #include "io/bson_core.h"
+ #include "opclass/bson_gin_index_types_core.h"
  #include "query/bson_compare.h"
  #include "utils/documentdb_errors.h"
  #include "metadata/metadata_cache.h"
@@ -43,6 +45,10 @@ typedef struct CompositeSingleBound
 {
 	bson_value_t bound;
 	bool isBoundInclusive;
+
+	/* The processed bound (post truncation if any) */
+	bson_value_t processedBoundValue;
+	bool isProcessedValueTruncated;
 } CompositeSingleBound;
 
 typedef struct CompositeIndexBounds
@@ -51,12 +57,16 @@ typedef struct CompositeIndexBounds
 	CompositeSingleBound upperBound;
 
 	bool isEqualityBound;
+
+	bool requiresRuntimeRecheck;
 } CompositeIndexBounds;
 
 typedef struct CompositeQueryRunData
 {
 	CompositeIndexBounds indexBounds[INDEX_MAX_KEYS];
 	int32_t numIndexPaths;
+	bool hasTruncation;
+	bool requiresRuntimeRecheck;
 } CompositeQueryRunData;
 
 /* --------------------------------------------------------- */
@@ -86,15 +96,14 @@ static void ParseBoundsFromValue(const char **indexPaths, int32_t numPaths,
 static void ParseBoundsForCompositeOperator(pgbsonelement *singleElement, const
 											char **indexPaths, int32_t numPaths,
 											CompositeIndexBounds *queryBounds);
+static void ProcessBoundForQuery(CompositeSingleBound *bound, const
+								 IndexTermCreateMetadata *metadata);
 
-inline static bool
-IsSupportedStrategy(BsonIndexStrategy strategy)
+inline static int32_t
+GetSinglePathTruncationLimit(int32_t compositeTruncationLimit, int32_t numPaths)
 {
-	return (strategy == BSON_INDEX_STRATEGY_DOLLAR_EQUAL ||
-			strategy == BSON_INDEX_STRATEGY_DOLLAR_GREATER ||
-			strategy == BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL ||
-			strategy == BSON_INDEX_STRATEGY_DOLLAR_LESS ||
-			strategy == BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL);
+	/* allocate 4 bytes for each path\0 + 1 typecode within the truncated array */
+	return (compositeTruncationLimit / numPaths) - 4;
 }
 
 
@@ -182,7 +191,35 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 										runData->indexBounds);
 	}
 
-	/* Now that we have the bounds from the operators, generate index terms - we will either have
+	IndexTermCreateMetadata singlePathMetadata = GetIndexTermMetadata(options);
+	singlePathMetadata.indexTermSizeLimit =
+		GetSinglePathTruncationLimit(singlePathMetadata.indexTermSizeLimit,
+									 numPaths);
+
+	/* For the next phase, process each term and handle truncation */
+	for (int i = 0; i < numPaths; i++)
+	{
+		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD)
+		{
+			ProcessBoundForQuery(&runData->indexBounds[i].lowerBound,
+								 &singlePathMetadata);
+			runData->hasTruncation = runData->hasTruncation ||
+									 runData->indexBounds[i].lowerBound.
+									 isProcessedValueTruncated;
+		}
+
+		if (runData->indexBounds[i].upperBound.bound.value_type != BSON_TYPE_EOD)
+		{
+			ProcessBoundForQuery(&runData->indexBounds[i].upperBound,
+								 &singlePathMetadata);
+			runData->hasTruncation = runData->hasTruncation ||
+									 runData->indexBounds[i].upperBound.
+									 isProcessedValueTruncated;
+		}
+	}
+
+	/*
+	 * Now that we have the bounds from the operators, generate index terms - we will either have
 	 * one or two terms.
 	 */
 	pgbson_writer lower_bound_writer;
@@ -192,9 +229,11 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	PgbsonWriterStartArray(&lower_bound_writer, "$", 1, &lower_bound_array_writer);
 
 	bool hasInequalityMatch = false;
-
 	for (int i = 0; i < numPaths; i++)
 	{
+		runData->requiresRuntimeRecheck = runData->requiresRuntimeRecheck ||
+										  runData->indexBounds[i].requiresRuntimeRecheck;
+
 		/* If both lower and upper bound match it's equality */
 		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD &&
 			runData->indexBounds[i].upperBound.bound.value_type != BSON_TYPE_EOD &&
@@ -204,10 +243,9 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 							&runData->indexBounds[i].upperBound.bound))
 		{
 			runData->indexBounds[i].isEqualityBound = true;
-
-			/* If it's an equality bound, we only need to generate one term */
 			PgbsonArrayWriterWriteValue(&lower_bound_array_writer,
-										&runData->indexBounds[i].lowerBound.bound);
+										&runData->indexBounds[i].lowerBound.
+										processedBoundValue);
 			continue;
 		}
 
@@ -216,7 +254,8 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		{
 			/* There exists a lower bound for this key */
 			PgbsonArrayWriterWriteValue(&lower_bound_array_writer,
-										&runData->indexBounds[i].lowerBound.bound);
+										&runData->indexBounds[i].lowerBound.
+										processedBoundValue);
 		}
 		else
 		{
@@ -228,27 +267,39 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		}
 	}
 
+	PgbsonWriterEndArray(&lower_bound_writer, &lower_bound_array_writer);
+
 	IndexTermCreateMetadata metadata = GetIndexTermMetadata(options);
 
-	*extra_data = palloc(sizeof(Pointer));
-	**extra_data = (Pointer) runData;
-
 	*nentries = 1;
+
+	*partialmatch = (bool *) palloc0(sizeof(bool) * 2);
 	if (hasInequalityMatch)
 	{
 		/* indicate that we have partial matches */
-		*partialmatch = (bool *) palloc(sizeof(bool));
-		**partialmatch = true;
+		(*partialmatch)[0] = true;
 	}
+
+	*extra_data = palloc0(sizeof(Pointer) * 2);
+	(*extra_data)[0] = (Pointer) runData;
 
 	pgbsonelement lower_bound_element = { 0 };
 	lower_bound_element.path = "$";
 	lower_bound_element.pathLength = 1;
 	lower_bound_element.bsonValue = PgbsonArrayWriterGetValue(&lower_bound_array_writer);
 
-	Datum *entries = (Datum *) palloc(sizeof(Datum));
+	Datum *entries = (Datum *) palloc(sizeof(Datum) * 2);
 	BsonIndexTermSerialized ser = SerializeBsonIndexTerm(&lower_bound_element, &metadata);
 	entries[0] = PointerGetDatum(ser.indexTermVal);
+
+	if (runData->hasTruncation)
+	{
+		*nentries = 2;
+		entries[1] = GenerateRootTruncatedTerm(&metadata);
+		(*partialmatch)[1] = false;
+		(*extra_data)[1] = NULL;  /* no extra data for the truncated term */
+	}
+
 	PG_RETURN_POINTER(entries);
 }
 
@@ -267,7 +318,7 @@ Datum
 gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 {
 	/* 0 will be the value we passed in for the extract query */
-	bytea *queryValue = PG_GETARG_BYTEA_PP(0);
+	/* bytea *queryValue = PG_GETARG_BYTEA_PP(0); */
 
 	/* 1 is the value in the index we want to compare against. */
 	bytea *compareValue = PG_GETARG_BYTEA_PP(1);
@@ -282,8 +333,6 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 	}
 
 	CompositeQueryRunData *runData = (CompositeQueryRunData *) extraData;
-	BsonIndexTerm queryTerm;
-	InitializeBsonIndexTerm(queryValue, &queryTerm);
 
 	BsonIndexTerm compareTerm;
 	InitializeBsonIndexTerm(compareValue, &compareTerm);
@@ -310,7 +359,8 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 		{
 			/* We have an equality on a term - if not equal - we can bail */
 			if (!BsonValueEquals(compareValue,
-								 &runData->indexBounds[compareIndex].lowerBound.bound))
+								 &runData->indexBounds[compareIndex].lowerBound.
+								 processedBoundValue))
 			{
 				/* Stop the search */
 				return hasEqualityPrefix ? 1 : -1;
@@ -326,7 +376,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			bool isComparisonValid = false;
 			int32_t compareBounds = CompareBsonValueAndType(
 				compareValue,
-				&runData->indexBounds[compareIndex].lowerBound.bound,
+				&runData->indexBounds[compareIndex].lowerBound.processedBoundValue,
 				&isComparisonValid);
 			if (!isComparisonValid)
 			{
@@ -337,7 +387,9 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			{
 				if (!runData->indexBounds[compareIndex].lowerBound.isBoundInclusive)
 				{
-					return -1;
+					/* for truncated you can't be sure - let the runtime re-evaluate */
+					return runData->indexBounds[compareIndex].lowerBound.
+						   isProcessedValueTruncated ? 0 : -1;
 				}
 				else
 				{
@@ -358,7 +410,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			bool isComparisonValid = false;
 			int32_t compareBounds = CompareBsonValueAndType(
 				compareValue,
-				&runData->indexBounds[compareIndex].upperBound.bound,
+				&runData->indexBounds[compareIndex].upperBound.processedBoundValue,
 				&isComparisonValid);
 			if (!isComparisonValid)
 			{
@@ -369,7 +421,9 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			{
 				if (!runData->indexBounds[compareIndex].upperBound.isBoundInclusive)
 				{
-					return -1;
+					/* for truncated you can't be sure - let the runtime re-evaluate */
+					return runData->indexBounds[compareIndex].upperBound.
+						   isProcessedValueTruncated ? 0 : -1;
 				}
 				else
 				{
@@ -405,7 +459,7 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	StrategyNumber strategy = PG_GETARG_UINT16(1);
 	int32_t numKeys = (int32_t) PG_GETARG_INT32(3);
 
-	/* Pointer *extra_data = (Pointer *) PG_GETARG_POINTER(4); */
+	Pointer *extra_data = (Pointer *) PG_GETARG_POINTER(4);
 	bool *recheck = (bool *) PG_GETARG_POINTER(5);       /* out param. */
 	/* Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6); */
 
@@ -416,14 +470,21 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 							   strategy)));
 	}
 
-	if (numKeys == 1)
+	CompositeQueryRunData *runData = (CompositeQueryRunData *) extra_data[0];
+
+	if (numKeys > 2)
 	{
-		/* TODO: Handle truncation */
-		*recheck = false;
-		return check[0];
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("Too many keys in consistent check: %d", numKeys)));
 	}
 
-	ereport(ERROR, (errmsg("unknown consistent for composite")));
+	*recheck = runData->requiresRuntimeRecheck;
+	if (runData->hasTruncation)
+	{
+		*recheck = check[1];
+	}
+
+	return check[0];
 }
 
 
@@ -562,12 +623,11 @@ gin_bson_composite_path_options(PG_FUNCTION_ARGS)
 
 IndexTraverseOption
 GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOptions,
-									const
-									char *currentPath, uint32_t
-									currentPathLength,
+									const char *currentPath,
+									uint32_t currentPathLength,
 									bson_type_t bsonType)
 {
-	if (!EnableNewCompositeIndexOpclass || !IsSupportedStrategy(strategy))
+	if (!EnableNewCompositeIndexOpclass)
 	{
 		return IndexTraverse_Invalid;
 	}
@@ -772,7 +832,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 		/* The truncation limit will be divided by the numPaths */
 		singlePathOptions->base.indexTermTruncateLimit =
-			options->base.indexTermTruncateLimit / pathCount;
+			GetSinglePathTruncationLimit(options->base.indexTermTruncateLimit, pathCount);
 		singlePathOptions->isWildcard = false;
 		singlePathOptions->generateNotFoundTerm = true;
 		singlePathOptions->path = sizeof(BsonGinSinglePathOptions);
@@ -798,9 +858,10 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 	/* Now that we have the per term counts, generate the overall terms */
 	/* Add an additional one in case we need a truncated term */
-	Datum *indexEntries = palloc0(sizeof(Datum) * (totalTermCount + 1));
+	Datum *indexEntries = palloc0(sizeof(Datum) * (totalTermCount + 2));
 
 	bool hasTruncation = false;
+	bool hasUndefined = false;
 	IndexTermCreateMetadata overallMetadata = GetIndexTermMetadata(options);
 	for (uint32_t i = 0; i < totalTermCount; i++)
 	{
@@ -823,6 +884,14 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 			{
 				hasTruncation = true;
 			}
+			if (indexTerm.element.pathLength == 0 &&
+				indexTerm.element.bsonValue.value_type == BSON_TYPE_NULL)
+			{
+				/* This is the "path does not exist" term */
+				indexTerm.element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
+				hasUndefined = true;
+			}
+
 			PgbsonArrayWriterWriteValue(&termWriter, &indexTerm.element.bsonValue);
 		}
 		PgbsonWriterEndArray(&singleWriter, &termWriter);
@@ -844,6 +913,12 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 	if (hasTruncation)
 	{
 		indexEntries[totalTermCount] = GenerateRootTruncatedTerm(&overallMetadata);
+		totalTermCount++;
+	}
+
+	if (hasUndefined)
+	{
+		indexEntries[totalTermCount] = GenerateRootNonExistsTerm(&overallMetadata);
 		totalTermCount++;
 	}
 
@@ -998,6 +1073,24 @@ SetUpperBound(CompositeSingleBound *currentBoundValue, const
 
 
 static void
+SetBoundsExistsTrue(CompositeIndexBounds *queryBounds, int32_t attribute)
+{
+	/* This is similar to $exists: true */
+	CompositeSingleBound bounds = { 0 };
+	bounds.bound.value_type = BSON_TYPE_MINKEY;
+	bounds.isBoundInclusive = true;
+	SetLowerBound(&queryBounds[attribute].lowerBound, &bounds);
+
+	bounds.bound.value_type = BSON_TYPE_MAXKEY;
+	bounds.isBoundInclusive = true;
+	SetUpperBound(&queryBounds[attribute].upperBound, &bounds);
+
+	/* TODO: Replace this with index eval function */
+	queryBounds[attribute].requiresRuntimeRecheck = true;
+}
+
+
+static void
 ParseBoundsFromValue(const char **indexPaths, int32_t numPaths,
 					 pgbsonelement *queryElement,
 					 BsonIndexStrategy queryStrategy,
@@ -1027,7 +1120,6 @@ ParseBoundsFromValue(const char **indexPaths, int32_t numPaths,
 	{
 		case BSON_INDEX_STRATEGY_DOLLAR_EQUAL:
 		{
-			/* It's never set */
 			CompositeSingleBound equalsBounds = { 0 };
 			equalsBounds.bound = queryElement->bsonValue;
 			equalsBounds.isBoundInclusive = true;
@@ -1036,28 +1128,279 @@ ParseBoundsFromValue(const char **indexPaths, int32_t numPaths,
 			break;
 		}
 
-		case BSON_INDEX_STRATEGY_DOLLAR_GREATER:
 		case BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL:
 		{
-			CompositeSingleBound lowerBounds = { 0 };
-			lowerBounds.bound = queryElement->bsonValue;
-			lowerBounds.isBoundInclusive = queryStrategy ==
-										   BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL;
-			SetLowerBound(&queryBounds[i].lowerBound, &lowerBounds);
+			if (queryElement->bsonValue.value_type == BSON_TYPE_MINKEY)
+			{
+				/* This is similar to $exists: true */
+				SetBoundsExistsTrue(queryBounds, i);
+			}
+			else
+			{
+				CompositeSingleBound bounds = { 0 };
+				bounds.bound = queryElement->bsonValue;
+				bounds.isBoundInclusive = true;
+				SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+				/* Apply type bracketing */
+				bounds.bound = GetUpperBound(
+					queryElement->bsonValue.value_type,
+					&bounds.isBoundInclusive);
+				SetUpperBound(&queryBounds[i].upperBound, &bounds);
+			}
+
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_GREATER:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = queryElement->bsonValue;
+			bounds.isBoundInclusive = false;
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			/* Apply type bracketing */
+			bounds.bound = GetUpperBound(
+				queryElement->bsonValue.value_type,
+				&bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
 			break;
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_LESS:
 		case BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL:
 		{
-			CompositeSingleBound upperBounds = { 0 };
-			upperBounds.bound = queryElement->bsonValue;
-			upperBounds.isBoundInclusive = queryStrategy ==
-										   BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL;
-			SetUpperBound(&queryBounds[i].upperBound, &upperBounds);
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = queryElement->bsonValue;
+			bounds.isBoundInclusive = queryStrategy ==
+									  BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL;
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* Apply type bracketing */
+			bounds.bound = GetLowerBound(
+				queryElement->bsonValue.value_type,
+				&bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
 			break;
 		}
 
+		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = GetLowerBound(BSON_TYPE_UTF8, &bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound = GetUpperBound(BSON_TYPE_UTF8, &bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_EXISTS:
+		{
+			int existsValue = BsonValueAsInt32(&queryElement->bsonValue);
+			if (existsValue == 1)
+			{
+				/* { exists: true } */
+				SetBoundsExistsTrue(queryBounds, i);
+			}
+			else
+			{
+				CompositeSingleBound equalsBounds = { 0 };
+				equalsBounds.bound.value_type = BSON_TYPE_NULL;
+				equalsBounds.isBoundInclusive = true;
+				SetLowerBound(&queryBounds[i].lowerBound, &equalsBounds);
+				SetUpperBound(&queryBounds[i].upperBound, &equalsBounds);
+
+				/* TODO: Replace this with index eval function */
+				queryBounds[i].requiresRuntimeRecheck = true;
+			}
+
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = GetLowerBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound = GetUpperBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = GetLowerBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound = GetUpperBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = GetLowerBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound = GetUpperBound(BSON_TYPE_ARRAY, &bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
+		{
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = GetLowerBound(BSON_TYPE_DOUBLE, &bounds.isBoundInclusive);
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound = GetUpperBound(BSON_TYPE_DOUBLE, &bounds.isBoundInclusive);
+			SetUpperBound(&queryBounds[i].upperBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_TYPE:
+		{
+			if (queryElement->bsonValue.value_type == BSON_TYPE_UTF8)
+			{
+				/* Single $type */
+				bson_type_t typeValue =
+					GetBsonTypeNameFromStringForDollarType(
+						queryElement->bsonValue.value.v_utf8.str);
+
+				CompositeSingleBound bounds = { 0 };
+				bounds.bound = GetLowerBound(typeValue, &bounds.isBoundInclusive);
+				SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+				bounds.bound = GetUpperBound(typeValue, &bounds.isBoundInclusive);
+				SetUpperBound(&queryBounds[i].upperBound, &bounds);
+			}
+			else if (BsonValueIsNumberOrBool(&queryElement->bsonValue))
+			{
+				int64_t typeCode = BsonValueAsInt64(&queryElement->bsonValue);
+
+				/* TryGetTypeFromInt64 should be successful as this was already validated in the planner when walking the query. */
+				bson_type_t resolvedType;
+				if (!TryGetTypeFromInt64(typeCode, &resolvedType))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							 errmsg("Invalid $type value: %ld", typeCode)));
+				}
+
+				CompositeSingleBound bounds = { 0 };
+				bounds.bound = GetLowerBound(resolvedType, &bounds.isBoundInclusive);
+				SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+				bounds.bound = GetUpperBound(resolvedType, &bounds.isBoundInclusive);
+				SetUpperBound(&queryBounds[i].upperBound, &bounds);
+			}
+			else if (queryElement->bsonValue.value_type == BSON_TYPE_ARRAY)
+			{
+				/* Array of types */
+				/* TODO: Support multiple boundaries */
+				CompositeSingleBound bounds = { 0 };
+				bounds.bound.value_type = BSON_TYPE_MINKEY;
+				bounds.isBoundInclusive = true;
+				SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+				bounds.bound.value_type = BSON_TYPE_MAXKEY;
+				bounds.isBoundInclusive = true;
+				SetUpperBound(&queryBounds[i].lowerBound, &bounds);
+
+				/* TODO: Replace this with index eval function */
+				queryBounds[i].requiresRuntimeRecheck = true;
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"Invalid $type value for composite index: %s",
+									BsonValueToJsonForLogging(
+										&queryElement->bsonValue))));
+			}
+
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
+		{
+			DollarRangeParams *params = ParseQueryDollarRange(queryElement);
+			CompositeSingleBound bounds = { 0 };
+			if (params->minValue.value_type == BSON_TYPE_MINKEY &&
+				params->isMinInclusive)
+			{
+				SetBoundsExistsTrue(queryBounds, i);
+			}
+			else if (params->minValue.value_type != BSON_TYPE_EOD)
+			{
+				bounds.bound = params->minValue;
+				bounds.isBoundInclusive = params->isMinInclusive;
+				SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+			}
+
+			if (params->maxValue.value_type != BSON_TYPE_EOD)
+			{
+				bounds.bound = params->maxValue;
+				bounds.isBoundInclusive = params->isMaxInclusive;
+				SetUpperBound(&queryBounds[i].upperBound, &bounds);
+			}
+
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_IN:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_IN:
+		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_CLEAR:
+		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_CLEAR:
+		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_SET:
+		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_SET:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_GT:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_GTE:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LT:
+		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LTE:
+		{
+			/* TODO: Support multiple boundaries */
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound.value_type = BSON_TYPE_MINKEY;
+			bounds.isBoundInclusive = true;
+			SetLowerBound(&queryBounds[i].lowerBound, &bounds);
+
+			bounds.bound.value_type = BSON_TYPE_MAXKEY;
+			bounds.isBoundInclusive = true;
+			SetUpperBound(&queryBounds[i].lowerBound, &bounds);
+
+			/* TODO: Replace this with index eval function */
+			queryBounds[i].requiresRuntimeRecheck = true;
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_TEXT:
+		case BSON_INDEX_STRATEGY_DOLLAR_GEOINTERSECTS:
+		case BSON_INDEX_STRATEGY_DOLLAR_GEOWITHIN:
+		case BSON_INDEX_STRATEGY_GEONEAR:
+		case BSON_INDEX_STRATEGY_GEONEAR_RANGE:
+		case BSON_INDEX_STRATEGY_COMPOSITE_QUERY:
+		case BSON_INDEX_STRATEGY_UNIQUE_EQUAL:
+		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED), errmsg(
@@ -1065,5 +1408,35 @@ ParseBoundsFromValue(const char **indexPaths, int32_t numPaths,
 								queryStrategy)));
 			break;
 		}
+	}
+}
+
+
+static void
+ProcessBoundForQuery(CompositeSingleBound *bound, const IndexTermCreateMetadata *metadata)
+{
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+
+	pgbsonelement termElement = { 0 };
+	termElement.path = "$";
+	termElement.pathLength = 1;
+	termElement.bsonValue = bound->bound;
+	BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement, metadata);
+
+	if (serialized.isIndexTermTruncated)
+	{
+		/* preserve and store the value */
+		BsonIndexTerm term;
+		InitializeBsonIndexTerm(serialized.indexTermVal, &term);
+		bound->processedBoundValue = term.element.bsonValue;
+		bound->isProcessedValueTruncated = term.isIndexTermTruncated;
+	}
+	else
+	{
+		/* Just keep the original */
+		pfree(serialized.indexTermVal);
+		bound->processedBoundValue = bound->bound;
+		bound->isProcessedValueTruncated = false;
 	}
 }
