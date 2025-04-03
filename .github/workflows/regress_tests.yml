@@ -22,7 +22,7 @@ on:
 
 jobs:
   ubuntu_build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os_name }}
     name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
     strategy:
       fail-fast: false
@@ -39,6 +39,12 @@ jobs:
 
       - name: check cmake version
         run: |
+          cmake --version
+      
+      - name: Install CMake 3.22
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake=3.22.*
           cmake --version
 
       - name: Install package dependencies
