@@ -333,6 +333,7 @@ ErrorMapping,ErrorName
 40603,Location40603
 40647,ChangeStreamBadResumeToken
 40684,Location40684
+42501,InsufficientPrivilege
 50694,Location50694
 50695,Location50695
 50696,Location50696

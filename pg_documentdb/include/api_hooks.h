@@ -95,6 +95,27 @@ const char * DistributePostgresTable(const char *postgresTable, const
 List * ModifyTableColumnNames(List *tableColumns);
 
 /*
+ * Create users with external identity provider
+ */
+bool CreateUserWithExternalIdentityProvider(const char *userName, char *pgRole,
+											bson_value_t customData);
+
+/*
+ * Drop users with external identity provider
+ */
+bool DropUserWithExternalIdentityProvider(const char *userName);
+
+/*
+ * Verify if the user is external
+ */
+bool IsUserExternal(const char *userName);
+
+/*
+ * Get user info from external identity provider
+ */
+const pgbson * GetUserInfoFromExternalIdentityProvider(const char *userName);
+
+/*
  * Hook for handling colocation of tables
  */
 void HandleColocation(MongoCollection *collection, const bson_value_t *colocationOptions);

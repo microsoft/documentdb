@@ -19,40 +19,12 @@
 #include "metadata/metadata_cache.h"
 #include <common/saslprep.h>
 #include <common/scram-common.h>
+#include "api_hooks_def.h"
+#include "users.h"
+#include "api_hooks.h"
+#include "miscadmin.h"
 
 #define SCRAM_MAX_SALT_LEN 64
-
-enum DocumentDB_Roles
-{
-	DocumentDB_Role_Read_AnyDatabase = 0x1,
-	DocumentDB_Role_ReadWrite_AnyDatabase = 0x2,
-	DocumentDB_Role_Cluster_Admin = 0x4,
-};
-
-
-typedef struct
-{
-	/* "createUser" field */
-	const char *createUser;
-
-	/* "pwd" field */
-	const char *pwd;
-
-	/* "roles" field */
-	bson_value_t roles;
-
-	/* pgRole the passed in role maps to */
-	char *pgRole;
-} CreateUserSpec;
-
-typedef struct
-{
-	/* "updateUser" field */
-	const char *updateUser;
-
-	/* "pwd" field */
-	const char *pwd;
-} UpdateUserSpec;
 
 /* GUC to enable user crud operations */
 extern bool EnableUserCrud;
@@ -72,12 +44,12 @@ PG_FUNCTION_INFO_V1(documentdb_extension_update_user);
 PG_FUNCTION_INFO_V1(documentdb_extension_get_users);
 
 static CreateUserSpec * ParseCreateUserSpec(pgbson *createUserSpec);
-static char * ValidateAndObtainUserRole(const bson_value_t *rolesDocument);
 static char * ParseDropUserSpec(pgbson *dropSpec);
 static UpdateUserSpec * ParseUpdateUserSpec(pgbson *updateSpec);
+static Datum UpdateNativeUser(UpdateUserSpec *spec);
 static char * ParseGetUserSpec(pgbson *getSpec);
 static char * PrehashPassword(const char *password);
-static bool IsUserNameInvalid(const char *userName);
+static bool IsCallingUserExternal(void);
 
 /*
  * documentdb_extension_create_user implements the
@@ -89,16 +61,15 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("CreateUser command is not supported"),
-						errdetail_log("CreateUser command is not supported")));
+						errmsg("CreateUser command is not supported."),
+						errdetail_log("CreateUser command is not supported.")));
 	}
-
-	ReportFeatureUsage(FEATURE_USER_CREATE);
 
 	if (PG_ARGISNULL(0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("User spec must be specified")));
+						errmsg(
+							"'createUser', 'pwd' and 'roles' fields must be specified.")));
 	}
 
 	/*Verify that we have not yet hit the limit of users allowed */
@@ -128,34 +99,76 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_USERCOUNTLIMITEXCEEDED),
 						errmsg(
-							"Exceeded the limit of %d secondary users. " \
-							"For more options, visit https://aka.ms/mongodbvcore-rbac",
+							"Exceeded the limit of %d user roles." \
+							"For more options, visit https://aka.ms/mongodbvcore-rbac.",
 							MaxUserLimit)));
 	}
 
-	pgbson *createUserSpec = PG_GETARG_PGBSON(0);
-	CreateUserSpec *spec = ParseCreateUserSpec(createUserSpec);
-	StringInfo createUserInfo = makeStringInfo();
-	appendStringInfo(createUserInfo,
-					 "CREATE ROLE %s WITH LOGIN PASSWORD '%s' INHERIT IN ROLE %s;",
-					 quote_identifier(spec->createUser),
-					 PrehashPassword(spec->pwd),
-					 quote_identifier(spec->pgRole));
+	pgbson *createUserBson = PG_GETARG_PGBSON(0);
+	CreateUserSpec *createUserSpec = ParseCreateUserSpec(createUserBson);
 
+	if (createUserSpec->has_identity_provider)
+	{
+		if (!CreateUserWithExternalIdentityProvider(createUserSpec->createUser,
+													createUserSpec->pgRole,
+													createUserSpec->identityProviderData))
+		{
+			pgbson_writer finalWriter;
+			PgbsonWriterInit(&finalWriter);
+			PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 0);
+			PgbsonWriterAppendUtf8(&finalWriter, "errmsg", strlen("errmsg"),
+								   "External identity providers are not supported");
+			PgbsonWriterAppendInt32(&finalWriter, "code", strlen("code"), 115);
+			PgbsonWriterAppendUtf8(&finalWriter, "codeName", strlen("codeName"),
+								   "CommandNotSupported");
+			PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
+		}
+	}
+	else
+	{
+		/*Verify that the calling user is a native user */
+		if (IsCallingUserExternal())
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INSUFFICIENTPRIVILEGE),
+							errmsg(
+								"Only native users can create other native users.")));
+		}
+
+		ReportFeatureUsage(FEATURE_USER_CREATE);
+
+		StringInfo createUserInfo = makeStringInfo();
+		appendStringInfo(createUserInfo,
+						 "CREATE ROLE %s WITH LOGIN PASSWORD '%s';",
+						 quote_identifier(createUserSpec->createUser),
+						 PrehashPassword(createUserSpec->pwd));
+
+		readOnly = false;
+		isNull = false;
+		ExtensionExecuteQueryViaSPI(createUserInfo->data, readOnly, SPI_OK_UTILITY,
+									&isNull);
+	}
+
+	/* Grant pgRole to user created */
 	readOnly = false;
-	isNull = false;
-	ExtensionExecuteQueryViaSPI(createUserInfo->data, readOnly, SPI_OK_UTILITY,
-								&isNull);
+	const char *queryGrant = psprintf("GRANT %s TO %s",
+									  quote_identifier(createUserSpec->pgRole),
+									  quote_identifier(createUserSpec->createUser));
 
-	if (strcmp(spec->pgRole, ApiReadOnlyRole) == 0)
+	ExtensionExecuteQueryViaSPI(queryGrant, readOnly, SPI_OK_UTILITY, &isNull);
+
+	if (strcmp(createUserSpec->pgRole, ApiReadOnlyRole) == 0)
 	{
 		/* This is needed to grant ApiReadOnlyRole */
 		/* read access to all new and existing collections */
-		resetStringInfo(createUserInfo);
-		appendStringInfo(createUserInfo,
+		StringInfo grantReadOnlyPermissions = makeStringInfo();
+		resetStringInfo(grantReadOnlyPermissions);
+		appendStringInfo(grantReadOnlyPermissions,
 						 "GRANT pg_read_all_data TO %s",
-						 quote_identifier(spec->createUser));
-		ExtensionExecuteQueryViaSPI(createUserInfo->data, readOnly, SPI_OK_UTILITY,
+						 quote_identifier(createUserSpec->createUser));
+		readOnly = false;
+		isNull = false;
+		ExtensionExecuteQueryViaSPI(grantReadOnlyPermissions->data, readOnly,
+									SPI_OK_UTILITY,
 									&isNull);
 	}
 
@@ -187,34 +200,34 @@ ParseCreateUserSpec(pgbson *createSpec)
 		const char *key = bson_iter_key(&createIter);
 		if (strcmp(key, "createUser") == 0)
 		{
-			EnsureTopLevelFieldType("createUser", &createIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &createIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			spec->createUser = bson_iter_utf8(&createIter, &strLength);
 			if (strLength == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"createUser cannot be empty")));
+									"'createUser' is a required field.")));
 			}
 
 			if (IsUserNameInvalid(spec->createUser))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Invalid user name")));
+								errmsg("Invalid username, use a different username.")));
 			}
 
 			has_user = true;
 		}
 		else if (strcmp(key, "pwd") == 0)
 		{
-			EnsureTopLevelFieldType("pwd", &createIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &createIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			spec->pwd = bson_iter_utf8(&createIter, &strLength);
 			if (strLength == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"pwd cannot be empty")));
+									"Password cannot be empty.")));
 			}
 
 			has_pwd = true;
@@ -227,27 +240,75 @@ ParseCreateUserSpec(pgbson *createSpec)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"Field roles cannot be an empty document")));
+									"'roles' is a required field.")));
 			}
 
 			/* Validate that it is of the right format */
 			spec->pgRole = ValidateAndObtainUserRole(&spec->roles);
 			has_roles = true;
 		}
+		else if (strcmp(key, "customData") == 0)
+		{
+			const bson_value_t *customDataDocument = bson_iter_value(&createIter);
+			if (customDataDocument->value_type != BSON_TYPE_DOCUMENT)
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						 errmsg("'customData' must be a bson document.")));
+			}
+
+			if (!IsBsonValueEmptyDocument(customDataDocument))
+			{
+				bson_iter_t customDataIterator;
+				BsonValueInitIterator(customDataDocument, &customDataIterator);
+				while (bson_iter_next(&customDataIterator))
+				{
+					const char *customDataKey = bson_iter_key(&customDataIterator);
+
+					if (strcmp(customDataKey, "IdentityProvider") == 0)
+					{
+						spec->identityProviderData = *bson_iter_value(
+							&customDataIterator);
+						spec->has_identity_provider = true;
+					}
+					else
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"Unsupported field specified in custom data: '%s'.",
+											customDataKey)));
+					}
+				}
+			}
+		}
 		else if (!IsCommonSpecIgnoredField(key))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified : %s", key)));
+							errmsg("Unsupported field specified : '%s'.", key)));
 		}
 	}
 
-	if (has_user && has_pwd && has_roles)
+	if (spec->has_identity_provider)
 	{
-		return spec;
+		if (!has_user || !has_roles)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"'createUser' and 'roles' are required fields.")));
+		}
+
+		if (has_pwd)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"Password is not allowed when using an external identity provider.")));
+		}
+	}
+	else if (!has_user || !has_roles || !has_pwd)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"'createUser', 'roles' and 'pwd' are required fields.")));
 	}
 
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("createUser, pwd and roles are required fields")));
+	return spec;
 }
 
 
@@ -266,7 +327,7 @@ ParseCreateUserSpec(pgbson *createSpec)
  *
  *  Reject all other combinations.
  */
-static char *
+char *
 ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 {
 	bson_iter_t rolesIterator;
@@ -284,6 +345,7 @@ ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 
 			if (strcmp(key, "role") == 0)
 			{
+				EnsureTopLevelFieldType(key, &roleIterator, BSON_TYPE_UTF8);
 				uint32_t strLength = 0;
 				const char *role = bson_iter_utf8(&roleIterator, &strLength);
 				if (strcmp(role, "readAnyDatabase") == 0)
@@ -304,28 +366,31 @@ ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ROLENOTFOUND),
-									errmsg("Invalid value specified for role: %s", role),
-									errdetail_log("Invalid value specified for role: %s",
-												  role)));
+									errmsg("Invalid value specified for role: '%s'.",
+										   role),
+									errdetail_log(
+										"Invalid value specified for role: '%s'.",
+										role)));
 				}
 			}
 			else if (strcmp(key, "db") == 0 || strcmp(key, "$db") == 0)
 			{
+				EnsureTopLevelFieldType(key, &roleIterator, BSON_TYPE_UTF8);
 				uint32_t strLength = 0;
 				const char *db = bson_iter_utf8(&roleIterator, &strLength);
 				if (strcmp(db, "admin") != 0)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"Unsupported value specified for db ")));
+										"Unsupported value specified for db. Only 'admin' is allowed.")));
 				}
 			}
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Unexpected parameter specified in roles : %s",
+								errmsg("Unsupported field specified: '%s'.",
 									   key),
 								errdetail_log(
-									"Unexpected parameter specified in roles : %s",
+									"Unsupported field specified: '%s'.",
 									key)));
 			}
 		}
@@ -344,9 +409,9 @@ ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ROLENOTFOUND),
 					errmsg(
-						"Roles specified are invalid. Only [{role: \"readAnyDatabase\", db: \"admin\"}] or [{role: \"clusterAdmin\", db: \"admin\"}, {role: \"readWriteAnyDatabase\", db: \"admin\"}] are allowed"),
+						"Roles specified are invalid. Only [{role: \"readAnyDatabase\", db: \"admin\"}] or [{role: \"clusterAdmin\", db: \"admin\"}, {role: \"readWriteAnyDatabase\", db: \"admin\"}] are allowed."),
 					errdetail_log(
-						"Roles specified are invalid. Only [{role: \"readAnyDatabase\", db: \"admin\"}] or [{role: \"clusterAdmin\", db: \"admin\"}, {role: \"readWriteAnyDatabase\", db: \"admin\"}] are allowed")));
+						"Roles specified are invalid. Only [{role: \"readAnyDatabase\", db: \"admin\"}] or [{role: \"clusterAdmin\", db: \"admin\"}, {role: \"readWriteAnyDatabase\", db: \"admin\"}] are allowed.")));
 }
 
 
@@ -360,32 +425,58 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("DropUser command is not supported"),
-						errdetail_log("DropUser command is not supported")));
+						errmsg("DropUser command is not supported."),
+						errdetail_log("DropUser command is not supported.")));
 	}
-
-	ReportFeatureUsage(FEATURE_USER_DROP);
 
 	if (PG_ARGISNULL(0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("User spec must be specified")));
+						errmsg("'dropUser' is a required field.")));
 	}
 
 	pgbson *dropUserSpec = PG_GETARG_PGBSON(0);
 	char *dropUser = ParseDropUserSpec(dropUserSpec);
-	StringInfo dropUserInfo = makeStringInfo();
-	appendStringInfo(dropUserInfo, "DROP ROLE %s;", quote_identifier(dropUser));
 
-	bool readOnly = false;
-	bool isNull = false;
-	ExtensionExecuteQueryViaSPI(dropUserInfo->data, readOnly, SPI_OK_UTILITY,
-								&isNull);
+	if (IsUserExternal(dropUser))
+	{
+		if (!DropUserWithExternalIdentityProvider(dropUser))
+		{
+			pgbson_writer finalWriter;
+			PgbsonWriterInit(&finalWriter);
+			PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 0);
+			PgbsonWriterAppendUtf8(&finalWriter, "errmsg", strlen("errmsg"),
+								   "External identity providers are not supported");
+			PgbsonWriterAppendInt32(&finalWriter, "code", strlen("code"), 115);
+			PgbsonWriterAppendUtf8(&finalWriter, "codeName", strlen("codeName"),
+								   "CommandNotSupported");
+			PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
+		}
+	}
+	else
+	{
+		/*Verify that the calling user is also native*/
+		if (IsCallingUserExternal())
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INSUFFICIENTPRIVILEGE),
+							errmsg(
+								"Only native users can drop other native users.")));
+		}
+
+		ReportFeatureUsage(FEATURE_USER_DROP);
+
+		StringInfo dropUserInfo = makeStringInfo();
+		appendStringInfo(dropUserInfo, "DROP ROLE %s;", quote_identifier(dropUser));
+
+		bool readOnly = false;
+		bool isNull = false;
+		ExtensionExecuteQueryViaSPI(dropUserInfo->data, readOnly, SPI_OK_UTILITY,
+									&isNull);
+	}
 
 	pgbson_writer finalWriter;
 	PgbsonWriterInit(&finalWriter);
 	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
-
 	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
 }
 
@@ -406,20 +497,20 @@ ParseDropUserSpec(pgbson *dropSpec)
 		const char *key = bson_iter_key(&dropIter);
 		if (strcmp(key, "dropUser") == 0)
 		{
-			EnsureTopLevelFieldType("dropUser", &dropIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &dropIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			dropUser = (char *) bson_iter_utf8(&dropIter, &strLength);
 			if (strLength == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"dropUser cannot be empty")));
+									"'dropUser' is a required field.")));
 			}
 
 			if (IsUserNameInvalid(dropUser))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Invalid user name")));
+								errmsg("Invalid username.")));
 			}
 		}
 		else if (strcmp(key, "lsid") == 0 || strcmp(key, "$db") == 0)
@@ -429,14 +520,14 @@ ParseDropUserSpec(pgbson *dropSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified : %s", key)));
+							errmsg("Unsupported field specified: '%s'.", key)));
 		}
 	}
 
 	if (dropUser == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("dropUser is a required field")));
+						errmsg("'dropUser' is a required field.")));
 	}
 
 	return dropUser;
@@ -457,34 +548,29 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("UpdateUser command is not supported"),
-						errdetail_log("UpdateUser command is not supported")));
+						errmsg("UpdateUser command is not supported."),
+						errdetail_log("UpdateUser command is not supported.")));
 	}
 
-	ReportFeatureUsage(FEATURE_USER_UPDATE);
 	if (PG_ARGISNULL(0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("User spec must be specified")));
+						errmsg("'updateUser' and 'pwd' are required fields.")));
 	}
 
 	pgbson *updateUserSpec = PG_GETARG_PGBSON(0);
 	UpdateUserSpec *spec = ParseUpdateUserSpec(updateUserSpec);
-	StringInfo updateUserInfo = makeStringInfo();
-	appendStringInfo(updateUserInfo, "ALTER USER %s WITH PASSWORD %s;", quote_identifier(
-						 spec->updateUser), quote_literal_cstr(PrehashPassword(
-																   spec->pwd)));
 
-	bool readOnly = false;
-	bool isNull = false;
-	ExtensionExecuteQueryViaSPI(updateUserInfo->data, readOnly, SPI_OK_UTILITY,
-								&isNull);
-
-	pgbson_writer finalWriter;
-	PgbsonWriterInit(&finalWriter);
-	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
-
-	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
+	if (IsUserExternal(spec->updateUser))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+						errmsg(
+							"UpdateUser command is not supported for a non native user.")));
+	}
+	else
+	{
+		return UpdateNativeUser(spec);
+	}
 }
 
 
@@ -501,57 +587,91 @@ ParseUpdateUserSpec(pgbson *updateSpec)
 	UpdateUserSpec *spec = palloc0(sizeof(UpdateUserSpec));
 
 	bool has_user = false;
-	bool has_pwd = false;
 
 	while (bson_iter_next(&updateIter))
 	{
 		const char *key = bson_iter_key(&updateIter);
 		if (strcmp(key, "updateUser") == 0)
 		{
-			EnsureTopLevelFieldType("updateUser", &updateIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &updateIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			spec->updateUser = bson_iter_utf8(&updateIter, &strLength);
 			if (strLength == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"updateUser cannot be empty")));
+									"'updateUser' is a required field.")));
 			}
 
 			has_user = true;
 		}
 		else if (strcmp(key, "pwd") == 0)
 		{
-			EnsureTopLevelFieldType("pwd", &updateIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &updateIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			spec->pwd = bson_iter_utf8(&updateIter, &strLength);
-			if (strLength == 0)
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"pwd cannot be empty")));
-			}
-
-			has_pwd = true;
 		}
 		else if (strcmp(key, "lsid") == 0 || strcmp(key, "$db") == 0)
 		{
 			continue;
 		}
+		else if (strcmp(key, "roles") == 0)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg("Updating roles is not supported.")));
+		}
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified : %s", key)));
+							errmsg("Unsupported field specified : '%s'.", key)));
 		}
 	}
 
-	if (has_user && has_pwd)
+	if (has_user)
 	{
 		return spec;
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("updateUser and pwd are required fields")));
+					errmsg("'updateUser' is a required field.")));
+}
+
+
+/*
+ * Update native user
+ */
+static Datum
+UpdateNativeUser(UpdateUserSpec *spec)
+{
+	ReportFeatureUsage(FEATURE_USER_UPDATE);
+
+	/*Verify that the calling user is also native*/
+	if (IsCallingUserExternal())
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INSUFFICIENTPRIVILEGE),
+						errmsg("Only native users can update other native users.")));
+	}
+
+	if (spec->pwd == NULL || spec->pwd[0] == '\0')
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("Password cannot be empty.")));
+	}
+
+	StringInfo updateUserInfo = makeStringInfo();
+	appendStringInfo(updateUserInfo, "ALTER USER %s WITH PASSWORD %s;", quote_identifier(
+						 spec->updateUser), quote_literal_cstr(PrehashPassword(
+																   spec->pwd)));
+
+	bool readOnly = false;
+	bool isNull = false;
+	ExtensionExecuteQueryViaSPI(updateUserInfo->data, readOnly, SPI_OK_UTILITY,
+								&isNull);
+
+	pgbson_writer finalWriter;
+	PgbsonWriterInit(&finalWriter);
+	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
 }
 
 
@@ -565,15 +685,15 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("UsersInfo command is not supported"),
-						errdetail_log("UsersInfo command is not supported")));
+						errmsg("UsersInfo command is not supported."),
+						errdetail_log("UsersInfo command is not supported.")));
 	}
 
 	ReportFeatureUsage(FEATURE_USER_GET);
 	if (PG_ARGISNULL(0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("User spec must be specified")));
+						errmsg("'usersInfo' or 'forAllDBs' must be provided.")));
 	}
 
 	char *userName = ParseGetUserSpec(PG_GETARG_PGBSON(0));
@@ -652,21 +772,23 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 			bson_iter_t getIter;
 			PgbsonInitIterator(bson_doc, &getIter);
 
+			bool isUserExternal = false;
+			const char *user = NULL;
+
 			/* Initialize iterator */
 			if (bson_iter_find(&getIter, "child_role"))
 			{
 				if (BSON_ITER_HOLDS_UTF8(&getIter))
 				{
-					const char *childRole = bson_iter_utf8(&getIter, NULL);
+					user = bson_iter_utf8(&getIter, NULL);
 					PgbsonWriterAppendUtf8(&userWriter, "_id", strlen("_id"), psprintf(
 											   "admin.%s",
-											   childRole));
+											   user));
 					PgbsonWriterAppendUtf8(&userWriter, "userId", strlen("userId"),
-										   psprintf(
-											   "admin.%s", childRole));
-					PgbsonWriterAppendUtf8(&userWriter, "user", strlen("user"),
-										   childRole);
+										   psprintf("admin.%s", user));
+					PgbsonWriterAppendUtf8(&userWriter, "user", strlen("user"), user);
 					PgbsonWriterAppendUtf8(&userWriter, "db", strlen("db"), "admin");
+					isUserExternal = IsUserExternal(user);
 				}
 			}
 			if (bson_iter_find(&getIter, "parent_role"))
@@ -714,6 +836,12 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 				}
 			}
 
+			if (isUserExternal)
+			{
+				PgbsonWriterAppendDocument(&userWriter, "customData", 10,
+										   GetUserInfoFromExternalIdentityProvider(user));
+			}
+
 			PgbsonArrayWriterWriteDocument(&userArrayWriter, PgbsonWriterGetPgbson(
 											   &userWriter));
 		}
@@ -747,7 +875,7 @@ ParseGetUserSpec(pgbson *getSpec)
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Unsupported value for usersInfo")));
+									errmsg("Unsupported value for 'usersInfo' field.")));
 				}
 			}
 			else if (bson_iter_type(&getIter) == BSON_TYPE_UTF8)
@@ -772,11 +900,9 @@ ParseGetUserSpec(pgbson *getSpec)
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 											errmsg(
-												"Unsupported value specified for db : %s",
-												db),
+												"Unsupported value specified for 'db' field. Only 'admin' is allowed."),
 											errdetail_log(
-												"Unsupported value specified for db : %s",
-												db)));
+												"Unsupported value specified for 'db' field. Only 'admin' is allowed.")));
 						}
 					}
 					else if (strcmp(bsonDocKey, "user") == 0 && BSON_ITER_HOLDS_UTF8(
@@ -790,7 +916,7 @@ ParseGetUserSpec(pgbson *getSpec)
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Unusupported value for usersInfo")));
+								errmsg("Unsupported value specified for 'usersInfo'.")));
 			}
 		}
 		else if (strcmp(key, "forAllDBs") == 0)
@@ -800,20 +926,21 @@ ParseGetUserSpec(pgbson *getSpec)
 				if (bson_iter_as_bool(&getIter) != true)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Unusupported value for forAllDBs")));
+									errmsg(
+										"Unsupported value specified for 'forAllDBs'.")));
 				}
 			}
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Unusupported value for forAllDBs")));
+								errmsg("Unsupported value specified for 'forAllDBs'")));
 			}
 
 			return NULL;
 		}
 		else if (strcmp(key, "getUser") == 0)
 		{
-			EnsureTopLevelFieldType("getUser", &getIter, BSON_TYPE_UTF8);
+			EnsureTopLevelFieldType(key, &getIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
 			return (char *) bson_iter_utf8(&getIter, &strLength);
 		}
@@ -824,12 +951,12 @@ ParseGetUserSpec(pgbson *getSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unusupported field")));
+							errmsg("Unsupported field specified: '%s'.", key)));
 		}
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-						"Please provide usersInfo or forAllDBs")));
+						"'usersInfo' or 'forAllDBs' must be provided.")));
 }
 
 
@@ -853,7 +980,7 @@ PrehashPassword(const char *password)
 	if (ScramDefaultSaltLen > SCRAM_MAX_SALT_LEN)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Invalid value for salt length")));
+						errmsg("Invalid value for salt length.")));
 	}
 
 	/*
@@ -872,7 +999,7 @@ PrehashPassword(const char *password)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("could not generate random salt")));
+				 errmsg("could not generate random salt.")));
 	}
 
 #if PG_VERSION_NUM >= 160000  /* PostgreSQL 16.0 or higher */
@@ -895,7 +1022,7 @@ PrehashPassword(const char *password)
 }
 
 
-static bool
+bool
 IsUserNameInvalid(const char *userName)
 {
 	/* Split the blocked role prefix list */
@@ -912,4 +1039,15 @@ IsUserNameInvalid(const char *userName)
 	}
 	pfree(copyBlockList);
 	return false;
+}
+
+
+/*
+ * Verify that the calling user is native
+ */
+static bool
+IsCallingUserExternal()
+{
+	const char *currentUser = GetUserNameFromId(GetUserId(), true);
+	return IsUserExternal(currentUser);
 }

@@ -19,7 +19,7 @@
 #include <port/atomics.h>
 
 #define MAX_FEATURE_NAME_LENGTH 255
-#define MAX_FEATURE_COUNT 259
+#define MAX_FEATURE_COUNT 263
 
 /* Internal features that are not exposed */
 #define INTERNAL_FEATURE_TYPE MAX_FEATURE_COUNT
@@ -309,6 +309,12 @@ typedef enum
 	FEATURE_USER_DROP,
 	FEATURE_USER_GET,
 	FEATURE_USER_UPDATE,
+
+	/* Feature mapping region - ExternalIdentityProvider */
+	FEATURE_EXTERNAL_IDENTITY_USER_CREATE,
+	FEATURE_EXTERNAL_IDENTITY_USER_DROP,
+	FEATURE_EXTERNAL_IDENTITY_USER_AUTHENTICATE,
+	FEATURE_EXTERNAL_IDENTITY_USER_GET,
 
 	/* This must be the last value in the FeatureType. */
 	MAX_FEATURE_INDEX
