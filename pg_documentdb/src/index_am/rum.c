@@ -364,6 +364,7 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 	{
 		/* For composite call the method to modify and do cross-key rechecks */
 		ModifyScanKeysForCompositeScan(scankey, nscankeys);
+		scan->numberOfKeys = 1;
 	}
 
 	if (core_rescanfunc == NULL)

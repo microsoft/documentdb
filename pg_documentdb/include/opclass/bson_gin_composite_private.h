@@ -33,18 +33,46 @@ typedef struct CompositeIndexBounds
 	bool requiresRuntimeRecheck;
 } CompositeIndexBounds;
 
+typedef struct CompositeQueryMetaInfo
+{
+	bool hasTruncation;
+	int32_t truncationTermIndex;
+	bool requiresRuntimeRecheck;
+} CompositeQueryMetaInfo;
+
 typedef struct CompositeQueryRunData
 {
 	CompositeIndexBounds indexBounds[INDEX_MAX_KEYS];
 	int32_t numIndexPaths;
-	bool hasTruncation;
-	int32_t truncationTermIndex;
-	bool requiresRuntimeRecheck;
+	CompositeQueryMetaInfo *metaInfo;
 } CompositeQueryRunData;
 
+typedef struct CompositeIndexBoundsSet
+{
+	/* The index path attribute (0 based) */
+	int32_t indexAttribute;
+	int32_t numBounds;
+	CompositeIndexBounds bounds[FLEXIBLE_ARRAY_MEMBER];
+} CompositeIndexBoundsSet;
 
-bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData, int32_t
-										   numPaths,
+typedef struct VariableIndexBounds
+{
+	/* List of CompositeIndexBoundsSet */
+	List *variableBoundsList;
+} VariableIndexBounds;
+
+static inline CompositeIndexBoundsSet *
+CreateCompositeIndexBoundsSet(int32_t numTerms, int32_t indexAttribute)
+{
+	CompositeIndexBoundsSet *set = palloc0(sizeof(CompositeIndexBoundsSet) +
+										   (sizeof(CompositeIndexBounds) * numTerms));
+	set->numBounds = numTerms;
+	set->indexAttribute = indexAttribute;
+	return set;
+}
+
+
+bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 										   IndexTermCreateMetadata *metadata,
 										   bool *hasInequalityMatch);
 
@@ -52,8 +80,13 @@ bool UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPat
 							   IndexTermCreateMetadata *metadata);
 
 
-void ParseBoundsFromStrategy(const char **indexPaths, int32_t numPaths,
-							 pgbsonelement *queryElement,
-							 BsonIndexStrategy queryStrategy,
-							 CompositeIndexBounds *queryBounds);
+void ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
+						   pgbsonelement *queryElement,
+						   BsonIndexStrategy queryStrategy,
+						   CompositeIndexBounds *queryBounds,
+						   VariableIndexBounds *indexBounds);
+
+void UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
+									VariableIndexBounds *variableBounds,
+									int32_t permutation);
  #endif

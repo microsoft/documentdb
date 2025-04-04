@@ -61,8 +61,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 			/* If we want to be able to accept UTF8 strings with invalid sequences
 			 * then the max UTf8 string can only be the smallest document exclusive
 			 */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_DOCUMENT, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_DOCUMENT);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -70,10 +69,9 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_DOCUMENT:
 		{
 			/* If we want to be able to accept any document
-			 * then the max document string can only be the smallest array exclusive
+			 * then the max document can only be the smallest array exclusive
 			 */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_ARRAY, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_ARRAY);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -81,8 +79,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_ARRAY:
 		{
 			/* Pick the smallest binary value exclusive */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_BINARY, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_BINARY);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -90,16 +87,14 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_BINARY:
 		{
 			/* Exclusive to the lower bound of the next type */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_OID, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_OID);
 			*isUpperBoundInclusive = false;
 			break;
 		}
 
 		case BSON_TYPE_OID:
 		{
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_BOOL, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_BOOL);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -132,8 +127,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_REGEX:
 		{
 			/* Exclusive to the lower bound of the next type */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_DBPOINTER, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_DBPOINTER);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -141,8 +135,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_DBPOINTER:
 		{
 			/* Exclusive to the lower bound of the next type */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_CODE, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_CODE);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -150,8 +143,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_CODE:
 		{
 			/* Exclusive to the lower bound of the next type */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_CODEWSCOPE, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_CODEWSCOPE);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -159,8 +151,7 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 		case BSON_TYPE_CODEWSCOPE:
 		{
 			/* Exclusive to the lower bound of the next type */
-			bool isBoundInclusiveIgnore = false;
-			upperBound = GetLowerBound(BSON_TYPE_MAXKEY, &isBoundInclusiveIgnore);
+			upperBound = GetLowerBound(BSON_TYPE_MAXKEY);
 			*isUpperBoundInclusive = false;
 			break;
 		}
@@ -188,10 +179,9 @@ GetUpperBound(bson_type_t type, bool *isUpperBoundInclusive)
 
 
 bson_value_t
-GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
+GetLowerBound(bson_type_t type)
 {
 	bson_value_t lowerBound = { 0 };
-	*isLowerBoundInclusive = false;
 	switch (type)
 	{
 		case BSON_TYPE_MINKEY:
@@ -214,7 +204,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 		{
 			lowerBound.value_type = BSON_TYPE_DOUBLE;
 			lowerBound.value.v_double = -INFINITY; /* Negative infinity for lower bound */
-			*isLowerBoundInclusive = true; /* Negative infinity is inclusive */
 			break;
 		}
 
@@ -225,7 +214,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value_type = BSON_TYPE_UTF8;
 			lowerBound.value.v_utf8.str = ""; /* Empty string for lower bound */
 			lowerBound.value.v_utf8.len = 0;
-			*isLowerBoundInclusive = true; /* Empty string is inclusive */
 			break;
 		}
 
@@ -233,7 +221,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 		{
 			pgbson *emptyDoc = PgbsonInitEmpty();
 			lowerBound = ConvertPgbsonToBsonValue(emptyDoc);
-			*isLowerBoundInclusive = true;
 			break;
 		}
 
@@ -242,7 +229,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			pgbson *emptyDoc = PgbsonInitEmpty();
 			lowerBound = ConvertPgbsonToBsonValue(emptyDoc);
 			lowerBound.value_type = BSON_TYPE_ARRAY;
-			*isLowerBoundInclusive = true;
 			break;
 		}
 
@@ -252,7 +238,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value.v_binary.data_len = 0;
 			lowerBound.value.v_binary.data = NULL;
 			lowerBound.value.v_binary.subtype = BSON_SUBTYPE_BINARY;
-			*isLowerBoundInclusive = true; /* Empty binary is inclusive */
 			break;
 		}
 
@@ -260,7 +245,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 		{
 			lowerBound.value_type = BSON_TYPE_OID;
 			memset(lowerBound.value.v_oid.bytes, 0, sizeof(lowerBound.value.v_oid.bytes));
-			*isLowerBoundInclusive = true;
 			break;
 		}
 
@@ -268,7 +252,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 		{
 			lowerBound.value_type = BSON_TYPE_BOOL;
 			lowerBound.value.v_bool = false; /* Lowest bool value is false */
-			*isLowerBoundInclusive = true; /* false is inclusive */
 			break;
 		}
 
@@ -276,7 +259,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 		{
 			lowerBound.value_type = BSON_TYPE_DATE_TIME;
 			lowerBound.value.v_datetime = INT64_MIN; /* Minimum date time value */
-			*isLowerBoundInclusive = true;  /* INT64_MIN is inclusive */
 			break;
 		}
 
@@ -285,7 +267,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value_type = BSON_TYPE_TIMESTAMP;
 			lowerBound.value.v_timestamp.increment = 0;
 			lowerBound.value.v_timestamp.timestamp = 0; /* Minimum timestamp value */
-			*isLowerBoundInclusive = true; /* 0 is inclusive */
 			break;
 		}
 
@@ -294,7 +275,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value_type = BSON_TYPE_REGEX;
 			lowerBound.value.v_regex.regex = ""; /* Empty regex for lower bound */
 			lowerBound.value.v_regex.options = NULL; /* Empty options for lower bound */
-			*isLowerBoundInclusive = true; /* Empty regex is inclusive */
 			break;
 		}
 
@@ -305,7 +285,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value.v_dbpointer.collection = "";
 			memset(lowerBound.value.v_dbpointer.oid.bytes, 0,
 				   sizeof(lowerBound.value.v_dbpointer.oid.bytes));
-			*isLowerBoundInclusive = true;
 			break;
 		}
 
@@ -314,7 +293,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			lowerBound.value_type = BSON_TYPE_CODE;
 			lowerBound.value.v_code.code = ""; /* Empty string for lower bound */
 			lowerBound.value.v_code.code_len = 0;
-			*isLowerBoundInclusive = true; /* Empty string is inclusive */
 			break;
 		}
 
@@ -327,7 +305,6 @@ GetLowerBound(bson_type_t type, bool *isLowerBoundInclusive)
 			bson_value_t emptyDocValue = ConvertPgbsonToBsonValue(emptyDoc);
 			lowerBound.value.v_codewscope.scope_data = emptyDocValue.value.v_doc.data;
 			lowerBound.value.v_codewscope.scope_len = emptyDocValue.value.v_doc.data_len;
-			*isLowerBoundInclusive = true; /* Empty string is inclusive */
 			break;
 		}
 
