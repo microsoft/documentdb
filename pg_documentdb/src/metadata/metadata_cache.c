@@ -1217,7 +1217,7 @@ InvalidateDocumentDBApiCache(Datum argument, Oid relationId)
 /*
  * Helper method abstracting typename parsing across PG Versions
  */
-inline static TypeName *
+TypeName *
 ParseTypeNameCore(const char *typeName)
 {
 #if PG_VERSION_NUM >= 160000
