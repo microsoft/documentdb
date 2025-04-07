@@ -41,7 +41,7 @@ jobs:
         run: |
           cmake --version
           sudo apt-get update
-          sudo apt-get install -y cmake=3.31.*
+          sudo apt-get install -y cmake=3.31.6
           cmake --version
 
       - name: Install package dependencies
