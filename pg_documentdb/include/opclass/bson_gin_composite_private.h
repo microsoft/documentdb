@@ -33,11 +33,26 @@ typedef struct CompositeIndexBounds
 	bool requiresRuntimeRecheck;
 } CompositeIndexBounds;
 
+typedef struct PathScanKeyMap
+{
+	/* integer list of term indexes - one for each scanKey */
+	List *scanIndices;
+} PathScanKeyMap;
+
+typedef struct PathScanTermMap
+{
+	/* Integer list of key indexes - one for each index path */
+	List *scanKeyIndexList;
+	int32_t numTermsPerPath;
+} PathScanTermMap;
+
 typedef struct CompositeQueryMetaInfo
 {
 	bool hasTruncation;
 	int32_t truncationTermIndex;
 	bool requiresRuntimeRecheck;
+	int32_t numScanKeys;
+	PathScanKeyMap *scanKeyMap;
 } CompositeQueryMetaInfo;
 
 typedef struct CompositeQueryRunData
@@ -83,10 +98,10 @@ bool UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPat
 void ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 						   pgbsonelement *queryElement,
 						   BsonIndexStrategy queryStrategy,
-						   CompositeIndexBounds *queryBounds,
 						   VariableIndexBounds *indexBounds);
 
 void UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
+									PathScanTermMap *termMap,
 									VariableIndexBounds *variableBounds,
 									int32_t permutation);
  #endif

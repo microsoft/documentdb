@@ -29,14 +29,13 @@ for validationFileName in $(ls ./expected/*_tests_index.out); do
 done
 
 # Validate new composite index test equivalence
-# TODO: Re-enable this.
-# for validationFileName in $(ls ./expected/*_tests_index_composite.out); do
-#     runtimeFileName=${validationFileName/_tests_index_composite.out/_tests_index.out};
+for validationFileName in $(ls ./expected/*_tests_index_composite.out); do
+    runtimeFileName=${validationFileName/_tests_index_composite.out/_tests_index.out};
 
-#     $diff -s -I 'SELECT documentdb_api_internal.create_indexes' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' -I 'documentdb.enableGeospatial' \
-#         $validationFileName $runtimeFileName;
-#     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
-# done
+    $diff -s -I 'SELECT documentdb_api_internal.create_indexes' -I 'set local documentdb.enableNewCompositeIndexOpClass' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' -I 'documentdb.enableGeospatial' \
+        $validationFileName $runtimeFileName;
+    if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
+done
 
 # TODO: Enable this
 # for validationFileName in $(ls ./expected/*_tests_explain_index_composite.out); do

@@ -75,6 +75,9 @@ static void AddMultiBoundaryForNotGreater(int32_t indexAttribute,
 static void AddMultiBoundaryForNotLess(int32_t indexAttribute,
 									   pgbsonelement *queryElement,
 									   VariableIndexBounds *indexBounds, bool isEquals);
+static void AddMultiBoundaryForDollarRange(int32_t indexAttribute,
+										   pgbsonelement *queryElement,
+										   VariableIndexBounds *indexBounds);
 
 
 inline static CompositeSingleBound
@@ -160,22 +163,50 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 
 void
 UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
+							   PathScanTermMap *termMap,
 							   VariableIndexBounds *variableBounds,
 							   int32_t permutation)
 {
 	ListCell *cell;
-	foreach(cell, variableBounds->variableBoundsList)
+	int32_t originalPermutation = permutation;
+
+	/* Take one term per path */
+	for (int i = 0; i < runData->numIndexPaths; i++)
 	{
-		CompositeIndexBoundsSet *set = (CompositeIndexBoundsSet *) lfirst(cell);
-		if (set->indexAttribute >= runData->numIndexPaths)
+		/* This is the index'th term for the current path */
+		if (termMap[i].numTermsPerPath == 0)
 		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(
-								"Variable bounds index %d exceeds number of index paths %d",
-								set->indexAttribute, runData->numIndexPaths)));
+			continue;
 		}
 
-		int index = permutation % set->numBounds;
-		permutation /= set->numBounds;
+		int index = permutation % termMap[i].numTermsPerPath;
+		permutation /= termMap[i].numTermsPerPath;
+
+		/* Now fetch the set based on the index */
+		int32_t scanKeyIndex = -1;
+		CompositeIndexBoundsSet *set = NULL;
+		foreach(cell, termMap[i].scanKeyIndexList)
+		{
+			int scanKeyCandidate = lfirst_int(cell);
+			set = list_nth(variableBounds->variableBoundsList, scanKeyCandidate);
+			if (set->numBounds > index)
+			{
+				scanKeyIndex = scanKeyCandidate;
+				break;
+			}
+
+			index -= set->numBounds;
+		}
+
+		if (scanKeyIndex == -1 || set == NULL)
+		{
+			ereport(ERROR, (errmsg("Could not find scan key for term")));
+		}
+
+		/* Track the current term in the scan key */
+		runData->metaInfo->scanKeyMap[scanKeyIndex].scanIndices =
+			lappend_int(runData->metaInfo->scanKeyMap[scanKeyIndex].scanIndices,
+						originalPermutation);
 
 		/* Update the runData with the selected bounds for this index attribute */
 		CompositeIndexBounds *bound = &set->bounds[index];
@@ -232,7 +263,6 @@ void
 ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 					  pgbsonelement *queryElement,
 					  BsonIndexStrategy queryStrategy,
-					  CompositeIndexBounds *queryBounds,
 					  VariableIndexBounds *indexBounds)
 {
 	/* First figure out which query path matches */
@@ -268,11 +298,20 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
 		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
 		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
-		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL:
 		{
+			int numterms = 1;
+			CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
 			SetSingleRangeBoundsFromStrategy(queryElement,
-											 queryStrategy, &queryBounds[i]);
+											 queryStrategy, set->bounds);
+			indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
+													  set);
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
+		{
+			AddMultiBoundaryForDollarRange(i, queryElement, indexBounds);
 			break;
 		}
 
@@ -284,12 +323,13 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 			}
 			else
 			{
+				int numterms = 1;
+				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
 				SetSingleRangeBoundsFromStrategy(queryElement,
-												 queryStrategy, &queryBounds[i]);
+												 queryStrategy, set->bounds);
+				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
+														  set);
 			}
-
-			/* TODO: Compare partial checks */
-			queryBounds->requiresRuntimeRecheck = true;
 
 			break;
 		}
@@ -679,6 +719,8 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			bounds = GetTypeUpperBound(typeValue);
 			SetUpperBound(&queryBounds->upperBound, &bounds);
 
+			queryBounds->requiresRuntimeRecheck = true;
+
 			break;
 		}
 
@@ -929,6 +971,11 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 
 	if (inArraySize == 0)
 	{
+		/* $nin nothing is all documents */
+		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
+																	 indexAttribute);
+		SetBoundsExistsTrue(&set->bounds[0]);
+		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 		return;
 	}
 
@@ -1103,4 +1150,50 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 		index++;
 	}
 	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
+}
+
+
+static void
+AddMultiBoundaryForDollarRange(int32_t indexAttribute,
+							   pgbsonelement *queryElement,
+							   VariableIndexBounds *indexBounds)
+{
+	DollarRangeParams *params = ParseQueryDollarRange(queryElement);
+
+	CompositeSingleBound bounds = { 0 };
+	if (params->minValue.value_type == BSON_TYPE_MINKEY &&
+		params->isMinInclusive)
+	{
+		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
+																	 indexAttribute);
+		SetBoundsExistsTrue(&set->bounds[0]);
+		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
+	}
+	else if (params->minValue.value_type != BSON_TYPE_EOD)
+	{
+		bounds.bound = params->minValue;
+		bounds.isBoundInclusive = params->isMinInclusive;
+		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
+																	 indexAttribute);
+		SetLowerBound(&set->bounds[0].lowerBound, &bounds);
+
+		/* Apply type bracketing */
+		bounds = GetTypeUpperBound(params->minValue.value_type);
+		SetUpperBound(&set->bounds[0].upperBound, &bounds);
+		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
+	}
+
+	if (params->maxValue.value_type != BSON_TYPE_EOD)
+	{
+		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
+																	 indexAttribute);
+		bounds.bound = params->maxValue;
+		bounds.isBoundInclusive = params->isMaxInclusive;
+		SetUpperBound(&set->bounds[0].upperBound, &bounds);
+
+		/* Apply type bracketing */
+		bounds = GetTypeLowerBound(params->maxValue.value_type);
+		SetLowerBound(&set->bounds[0].upperBound, &bounds);
+		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
+	}
 }

@@ -1212,13 +1212,11 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
  { "_id" : { "$numberInt" : "4" }, "a" : { "$numberLong" : "1" } }
  { "_id" : { "$numberInt" : "5" }, "a" : { "$numberDecimal" : "1.0" } }
  { "_id" : { "$numberInt" : "6" }, "a" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "7" }, "a" : { "$numberDecimal" : "1.000000000000000000000000000000001" } }
- { "_id" : { "$numberInt" : "8" }, "a" : { "$numberDouble" : "1.0000000000000011102" } }
  { "_id" : { "$numberInt" : "24" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" } ] }
  { "_id" : { "$numberInt" : "25" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
  { "_id" : { "$numberInt" : "29" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "NaN" }, { "$numberInt" : "4" } ] }
  { "_id" : { "$numberInt" : "31" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "Infinity" }, { "$numberInt" : "4" } ] }
-(12 rows)
+(10 rows)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ 1.0, 10 ] } }';
                                                                                            document                                                                                            
@@ -1229,13 +1227,11 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
  { "_id" : { "$numberInt" : "4" }, "a" : { "$numberLong" : "1" } }
  { "_id" : { "$numberInt" : "5" }, "a" : { "$numberDecimal" : "1.0" } }
  { "_id" : { "$numberInt" : "6" }, "a" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "7" }, "a" : { "$numberDecimal" : "1.000000000000000000000000000000001" } }
- { "_id" : { "$numberInt" : "8" }, "a" : { "$numberDouble" : "1.0000000000000011102" } }
  { "_id" : { "$numberInt" : "24" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" } ] }
  { "_id" : { "$numberInt" : "25" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
  { "_id" : { "$numberInt" : "29" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "NaN" }, { "$numberInt" : "4" } ] }
  { "_id" : { "$numberInt" : "31" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "Infinity" }, { "$numberInt" : "4" } ] }
-(12 rows)
+(10 rows)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ 1.01, 10 ] } }';
  document 
@@ -1243,38 +1239,16 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
 (0 rows)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [  "first value", {"$numberDouble": "1.000000000000001"} ] } }';
-                                                                                           document                                                                                            
+                                        document                                         
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" } }
- { "_id" : { "$numberInt" : "2" }, "a" : { "$numberDecimal" : "1.0" } }
- { "_id" : { "$numberInt" : "3" }, "a" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "4" }, "a" : { "$numberLong" : "1" } }
- { "_id" : { "$numberInt" : "5" }, "a" : { "$numberDecimal" : "1.0" } }
- { "_id" : { "$numberInt" : "6" }, "a" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "7" }, "a" : { "$numberDecimal" : "1.000000000000000000000000000000001" } }
  { "_id" : { "$numberInt" : "8" }, "a" : { "$numberDouble" : "1.0000000000000011102" } }
- { "_id" : { "$numberInt" : "24" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" } ] }
- { "_id" : { "$numberInt" : "25" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
- { "_id" : { "$numberInt" : "29" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "NaN" }, { "$numberInt" : "4" } ] }
- { "_id" : { "$numberInt" : "31" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "Infinity" }, { "$numberInt" : "4" } ] }
-(12 rows)
+(1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [  "first value", {"$numberDecimal": "1.000000000000000000000000000000001"} ] } }';
-                                                                                           document                                                                                            
+                                                document                                                
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" } }
- { "_id" : { "$numberInt" : "2" }, "a" : { "$numberDecimal" : "1.0" } }
- { "_id" : { "$numberInt" : "3" }, "a" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "4" }, "a" : { "$numberLong" : "1" } }
- { "_id" : { "$numberInt" : "5" }, "a" : { "$numberDecimal" : "1.0" } }
- { "_id" : { "$numberInt" : "6" }, "a" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "7" }, "a" : { "$numberDecimal" : "1.000000000000000000000000000000001" } }
- { "_id" : { "$numberInt" : "8" }, "a" : { "$numberDouble" : "1.0000000000000011102" } }
- { "_id" : { "$numberInt" : "24" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" } ] }
- { "_id" : { "$numberInt" : "25" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
- { "_id" : { "$numberInt" : "29" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "NaN" }, { "$numberInt" : "4" } ] }
- { "_id" : { "$numberInt" : "31" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberDouble" : "Infinity" }, { "$numberInt" : "4" } ] }
-(12 rows)
+(1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"b":1},[1,2,3,4,5,6], "Lets Optimize dollar In"  ] } }';
                                                                                            document                                                                                            
@@ -1360,22 +1334,23 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
 
 -- matches _id: 12 even though this condition should match none if applied per term.
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$gt": 3, "$lt": 5 }}';
- document 
+                                                                                                                                                     document                                                                                                                                                     
 ---------------------------------------------------------------------
-(0 rows)
+ { "_id" : { "$numberInt" : "12" }, "a" : [ { "b" : [ { "$numberInt" : "-1" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "7" } ] } ] }
+(1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$lt": 5, "$gt": 3 }}';
- document 
+                                                                                                                                                     document                                                                                                                                                     
 ---------------------------------------------------------------------
-(0 rows)
+ { "_id" : { "$numberInt" : "12" }, "a" : [ { "b" : [ { "$numberInt" : "-1" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "7" } ] } ] }
+(1 row)
 
 -- this should evaluate to _id 10/12 even though it should evaluate to false
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$eq": 2, "$lt": 1 }}';
                                                                                                                                                      document                                                                                                                                                     
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "a" : { "b" : { "$numberDouble" : "2.0" } } }
  { "_id" : { "$numberInt" : "10" }, "a" : { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] } }
  { "_id" : { "$numberInt" : "12" }, "a" : [ { "b" : [ { "$numberInt" : "-1" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "7" } ] } ] }
-(3 rows)
+(2 rows)
 
 ROLLBACK;

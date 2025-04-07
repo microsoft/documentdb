@@ -67,9 +67,9 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
 
 -- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
-         gin_bson_get_composite_path_generated_terms          
---------------------------------------------------------------
- { "$" : [ "aaaaaaaa", { "$numberInt" : "1" } ], "t" : true }
+          gin_bson_get_composite_path_generated_terms          
+---------------------------------------------------------------
+ { "$" : [ "aaaaaaaa", { "$numberInt" : "1" } ], "t" : false }
  { "" : { "$maxKey" : 1 }, "t" : true }
 (2 rows)
 

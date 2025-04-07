@@ -64,17 +64,29 @@ static int32_t GetIndexPathsFromOptions(BsonGinCompositePathOptions *options,
 										const char **indexPaths);
 static void ParseBoundsForCompositeOperator(pgbsonelement *singleElement, const
 											char **indexPaths, int32_t numPaths,
-											CompositeIndexBounds *queryBounds,
 											VariableIndexBounds *variableBounds);
 static bytea * BuildTermForBounds(CompositeQueryRunData *runData,
 								  IndexTermCreateMetadata *singlePathMetadata,
 								  IndexTermCreateMetadata *compositeMetadata,
 								  bool *partialMatch);
-inline static int32_t
-GetSinglePathTruncationLimit(int32_t compositeTruncationLimit, int32_t numPaths)
+
+
+inline static IndexTermCreateMetadata
+GetSinglePathTermCreateMetadata(void *options, int32_t numPaths)
 {
-	/* allocate 4 bytes for each path\0 + 1 typecode within the truncated array */
-	return (compositeTruncationLimit / numPaths) - 4;
+	IndexTermCreateMetadata singlePathMetadata = GetIndexTermMetadata(options);
+	singlePathMetadata.indexTermSizeLimit = (singlePathMetadata.indexTermSizeLimit /
+											 numPaths) - 4;
+	return singlePathMetadata;
+}
+
+
+inline static IndexTermCreateMetadata
+GetCompositeIndexTermMetadata(void *options)
+{
+	IndexTermCreateMetadata compositeMetadata = GetIndexTermMetadata(options);
+	compositeMetadata.indexTermSizeLimit = -1;
+	return compositeMetadata;
 }
 
 
@@ -160,12 +172,12 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		 */
 
 		ParseOperatorStrategy(indexPaths, numPaths, &singleElement, strategy,
-							  runData->indexBounds, &variableBounds);
+							  &variableBounds);
 	}
 	else
 	{
 		ParseBoundsForCompositeOperator(&singleElement, indexPaths, numPaths,
-										runData->indexBounds, &variableBounds);
+										&variableBounds);
 	}
 
 	/* Tally up the total variable bound counts - this is the permutation of all variable terms
@@ -177,22 +189,48 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	 * with each of the boundaries.
 	 */
 	int32_t totalPathTerms = 1;
-	if (variableBounds.variableBoundsList != NIL)
+
+	/* These are the scan keys to validate in consistent checks */
+	runData->metaInfo->numScanKeys = list_length(variableBounds.variableBoundsList);
+	PathScanTermMap pathScanTermMap[INDEX_MAX_KEYS] = { 0 };
+	if (runData->metaInfo->numScanKeys > 0)
 	{
+		runData->metaInfo->scanKeyMap = palloc0(sizeof(PathScanKeyMap) *
+												runData->metaInfo->numScanKeys);
+
+		/* First pass - aggregate per path */
 		ListCell *cell;
 		foreach(cell, variableBounds.variableBoundsList)
 		{
 			CompositeIndexBoundsSet *set =
 				(CompositeIndexBoundsSet *) lfirst(cell);
-			totalPathTerms = totalPathTerms * set->numBounds;
+
+			if (set->numBounds == 0)
+			{
+				/* If one scanKey is unsatisfiable then the query is not satisfiable */
+				totalPathTerms = 0;
+			}
+
+			/* Add the index to the current key */
+			pathScanTermMap[set->indexAttribute].scanKeyIndexList =
+				lappend_int(pathScanTermMap[set->indexAttribute].scanKeyIndexList,
+							foreach_current_index(cell));
+			pathScanTermMap[set->indexAttribute].numTermsPerPath += set->numBounds;
+		}
+
+		/* Second phase, calculate total term count */
+		for (int i = 0; i < numPaths; i++)
+		{
+			if (pathScanTermMap[i].numTermsPerPath > 0)
+			{
+				totalPathTerms = totalPathTerms * pathScanTermMap[i].numTermsPerPath;
+			}
 		}
 	}
 
-	IndexTermCreateMetadata singlePathMetadata = GetIndexTermMetadata(options);
-	singlePathMetadata.indexTermSizeLimit =
-		GetSinglePathTruncationLimit(singlePathMetadata.indexTermSizeLimit,
-									 numPaths);
-	IndexTermCreateMetadata compositeMetadata = GetIndexTermMetadata(options);
+	IndexTermCreateMetadata singlePathMetadata = GetSinglePathTermCreateMetadata(options,
+																				 numPaths);
+	IndexTermCreateMetadata compositeMetadata = GetCompositeIndexTermMetadata(options);
 
 	*nentries = totalPathTerms;
 	*partialmatch = (bool *) palloc0(sizeof(bool) * (totalPathTerms + 1));
@@ -219,7 +257,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 				sizeof(CompositeQueryRunData));
 			memcpy(runDataCopy, runData, sizeof(CompositeQueryRunData));
 
-			UpdateRunDataForVariableBounds(runDataCopy, &variableBounds,
+			UpdateRunDataForVariableBounds(runDataCopy, pathScanTermMap, &variableBounds,
 										   currentTerm);
 			bytea *term = BuildTermForBounds(runDataCopy, &singlePathMetadata,
 											 &compositeMetadata,
@@ -227,6 +265,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 
 			BsonIndexTerm termValue;
 			InitializeBsonIndexTerm(term, &termValue);
+
 			extraDataArray[i] = (Pointer) runDataCopy;
 			entries[i] = PointerGetDatum(term);
 		}
@@ -400,7 +439,6 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	StrategyNumber strategy = PG_GETARG_UINT16(1);
 
 	/* int32_t numKeys = (int32_t) PG_GETARG_INT32(3); */
-
 	Pointer *extra_data = (Pointer *) PG_GETARG_POINTER(4);
 	bool *recheck = (bool *) PG_GETARG_POINTER(5);       /* out param. */
 	/* Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6); */
@@ -416,35 +454,42 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 
 	/* If operators specifically required runtime recheck honor it */
 	*recheck = runData->metaInfo->requiresRuntimeRecheck;
-	if (runData->metaInfo->hasTruncation)
-	{
-		if (check[runData->metaInfo->truncationTermIndex])
-		{
-			/* The truncation term matched. However, we need to now check if every *other* term matched too */
-			*recheck = true;
-			for (int i = 0; i < runData->metaInfo->truncationTermIndex; i++)
-			{
-				if (check[i])
-				{
-					return true;
-				}
-			}
 
-			return false;
-		}
-		else
-		{
-			/* The truncation term did not match - therefore the index is trusted */
-			return true;
-		}
-	}
-	else
+	if (runData->metaInfo->hasTruncation && check[runData->metaInfo->truncationTermIndex])
 	{
-		/* there's no truncation - at this point we can trust what the index gave us
-		 * Since every term will only match if it hit a compare partial scenario.
-		 */
-		return true;
+		*recheck = true;
 	}
+
+	/* Walk the scan keys and ensure every one is matched */
+	bool innerResult = runData->metaInfo->numScanKeys > 0;
+	for (int i = 0; i < runData->metaInfo->numScanKeys && innerResult; i++)
+	{
+		if (list_length(runData->metaInfo->scanKeyMap[i].scanIndices) == 0)
+		{
+			/* unsatisfiable key */
+			innerResult = false;
+			break;
+		}
+
+		bool keyMatched = false;
+		ListCell *scanCell;
+		foreach(scanCell, runData->metaInfo->scanKeyMap[i].scanIndices)
+		{
+			int32_t scanTerm = lfirst_int(scanCell);
+			if (check[scanTerm])
+			{
+				keyMatched = true;
+				break;
+			}
+		}
+
+		if (!keyMatched)
+		{
+			innerResult = false;
+		}
+	}
+
+	return innerResult;
 }
 
 
@@ -789,8 +834,10 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		singlePathOptions->base.version = IndexOptionsVersion_V0;
 
 		/* The truncation limit will be divided by the numPaths */
+		context.termMetadata = GetSinglePathTermCreateMetadata(options,
+															   (int32_t) pathCount);
 		singlePathOptions->base.indexTermTruncateLimit =
-			GetSinglePathTruncationLimit(options->base.indexTermTruncateLimit, pathCount);
+			context.termMetadata.indexTermSizeLimit;
 		singlePathOptions->isWildcard = false;
 		singlePathOptions->generateNotFoundTerm = true;
 		singlePathOptions->path = sizeof(BsonGinSinglePathOptions);
@@ -820,7 +867,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 	bool hasTruncation = false;
 	bool hasUndefined = false;
-	IndexTermCreateMetadata overallMetadata = GetIndexTermMetadata(options);
+	IndexTermCreateMetadata overallMetadata = GetCompositeIndexTermMetadata(options);
 	for (uint32_t i = 0; i < totalTermCount; i++)
 	{
 		pgbson_writer singleWriter;
@@ -908,8 +955,7 @@ GetIndexPathsFromOptions(BsonGinCompositePathOptions *options,
 
 static void
 ParseBoundsForCompositeOperator(pgbsonelement *singleElement, const char **indexPaths,
-								int32_t numPaths, CompositeIndexBounds *queryBounds,
-								VariableIndexBounds *variableBounds)
+								int32_t numPaths, VariableIndexBounds *variableBounds)
 {
 	if (singleElement->bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
@@ -960,7 +1006,7 @@ ParseBoundsForCompositeOperator(pgbsonelement *singleElement, const char **index
 		}
 
 		ParseOperatorStrategy(indexPaths, numPaths, &queryElement, queryStrategy,
-							  queryBounds, variableBounds);
+							  variableBounds);
 	}
 }
 
