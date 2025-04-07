@@ -536,7 +536,10 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 			*recheck = false;
 			if (numKeys == 2)
 			{
-				/* no truncation */
+				/* no truncation - recheck if it *only* matched the array term. This case we can't tell if it's
+				 * a match due to array of array term.
+				 */
+				*recheck = check[1] && !check[0];
 				return check[0] || check[1];
 			}
 

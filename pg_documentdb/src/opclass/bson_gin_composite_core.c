@@ -53,6 +53,9 @@ static void SetUpperBound(CompositeSingleBound *currentBoundValue, const
 static void SetLowerBound(CompositeSingleBound *currentBoundValue, const
 						  CompositeSingleBound *lowerBound);
 
+static void AddMultiBoundaryForDollarAll(int32_t indexAttribute,
+										 pgbsonelement *queryElement,
+										 VariableIndexBounds *indexBounds);
 static void AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 										pgbsonelement *queryElement,
 										VariableIndexBounds *indexBounds);
@@ -263,7 +266,6 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
 		case BSON_INDEX_STRATEGY_DOLLAR_EXISTS:
 		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
-		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
 		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
 		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
 		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
@@ -286,6 +288,15 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 												 queryStrategy, &queryBounds[i]);
 			}
 
+			/* TODO: Compare partial checks */
+			queryBounds->requiresRuntimeRecheck = true;
+
+			break;
+		}
+
+		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
+		{
+			AddMultiBoundaryForDollarAll(i, queryElement, indexBounds);
 			break;
 		}
 
@@ -486,6 +497,13 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			equalsBounds.isBoundInclusive = true;
 			SetLowerBound(&queryBounds->lowerBound, &equalsBounds);
 			SetUpperBound(&queryBounds->upperBound, &equalsBounds);
+
+
+			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
+			{
+				/* Special case, requires runtime recheck always */
+				queryBounds->requiresRuntimeRecheck = true;
+			}
 			break;
 		}
 
@@ -506,6 +524,12 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 				/* Apply type bracketing */
 				bounds = GetTypeUpperBound(queryElement->bsonValue.value_type);
 				SetUpperBound(&queryBounds->upperBound, &bounds);
+			}
+
+			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
+			{
+				/* Special case, requires runtime recheck always */
+				queryBounds->requiresRuntimeRecheck = true;
 			}
 
 			break;
@@ -536,6 +560,12 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			/* Apply type bracketing */
 			bounds = GetTypeLowerBound(queryElement->bsonValue.value_type);
 			SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
+			{
+				/* Special case, requires runtime recheck always */
+				queryBounds->requiresRuntimeRecheck = true;
+			}
 			break;
 		}
 
@@ -576,19 +606,6 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_ARRAY);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(BSON_TYPE_ARRAY);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			/* TODO: Replace this with index eval function */
-			queryBounds->requiresRuntimeRecheck = true;
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
 		{
 			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_ARRAY);
 			SetLowerBound(&queryBounds->lowerBound, &bounds);
@@ -704,6 +721,7 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			break;
 		}
 
+		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
 		case BSON_INDEX_STRATEGY_DOLLAR_IN:
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_IN:
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_CLEAR:
@@ -737,6 +755,76 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			break;
 		}
 	}
+}
+
+
+static void
+AddMultiBoundaryForDollarAll(int32_t indexAttribute,
+							 pgbsonelement *queryElement,
+							 VariableIndexBounds *indexBounds)
+{
+	if (queryElement->bsonValue.value_type != BSON_TYPE_ARRAY)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"$all should have an array of values")));
+	}
+
+	bson_iter_t arrayIter;
+	bson_iter_init_from_data(&arrayIter, queryElement->bsonValue.value.v_doc.data,
+							 queryElement->bsonValue.value.v_doc.data_len);
+
+	int32_t allArraySize = 0;
+	while (bson_iter_next(&arrayIter))
+	{
+		allArraySize++;
+	}
+
+	bson_iter_init_from_data(&arrayIter, queryElement->bsonValue.value.v_doc.data,
+							 queryElement->bsonValue.value.v_doc.data_len);
+
+	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(allArraySize,
+																 indexAttribute);
+
+	int index = 0;
+	while (bson_iter_next(&arrayIter))
+	{
+		if (index >= allArraySize)
+		{
+			ereport(ERROR, (errmsg(
+								"Index is not expected to be greater than size - code defect")));
+		}
+
+		pgbsonelement innerDocumentElement;
+		pgbsonelement element;
+		element.path = queryElement->path;
+		element.pathLength = queryElement->pathLength;
+		element.bsonValue = *bson_iter_value(&arrayIter);
+
+		if (element.bsonValue.value_type == BSON_TYPE_REGEX)
+		{
+			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_REGEX,
+											 &set->bounds[index]);
+		}
+		else if (element.bsonValue.value_type == BSON_TYPE_DOCUMENT &&
+				 TryGetBsonValueToPgbsonElement(&element.bsonValue,
+												&innerDocumentElement) &&
+				 strcmp(innerDocumentElement.path, "$elemMatch") == 0)
+		{
+			SetSingleRangeBoundsFromStrategy(&element,
+											 BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH,
+											 &set->bounds[index]);
+		}
+		else
+		{
+			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_EQUAL,
+											 &set->bounds[index]);
+		}
+
+		/* TODO: Since we represet $all as a $in at the index layer, we need runtime recheck */
+		set->bounds[index].requiresRuntimeRecheck = true;
+		index++;
+	}
+	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 }
 
 
@@ -837,6 +925,11 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 
 		inArraySize++;
 		arrayHasNull = arrayHasNull || arrayValue->value_type == BSON_TYPE_NULL;
+	}
+
+	if (inArraySize == 0)
+	{
+		return;
 	}
 
 	bson_iter_init_from_data(&arrayIter, queryElement->bsonValue.value.v_doc.data,

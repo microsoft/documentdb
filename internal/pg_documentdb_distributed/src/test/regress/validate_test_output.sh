@@ -28,10 +28,29 @@ for validationFileName in $(ls ./expected/*_tests_index.out); do
     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
 done
 
+# Validate new composite index test equivalence
+# TODO: Re-enable this.
+# for validationFileName in $(ls ./expected/*_tests_index_composite.out); do
+#     runtimeFileName=${validationFileName/_tests_index_composite.out/_tests_index.out};
+
+#     $diff -s -I 'SELECT documentdb_api_internal.create_indexes' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' -I 'documentdb.enableGeospatial' \
+#         $validationFileName $runtimeFileName;
+#     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
+# done
+
+# TODO: Enable this
+# for validationFileName in $(ls ./expected/*_tests_explain_index_composite.out); do
+#     runtimeFileName=${validationFileName/_tests_explain_index_composite.out/_tests_explain_index.out};
+
+#     $diff -s -I 'SELECT documentdb_api_internal.create_indexes' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' -I 'documentdb.enableGeospatial' \
+#         $validationFileName $runtimeFileName;
+#     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
+# done
+
 # Validate index_backcompat/index equivalence.
 for validationFileName in $(ls ./expected/*_tests_index_backcompat.out); do
-    indexFileName=${validationFileName/_tests_index_backcompat.out$/_tests_index.out};
-    $diff -s -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'citus.next_shard_id' -I 'set documentdb.next_collection_index_id' -I 'set local documentdb.enableGenerateNonExistsTerm' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' \
+    indexFileName=${validationFileName/_tests_index_backcompat.out/_tests_index.out};
+    $diff -s -I '\set' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'citus.next_shard_id' -I 'set documentdb.next_collection_index_id' -I 'set local documentdb.enableGenerateNonExistsTerm' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' \
         $validationFileName $indexFileName;
     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
 done
@@ -52,6 +71,7 @@ maxCollectionIdStr=""
 
 validationExceptions="/sql/documentdb_distributed_test_helpers.sql,/sql/public_api_schema.sql,/sql/documentdb_distributed_setup.sql"
 
+skippedDuplicateCheckFile=""
 echo "Validating test file output"
 for validationFile in $(ls $scriptDir/expected/*.out); do
     fileName=$(basename $validationFile);
@@ -91,17 +111,19 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     collectionIdOutput=${collectionIdOutput/[\s|;]/};
 
     # Allow skipping unique checks
-    if [[ "$sqlFile" =~ "tests_index_no_bitmap.sql" ]] || [[ "$sqlFile" =~ "tests_index.sql" ]] ||  [[ "$sqlFile" =~ "tests_index_backcompat.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index_no_bitmap.sql" ]]; then
-            continue;
-    fi
-
-    # If it matches something seen before - fail.
-    if [[ "$sqlFile" =~ _pg[0-9]+.sql ]] && [[ ! "$sqlFile" =~ "_pg${pg_version}.sql" ]]; then
-        echo "Skipping duplicate check for $sqlFile"
-        continue;
+    skipUniqueCheck="false"
+    if [[ "$sqlFile" =~ "tests_runtime.sql" ]] || [[ "$sqlFile" =~ "tests_index_no_bitmap.sql" ]] || [[ "$sqlFile" =~ "tests_index.sql" ]] ||  [[ "$sqlFile" =~ "tests_index_backcompat.sql" ]] || [[ "$sqlFile" =~ "tests_pg17_explain" ]] || [[ "$sqlFile" =~ "tests_explain_index.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index_no_bitmap.sql" ]]; then
+            skippedDuplicateCheckFile="$skippedDuplicateCheckFile $sqlFile"
+            skipUniqueCheck="true"
+    elif [[ "$sqlFile" =~ _pg[0-9]+.sql ]] && [[ ! "$sqlFile" =~ "_pg${pg_version}.sql" ]]; then
+        skippedDuplicateCheckFile="$skippedDuplicateCheckFile $sqlFile"
+        skipUniqueCheck="true"
     elif [[ "$aggregateCollectionIdStr" =~ ":$collectionIdOutput:" ]]; then
         echo "Duplicate CollectionId used in '$sqlFile' - please use unique collection Ids across tests: $collectionIdOutput. Current max: $maxCollectionIdStr";
         exit 1;
+    else
+        # Add it to the collection IDs being tracked.
+        aggregateCollectionIdStr="$aggregateCollectionIdStr :$collectionIdOutput:"
     fi
 
     if ! [[ ":$collectionIdOutput:" =~ "0:" ]]; then
@@ -114,9 +136,6 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     elif [ $collectionIdOutput -gt $maxCollectionIdStr ]; then
         maxCollectionIdStr=$collectionIdOutput;
     fi
-
-    # Add it to the collection IDs being tracked.
-    aggregateCollectionIdStr="$aggregateCollectionIdStr :$collectionIdOutput:"
 
     # See if the index id is also set.
     collectionIndexIdOutput=$(grep 'documentdb.next_collection_index_id' $validationFile || true)
@@ -147,11 +166,16 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     fi
 
     # Add it to the shard IDs being tracked.
-    if [[ "$aggregateShardIdStr" =~ ":$nextShardIdOutput:" ]]; then
+    if [[ "$skipUniqueCheck" == "true" ]]; then
+        # do nothing
+        continue;
+    elif [[ "$aggregateShardIdStr" =~ ":$nextShardIdOutput:" ]]; then
         echo "Duplicate shard_id used in '$sqlFile' - please use unique shard ids across tests: " $nextShardIdOutput;
         exit 1;
+    else
+        aggregateShardIdStr="$aggregateShardIdStr :$nextShardIdOutput:"
     fi
-    aggregateShardIdStr="$aggregateShardIdStr :$nextShardIdOutput:"
 done
 
+echo "Skipped duplicate checks on $skippedDuplicateCheckFile"
 echo "Validation checks done."

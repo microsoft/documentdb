@@ -616,7 +616,7 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 
 
 void
-ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys)
+ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey)
 {
 	pgbson_writer compositeWriter;
 	PgbsonWriterInit(&compositeWriter);
@@ -644,11 +644,9 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys)
 		PgbsonWriterGetPgbson(&compositeWriter));
 
 	/* Now update all the scan keys */
-	for (int i = 0; i < nscankeys; i++)
-	{
-		scankey[i].sk_argument = finalDatum;
-		scankey[i].sk_strategy = BSON_INDEX_STRATEGY_COMPOSITE_QUERY;
-	}
+	memcpy(targetScanKey, scankey, sizeof(ScanKeyData));
+	targetScanKey->sk_argument = finalDatum;
+	targetScanKey->sk_strategy = BSON_INDEX_STRATEGY_COMPOSITE_QUERY;
 }
 
 

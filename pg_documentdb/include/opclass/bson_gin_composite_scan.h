@@ -13,5 +13,6 @@
 
  #include <access/skey.h>
 
-void ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys);
+void ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
+									targetScanKey);
  #endif

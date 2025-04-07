@@ -138,7 +138,7 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableNewCompositeIndexOpClass", prefix),
+		psprintf("%s.enableNewCompositeIndexOpClass", newGucPrefix),
 		gettext_noop(
 			"Whether to enable the new composite index opclass"),
 		NULL, &EnableNewCompositeIndexOpclass, DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS,

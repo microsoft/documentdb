@@ -42,11 +42,38 @@ static bool ValidateMatchForOrderbyQuals(IndexPath *path);
 
 static bool IsTextIndexMatch(IndexPath *path);
 
+static bool loaded_rum_routine = false;
+static IndexAmRoutine rum_index_routine = { 0 };
 
 /* Composite support */
-static amrescan_function rum_rescanfunc = NULL;
+
+typedef struct DocumentDBRumIndexState
+{
+	IndexScanDesc innerScan;
+
+	ScanKeyData compositeKey;
+} DocumentDBRumIndexState;
+
+static IndexScanDesc extension_rumbeginscan(Relation rel, int nkeys, int norderbys);
+static void extension_rumendscan(IndexScanDesc scan);
 static void extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 								ScanKey orderbys, int norderbys);
+static int64 extension_amgetbitmap(IndexScanDesc scan,
+								   TIDBitmap *tbm);
+static bool extension_amgettuple(IndexScanDesc scan,
+								 ScanDirection direction);
+
+
+inline static void
+EnsureRumLibLoaded(void)
+{
+	if (!loaded_rum_routine)
+	{
+		ereport(ERROR, (errmsg(
+							"The rum library should be loaded as part of shared_preload_libraries - this is a bug")));
+	}
+}
+
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -72,13 +99,10 @@ extensionrumhandler(PG_FUNCTION_ARGS)
 IndexAmRoutine *
 GetRumIndexHandler(PG_FUNCTION_ARGS)
 {
-	bool missingOk = false;
-	void **ignoreLibFileHandle = NULL;
-	Datum (*rumhandler) (FunctionCallInfo) =
-		load_external_function("$libdir/rum", "rumhandler", !missingOk,
-							   ignoreLibFileHandle);
-	Datum rumHandlerDatum = rumhandler(fcinfo);
-	IndexAmRoutine *indexRoutine = (IndexAmRoutine *) DatumGetPointer(rumHandlerDatum);
+	IndexAmRoutine *indexRoutine = palloc0(sizeof(IndexAmRoutine));
+
+	EnsureRumLibLoaded();
+	*indexRoutine = rum_index_routine;
 
 	/* add a new proc as a config prog. */
 	/* Based on https://github.com/postgrespro/rum/blob/master/src/rumutil.c#L117 */
@@ -95,15 +119,38 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 		indexRoutine->amoptsprocnum = RUMNProcs + 1;
 	}
 
-	rum_rescanfunc = indexRoutine->amrescan;
 	if (EnableNewCompositeIndexOpclass)
 	{
+		indexRoutine->ambeginscan = extension_rumbeginscan;
 		indexRoutine->amrescan = extension_rumrescan;
+		indexRoutine->amgetbitmap = extension_amgetbitmap;
+		indexRoutine->amgettuple = extension_amgettuple;
+		indexRoutine->amendscan = extension_rumendscan;
 	}
 
 	indexRoutine->amcostestimate = extension_rumcostestimate;
 
 	return indexRoutine;
+}
+
+
+void
+LoadRumRoutine(void)
+{
+	bool missingOk = false;
+	void **ignoreLibFileHandle = NULL;
+	Datum (*rumhandler) (FunctionCallInfo) =
+		load_external_function("$libdir/rum", "rumhandler", !missingOk,
+							   ignoreLibFileHandle);
+
+	LOCAL_FCINFO(fcinfo, 0);
+
+	InitFunctionCallInfoData(*fcinfo, NULL, 1, InvalidOid, NULL, NULL);
+	Datum rumHandlerDatum = rumhandler(fcinfo);
+	IndexAmRoutine *indexRoutine = (IndexAmRoutine *) DatumGetPointer(rumHandlerDatum);
+	rum_index_routine = *indexRoutine;
+	loaded_rum_routine = true;
+	pfree(indexRoutine);
 }
 
 
@@ -344,12 +391,84 @@ IsTextIndexMatch(IndexPath *path)
 }
 
 
+inline static bool
+IsCompositeOpClass(Relation rel)
+{
+	return EnableNewCompositeIndexOpclass &&
+		   IndexRelationGetNumberOfKeyAttributes(rel) == 1 &&
+		   rel->rd_opfamily[0] == BsonRumCompositeIndexOperatorFamily();
+}
+
+
+static IndexScanDesc
+extension_rumbeginscan(Relation rel, int nkeys, int norderbys)
+{
+	EnsureRumLibLoaded();
+	return extension_rumbeginscan_core(rel, nkeys, norderbys,
+									   rum_index_routine.ambeginscan);
+}
+
+
+IndexScanDesc
+extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys, ambeginscan_function
+							core_beginscan)
+{
+	if (IsCompositeOpClass(rel))
+	{
+		IndexScanDesc scan = RelationGetIndexScan(rel, nkeys, norderbys);
+
+		DocumentDBRumIndexState *outerScanState = palloc0(
+			sizeof(DocumentDBRumIndexState));
+		scan->opaque = outerScanState;
+
+		/* Initialize with 1 composite scan key */
+		outerScanState->innerScan = core_beginscan(rel, 1, norderbys);
+
+		/* return the outer scan */
+		return scan;
+	}
+	else
+	{
+		return core_beginscan(rel, nkeys, norderbys);
+	}
+}
+
+
+static void
+extension_rumendscan(IndexScanDesc scan)
+{
+	EnsureRumLibLoaded();
+	extension_rumendscan_core(scan, rum_index_routine.amendscan);
+}
+
+
+void
+extension_rumendscan_core(IndexScanDesc scan, amendscan_function core_endscan_func)
+{
+	if (IsCompositeOpClass(scan->indexRelation))
+	{
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+		if (outerScanState && outerScanState->innerScan)
+		{
+			core_endscan_func(outerScanState->innerScan);
+			pfree(outerScanState);
+		}
+	}
+	else
+	{
+		core_endscan_func(scan);
+	}
+}
+
+
 static void
 extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 					ScanKey orderbys, int norderbys)
 {
+	EnsureRumLibLoaded();
 	extension_rumrescan_core(scan, scankey, nscankeys,
-							 orderbys, norderbys, rum_rescanfunc);
+							 orderbys, norderbys, rum_index_routine.amrescan);
 }
 
 
@@ -358,20 +477,81 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 						 ScanKey orderbys, int norderbys, amrescan_function
 						 core_rescanfunc)
 {
-	if (EnableNewCompositeIndexOpclass &&
-		IndexRelationGetNumberOfKeyAttributes(scan->indexRelation) == 1 &&
-		scan->indexRelation->rd_opfamily[0] == BsonRumCompositeIndexOperatorFamily())
+	if (IsCompositeOpClass(scan->indexRelation))
 	{
-		/* For composite call the method to modify and do cross-key rechecks */
-		ModifyScanKeysForCompositeScan(scankey, nscankeys);
-		scan->numberOfKeys = 1;
-	}
+		/* Copy the scan keys to our scan */
+		if (scankey && scan->numberOfKeys > 0)
+		{
+			memmove(scan->keyData, scankey,
+					scan->numberOfKeys * sizeof(ScanKeyData));
+		}
+		if (orderbys && scan->numberOfOrderBys > 0)
+		{
+			memmove(scan->orderByData, orderbys,
+					scan->numberOfOrderBys * sizeof(ScanKeyData));
+		}
 
-	if (core_rescanfunc == NULL)
+		/* get the opaque scans */
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+		ModifyScanKeysForCompositeScan(scankey, nscankeys, &outerScanState->compositeKey);
+
+		/* TODO: Support order by */
+		core_rescanfunc(outerScanState->innerScan, &outerScanState->compositeKey, 1, NULL,
+						0);
+	}
+	else
 	{
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("RUM rescan function not set")));
+		core_rescanfunc(scan, scankey, nscankeys, orderbys, norderbys);
 	}
+}
 
-	core_rescanfunc(scan, scankey, nscankeys, orderbys, norderbys);
+
+static int64
+extension_amgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
+{
+	EnsureRumLibLoaded();
+	return extension_rumgetbitmap_core(scan, tbm, rum_index_routine.amgetbitmap);
+}
+
+
+int64
+extension_rumgetbitmap_core(IndexScanDesc scan, TIDBitmap *tbm, amgetbitmap_function
+							core_bitmap)
+{
+	if (IsCompositeOpClass(scan->indexRelation))
+	{
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+		return core_bitmap(outerScanState->innerScan, tbm);
+	}
+	else
+	{
+		return core_bitmap(scan, tbm);
+	}
+}
+
+
+static bool
+extension_amgettuple(IndexScanDesc scan, ScanDirection direction)
+{
+	EnsureRumLibLoaded();
+	return extension_rumgettuple_core(scan, direction, rum_index_routine.amgettuple);
+}
+
+
+bool
+extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
+						   amgettuple_function core_gettuple)
+{
+	if (IsCompositeOpClass(scan->indexRelation))
+	{
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+		return core_gettuple(outerScanState->innerScan, direction);
+	}
+	else
+	{
+		return core_gettuple(scan, direction);
+	}
 }
