@@ -120,6 +120,9 @@ bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 #define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
 bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
+#define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
+bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
+
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -365,5 +368,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable primary key cursor scan for streaming cursors."),
 		NULL, &EnablePrimaryKeyCursorScan,
 		DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.alterCreationTimeInCompleteUpgrade", newGucPrefix),
+		gettext_noop(
+			"alter creation_time of data table."),
+		NULL, &AlterCreationTimeInCompleteUpgrade,
+		ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
