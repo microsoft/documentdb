@@ -14,5 +14,5 @@
  #include <access/skey.h>
 
 void ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
-									targetScanKey);
+									targetScanKey, bool hasArrayKeys);
  #endif

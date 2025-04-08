@@ -229,6 +229,43 @@ UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
 }
 
 
+void
+MergeSingleVariableBounds(VariableIndexBounds *variableBounds,
+						  CompositeQueryRunData *runData)
+{
+	ListCell *cell;
+	foreach(cell, variableBounds->variableBoundsList)
+	{
+		CompositeIndexBoundsSet *set =
+			(CompositeIndexBoundsSet *) lfirst(cell);
+		if (set->numBounds != 1)
+		{
+			continue;
+		}
+
+		CompositeIndexBounds *bound = &set->bounds[0];
+		if (bound->lowerBound.bound.value_type != BSON_TYPE_EOD)
+		{
+			SetLowerBound(&runData->indexBounds[set->indexAttribute].lowerBound,
+						  &bound->lowerBound);
+		}
+
+		if (bound->upperBound.bound.value_type != BSON_TYPE_EOD)
+		{
+			SetUpperBound(&runData->indexBounds[set->indexAttribute].upperBound,
+						  &bound->upperBound);
+		}
+
+		/* Postgres requires that we don't use cell or anything in foreach after
+		 * calling delete. explicity add a continue to match that contract.
+		 */
+		variableBounds->variableBoundsList =
+			foreach_delete_current(variableBounds->variableBoundsList, cell);
+		continue;
+	}
+}
+
+
 bool
 UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
 						  IndexTermCreateMetadata *metadata)

@@ -69,6 +69,7 @@ static bytea * BuildTermForBounds(CompositeQueryRunData *runData,
 								  IndexTermCreateMetadata *singlePathMetadata,
 								  IndexTermCreateMetadata *compositeMetadata,
 								  bool *partialMatch);
+static bool ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement);
 
 
 inline static IndexTermCreateMetadata
@@ -149,7 +150,19 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	int numPaths = GetIndexPathsFromOptions(
 		options,
 		indexPaths);
+	IndexTermCreateMetadata singlePathMetadata = GetSinglePathTermCreateMetadata(options,
+																				 numPaths);
+	IndexTermCreateMetadata compositeMetadata = GetCompositeIndexTermMetadata(options);
 
+
+	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
+	{
+		/* Consider only the root multi-key term */
+		*nentries = 1;
+		Datum *result = palloc(sizeof(Datum));
+		result[0] = GenerateRootMultiKeyTerm(&compositeMetadata);
+		PG_RETURN_POINTER(result);
+	}
 
 	VariableIndexBounds variableBounds = { 0 };
 
@@ -160,8 +173,8 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	runData->metaInfo = metaInfo;
 	runData->numIndexPaths = numPaths;
 
-	pgbsonelement singleElement;
-	PgbsonToSinglePgbsonElement(query, &singleElement);
+	/* Default to assuming array paths (we can do better if told otherwise) */
+	bool hasArrayPaths = true;
 
 	/* Round 1, collect fixed index bounds and collect variable index bounds */
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
@@ -171,13 +184,29 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		 * compare partial and consistent handle errors.
 		 */
 
+		pgbsonelement singleElement;
+		PgbsonToSinglePgbsonElement(query, &singleElement);
+
 		ParseOperatorStrategy(indexPaths, numPaths, &singleElement, strategy,
 							  &variableBounds);
 	}
 	else
 	{
+		pgbsonelement singleElement;
+		hasArrayPaths = ParseCompositeQuerySpec(query, &singleElement);
 		ParseBoundsForCompositeOperator(&singleElement, indexPaths, numPaths,
 										&variableBounds);
+	}
+
+
+	/* First thing to check: Optimization - if no arrays and there are bounds with 1 bound
+	 * add it to the global bounds
+	 * If we don't have arrays, and there's exactly 1 boundary,
+	 * We can apply it to the global bounds, and skip this key
+	 */
+	if (!hasArrayPaths)
+	{
+		MergeSingleVariableBounds(&variableBounds, runData);
 	}
 
 	/* Tally up the total variable bound counts - this is the permutation of all variable terms
@@ -193,6 +222,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	/* These are the scan keys to validate in consistent checks */
 	runData->metaInfo->numScanKeys = list_length(variableBounds.variableBoundsList);
 	PathScanTermMap pathScanTermMap[INDEX_MAX_KEYS] = { 0 };
+	bool hasMultipleScanKeysPerPath = false;
 	if (runData->metaInfo->numScanKeys > 0)
 	{
 		runData->metaInfo->scanKeyMap = palloc0(sizeof(PathScanKeyMap) *
@@ -223,15 +253,17 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		{
 			if (pathScanTermMap[i].numTermsPerPath > 0)
 			{
+				/* Check if any paths have multiple keys */
+				hasMultipleScanKeysPerPath = hasMultipleScanKeysPerPath ||
+											 (list_length(
+												  pathScanTermMap[i].scanKeyIndexList) >
+											  1);
 				totalPathTerms = totalPathTerms * pathScanTermMap[i].numTermsPerPath;
 			}
 		}
 	}
 
-	IndexTermCreateMetadata singlePathMetadata = GetSinglePathTermCreateMetadata(options,
-																				 numPaths);
-	IndexTermCreateMetadata compositeMetadata = GetCompositeIndexTermMetadata(options);
-
+	runData->metaInfo->hasMultipleScanKeysPerPath = hasMultipleScanKeysPerPath;
 	*nentries = totalPathTerms;
 	*partialmatch = (bool *) palloc0(sizeof(bool) * (totalPathTerms + 1));
 	*extra_data = palloc0(sizeof(Pointer) * (totalPathTerms + 1));
@@ -443,6 +475,12 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	bool *recheck = (bool *) PG_GETARG_POINTER(5);       /* out param. */
 	/* Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6); */
 
+	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
+	{
+		*recheck = false;
+		PG_RETURN_BOOL(check[0]);
+	}
+
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
@@ -455,9 +493,20 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	/* If operators specifically required runtime recheck honor it */
 	*recheck = runData->metaInfo->requiresRuntimeRecheck;
 
-	if (runData->metaInfo->hasTruncation && check[runData->metaInfo->truncationTermIndex])
+	if (runData->metaInfo->hasTruncation &&
+		check[runData->metaInfo->truncationTermIndex])
 	{
 		*recheck = true;
+	}
+
+	if (!runData->metaInfo->hasMultipleScanKeysPerPath &&
+		!runData->metaInfo->hasTruncation)
+	{
+		/* No truncation and each path has exactly 1 scan key to it
+		 * At this point, any matching entry matches the top level query
+		 * so we can just return early.
+		 */
+		PG_RETURN_BOOL(true);
 	}
 
 	/* Walk the scan keys and ensure every one is matched */
@@ -489,7 +538,7 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 		}
 	}
 
-	return innerResult;
+	PG_RETURN_BOOL(innerResult);
 }
 
 
@@ -661,13 +710,14 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 
 
 void
-ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey)
+ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey, bool
+							   hasArrayKeys)
 {
-	pgbson_writer compositeWriter;
-	PgbsonWriterInit(&compositeWriter);
+	pgbson_writer querySpecWriter;
+	PgbsonWriterInit(&querySpecWriter);
 
 	pgbson_array_writer queryWriter;
-	PgbsonWriterStartArray(&compositeWriter, "q", 1, &queryWriter);
+	PgbsonWriterStartArray(&querySpecWriter, "q", 1, &queryWriter);
 
 	for (int i = 0; i < nscankeys; i++)
 	{
@@ -683,15 +733,47 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 		PgbsonArrayWriterEndDocument(&queryWriter, &clauseWriter);
 	}
 
-	PgbsonWriterEndArray(&compositeWriter, &queryWriter);
+	PgbsonWriterEndArray(&querySpecWriter, &queryWriter);
+	PgbsonWriterAppendBool(&querySpecWriter, "m", 1, hasArrayKeys);
 
 	Datum finalDatum = PointerGetDatum(
-		PgbsonWriterGetPgbson(&compositeWriter));
+		PgbsonWriterGetPgbson(&querySpecWriter));
 
 	/* Now update all the scan keys */
 	memcpy(targetScanKey, scankey, sizeof(ScanKeyData));
 	targetScanKey->sk_argument = finalDatum;
 	targetScanKey->sk_strategy = BSON_INDEX_STRATEGY_COMPOSITE_QUERY;
+}
+
+
+static bool
+ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement)
+{
+	bson_iter_t queryIter;
+	PgbsonInitIterator(querySpec, &queryIter);
+
+	/* Default assumption is that it's multi-key unless otherwise specified */
+	bool isMultiKey = true;
+	while (bson_iter_next(&queryIter))
+	{
+		const char *key = bson_iter_key(&queryIter);
+		if (strcmp(key, "q") == 0)
+		{
+			singleElement->path = key;
+			singleElement->pathLength = 1;
+			singleElement->bsonValue = *bson_iter_value(&queryIter);
+		}
+		else if (strcmp(key, "m") == 0)
+		{
+			isMultiKey = bson_iter_bool(&queryIter);
+		}
+		else
+		{
+			ereport(ERROR, (errmsg("Unknown key for composite query %s", key)));
+		}
+	}
+
+	return isMultiKey;
 }
 
 
@@ -863,7 +945,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 	/* Now that we have the per term counts, generate the overall terms */
 	/* Add an additional one in case we need a truncated term */
-	Datum *indexEntries = palloc0(sizeof(Datum) * (totalTermCount + 2));
+	Datum *indexEntries = palloc0(sizeof(Datum) * (totalTermCount + 3));
 
 	bool hasTruncation = false;
 	bool hasUndefined = false;
@@ -913,6 +995,12 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		}
 
 		indexEntries[i] = PointerGetDatum(serializedTerm.indexTermVal);
+	}
+
+	if (totalTermCount > 1)
+	{
+		indexEntries[totalTermCount] = GenerateRootMultiKeyTerm(&overallMetadata);
+		totalTermCount++;
 	}
 
 	if (hasTruncation)

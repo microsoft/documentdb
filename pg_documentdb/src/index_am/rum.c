@@ -35,6 +35,27 @@ extern bool EnableNewCompositeIndexOpclass;
 /* Forward declaration */
 /* --------------------------------------------------------- */
 
+static bool loaded_rum_routine = false;
+static IndexAmRoutine rum_index_routine = { 0 };
+
+typedef enum IndexMultiKeyStatus
+{
+	IndexMultiKeyStatus_Unknown = 0,
+
+	IndexMultiKeyStatus_HasArrays = 1,
+
+	IndexMultiKeyStatus_HasNoArrays = 2
+} IndexMultiKeyStatus;
+
+typedef struct DocumentDBRumIndexState
+{
+	IndexScanDesc innerScan;
+
+	ScanKeyData compositeKey;
+
+	IndexMultiKeyStatus multiKeyStatus;
+} DocumentDBRumIndexState;
+
 static bool IsIndexIsValidForQuery(IndexPath *path);
 static bool MatchClauseWithIndexForFuncExpr(IndexPath *path, int32_t indexcol,
 											Oid funcId, List *args);
@@ -42,17 +63,8 @@ static bool ValidateMatchForOrderbyQuals(IndexPath *path);
 
 static bool IsTextIndexMatch(IndexPath *path);
 
-static bool loaded_rum_routine = false;
-static IndexAmRoutine rum_index_routine = { 0 };
-
-/* Composite support */
-
-typedef struct DocumentDBRumIndexState
-{
-	IndexScanDesc innerScan;
-
-	ScanKeyData compositeKey;
-} DocumentDBRumIndexState;
+static IndexMultiKeyStatus CheckIndexHasArrays(IndexScanDesc scan,
+											   IndexAmRoutine *coreRoutine);
 
 static IndexScanDesc extension_rumbeginscan(Relation rel, int nkeys, int norderbys);
 static void extension_rumendscan(IndexScanDesc scan);
@@ -405,13 +417,13 @@ extension_rumbeginscan(Relation rel, int nkeys, int norderbys)
 {
 	EnsureRumLibLoaded();
 	return extension_rumbeginscan_core(rel, nkeys, norderbys,
-									   rum_index_routine.ambeginscan);
+									   &rum_index_routine);
 }
 
 
 IndexScanDesc
-extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys, ambeginscan_function
-							core_beginscan)
+extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
+							IndexAmRoutine *coreRoutine)
 {
 	if (IsCompositeOpClass(rel))
 	{
@@ -422,14 +434,14 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys, ambeginscan_
 		scan->opaque = outerScanState;
 
 		/* Initialize with 1 composite scan key */
-		outerScanState->innerScan = core_beginscan(rel, 1, norderbys);
+		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, norderbys);
 
 		/* return the outer scan */
 		return scan;
 	}
 	else
 	{
-		return core_beginscan(rel, nkeys, norderbys);
+		return coreRoutine->ambeginscan(rel, nkeys, norderbys);
 	}
 }
 
@@ -438,12 +450,12 @@ static void
 extension_rumendscan(IndexScanDesc scan)
 {
 	EnsureRumLibLoaded();
-	extension_rumendscan_core(scan, rum_index_routine.amendscan);
+	extension_rumendscan_core(scan, &rum_index_routine);
 }
 
 
 void
-extension_rumendscan_core(IndexScanDesc scan, amendscan_function core_endscan_func)
+extension_rumendscan_core(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
@@ -451,13 +463,13 @@ extension_rumendscan_core(IndexScanDesc scan, amendscan_function core_endscan_fu
 			(DocumentDBRumIndexState *) scan->opaque;
 		if (outerScanState && outerScanState->innerScan)
 		{
-			core_endscan_func(outerScanState->innerScan);
+			coreRoutine->amendscan(outerScanState->innerScan);
 			pfree(outerScanState);
 		}
 	}
 	else
 	{
-		core_endscan_func(scan);
+		coreRoutine->amendscan(scan);
 	}
 }
 
@@ -468,14 +480,14 @@ extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 {
 	EnsureRumLibLoaded();
 	extension_rumrescan_core(scan, scankey, nscankeys,
-							 orderbys, norderbys, rum_index_routine.amrescan);
+							 orderbys, norderbys, &rum_index_routine);
 }
 
 
 void
 extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
-						 ScanKey orderbys, int norderbys, amrescan_function
-						 core_rescanfunc)
+						 ScanKey orderbys, int norderbys,
+						 IndexAmRoutine *coreRoutine)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
@@ -494,15 +506,26 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		/* get the opaque scans */
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		ModifyScanKeysForCompositeScan(scankey, nscankeys, &outerScanState->compositeKey);
+
+		/* TODO: We need to check if the index has arrays */
+		if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_Unknown)
+		{
+			outerScanState->multiKeyStatus = CheckIndexHasArrays(scan, coreRoutine);
+		}
+
+		ModifyScanKeysForCompositeScan(scankey, nscankeys,
+									   &outerScanState->compositeKey,
+									   outerScanState->multiKeyStatus ==
+									   IndexMultiKeyStatus_HasArrays);
 
 		/* TODO: Support order by */
-		core_rescanfunc(outerScanState->innerScan, &outerScanState->compositeKey, 1, NULL,
-						0);
+		coreRoutine->amrescan(outerScanState->innerScan, &outerScanState->compositeKey, 1,
+							  NULL,
+							  0);
 	}
 	else
 	{
-		core_rescanfunc(scan, scankey, nscankeys, orderbys, norderbys);
+		coreRoutine->amrescan(scan, scankey, nscankeys, orderbys, norderbys);
 	}
 }
 
@@ -511,23 +534,23 @@ static int64
 extension_amgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
 {
 	EnsureRumLibLoaded();
-	return extension_rumgetbitmap_core(scan, tbm, rum_index_routine.amgetbitmap);
+	return extension_rumgetbitmap_core(scan, tbm, &rum_index_routine);
 }
 
 
 int64
-extension_rumgetbitmap_core(IndexScanDesc scan, TIDBitmap *tbm, amgetbitmap_function
-							core_bitmap)
+extension_rumgetbitmap_core(IndexScanDesc scan, TIDBitmap *tbm,
+							IndexAmRoutine *coreRoutine)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		return core_bitmap(outerScanState->innerScan, tbm);
+		return coreRoutine->amgetbitmap(outerScanState->innerScan, tbm);
 	}
 	else
 	{
-		return core_bitmap(scan, tbm);
+		return coreRoutine->amgetbitmap(scan, tbm);
 	}
 }
 
@@ -536,22 +559,41 @@ static bool
 extension_amgettuple(IndexScanDesc scan, ScanDirection direction)
 {
 	EnsureRumLibLoaded();
-	return extension_rumgettuple_core(scan, direction, rum_index_routine.amgettuple);
+	return extension_rumgettuple_core(scan, direction, &rum_index_routine);
 }
 
 
 bool
 extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
-						   amgettuple_function core_gettuple)
+						   IndexAmRoutine *coreRoutine)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		return core_gettuple(outerScanState->innerScan, direction);
+		return coreRoutine->amgettuple(outerScanState->innerScan, direction);
 	}
 	else
 	{
-		return core_gettuple(scan, direction);
+		return coreRoutine->amgettuple(scan, direction);
 	}
+}
+
+
+static IndexMultiKeyStatus
+CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
+{
+	/* Start a nested query lookup */
+	IndexScanDesc innerDesc = coreRoutine->ambeginscan(scan->indexRelation, 1, 0);
+
+	ScanKeyData arrayKey = { 0 };
+	arrayKey.sk_attno = 1;
+	arrayKey.sk_collation = InvalidOid;
+	arrayKey.sk_strategy = BSON_INDEX_STRATEGY_IS_MULTIKEY;
+	arrayKey.sk_argument = PointerGetDatum(PgbsonInitEmpty());
+
+	coreRoutine->amrescan(innerDesc, &arrayKey, 1, NULL, 0);
+	bool hasArrays = coreRoutine->amgettuple(innerDesc, ForwardScanDirection);
+	coreRoutine->amendscan(innerDesc);
+	return hasArrays ? IndexMultiKeyStatus_HasArrays : IndexMultiKeyStatus_HasNoArrays;
 }

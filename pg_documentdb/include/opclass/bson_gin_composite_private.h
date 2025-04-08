@@ -52,6 +52,7 @@ typedef struct CompositeQueryMetaInfo
 	int32_t truncationTermIndex;
 	bool requiresRuntimeRecheck;
 	int32_t numScanKeys;
+	bool hasMultipleScanKeysPerPath;
 	PathScanKeyMap *scanKeyMap;
 } CompositeQueryMetaInfo;
 
@@ -104,4 +105,7 @@ void UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
 									PathScanTermMap *termMap,
 									VariableIndexBounds *variableBounds,
 									int32_t permutation);
+
+void MergeSingleVariableBounds(VariableIndexBounds *variableBounds,
+							   CompositeQueryRunData *runData);
  #endif
