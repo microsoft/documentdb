@@ -128,7 +128,7 @@ echo "Output directory: $abs_output_dir"
 mkdir -p $abs_output_dir
 
 # Build the Docker image while showing the output to the console
-docker build --platform linux/amd64 -t documentdb-build-packages-$OS-pg$PG:latest -f packaging/Dockerfile_build_deb_packages \
+docker buildx build --platform linux/amd64,linux/arm64 -t documentdb-build-packages-$OS-pg$PG:latest -f packaging/Dockerfile_build_deb_packages \
     --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION .
 
 # Run the Docker container to build the packages
