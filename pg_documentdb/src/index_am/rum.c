@@ -30,6 +30,7 @@
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
+extern bool EnableIndexOrderbyPushdown;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -75,6 +76,7 @@ static int64 extension_amgetbitmap(IndexScanDesc scan,
 static bool extension_amgettuple(IndexScanDesc scan,
 								 ScanDirection direction);
 
+static bool extension_rumvalidate(Oid opclassoid);
 
 inline static void
 EnsureRumLibLoaded(void)
@@ -138,6 +140,11 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 		indexRoutine->amgetbitmap = extension_amgetbitmap;
 		indexRoutine->amgettuple = extension_amgettuple;
 		indexRoutine->amendscan = extension_rumendscan;
+
+		if (EnableIndexOrderbyPushdown)
+		{
+			indexRoutine->amvalidate = extension_rumvalidate;
+		}
 	}
 
 	indexRoutine->amcostestimate = extension_rumcostestimate;
@@ -518,10 +525,26 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 									   outerScanState->multiKeyStatus ==
 									   IndexMultiKeyStatus_HasArrays);
 
-		/* TODO: Support order by */
-		coreRoutine->amrescan(outerScanState->innerScan, &outerScanState->compositeKey, 1,
-							  NULL,
-							  0);
+		if (EnableIndexOrderbyPushdown)
+		{
+			/* TODO: Support order by */
+			if (norderbys != 1)
+			{
+				ereport(ERROR, (errmsg("Cannot push down multi-order by yet")));
+			}
+
+			coreRoutine->amrescan(outerScanState->innerScan,
+								  &outerScanState->compositeKey, 1,
+								  orderbys,
+								  norderbys);
+		}
+		else
+		{
+			coreRoutine->amrescan(outerScanState->innerScan,
+								  &outerScanState->compositeKey, 1,
+								  NULL,
+								  0);
+		}
 	}
 	else
 	{
@@ -571,7 +594,12 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 	{
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		return coreRoutine->amgettuple(outerScanState->innerScan, direction);
+		bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
+
+		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+		scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
+		return result;
 	}
 	else
 	{
@@ -596,4 +624,18 @@ CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 	bool hasArrays = coreRoutine->amgettuple(innerDesc, ForwardScanDirection);
 	coreRoutine->amendscan(innerDesc);
 	return hasArrays ? IndexMultiKeyStatus_HasArrays : IndexMultiKeyStatus_HasNoArrays;
+}
+
+
+static bool
+extension_rumvalidate(Oid opclassoid)
+{
+	if (EnableIndexOrderbyPushdown &&
+		opclassoid == BsonRumCompositeIndexOperatorFamily())
+	{
+		/* TODO: Figure this out for order by semantics */
+		return true;
+	}
+
+	return rum_index_routine.amvalidate(opclassoid);
 }

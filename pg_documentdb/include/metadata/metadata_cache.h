@@ -168,6 +168,7 @@ Oid ApiCatalogCollectionIndexIdSequenceId(void);
 /* order by */
 Oid BsonOrderByFunctionOid(void);
 Oid BsonOrderByPartitionFunctionOid(void);
+Oid BsonOrderByIndexOperatorId(void);
 
 /* Postgres internal functions */
 Oid PostgresDrandomFunctionId(void);

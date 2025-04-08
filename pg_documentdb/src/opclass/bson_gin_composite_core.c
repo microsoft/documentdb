@@ -426,6 +426,12 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 			break;
 		}
 
+		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
+		{
+			/* It's a full scan */
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_TEXT:
 		case BSON_INDEX_STRATEGY_DOLLAR_GEOINTERSECTS:
 		case BSON_INDEX_STRATEGY_DOLLAR_GEOWITHIN:
@@ -433,7 +439,6 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		case BSON_INDEX_STRATEGY_GEONEAR_RANGE:
 		case BSON_INDEX_STRATEGY_COMPOSITE_QUERY:
 		case BSON_INDEX_STRATEGY_UNIQUE_EQUAL:
-		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(

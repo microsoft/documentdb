@@ -618,6 +618,121 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 }
 
 
+void
+ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
+							 Index rti, ReplaceExtensionFunctionContext *context)
+{
+	if (list_length(root->query_pathkeys) != 1)
+	{
+		return;
+	}
+
+	if (rte->rtekind != RTE_RELATION)
+	{
+		return;
+	}
+
+	PathKey *pathkey = (PathKey *) linitial(root->query_pathkeys);
+	if (pathkey->pk_eclass == NULL &&
+		list_length(pathkey->pk_eclass->ec_members) != 1)
+	{
+		return;
+	}
+
+	EquivalenceMember *member = linitial(pathkey->pk_eclass->ec_members);
+
+	if (!IsA(member->em_expr, FuncExpr))
+	{
+		return;
+	}
+
+	FuncExpr *func = (FuncExpr *) member->em_expr;
+	if (func->funcid != BsonOrderByFunctionOid())
+	{
+		return;
+	}
+
+	/* This is an order by function */
+	Expr *firstArg = linitial(func->args);
+	Expr *secondArg = lsecond(func->args);
+
+	if (!IsA(firstArg, Var) || !IsA(secondArg, Const))
+	{
+		return;
+	}
+
+	Var *firstVar = (Var *) firstArg;
+	Const *secondConst = (Const *) secondArg;
+
+	if (firstVar->varno != (int) rti ||
+		firstVar->varattno != DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER ||
+		firstVar->vartype != BsonTypeId() ||
+		secondConst->consttype != BsonTypeId() || secondConst->constisnull)
+	{
+		return;
+	}
+
+	pgbsonelement sortElement;
+	PgbsonToSinglePgbsonElement(
+		DatumGetPgBson(secondConst->constvalue), &sortElement);
+
+	int32_t sortDirection = BsonValueAsInt32(&sortElement.bsonValue);
+	if (sortDirection != 1)
+	{
+		/* Don't yet handle other sorts */
+		return;
+	}
+
+	/* Now match the sort to any index paths */
+	List *pathsToAdd = NIL;
+	ListCell *cell;
+	foreach(cell, rel->pathlist)
+	{
+		Path *path = lfirst(cell);
+		if (!IsA(path, IndexPath))
+		{
+			continue;
+		}
+
+		IndexPath *indexPath = (IndexPath *) path;
+		if (indexPath->indexinfo->relam != RumIndexAmId() ||
+			indexPath->indexinfo->nkeycolumns != 1 ||
+			indexPath->indexinfo->opfamily[0] != BsonRumCompositeIndexOperatorFamily())
+		{
+			continue;
+		}
+
+		if (!ValidateIndexForQualifierValue(
+				indexPath->indexinfo->opclassoptions[0],
+				secondConst->constvalue,
+				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY))
+		{
+			continue;
+		}
+
+		IndexPath *newPath = makeNode(IndexPath);
+		memcpy(newPath, indexPath, sizeof(IndexPath));
+
+		Expr *orderElement = make_opclause(
+			BsonOrderByIndexOperatorId(), BsonTypeId(), false,
+			firstArg, secondArg, InvalidOid, InvalidOid);
+		newPath->indexorderbys = list_make1(orderElement);
+		newPath->path.pathkeys = root->query_pathkeys;
+		newPath->indexorderbycols = list_make1_int(0);
+
+		/* Don't modify the list we're enumerating */
+		pathsToAdd = lappend(pathsToAdd, newPath);
+	}
+
+	foreach(cell, pathsToAdd)
+	{
+		/* now add the new paths */
+		Path *newPath = lfirst(cell);
+		add_path(rel, newPath);
+	}
+}
+
+
 /* --------------------------------------------------------- */
 /* Private functions */
 /* --------------------------------------------------------- */

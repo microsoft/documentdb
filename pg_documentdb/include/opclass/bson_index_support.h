@@ -117,6 +117,8 @@ void ReplaceExtensionFunctionOperatorsInPaths(PlannerInfo *root, RelOptInfo *rel
 void ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 								 ReplaceExtensionFunctionContext *context);
 
+void ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
+								  Index rti, ReplaceExtensionFunctionContext *context);
 
 bool IsBtreePrimaryKeyIndex(struct IndexOptInfo *indexInfo);
 #endif

@@ -48,6 +48,9 @@ bool ForceIndexTermTruncation = DEFAULT_FORCE_INDEX_TERM_TRUNCATION;
 #define DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS false
 bool EnableNewCompositeIndexOpclass = DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS;
 
+#define DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN false
+bool EnableIndexOrderbyPushdown = DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN;
+
 #define DEFAULT_MAX_WORKER_CURSOR_SIZE BSON_MAX_ALLOWED_SIZE
 int32_t MaxWorkerCursorSize = DEFAULT_MAX_WORKER_CURSOR_SIZE;
 
@@ -140,8 +143,15 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 	DefineCustomBoolVariable(
 		psprintf("%s.enableNewCompositeIndexOpClass", newGucPrefix),
 		gettext_noop(
-			"Whether to enable the new composite index opclass"),
+			"Whether to enable the new experimental composite index opclass"),
 		NULL, &EnableNewCompositeIndexOpclass, DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexOrderbyPushdown", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the sort on the new experimental composite index opclass"),
+		NULL, &EnableIndexOrderbyPushdown, DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomIntVariable(
