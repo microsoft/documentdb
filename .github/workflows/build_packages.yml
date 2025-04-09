@@ -14,18 +14,18 @@ on:
 
 jobs:
   build-deb-packages:
-    runs-on: ${{ matrix.os_name }}
-    name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
+    runs-on: ${{ matrix.runner }}
+    name: ${{ matrix.arch }}-${{ matrix.os }} build for PG ${{ matrix.pg_version }}
     strategy:
-      fail-fast: false
       matrix:
-        os_name:
-          - deb11
-          - deb12
-          - ubuntu22.04
-          - ubuntu24.04
+        os: [ubuntu22.04, ubuntu24.04, debian11, debian12]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
         pg_version:
-          - 15
           - 16
           - 17
 

@@ -34,7 +34,7 @@ mkdir build
 cd build
 cmake ..
 make -j5
-sudo make install
+make install
 cd ../..
 
 # Install citus_indent.

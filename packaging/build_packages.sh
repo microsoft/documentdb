@@ -12,9 +12,9 @@ function show_help {
     echo "Mandatory Arguments:"
     echo "  --os                 OS to build packages for. Possible values: [deb11, deb12, ubuntu22.04, ubuntu24.04]"
     echo "  --pg                 PG version to build packages for. Possible values: [15, 16, 17]"
-    echo " --version             The version of documentdb to build. Examples: [0.100.0, 0.101.0]"
     echo ""
     echo "Optional Arguments:"
+    echo "  --version            The version of documentdb to build. Examples: [0.100.0, 0.101.0]"
     echo "  --test-clean-install Test installing the packages in a clean Docker container."
     echo "  --output-dir         Relative path from the repo root of the directory where to drop the packages. The directory will be created if it doesn't exist. Default: packaging"
     echo "  -h, --help           Display this help message."
@@ -117,6 +117,8 @@ case $OS in
         ;;
 esac
 
+TAG=documentdb-build-packages-$OS-pg$PG:latest
+
 repo_root=$(git rev-parse --show-toplevel)
 abs_output_dir="$repo_root/$OUTPUT_DIR"
 cd $repo_root
@@ -128,28 +130,28 @@ echo "Output directory: $abs_output_dir"
 mkdir -p $abs_output_dir
 
 # Build the Docker image while showing the output to the console
-docker buildx build --platform linux/amd64,linux/arm64 -t documentdb-build-packages-$OS-pg$PG:latest -f packaging/Dockerfile_build_deb_packages \
+docker build -t $TAG -f packaging/Dockerfile_build_deb_packages \
     --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION .
 
 # Run the Docker container to build the packages
-docker run --platform linux/amd64 --rm --env OS=$OS -v $abs_output_dir:/output documentdb-build-packages-$OS-pg$PG:latest
+docker run --rm --env OS=$OS -v $abs_output_dir:/output $TAG
 
 echo "Packages built successfully!!"
 
 if [[ $TEST_CLEAN_INSTALL == true ]]; then
     echo "Testing clean installation in a Docker container..."
 
-    deb_package_name=$(ls $abs_output_dir | grep -E "${OS}-postgresql-$PG-documentdb_${DOCUMENTDB_VERSION}_amd64.*\.deb" | grep -v "dbg" | head -n 1)
+    deb_package_name=$(ls $abs_output_dir | grep -E "${OS}-postgresql-$PG-documentdb_${DOCUMENTDB_VERSION}.*\.deb" | grep -v "dbg" | head -n 1)
     deb_package_rel_path="$OUTPUT_DIR/$deb_package_name"
 
     echo "Debian package path: $deb_package_rel_path"
 
     # Build the Docker image while showing the output to the console
-    docker build --platform linux/amd64 -t documentdb-test-packages:latest -f packaging/test_packages/Dockerfile_test_install_deb_packages \
+    docker build -t documentdb-test-packages:latest -f packaging/test_packages/Dockerfile_test_install_deb_packages \
         --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DEB_PACKAGE_REL_PATH=$deb_package_rel_path .
 
     # Run the Docker container to test the packages
-    docker run --platform linux/amd64 --rm documentdb-test-packages:latest
+    docker run --rm documentdb-test-packages:latest
 
     echo "Clean installation test successful!!"
 fi
