@@ -3647,15 +3647,24 @@ AddShardKeyAndIdFilters(const bson_value_t *existingValue, Query *query,
 	bool hasShardKeyFilters = false;
 	if (context->mongoCollection->shardKey != NULL)
 	{
+		bool shardKeyFiltersCollationAware = false;
 		Expr *shardKeyFilters =
 			CreateShardKeyFiltersForQuery(existingValue,
 										  context->mongoCollection->shardKey,
 										  context->mongoCollection->collectionId,
-										  var->varno);
+										  var->varno,
+										  &shardKeyFiltersCollationAware);
 		if (shardKeyFilters != NULL)
 		{
-			hasShardKeyFilters = true;
-			existingQuals = lappend(existingQuals, shardKeyFilters);
+			/* add the shard key filter if the query's shard key value is */
+			/* not collation-sensitive. */
+			/* If it is, we ignore the filter and distribute the execution. */
+			if (!shardKeyFiltersCollationAware ||
+				!IsCollationApplicable(context->collationString))
+			{
+				hasShardKeyFilters = true;
+				existingQuals = lappend(existingQuals, shardKeyFilters);
+			}
 		}
 	}
 	else

@@ -1190,10 +1190,10 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 
 	/* determine whether query filters by a single shard key value */
 	int64 shardKeyHash = 0;
-
+	bool isShardKeyValueCollationAware = false;
 	bool hasShardKeyValueFilter =
 		ComputeShardKeyHashForQuery(collection->shardKey, collection->collectionId, query,
-									&shardKeyHash);
+									&shardKeyHash, &isShardKeyValueCollationAware);
 
 	result->rowsMatched = 0;
 	result->rowsModified = 0;

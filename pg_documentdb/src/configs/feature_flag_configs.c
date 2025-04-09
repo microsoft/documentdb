@@ -349,7 +349,7 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 	DefineCustomBoolVariable(
 		psprintf("%s.enableLetAndCollationForQueryMatch", newGucPrefix),
 		gettext_noop(
-			"Whether or not to enable collation and let for query match and write commands."),
+			"Whether or not to enable collation and let for query match."),
 		NULL, &EnableLetAndCollationForQueryMatch,
 		DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH,
 		PGC_USERSET, 0, NULL, NULL, NULL);

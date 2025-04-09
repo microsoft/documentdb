@@ -2894,31 +2894,543 @@ SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$nin" 
  t
 (1 row)
 
--- not supported yet
--- query match: sharded collection with collation-aware shard key
-SELECT documentdb_api.insert_one('db', 'coll_query_op', '{ "_id": "cat", "a": "cat" }');
+-- query match: sharded collection
+ALTER SYSTEM SET documentdb_core.enablecollation='on';
+SELECT pg_reload_conf();
+ pg_reload_conf 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "cat", "a": "cat" }');
 NOTICE:  creating collection
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db', 'coll_query_op', '{ "_id": "dog", "a": "dog" }');
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "dog", "a": "dog" }');
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.shard_collection('db', 'coll_query_op', '{ "_id": "hashed" }', false);
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": 3, "a": "peacock" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- query match: single shard key
+SELECT documentdb_api.shard_collection('db', 'coll_qm_sharded', '{ "_id": "hashed" }', false);
  shard_collection 
 ---------------------------------------------------------------------
  
 (1 row)
 
-SELECT document from documentdb_api.collection('db', 'coll_query_op') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+-- we expect the query to be distributed: shard key value is collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cat", "a" : "cat" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+                                                                   QUERY PLAN                                                                   
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8000_7990224 documents_8000
+               Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
+(7 rows)
+
+-- we do not expect the query to be distributed: shard key value is not collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3 }', NULL, 'en-u-ks-level1');
+                      document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "peacock" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3 }', NULL, 'en-u-ks-level1');
+                                                                                     QUERY PLAN                                                                                     
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documents_8000_7990225 collection
+               Index Cond: ((shard_key_value = '-4918719581749358852'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+               Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
+(8 rows)
+
+-- query match: compound shard key
+SELECT documentdb_api.drop_collection('db', 'coll_qm_sharded');
+ drop_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "cAt", "a": "cAt" }');
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "doG", "a": "DOg" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": 3, "a": "doG" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.shard_collection('db', 'coll_qm_sharded', '{ "_id": "hashed", "a": "hashed" }', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+-- we expect the query to be distributed: shard key filter values is collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT", "a": "CAT" }', NULL, 'en-u-ks-level1');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cAt", "a" : "cAt" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT", "a": "CAT" }', NULL, 'en-u-ks-level1');
+                                                                                                                                 QUERY PLAN                                                                                                                                  
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8001_7990248 documents_8001
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(7 rows)
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$and": [{"_id": "cat", "a": "1"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
  document 
 ---------------------------------------------------------------------
 (0 rows)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$and": [{"_id": "cat", "a": "1"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+                                                                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                                                                              
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8001_7990248 documents_8001
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "1", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(7 rows)
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }', NULL, 'en-u-ks-level1');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "doG" }
+ { "_id" : "cAt", "a" : "cAt" }
+(2 rows)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": "cat", "a": "CAT"}, {"_id": 3, "a": "dog"}] }', NULL, 'en-u-ks-level1');
+                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                        
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8001_7990248 documents_8001
+               Filter: (((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)) OR ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)))
+(7 rows)
+
+-- we do not expect the query to be distributed
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 1, "a": "CAT" }', NULL, 'en-u-ks-level1');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 1, "a": "CAT" }', NULL, 'en-u-ks-level1');
+                                                                                                                                          QUERY PLAN                                                                                                                                          
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8001_7990248 documents_8001
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(7 rows)
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3, "a": 4 }', NULL, 'en-u-ks-level1');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3, "a": 4 }', NULL, 'en-u-ks-level1');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documents_8001_7990252 collection
+               Index Cond: ((shard_key_value = '-6813820020108376455'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "4" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(8 rows)
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": 3, "a": "dog"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "doG" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": 3, "a": "dog"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+                                                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                                                 
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8001_7990248 documents_8001
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson)))
+(7 rows)
+
+-- collation on sharded collections: aggregation
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cat", "a": "cat" }');
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cAt", "a": "cAt" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "dog", "a": "dog" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "dOg", "a": "dOg" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- simple shard key
+SELECT documentdb_api.shard_collection('db', 'coll_sharded_agg', '{ "_id": "hashed" }', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+-- query is distributed to all shards
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cAt", "a" : "cAt" }
+ { "_id" : "cat", "a" : "cat" }
+(2 rows)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                                                   QUERY PLAN                                                                                                                                                                                                                                                    
+---------------------------------------------------------------------
+ Limit
+   Output: remote_scan.document, remote_scan."?sort?"
+   ->  Sort
+         Output: remote_scan.document, remote_scan."?sort?"
+         Sort Key: remote_scan."?sort?" NULLS FIRST
+         ->  Custom Scan (Citus Adaptive)
+               Output: remote_scan.document, remote_scan."?sort?"
+               Task Count: 8
+               Tasks Shown: One of 8
+               ->  Task
+                     Query: SELECT document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AS "?sort?" FROM documentdb_data.documents_8002_7990272 collection WHERE (document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) ORDER BY (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST LIMIT '5'::bigint
+                     Node: host=localhost port=58070 dbname=regression
+                     ->  Limit
+                           Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           ->  Sort
+                                 Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                                 Sort Key: (documentdb_api_catalog.bson_orderby(collection.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
+                                 ->  Seq Scan on documentdb_data.documents_8002_7990272 collection
+                                       Output: document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
+                                       Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
+(20 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": "CAT" } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cat", "a" : "cat" }
+ { "_id" : "cAt", "a" : "cAt" }
+(2 rows)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": "CAT" } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 2} }');
+                                                                                                        QUERY PLAN                                                                                                         
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Query: SELECT document FROM documentdb_data.documents_8002_7990272 collection WHERE (document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : "CAT", "collation" : "en-u-ks-level2" }'::documentdb_core.bsonquery)
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documentdb_data.documents_8002_7990272 collection
+               Output: document
+               Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level2" }'::documentdb_core.bson)
+(10 rows)
+
+-- query is not distributed to all shards (shard key value is not collation-aware)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": 2 } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": 2 } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                             
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT document FROM documentdb_data.documents_8002_7990273 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "2" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '-1389566185330078543'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson)) ORDER BY object_id LIMIT '5'::bigint
+         Node: host=localhost port=58070 dbname=regression
+         ->  Limit
+               Output: document, object_id
+               ->  Index Scan using _id_ on documentdb_data.documents_8002_7990273 collection
+                     Output: document, object_id
+                     Index Cond: ((collection.shard_key_value = '-1389566185330078543'::bigint) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson))
+                     Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "2" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
+(13 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": 1 } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": 1 } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 2} }');
+                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                          
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT document FROM documentdb_data.documents_8002_7990279 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level2" }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '4322365043291501017'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documentdb_data.documents_8002_7990279 collection
+               Output: document
+               Index Cond: ((collection.shard_key_value = '4322365043291501017'::bigint) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+               Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level2" }'::documentdb_core.bson)
+(11 rows)
+
+-- compound shard key
+SELECT documentdb_api.drop_collection('db', 'coll_sharded_agg');
+ drop_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cAt", "a": "cAt" }');
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "doG", "a": "Dog" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.shard_collection('db', 'coll_sharded_agg', '{ "_id": "hashed", "a": "hashed" }', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+-- query is distributed to all shards (filter by shard_key_value is omitted)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "a": { "$eq": "Cat" }, "_id": "caT" }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cAt", "a" : "cAt" }
+(1 row)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "a": { "$eq": "Cat" }, "_id": "caT" }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                                                                                     
+---------------------------------------------------------------------
+ Limit
+   Output: remote_scan.document, remote_scan."?sort?"
+   ->  Sort
+         Output: remote_scan.document, remote_scan."?sort?"
+         Sort Key: remote_scan."?sort?" NULLS FIRST
+         ->  Custom Scan (Citus Adaptive)
+               Output: remote_scan.document, remote_scan."?sort?"
+               Task Count: 8
+               Tasks Shown: One of 8
+               ->  Task
+                     Query: SELECT document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AS "?sort?" FROM documentdb_data.documents_8003_7990296 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "a" : "Cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : "caT", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery)) ORDER BY (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST LIMIT '5'::bigint
+                     Node: host=localhost port=58070 dbname=regression
+                     ->  Limit
+                           Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           ->  Sort
+                                 Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                                 Sort Key: (documentdb_api_catalog.bson_orderby(collection.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
+                                 ->  Seq Scan on documentdb_data.documents_8003_7990296 collection
+                                       Output: document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
+                                       Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "Cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "caT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(20 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": "CAT", "a": "CAT"} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cAt", "a" : "cAt" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": "CAT", "a": "CAT"} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                 QUERY PLAN                                                                                                                                  
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8003_7990296 collection
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(7 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "cAt", "a" : "cAt" }
+(1 row)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+---------------------------------------------------------------------
+ Limit
+   Output: remote_scan.document, remote_scan."?sort?"
+   ->  Sort
+         Output: remote_scan.document, remote_scan."?sort?"
+         Sort Key: remote_scan."?sort?" NULLS FIRST
+         ->  Custom Scan (Citus Adaptive)
+               Output: remote_scan.document, remote_scan."?sort?"
+               Task Count: 8
+               Tasks Shown: One of 8
+               ->  Task
+                     Query: SELECT document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AS "?sort?" FROM documentdb_data.documents_8003_7990296 collection WHERE (((document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery)) OR ((document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery))) ORDER BY (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST LIMIT '5'::bigint
+                     Node: host=localhost port=58070 dbname=regression
+                     ->  Limit
+                           Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           ->  Sort
+                                 Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                                 Sort Key: (documentdb_api_catalog.bson_orderby(collection.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
+                                 ->  Seq Scan on documentdb_data.documents_8003_7990296 collection
+                                       Output: document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
+                                       Filter: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)))
+(20 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "1", "a": "CaT"}, {"_id": "DOG"}]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+            document            
+---------------------------------------------------------------------
+ { "_id" : "doG", "a" : "Dog" }
+(1 row)
+
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "1", "a": "CaT"}, {"_id": "DOG"}]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8003_7990296 collection
+               Filter: (((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "1", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CaT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "DOG", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(7 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$and": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$and": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+---------------------------------------------------------------------
+ Limit
+   Output: remote_scan.document, remote_scan."?sort?"
+   ->  Sort
+         Output: remote_scan.document, remote_scan."?sort?"
+         Sort Key: remote_scan."?sort?" NULLS FIRST
+         ->  Custom Scan (Citus Adaptive)
+               Output: remote_scan.document, remote_scan."?sort?"
+               Task Count: 8
+               Tasks Shown: One of 8
+               ->  Task
+                     Query: SELECT document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AS "?sort?" FROM documentdb_data.documents_8003_7990296 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bsonquery)) ORDER BY (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST LIMIT '5'::bigint
+                     Node: host=localhost port=58070 dbname=regression
+                     ->  Limit
+                           Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           ->  Sort
+                                 Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                                 Sort Key: (documentdb_api_catalog.bson_orderby(collection.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
+                                 ->  Seq Scan on documentdb_data.documents_8003_7990296 collection
+                                       Output: document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
+                                       Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "CAT", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "dog", "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(20 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "cat", "a": 2 }, {"_id": 1, "a": 1 }]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "cat", "a": 2 }, {"_id": 1, "a": 1 }]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                         
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Seq Scan on documents_8003_7990296 collection
+               Filter: (((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "2" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson)) OR ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson)))
+(7 rows)
+
+-- query is not distributed to all shards
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documents_8003_7990301 collection
+               Index Cond: ((shard_key_value = '-1082522962276288030'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "1" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
+(8 rows)
 
 RESET documentdb.enableLetAndCollationForQueryMatch;
 RESET documentdb_core.enablecollation;
