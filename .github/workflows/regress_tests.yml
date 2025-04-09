@@ -21,9 +21,9 @@ on:
       - '*.md'
 
 jobs:
-  ubuntu_build:
-    runs-on: ${{ matrix.os_name }}
-    name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
+  test-run-in-Ubuntu:
+    runs-on: ${{ matrix.runner }}
+    name: ${{ matrix.runner }} with PG ${{ matrix.pg_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,8 +31,14 @@ jobs:
           - 15
           - 16
           - 17
-        os_name:
-          - ubuntu-22.04
+        arch:
+          - amd64
+          - arm64
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
