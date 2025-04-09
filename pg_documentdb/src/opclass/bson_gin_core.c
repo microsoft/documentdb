@@ -126,6 +126,7 @@ typedef struct DollarExistsQueryData
 
 extern bool EnableGenerateNonExistsTerm;
 extern bool EnableCollation;
+extern bool EnableRumInOperatorFastPath;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -495,7 +496,8 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 					  int32_t numKeys,
 					  bool *recheck,
 					  Datum *queryKeys,
-					  bytea *indexClassOptions)
+					  bytea *indexClassOptions,
+					  bool isPreconsistent)
 {
 	switch (strategy)
 	{
@@ -687,6 +689,19 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 				(DollarArrayOpQueryData *) (extra_data[numKeys]);
 
 			*recheck = false;
+			if (EnableRumInOperatorFastPath &&
+				!isPreconsistent &&
+				!queryData->arrayHasNull &&
+				!queryData->arrayHasRegex &&
+				!queryData->arrayHasTruncation)
+			{
+				/* If there's no truncation, nulls or regex we would only
+				 * be called here if one of hte $in terms matched and we
+				 * can trust the index.
+				 */
+				return true;
+			}
+
 			bool result = false;
 			for (int i = 0; i < queryData->inTermCount; i++)
 			{

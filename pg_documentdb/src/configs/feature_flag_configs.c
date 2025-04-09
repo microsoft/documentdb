@@ -42,6 +42,9 @@ bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_C
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN false
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 
+#define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
+bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
+
 #define DEFAULT_ENABLE_SCHEMA_VALIDATION false
 bool EnableSchemaValidation =
 	DEFAULT_ENABLE_SCHEMA_VALIDATION;
@@ -114,6 +117,9 @@ bool EnableLetAndCollationForQueryMatch =
 #define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
 bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 
+#define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
+bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
+
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -174,6 +180,17 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL,
 		&EnableRumIndexScan,
 		DEFAULT_ENABLE_RUM_INDEX_SCAN,
+		PGC_USERSET,
+		0,
+		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableRumInOperatorFastPath", newGucPrefix),
+		gettext_noop(
+			"Allow rum in operator fast path."),
+		NULL,
+		&EnableRumInOperatorFastPath,
+		DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH,
 		PGC_USERSET,
 		0,
 		NULL, NULL, NULL);
@@ -340,5 +357,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable in indexbounds tracking for partial filter expressions."),
 		NULL, &EnableIndexOperatorBounds,
 		DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enablePrimaryKeyCursorScan", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable primary key cursor scan for streaming cursors."),
+		NULL, &EnablePrimaryKeyCursorScan,
+		DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

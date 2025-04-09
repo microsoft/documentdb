@@ -16,6 +16,8 @@
 #include <utils/index_selfuncs.h>
 #include <utils/selfuncs.h>
 #include <utils/lsyscache.h>
+#include <access/relscan.h>
+#include <utils/rel.h>
 #include "math.h"
 
 #include "api_hooks.h"
@@ -23,9 +25,11 @@
 #include "opclass/bson_gin_index_mgmt.h"
 #include "index_am/documentdb_rum.h"
 #include "metadata/metadata_cache.h"
+#include "opclass/bson_gin_composite_scan.h"
 
 
 extern bool ForceUseIndexIfAvailable;
+extern bool EnableNewCompositeIndexOpclass;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -37,6 +41,12 @@ static bool MatchClauseWithIndexForFuncExpr(IndexPath *path, int32_t indexcol,
 static bool ValidateMatchForOrderbyQuals(IndexPath *path);
 
 static bool IsTextIndexMatch(IndexPath *path);
+
+
+/* Composite support */
+static amrescan_function rum_rescanfunc = NULL;
+static void extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
+								ScanKey orderbys, int norderbys);
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -85,7 +95,14 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 		indexRoutine->amoptsprocnum = RUMNProcs + 1;
 	}
 
+	rum_rescanfunc = indexRoutine->amrescan;
+	if (EnableNewCompositeIndexOpclass)
+	{
+		indexRoutine->amrescan = extension_rumrescan;
+	}
+
 	indexRoutine->amcostestimate = extension_rumcostestimate;
+
 	return indexRoutine;
 }
 
@@ -324,4 +341,36 @@ IsTextIndexMatch(IndexPath *path)
 	}
 
 	return false;
+}
+
+
+static void
+extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
+					ScanKey orderbys, int norderbys)
+{
+	extension_rumrescan_core(scan, scankey, nscankeys,
+							 orderbys, norderbys, rum_rescanfunc);
+}
+
+
+void
+extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
+						 ScanKey orderbys, int norderbys, amrescan_function
+						 core_rescanfunc)
+{
+	if (EnableNewCompositeIndexOpclass &&
+		IndexRelationGetNumberOfKeyAttributes(scan->indexRelation) == 1 &&
+		scan->indexRelation->rd_opfamily[0] == BsonRumCompositeIndexOperatorFamily())
+	{
+		/* For composite call the method to modify and do cross-key rechecks */
+		ModifyScanKeysForCompositeScan(scankey, nscankeys);
+	}
+
+	if (core_rescanfunc == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("RUM rescan function not set")));
+	}
+
+	core_rescanfunc(scan, scankey, nscankeys, orderbys, norderbys);
 }

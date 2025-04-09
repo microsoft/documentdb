@@ -41,6 +41,7 @@
  * Used in testing.
  */
 extern int32_t MaxWorkerCursorSize;
+extern bool EnablePrimaryKeyCursorScan;
 
 static char LastOpenPortalName[NAMEDATALEN] = { 0 };
 
@@ -74,6 +75,9 @@ typedef struct CursorContinuationEntry
 
 	/* The TID inside the shard that is the continuation. */
 	ItemPointerData continuation;
+
+	/* The cursor entry */
+	pgbson *cursorEntry;
 } CursorContinuationEntry;
 
 /*
@@ -1045,25 +1049,31 @@ UpdateCursorInContinuationMapCore(bson_iter_t *singleContinuationDoc, HTAB *curs
 {
 	bson_value_t continuationBinaryValue = { 0 };
 	CursorContinuationEntry searchEntry = { 0 };
+	bson_value_t primaryKeyValue = { 0 };
 	while (bson_iter_next(singleContinuationDoc))
 	{
-		if (strcmp(bson_iter_key(singleContinuationDoc),
-				   CursorContinuationTableName) == 0)
+		StringView keyView = bson_iter_key_string_view(singleContinuationDoc);
+		if (StringViewEquals(&keyView, &CursorContinuationTableName))
 		{
 			if (!BSON_ITER_HOLDS_UTF8(singleContinuationDoc))
 			{
 				ereport(ERROR, (errmsg("Expecting string value for %s",
-									   CursorContinuationTableName)));
+									   CursorContinuationTableName.string)));
 			}
 
 			searchEntry.tableName = bson_iter_utf8(singleContinuationDoc,
 												   &searchEntry.tableNameLength);
 		}
-		else if (strcmp(bson_iter_key(singleContinuationDoc),
-						CursorContinuationValue) == 0)
+		else if (StringViewEquals(&keyView,
+								  &CursorContinuationValue))
 		{
 			continuationBinaryValue = *bson_iter_value(
 				singleContinuationDoc);
+		}
+		else if (EnablePrimaryKeyCursorScan &&
+				 StringViewEquals(&keyView, &PrimaryKeyShardKey))
+		{
+			primaryKeyValue = *bson_iter_value(singleContinuationDoc);
 		}
 	}
 
@@ -1075,7 +1085,7 @@ UpdateCursorInContinuationMapCore(bson_iter_t *singleContinuationDoc, HTAB *curs
 	if (continuationBinaryValue.value_type != BSON_TYPE_BINARY)
 	{
 		ereport(ERROR, (errmsg("Expecting binary value for %s, found %s",
-							   CursorContinuationValue, BsonTypeName(
+							   CursorContinuationValue.string, BsonTypeName(
 								   continuationBinaryValue.value_type))));
 	}
 
@@ -1099,6 +1109,17 @@ UpdateCursorInContinuationMapCore(bson_iter_t *singleContinuationDoc, HTAB *curs
 	}
 	hashEntry->continuation =
 		*(ItemPointerData *) continuationBinaryValue.value.v_binary.data;
+
+	if (EnablePrimaryKeyCursorScan &&
+		primaryKeyValue.value_type != BSON_TYPE_EOD)
+	{
+		if (hashEntry->cursorEntry != NULL)
+		{
+			pfree(hashEntry->cursorEntry);
+		}
+
+		hashEntry->cursorEntry = BsonValueToDocumentPgbson(&primaryKeyValue);
+	}
 }
 
 
@@ -1268,17 +1289,26 @@ SerializeContinuationsToWriter(pgbson_writer *writer, HTAB *cursorMap)
 		pgbson_writer entryWriter;
 		PgbsonArrayWriterStartDocument(&childWriter, &entryWriter);
 
-		PgbsonWriterAppendUtf8(&entryWriter, CursorContinuationTableName,
-							   CursorContinuationTableNameLength, entry->tableName);
+		PgbsonWriterAppendUtf8(&entryWriter, CursorContinuationTableName.string,
+							   CursorContinuationTableName.length, entry->tableName);
 
 		bson_value_t continuationValue;
 		continuationValue.value_type = BSON_TYPE_BINARY;
 		continuationValue.value.v_binary.subtype = BSON_SUBTYPE_BINARY;
 		continuationValue.value.v_binary.data = (uint8_t *) &entry->continuation;
 		continuationValue.value.v_binary.data_len = sizeof(ItemPointerData);
-		PgbsonWriterAppendValue(&entryWriter, CursorContinuationValue,
-								CursorContinuationValueLength,
+		PgbsonWriterAppendValue(&entryWriter, CursorContinuationValue.string,
+								CursorContinuationValue.length,
 								&continuationValue);
+
+		if (EnablePrimaryKeyCursorScan &&
+			entry->cursorEntry != NULL)
+		{
+			pgbsonelement element = { 0 };
+			PgbsonToSinglePgbsonElement(entry->cursorEntry, &element);
+			PgbsonWriterAppendValue(&entryWriter, "pk", 2, &element.bsonValue);
+		}
+
 		PgbsonArrayWriterEndDocument(&childWriter, &entryWriter);
 	}
 

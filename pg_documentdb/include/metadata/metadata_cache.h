@@ -122,6 +122,7 @@ Oid BsonIndexBoundsEqualOperatorFuncId(void);
 
 /* operators */
 Oid BigintEqualOperatorId(void);
+Oid BigIntGreaterOperatorId(void);
 Oid TextEqualOperatorId(void);
 Oid TextNotEqualOperatorId(void);
 Oid TextLessOperatorId(void);
@@ -142,6 +143,11 @@ Oid PostgresInt4PlusFunctionOid(void);
 Oid PostgresInt4LessOperatorOid(void);
 Oid PostgresInt4LessOperatorFunctionOid(void);
 Oid PostgresInt4EqualOperatorOid(void);
+
+/* Opclass */
+Oid IntegerOpsOpFamilyOid(void);
+Oid BsonBtreeOpFamilyOid(void);
+Oid BsonRumCompositeIndexOperatorFamily(void);
 
 /* types */
 Oid BsonQueryTypeId(void);
@@ -178,7 +184,6 @@ Oid PostgresMakeIntervalFunctionId(void);
 Oid PostgresDateBinFunctionId(void);
 Oid PostgresAgeBetweenTimestamp(void);
 Oid PostgresDatePartFromInterval(void);
-Oid PostgresUUIDInFunctionId(void);
 
 /* Index AM */
 Oid RumIndexAmId(void);

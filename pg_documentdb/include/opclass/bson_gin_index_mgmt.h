@@ -38,6 +38,9 @@ typedef enum IndexOptionsType
 
 	/* This is a 2dsphere index on a path */
 	IndexOptionsType_2dsphere,
+
+	/* This is a composite index on a path */
+	IndexOptionsType_Composite,
 } IndexOptionsType;
 
 
@@ -160,6 +163,13 @@ typedef struct
 	BsonGinIndexOptionsBase base;
 	int path;
 } Bson2dGeographyPathOptions;
+
+typedef struct
+{
+	BsonGinIndexOptionsBase base;
+	int compositePathSpec;
+} BsonGinCompositePathOptions;
+
 
 bool ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue,
 									BsonIndexStrategy

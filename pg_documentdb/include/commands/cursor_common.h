@@ -8,8 +8,6 @@
  *-------------------------------------------------------------------------
  */
 
-extern const char CursorContinuationTableName[11];
-extern const uint32_t CursorContinuationTableNameLength;
-
-extern const char CursorContinuationValue[6];
-extern const uint32_t CursorContinuationValueLength;
+extern const StringView CursorContinuationTableName;
+extern const StringView CursorContinuationValue;
+extern const StringView PrimaryKeyShardKey;

@@ -1,11 +1,11 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/mirror/docker/library/ubuntu:20.04
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:22.04
 ARG POSTGRES_INSTALL_ARG=
-ARG PG_VERSION=
-ARG CITUS_VERSION=
+ARG PG_VERSION=16
+ARG CITUS_VERSION=12
 
 # declare installed PG version and Citus version
-ENV PG_VERSION=16
-ENV CITUS_VERSION=12
+ENV PG_VERSION=${PG_VERSION}
+ENV CITUS_VERSION=${CITUS_VERSION}
 
 # Install build essentials - Compiler, debugger, make, etc.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
@@ -100,7 +100,7 @@ RUN add-apt-repository -y ppa:ubuntugis/ppa && apt-get update && \
     libproj-dev \
     libxml2-dev \
     libjson-c-dev \
-    libgeos++-dev libgeos-3.9.1 libgeos-c1v5 libgeos-dev \
+    libgeos++-dev libgeos3.11.1 libgeos-c1v5 libgeos-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY scripts/install_setup_postgis.sh /tmp/install_setup/
 RUN [ "bin/bash", "-c", "PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh" ]

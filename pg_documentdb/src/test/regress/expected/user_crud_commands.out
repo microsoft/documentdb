@@ -1,0 +1,386 @@
+SET documentdb.next_collection_id TO 1972800;
+SET documentdb.next_collection_index_id TO 1972800;
+--set Feature flag for user crud
+SET documentdb.enableUserCrud TO ON;
+\set VERBOSITY TERSE
+show documentdb.blockedRolePrefixList;
+ documentdb.blockedRolePrefixList 
+----------------------------------
+ documentdb,pg
+(1 row)
+
+SET documentdb.blockedRolePrefixList TO '';
+SELECT documentdb_api.create_user('{"createUser":"documentdb_unblocked", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"documentdb_unblocked"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SET documentdb.blockedRolePrefixList TO 'documentdb';
+SELECT documentdb_api.drop_user('{"dropUser":"documentdb_unblocked"}');
+ERROR:  Invalid username.
+SET documentdb.blockedRolePrefixList TO 'newBlock, newBlock2';
+SELECT documentdb_api.create_user('{"createUser":"newBlock_user", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  Invalid username, use a different username.
+SELECT documentdb_api.create_user('{"createUser":"newBlock2_user", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  Invalid username, use a different username.
+RESET documentdb.blockedRolePrefixList;
+--Create a readOnly user
+SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that the user is created
+SELECT documentdb_api.users_info('{"usersInfo":"test_user"}');
+                                                                                                    users_info                                                                                                    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user", "userId" : "admin.test_user", "user" : "test_user", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create an admin user
+SELECT documentdb_api.create_user('{"createUser":"test_user2", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that the user is created
+SELECT documentdb_api.users_info('{"usersInfo":"test_user2"}');
+                                                                                                                              users_info                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user2", "userId" : "admin.test_user2", "user" : "test_user2", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create a user with a blocked prefix
+SELECT documentdb_api.create_user('{"createUser":"documentdb_user2", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  Invalid username, use a different username.
+--Create an already existing user
+SELECT documentdb_api.create_user('{"createUser":"test_user2", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  role "test_user2" already exists
+--Create a user with no role
+SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[]}');
+ERROR:  Roles specified are invalid. Only [{role: "readAnyDatabase", db: "admin"}] or [{role: "clusterAdmin", db: "admin"}, {role: "readWriteAnyDatabase", db: "admin"}] are allowed.
+--Create a user without specifying role parameter
+SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password"}');
+ERROR:  'createUser', 'roles' and 'pwd' are required fields.
+--Create a user with a disallowed parameter
+SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}], "testParam":"This is a test" }');
+ERROR:  Unsupported field specified : 'testParam'.
+--Create a user with a disallowed DB
+SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"Test"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  Unsupported value specified for db. Only 'admin' is allowed.
+--Create a user with a disallowed role
+SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"read","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+ERROR:  Invalid value specified for role: 'read'.
+--Create a user with no DB
+SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase"}, {"role":"clusterAdmin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that the user is created
+SELECT documentdb_api.users_info('{"usersInfo":"test_user4"}');
+                                                                                                                              users_info                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user4", "userId" : "admin.test_user4", "user" : "test_user4", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create a user with no DB in just one role
+SELECT documentdb_api.create_user('{"createUser":"test_user5", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase"}, {"role":"clusterAdmin","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that the user is created
+SELECT documentdb_api.users_info('{"usersInfo":"test_user5"}');
+                                                                                                                              users_info                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user5", "userId" : "admin.test_user5", "user" : "test_user5", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create a user with no parameters at all
+SELECT documentdb_api.create_user('{}');
+ERROR:  'createUser', 'roles' and 'pwd' are required fields.
+--Get all users
+SELECT documentdb_api.users_info('{"usersInfo":1}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                     users_info                                                                                                                                                                                                                                                                                                                                                                                                                                     
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user", "userId" : "admin.test_user", "user" : "test_user", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] }, { "_id" : "admin.test_user2", "userId" : "admin.test_user2", "user" : "test_user2", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user4", "userId" : "admin.test_user4", "user" : "test_user4", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user5", "userId" : "admin.test_user5", "user" : "test_user5", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Get all users for all DBs
+SELECT documentdb_api.users_info('{"forAllDBs":true}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                     users_info                                                                                                                                                                                                                                                                                                                                                                                                                                     
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user", "userId" : "admin.test_user", "user" : "test_user", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] }, { "_id" : "admin.test_user2", "userId" : "admin.test_user2", "user" : "test_user2", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user4", "userId" : "admin.test_user4", "user" : "test_user4", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user5", "userId" : "admin.test_user5", "user" : "test_user5", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Test SQL injection attack
+SELECT documentdb_api.create_user('{"createUser":"test_user_injection_attack", "pwd":"; DROP TABLE users; --", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that the user is created
+SELECT documentdb_api.users_info('{"usersInfo":"test_user_injection_attack"}');
+                                                                                                                             users_info                                                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user_injection_attack", "userId" : "admin.test_user_injection_attack", "user" : "test_user_injection_attack", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Get all users
+SELECT documentdb_api.users_info('{"usersInfo":1}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               users_info                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "users" : [ { "_id" : "admin.test_user", "userId" : "admin.test_user", "user" : "test_user", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] }, { "_id" : "admin.test_user2", "userId" : "admin.test_user2", "user" : "test_user2", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user4", "userId" : "admin.test_user4", "user" : "test_user4", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user5", "userId" : "admin.test_user5", "user" : "test_user5", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, { "_id" : "admin.test_user_injection_attack", "userId" : "admin.test_user_injection_attack", "user" : "test_user_injection_attack", "db" : "admin", "roles" : [ { "role" : "readAnyDatabase", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Drop a user
+SELECT documentdb_api.drop_user('{"dropUser":"test_user5"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify successful drop
+SELECT documentdb_api.users_info('{"usersInfo":"test_user5"}');
+            users_info             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Drop a reserved user, should fail
+SELECT documentdb_api.drop_user('{"dropUser":"documentdb_user"}');
+ERROR:  Invalid username.
+--Drop non-existent user
+SELECT documentdb_api.drop_user('{"dropUser":"nonexistent_user"}');
+ERROR:  role "nonexistent_user" does not exist
+--Drop with disallowed parameter
+SELECT documentdb_api.drop_user('{"user":"test_user"}');
+ERROR:  Unsupported field specified: 'user'.
+--Update a user
+SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password"}');
+            update_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Update non existent user
+SELECT documentdb_api.update_user('{"updateUser":"nonexistent_user", "pwd":"new_password"}');
+ERROR:  role "nonexistent_user" does not exist
+--Update with disllowed parameter
+SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  Updating roles is not supported.
+--Get non existent user
+SELECT documentdb_api.users_info('{"usersInfo":"nonexistent_user"}');
+            users_info             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create a readOnly user
+SELECT documentdb_api.create_user('{"createUser":"readOnlyUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Create an admin user
+SELECT documentdb_api.create_user('{"createUser":"adminUser", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+--Verify that we error out for external identity provider
+SELECT documentdb_api.create_user('{"createUser":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}], "customData":{"IdentityProvider" : {"type" : "ExternalProvider", "properties": {"principalType": "servicePrincipal"}}}}');
+                                                                             create_user                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "ok" : { "$numberInt" : "0" }, "errmsg" : "External identity providers are not supported", "code" : { "$numberInt" : "115" }, "codeName" : "CommandNotSupported" }
+(1 row)
+
+SELECT current_user as original_user \gset
+-- switch to read only user
+\c regression readOnlyUser
+--set Feature flag for user crud
+SET documentdb.enableUserCrud TO ON;
+--Create without privileges
+SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  permission denied to create role
+--Drop without privileges
+SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
+ERROR:  permission denied to drop role
+-- switch to admin user
+\c regression adminUser
+--set Feature flag for user crud
+SET documentdb.enableUserCrud TO ON;
+--Create without privileges
+SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  permission denied to create role
+--Drop without privileges
+SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
+ERROR:  permission denied to drop role
+--set Feature flag for user crud OFF
+SET documentdb.enableUserCrud TO OFF;
+--All user crud commnads should fail
+SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  CreateUser command is not supported.
+SELECT documentdb_api.users_info('{"usersInfo":1}');
+ERROR:  UsersInfo command is not supported.
+SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password"}');
+ERROR:  UpdateUser command is not supported.
+SELECT documentdb_api.drop_user('{"dropUser":"test_user5"}');
+ERROR:  DropUser command is not supported.
+-- switch back to original user
+\c regression :original_user
+--set Feature flag for user crud
+SET documentdb.enableUserCrud TO ON;
+\set VERBOSITY TERSE
+ 
+ --set max user limit to 11
+SET documentdb.maxUserLimit TO 11;
+-- Keep creating users till we have 11 users
+SELECT documentdb_api.create_user('{"createUser":"newUser7", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.create_user('{"createUser":"newUser8", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.create_user('{"createUser":"newUser9", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.create_user('{"createUser":"newUser10", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.create_user('{"createUser":"newUser11", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- This call should fail since we're only allowed to create 11 users
+SELECT documentdb_api.create_user('{"createUser":"newUser12", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  Exceeded the limit of 11 user roles.For more options, visit https://aka.ms/mongodbvcore-rbac.
+-- Increase allowed users to 12
+SET documentdb.maxUserLimit TO 12;
+-- This should now succeed
+SELECT documentdb_api.create_user('{"createUser":"newUser12", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- This should fail
+SELECT documentdb_api.create_user('{"createUser":"newUser13", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  Exceeded the limit of 12 user roles.For more options, visit https://aka.ms/mongodbvcore-rbac.
+-- Delete a user and try to create again, this should succeed
+SELECT documentdb_api.drop_user('{"dropUser":"newUser7"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.create_user('{"createUser":"newUser13", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Delete all users created so we don't break other tests that also create users
+SELECT documentdb_api.drop_user('{"dropUser":"newUser8"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"newUser9"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"newUser10"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"newUser11"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"newUser12"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"newUser13"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user2"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user4"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user_injection_attack"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"readOnlyUser"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"adminUser"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Reset the max user limit to 10
+SET documentdb.maxUserLimit TO 10;

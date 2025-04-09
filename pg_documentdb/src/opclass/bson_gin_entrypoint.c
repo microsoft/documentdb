@@ -306,13 +306,15 @@ gin_bson_pre_consistent(PG_FUNCTION_ARGS)
 	Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6);
 
 	bytea *options = (bytea *) PG_GET_OPCLASS_OPTIONS();
+	bool isPreconsistent = true;
 	bool res = GinBsonConsistentCore(strategy,
 									 check,
 									 extra_data,
 									 numKeys,
 									 recheck,
 									 queryKeys,
-									 options);
+									 options,
+									 isPreconsistent);
 
 	PG_RETURN_BOOL(res);
 }
@@ -349,13 +351,15 @@ gin_bson_consistent(PG_FUNCTION_ARGS)
 	}
 
 	bytea *options = (bytea *) PG_GET_OPCLASS_OPTIONS();
+	bool isPreconsistent = false;
 	res = GinBsonConsistentCore(strategy,
 								check,
 								extra_data,
 								numKeys,
 								recheck,
 								queryKeys,
-								options);
+								options,
+								isPreconsistent);
 	PG_RETURN_BOOL(res);
 }
 
@@ -805,6 +809,16 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 			break;
 		}
 
+		case IndexOptionsType_Composite:
+		{
+			traverse = GetCompositePathIndexTraverseOption(
+				strategy, options,
+				filterElement.path,
+				filterElement.pathLength,
+				filterElement.bsonValue.value_type);
+			break;
+		}
+
 		case IndexOptionsType_Hashed:
 		{
 			/* Hash index only supports $eq today */
@@ -919,6 +933,13 @@ ValidateIndexForQualifierPathForDollarIn(bytea *indexOptions, const StringView *
 			break;
 		}
 
+		case IndexOptionsType_Composite:
+		{
+			/* TODO: Support $lookup pushdown to composite index */
+			traverse = IndexTraverse_Invalid;
+			break;
+		}
+
 		case IndexOptionsType_UniqueShardKey:
 		{
 			traverse = IndexTraverse_Invalid;
@@ -966,6 +987,11 @@ GetIndexTermMetadata(void *indexOptions)
 			Get_Index_Path_Option(singlePathOptions, path, pathPrefix.string,
 								  pathPrefix.length);
 			isWildcard = singlePathOptions->isWildcard;
+		}
+		else if (options->type == IndexOptionsType_Composite)
+		{
+			pathPrefix.string = "$";
+			pathPrefix.length = 1;
 		}
 		else if (options->type == IndexOptionsType_Wildcard)
 		{

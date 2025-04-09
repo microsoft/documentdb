@@ -318,7 +318,13 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_USER_CREATE] = "user_create",
 	[FEATURE_USER_DROP] = "user_drop",
 	[FEATURE_USER_GET] = "user_get",
-	[FEATURE_USER_UPDATE] = "user_update"
+	[FEATURE_USER_UPDATE] = "user_update",
+
+	/* Feature mapping region - ExternalIdentityProvider */
+	[FEATURE_EXTERNAL_IDENTITY_USER_CREATE] = "external_identity_user_create",
+	[FEATURE_EXTERNAL_IDENTITY_USER_DROP] = "external_identity_user_drop",
+	[FEATURE_EXTERNAL_IDENTITY_USER_AUTHENTICATE] = "external_identity_user_authenticate",
+	[FEATURE_EXTERNAL_IDENTITY_USER_GET] = "external_identity_user_get",
 };
 
 

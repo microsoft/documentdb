@@ -143,6 +143,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the <bigint> OPERATOR(pg_catalog.=) <bigint> operator */
 	Oid BigintEqualOperatorId;
 
+	/* OID of hte <bigint> > <bigint> operator */
+	Oid BigIntGreaterOperatorId;
+
 	/* OID of the <text> OPERATOR(pg_catalog.=) <text> operator */
 	Oid TextEqualOperatorId;
 
@@ -560,9 +563,6 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* Oid of the extract_interval postgres function which extracts a given date part from interval. */
 	Oid PostgresDatePartFromInterval;
-
-	/* OID of the uuid_in postgres method which converts a string to uuid */
-	Oid PostgresUUIDInFunctionIdOid;
 
 	/* OID of Rum Index access methods */
 	Oid RumIndexAmId;
@@ -1082,6 +1082,15 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* Oid of ApiInternalSchemaName.bson_query_match with collation and let */
 	Oid BsonQueryMatchWithLetAndCollationFunctionId;
+
+	/* Opclass for the integer ops */
+	Oid IntegerOpsOpFamilyOid;
+
+	/* OpFamily for the Bson BTree ops */
+	Oid BsonBtreeOpFamilyOid;
+
+	/* Opfamily for the bson */
+	Oid BsonRumCompositeIndexOperatorFamily;
 } DocumentDBApiOidCacheData;
 
 static DocumentDBApiOidCacheData Cache;
@@ -1341,6 +1350,27 @@ BigintEqualOperatorId(void)
 	}
 
 	return Cache.BigintEqualOperatorId;
+}
+
+
+/*
+ * BigintEqualOperatorId returns the OID of the <bigint> = <bigint> operator.
+ */
+Oid
+BigIntGreaterOperatorId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BigIntGreaterOperatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString("pg_catalog"),
+											makeString(">"));
+
+		Cache.BigIntGreaterOperatorId =
+			OpernameGetOprid(operatorNameList, INT8OID, INT8OID);
+	}
+
+	return Cache.BigIntGreaterOperatorId;
 }
 
 
@@ -2613,16 +2643,6 @@ PostgresDatePartFromInterval(void)
 {
 	return GetPostgresInternalFunctionId(&Cache.PostgresDatePartFromInterval,
 										 "interval_part");
-}
-
-
-/*
- * Returns the OID of the "uuid_in" internal postgres method
- */
-Oid
-PostgresUUIDInFunctionId(void)
-{
-	return GetPostgresInternalFunctionId(&Cache.PostgresUUIDInFunctionIdOid, "uuid_in");
 }
 
 
@@ -6341,6 +6361,60 @@ ApiCatalogCollectionIndexIdSequenceId(void)
 	}
 
 	return Cache.CollectionIndexIdSequenceId;
+}
+
+
+Oid
+IntegerOpsOpFamilyOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.IntegerOpsOpFamilyOid == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.IntegerOpsOpFamilyOid = get_opfamily_oid(
+			BTREE_AM_OID, list_make2(makeString("pg_catalog"), makeString(
+										 "integer_ops")),
+			missingOk);
+	}
+
+	return Cache.IntegerOpsOpFamilyOid;
+}
+
+
+Oid
+BsonBtreeOpFamilyOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonBtreeOpFamilyOid == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.BsonBtreeOpFamilyOid = get_opfamily_oid(
+			BTREE_AM_OID, list_make2(makeString(CoreSchemaName), makeString(
+										 "bson_btree_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonBtreeOpFamilyOid;
+}
+
+
+Oid
+BsonRumCompositeIndexOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumCompositeIndexOperatorFamily == InvalidOid)
+	{
+		bool missingOk = false;
+		Cache.BsonRumCompositeIndexOperatorFamily = get_opfamily_oid(
+			RumIndexAmId(), list_make2(makeString(ApiInternalSchemaNameV2), makeString(
+										   "bson_rum_composite_path_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonRumCompositeIndexOperatorFamily;
 }
 
 

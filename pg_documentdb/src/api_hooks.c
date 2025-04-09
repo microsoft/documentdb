@@ -52,7 +52,14 @@ TryGetExtendedVersionRefreshQuery_HookType try_get_extended_version_refresh_quer
 	NULL;
 GetShardIdsAndNamesForCollection_HookType get_shard_ids_and_names_for_collection_hook =
 	NULL;
-
+CreateUserWithExernalIdentityProvider_HookType
+	create_user_with_exernal_identity_provider_hook = NULL;
+DropUserWithExernalIdentityProvider_HookType
+	drop_user_with_exernal_identity_provider_hook = NULL;
+GetUserInfoFromExternalIdentityProvider_HookType
+	get_user_info_from_external_identity_provider_hook = NULL;
+IsUserExternal_HookType
+	is_user_external_hook = NULL;
 
 /*
  * Single node scenario is always a metadata coordinator
@@ -207,6 +214,68 @@ ModifyTableColumnNames(List *inputColumnNames)
 	}
 
 	return inputColumnNames;
+}
+
+
+/*
+ * Creates a user with an external identity provider
+ */
+bool
+CreateUserWithExternalIdentityProvider(const char *userName, char *pgRole, bson_value_t
+									   customData)
+{
+	if (create_user_with_exernal_identity_provider_hook != NULL)
+	{
+		return create_user_with_exernal_identity_provider_hook(userName, pgRole,
+															   customData);
+	}
+
+	return false;
+}
+
+
+/*
+ * Drops a user with an external identity provider
+ */
+bool
+DropUserWithExternalIdentityProvider(const char *userName)
+{
+	if (drop_user_with_exernal_identity_provider_hook != NULL)
+	{
+		return drop_user_with_exernal_identity_provider_hook(userName);
+	}
+
+	return false;
+}
+
+
+/*
+ * Get user info from external identity provider
+ */
+const pgbson *
+GetUserInfoFromExternalIdentityProvider(const char *userName)
+{
+	if (get_user_info_from_external_identity_provider_hook != NULL)
+	{
+		return get_user_info_from_external_identity_provider_hook(userName);
+	}
+
+	return NULL;
+}
+
+
+/*
+ * Check if the user is external
+ */
+bool
+IsUserExternal(const char *userName)
+{
+	if (is_user_external_hook != NULL)
+	{
+		return is_user_external_hook(userName);
+	}
+
+	return false;
 }
 
 

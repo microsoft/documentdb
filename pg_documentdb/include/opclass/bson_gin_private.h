@@ -56,7 +56,7 @@ int32_t GinBsonComparePartialCore(BsonIndexStrategy strategy, BsonIndexTerm *que
 								  BsonIndexTerm *compareValue, Pointer extraData);
 bool GinBsonConsistentCore(BsonIndexStrategy strategy, bool *check,
 						   Pointer *extra_data, int32_t numKeys, bool *recheck,
-						   Datum *queryKeys, bytea *options);
+						   Datum *queryKeys, bytea *options, bool isPreconsistent);
 int32_t GinBsonComparePartialElemMatchExpression(BsonIndexTerm *queryValue,
 												 BsonIndexTerm *compareValue,
 												 BsonElemMatchIndexExprState *exprState);
@@ -177,4 +177,9 @@ int32_t GinBsonComparePartialOrderBy(BsonIndexTerm *queryValue,
 
 IndexTermCreateMetadata GetIndexTermMetadata(void *indexOptions);
 
+IndexTraverseOption GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy,
+														void *contextOptions, const
+														char *currentPath, uint32_t
+														currentPathLength,
+														bson_type_t bsonType);
 #endif

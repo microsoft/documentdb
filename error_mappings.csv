@@ -333,6 +333,7 @@ ErrorMapping,ErrorName
 40603,Location40603
 40647,ChangeStreamBadResumeToken
 40684,Location40684
+42501,InsufficientPrivilege
 50694,Location50694
 50695,Location50695
 50696,Location50696
@@ -412,6 +413,7 @@ ErrorMapping,ErrorName
 4161107,Location4161107
 4161108,Location4161108
 4161109,Location4161109
+4341107,Location4341107
 4890500,Location4890500
 4940400,Location4940400
 4940401,Location4940401

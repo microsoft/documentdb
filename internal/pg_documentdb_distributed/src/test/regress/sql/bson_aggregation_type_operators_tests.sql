@@ -152,6 +152,323 @@ SELECT * from documentdb_api.insert_one('db', 'convertColl', '{"_id": "88", "inp
 -- call convert with the input and target type and check if the output is equal to the expected output.
 SELECT bson_dollar_project(document, '{"passed": { "$eq": [{"$convert": { "input": "$input", "to": "$target"}}, "$expected"]}}') FROM documentdb_api.collection('db', 'convertColl');
 
+-- $convert to BinData
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": "binData", "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "RG9jdW1lbnREQiBpcyBjb29sbGwh", "to": {"type": "binData", "subtype": 8}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 0}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "RG9jdW1lbnREQiBpcyBjb29sbGwh", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "UEdNb25nbyBpcyBHQSE", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "10000000-1000-1000-1000-100000000000", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "4a6f686e20446f65", "to": {"type": "binData", "subtype": 0}, "format": "hex"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "4a6f686e20446f65", "to": {"type": "binData", "subtype": 5}, "format": "hex"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "4a6f686e20446f65", "to": {"type": "binData", "subtype": 6}, "format": "hex"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "a27", "to": {"type": "binData", "subtype": 0}, "format": "utf8"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "UEdNb25nbyBpcyBHQSE=", "to": {"type": "binData"}, "format": "utf8"}}}');
+SELECT * from bson_dollar_project('{"i": "167dee52-c331-484e-92d1-c56479b8e670"}', '{"result": {"$convert": { "input": "$i", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
+SELECT * from bson_dollar_project('{"i": "SGVsbG8gd29ybGQh", "ts": 0 }', '{"result": {"$convert": { "input": "$i", "to": {"type": "binData", "subtype": "$ts"}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{"tt": "binData", "f": "hex"}', '{"result": {"$convert": { "input": "4a6f686e20446f65", "to": {"type": "$tt", "subtype": 0}, "format": "$f"}}}');
+
+-- error: $convert to BinData with no format
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": "binData"}}}');
+
+-- error: $convert to BinData with non-string input
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": 123, "to": "binData", "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": false, "to": "binData", "format": "base64"}}}');
+
+-- error: uuid format and uuid subtype violations
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 4}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData"}, "format": "uuid"}}}');
+
+-- error: $convert to BinData with input-format mismatch
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "123", "to": "binData", "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3uUsMxSE6S0cVkebjm=fg==", "to": {"type": "binData", "subtype": 4}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 0}, "format": "base64"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjmfg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjm/fg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "äöäöä", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 4}, "format": "hex"}}}');
+
+-- error: auto format not supported for to BinData
+SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 0}, "format": "auto"}}}');
+
+-- error: auto format not supported for BinData to string yet
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "4a6f686e20446f65",
+                "to": {"type": "binData", "subtype": 5},
+                "format": "hex"
+            }
+        },
+        "to": "string",
+        "format": "auto"
+    }
+}}');
+ 
+-- BinData to string using $convert
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "SGVsbG8gd29ybGQh",
+                "to": "binData",
+                "format": "base64"
+            }
+        },
+        "to": "string",
+        "format": "base64"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "SGVsbG8gd29ybGQh",
+                "to": "binData",
+                "format": "base64"
+            }
+        },
+        "to": "string",
+        "format": "utf8"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "💻🤠🔫",
+                "to": "binData",
+                "format": "utf8"
+            }
+        },
+        "to": "string",
+        "format": "utf8"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "SGVsbG8gd29ybGQh",
+                "to": "binData",
+                "format": "base64"
+            }
+        },
+        "to": "string",
+        "format": "base64url"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "167dee52-c331-484e-92d1-c56479b8e670",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": "string",
+        "format": "uuid"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "SGVsbG8gd29ybGQh",
+                "to": "binData",
+                "format": "base64"
+            }
+        },
+        "to": "string",
+        "format": "hex"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "10000000-1000-1000-1000-100000000000",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": "string",
+        "format": "uuid"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "4a6f686e20446f65",
+                "to": "binData",
+                "format": "hex"
+            }
+        },
+        "to": "string",
+        "format": "hex"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "4a6f686e20446f65",
+                "to": {"type": "binData", "subtype": 5},
+                "format": "hex"
+            }
+        },
+        "to": "string",
+        "format": "hex"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{"i": "a27", "tt": "binData", "f": "hex"}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "$i",
+                "to": {"type": "$tt", "subtype": 0},
+                "format": "$f"
+            }
+        },
+        "to": "string",
+        "format": "$f"
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{"i": "167dee52-c331-484e-92d1-c56479b8e670"}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "$i",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": "string",
+        "format": "uuid"
+    }
+}}');
+
+-- $convert from BinData to BinData
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "SGVsbG8gd29ybGQh",
+                "to": "binData",
+                "format": "base64"
+            }
+        },
+        "to":  {"type": "binData", "subtype": 4}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "💻🤠🔫",
+                "to": "binData",
+                "format": "utf8"
+            }
+        },
+        "to": {"type": "binData", "subtype": 0}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "10000000-1000-1000-1000-100000000000",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": {"type": "binData", "subtype": 0}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "10000000-1000-1000-1000-100000000000",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": {"type": "binData", "subtype": 4}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "4a6f686e20446f65",
+                "to": "binData",
+                "format": "hex"
+            }
+        },
+        "to": {"type": "binData", "subtype": 130}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{"i": "SGVsbG8gd29ybGQh", "ts": 0 }', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "$i",
+                "to": {"type": "binData", "subtype": "$ts"},
+                "format": "utf8"
+            }
+        },
+        "to": {"type": "binData", "subtype": "$ts"}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{"i": "167dee52-c331-484e-92d1-c56479b8e670"}', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "$i",
+                "to": {"type": "binData", "subtype": 4},
+                "format": "uuid"
+            }
+        },
+        "to": {"type": "binData", "subtype": 4}
+    }
+}}');
+
+SELECT * FROM bson_dollar_project('{"i": "SGVsbG8gd29ybGQh", "ts": 0 }', '{"result": {
+    "$convert": {
+        "input": {
+            "$convert": {
+                "input": "$i",
+                "to": {"type": "binData", "subtype": "$ts"},
+                "format": "utf8"
+            }
+        },
+        "to": {"type": "binData", "subtype": 0}
+    }
+}}');
+
 -- $convert with null to type should return null with and without onNull
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": { "input": 1, "to": null}}}');
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": { "input": 1, "to": "$missingField"}}}');

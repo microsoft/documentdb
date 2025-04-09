@@ -87,6 +87,36 @@ extern DistributePostgresTable_HookType distribute_postgres_table_hook;
 typedef List *(*ModifyTableColumnNames_HookType)(List *tableColumns);
 extern ModifyTableColumnNames_HookType modify_table_column_names_hook;
 
+/*
+ * Creates a user using an external identity provider
+ */
+typedef bool (*CreateUserWithExernalIdentityProvider_HookType)(const char *userName,
+															   char *pgRole, bson_value_t
+															   customData);
+extern CreateUserWithExernalIdentityProvider_HookType
+	create_user_with_exernal_identity_provider_hook;
+
+/*
+ * Drops a user using an external identity provider
+ */
+typedef bool (*DropUserWithExernalIdentityProvider_HookType)(const char *userName);
+extern DropUserWithExernalIdentityProvider_HookType
+	drop_user_with_exernal_identity_provider_hook;
+
+/*
+ * Method to verify if a user is native
+ */
+typedef bool (*IsUserExternal_HookType)(const char *userName);
+extern IsUserExternal_HookType
+	is_user_external_hook;
+
+
+/*
+ * Method to get user info from external identity provider
+ */
+typedef const pgbson *(*GetUserInfoFromExternalIdentityProvider_HookType)();
+extern GetUserInfoFromExternalIdentityProvider_HookType
+	get_user_info_from_external_identity_provider_hook;
 
 /*
  * Hook for enabling running a query with nested distribution enabled.

@@ -344,7 +344,7 @@ SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$rege
 (2 rows)
 
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
-                                                                                                                                                        QUERY PLAN                                                                                                                                                        
+                                                                                                                                                                  QUERY PLAN                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -375,7 +375,7 @@ SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$rege
 (2 rows)
 
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
-                                                                                                                                                        QUERY PLAN                                                                                                                                                        
+                                                                                                                                                                  QUERY PLAN                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 8
@@ -398,7 +398,7 @@ SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$rege
 (2 rows)
 
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
-                                                                                                                                                      QUERY PLAN                                                                                                                                                      
+                                                                                                                                                                QUERY PLAN                                                                                                                                                                
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 8
@@ -476,8 +476,12 @@ SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$rege
  { "_id" : { "$numberInt" : "111" }, "a" : "a value", "b" : "b value" }
 (2 rows)
 
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan to OFF;
+-- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Index Path
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
-                                                                                  QUERY PLAN                                                                                  
+                                                                                       QUERY PLAN                                                                                       
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 8
@@ -503,8 +507,13 @@ SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$rege
  { "_id" : { "$numberInt" : "111" }, "a" : "a value", "b" : "b value" }
 (2 rows)
 
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan to ON;
+SET LOCAL documentdb.ForceUseIndexIfAvailable to OFF;
+-- 111 117   Multiple regex in a single query on sharded collection, where query is on the shard id column. Seq Scan Path
 EXPLAIN (COSTS OFF) SELECT document from collection('db', 'regex') where document @@ '{ "a": {"$regex": "a.vaLue", "$options": "i"}, "b": {"$regex": "b va.ue", "$options": ""}}';
-                                                                                                                                                      QUERY PLAN                                                                                                                                                      
+                                                                                                                                                                QUERY PLAN                                                                                                                                                                
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 8

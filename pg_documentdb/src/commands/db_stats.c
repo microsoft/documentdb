@@ -178,7 +178,7 @@ command_list_databases(PG_FUNCTION_ARGS)
 	{
 		sizeOnDiskSelector = ", 0::int8 AS \"sizeOnDisk\", false AS empty";
 		totalSizeSelector =
-			"pg_catalog.pg_database_size(pg_catalog.current_database())::int4 AS \"totalSize\", ";
+			"pg_catalog.pg_database_size(pg_catalog.current_database())::int8 AS \"totalSize\", ";
 	}
 
 	if (filter != NULL)

@@ -237,6 +237,8 @@ char supported_locale_codes[ALPHABET_SIZE][ALPHABET_SIZE] = {
 static HTAB *collation_cache = NULL;
 
 static ucollator_cache_entry * LookupUCollatorCache(const char *collationString);
+static void GenerateICULocaleAndExtractCollationOption(char *inputLocale, char **locale,
+													   char **collationOptionString);
 
 inline static void CheckCollationInputParamType(bson_type_t expectedType, bson_type_t
 												foundType, const char *paramName);
@@ -257,7 +259,8 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 	bson_iter_t docIter;
 	BsonValueInitIterator(collationValue, &docIter);
 
-	const char *locale = NULL;      /* required */
+	char *locale = NULL;     /* required */
+	char *collationOptionString = NULL;             /* @collation value in locale, optional, default = NULL */
 	int strength = 3;               /* optional, default = 3 */
 	const char *caseFirst = NULL;   /* optional, default = off */
 	bool caseLevel = false;         /* optional, default = false */
@@ -267,6 +270,7 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 	const char *alternate = NULL;   /* optional, default = non-ignorable */
 	const char *maxVariable = NULL; /* optional, default not specified. ICU default punct. */
 
+	char *inputLocale = NULL;    /* required */
 	while (bson_iter_next(&docIter))
 	{
 		const char *key = bson_iter_key(&docIter);
@@ -275,16 +279,16 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 		if (strcmp(key, "locale") == 0)
 		{
 			CheckCollationInputParamType(BSON_TYPE_UTF8, value.value_type, "locale");
-			locale = value.value.v_utf8.str;
+			inputLocale = value.value.v_utf8.str;
 
-			if (strcmp(locale, "simple") == 0)
+			if (strcmp(inputLocale, "simple") == 0)
 			{
 				/* Mongo uses 'simple' locale to specify simple binary comparison. It's a no-op */
 				/* since postgres ICU will pick default. */
 				continue;
 			}
 
-			CheckIfValidLocale(locale);
+			CheckIfValidLocale(inputLocale);
 		}
 		else if (strcmp(key, "strength") == 0)
 		{
@@ -412,7 +416,15 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 	icuCollation.data = (char *) colationString;
 	icuCollation.maxlen = MAX_ICU_COLLATION_LENGTH;
 
+	GenerateICULocaleAndExtractCollationOption(inputLocale, &locale,
+											   &collationOptionString);
+
 	appendStringInfo(&icuCollation, "%s-u-", (locale == NULL) ? "und" : locale);
+
+	if (collationOptionString != NULL)
+	{
+		appendStringInfo(&icuCollation, "co-%s-", collationOptionString);
+	}
 
 	if (strength < 5)
 	{
@@ -905,4 +917,45 @@ LookupUCollatorCache(const char *collationString)
 	}
 
 	return cache_entry;
+}
+
+
+/*
+ * For some collation we need to do additional processing to generate the language-tag-syntax locale from the input locale.
+ * For example, en_US and en_US_POSIX needs to be converted to en-us and en-us-posix.
+ * Similarly, for input locales with options like @collation, we need to extract the collation option
+ * and generate the language-tag-syntax locale.
+ */
+static void
+GenerateICULocaleAndExtractCollationOption(char *inputLocale, char **locale,
+										   char **collationOptionString)
+{
+	/* conversion type 1: if locale contains the collation option */
+	/* Example: for inputLocale = "en@collation=search", */
+	/* locale = "es" and collationOptionString = "search" */
+	char *variant = strstr(inputLocale, "=");
+	if (variant != NULL)
+	{
+		/* Get the actual locale */
+		int localeLen = variant - inputLocale;
+		*locale = pnstrdup(inputLocale, localeLen);
+
+		/* Get the option */
+		*collationOptionString = variant + 1;
+	}
+	else
+	{
+		*locale = inputLocale;
+	}
+
+	/* conversion type 2: replace '_' with '-' in locale string */
+	/* Example: for inputLocale = "en_US", locale = "en-US" */
+	for (size_t i = 0; i < strlen(*locale); i++)
+	{
+		char *currentChar = *locale + i;
+		if (*currentChar == '_')
+		{
+			*currentChar = '-';
+		}
+	}
 }

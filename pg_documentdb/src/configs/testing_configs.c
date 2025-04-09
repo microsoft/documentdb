@@ -45,6 +45,9 @@ bool UseLocalExecutionShardQueries = DEFAULT_USE_LOCAL_EXECUTION_SHARD_QUERIES;
 #define DEFAULT_FORCE_INDEX_TERM_TRUNCATION false
 bool ForceIndexTermTruncation = DEFAULT_FORCE_INDEX_TERM_TRUNCATION;
 
+#define DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS false
+bool EnableNewCompositeIndexOpclass = DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS;
+
 #define DEFAULT_MAX_WORKER_CURSOR_SIZE BSON_MAX_ALLOWED_SIZE
 int32_t MaxWorkerCursorSize = DEFAULT_MAX_WORKER_CURSOR_SIZE;
 
@@ -132,6 +135,13 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Whether to force the feature for index term truncation"),
 		NULL, &ForceIndexTermTruncation, DEFAULT_FORCE_INDEX_TERM_TRUNCATION,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableNewCompositeIndexOpClass", prefix),
+		gettext_noop(
+			"Whether to enable the new composite index opclass"),
+		NULL, &EnableNewCompositeIndexOpclass, DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomIntVariable(

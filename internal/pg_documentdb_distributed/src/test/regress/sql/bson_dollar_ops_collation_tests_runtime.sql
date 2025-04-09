@@ -474,12 +474,18 @@ SELECT documentdb_api.insert_one('db', 'coll_agg_proj', '{ "_id": "bat", "a": "b
 
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "hi", "strength" : 2 } }');
-SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$ne": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr", "strength" : 1 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$ne": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fi", "strength" : 1 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$lte": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$gte": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$gte": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr_CA", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$gte": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "es@collation=search", "strength" : 3 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$gt": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr", "strength" : 1 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": { "$or": [{"$gte": [ "$a", "DOG" ]}, {"$gte": [ "$a", "CAT" ]}] } }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr", "strength" : 1 } }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": { "$and": [{"$lte": [ "$a", "DOG" ]}, {"$lte": [ "$a", "CAT" ]}] } }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "fr", "strength" : 2 } }');
+
+-- en_US_POSIX uses a c-style comparison. POSIX locale ignores case insensitivity. This is the ICU semantics.
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": ["$a", "cat"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en_US_POSIX", "strength" : 1 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": ["$a", "CAT"]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en_US_POSIX", "strength" : 1 } }');
 
 -- support for $filter
 SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": { "$eq": [["$a"], { "$filter": { "input": ["$a"], "as": "item", "cond": { "$eq": [ "$$item", "CAT" ] } } } ] } }, "sort": { "_id": 1 }, "collation": { "locale": "en", "strength": 1 } }');
@@ -592,6 +598,7 @@ SET documentdb.enableLetAndCollationForQueryMatch TO on;
 -- query match: _id tests
 SELECT documentdb_api_internal.bson_query_match('{"_id": "cat"}', '{"_id": "CAT"}', NULL, 'en-u-ks-level1');
 SELECT documentdb_api_internal.bson_query_match('{"_id": "cat"}', '{"_id": "CAT"}', NULL, 'en-u-ks-level2');
+SELECT documentdb_api_internal.bson_query_match('{"_id": "cat"}', '{"_id": "CAT"}', NULL, 'en-US-u-ks-level2');
 
 -- query match: $eq
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"a": "CAT"}', NULL, 'en-u-ks-level1');
@@ -613,6 +620,7 @@ SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$gte" 
 -- query match: $lt/$lte
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$lte" : "CAT"} }', NULL, 'de-u-ks-level1');
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$lte" : "càt"} }', NULL, 'fr-u-ks-level3');
+SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$lte" : "càt"} }', NULL, 'fr-CA-u-ks-level3');
 
 -- query match: $in
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$in" : ["CAT", "DOG"]} }', NULL, 'de-u-ks-level1');

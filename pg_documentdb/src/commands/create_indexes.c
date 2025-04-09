@@ -185,6 +185,7 @@ extern int MaxWildcardIndexKeySize;
 extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
 extern bool DisableStatisticsForUniqueColumns;
+extern bool EnableNewCompositeIndexOpclass;
 
 char *AlternateIndexHandler = NULL;
 
@@ -5077,6 +5078,63 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 								"The index path or expression is too long. Try a shorter path or reducing paths by %d characters.",
 								lengthDelta)));
 		}
+	}
+	else if (EnableNewCompositeIndexOpclass &&
+			 list_length(indexDefKey->keyPathList) > 1 &&
+			 !unique && !indexDefKey->isWildcard &&
+			 !indexDefKey->hasTextIndexes && !indexDefKey->hasHashedIndexes &&
+			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex)
+	{
+		if (indexDefWildcardProjTree)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"unexpectedly got wildcardProjection "
+								"specification for a non-wildcard index "
+								"or a non-root wildcard index")));
+		}
+
+		List *keyPathStrings = NIL;
+		ListCell *keyPathCell = NULL;
+		foreach(keyPathCell, indexDefKey->keyPathList)
+		{
+			IndexDefKeyPath *indexKeyPath = (IndexDefKeyPath *) lfirst(keyPathCell);
+			char *keyPath = (char *) indexKeyPath->path;
+
+			switch (indexKeyPath->indexKind)
+			{
+				case MongoIndexKind_Regular:
+				{
+					if (indexKeyPath->isWildcard)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+											"unexpectedly got wildcard path for a "
+											"non-wildcard index or a non-root "
+											"wildcard index")));
+					}
+
+					keyPathStrings = lappend(keyPathStrings, keyPath);
+					break;
+				}
+
+				default:
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+									errmsg(
+										"Unsupported index kind for composite index")));
+				}
+			}
+		}
+
+		sprintf(indexTermSizeLimitArg, ",tl=%u", ComputeIndexTermLimit(
+					COMPOUND_INDEX_TERM_SIZE_LIMIT));
+		appendStringInfo(indexExprStr,
+						 "%s document %s.bson_%s_composite_path_ops(pathspec=%s%s)",
+						 firstColumnWritten ? "," : "",
+						 ApiInternalSchemaNameV2,
+						 indexOpClassAmName,
+						 quote_literal_cstr(
+							 StringListGetBsonArrayRepr(keyPathStrings)),
+						 indexTermSizeLimitArg);
 	}
 	else
 	{
