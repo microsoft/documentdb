@@ -124,7 +124,10 @@ jobs:
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
           
-          export PATH=$PATH:/usr/lib/postgresql/$PG_VERSION/bin
+          export PATH=/usr/lib/postgresql/$PG_VERSION/bin:$PATH
+
+          which pg_config
+          pg_config --version
 
       - name: Configure, Build and Install DocumentDB
         run: |
@@ -151,6 +154,6 @@ jobs:
         if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.os_name }}_PG${{ matrix.pg_version }}
+          name: logs_$${{ matrix.runner }}_PG${{ matrix.pg_version }}
           overwrite: true
           path: "**/*.log"
