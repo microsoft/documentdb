@@ -132,7 +132,8 @@ jobs:
           sudo make install
 
       - name: Run Tests
-        run: |          
+        run: |
+          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH        
           export LC_ALL=en_US.UTF-8
           export LANGUAGE=en_US
           export LC_COLLATE=en_US.UTF-8
