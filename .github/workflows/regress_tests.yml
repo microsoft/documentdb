@@ -118,8 +118,7 @@ jobs:
           libproj-dev \
           libxml2-dev \
           libjson-c-dev \
-          libgeos++-dev \
-          libgeos-dev
+          libgeos++-dev libgeos3.11.1 libgeos-c1v5 libgeos-dev \
 
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
