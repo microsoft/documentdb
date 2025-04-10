@@ -36,9 +36,9 @@ jobs:
           - arm64
         include:
           - arch: amd64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -118,7 +118,7 @@ jobs:
           libproj-dev \
           libxml2-dev \
           libjson-c-dev \
-          libgeos++-dev libgeos3.10.2 libgeos-c1v5 libgeos-dev \
+          libgeos++-dev libgeos-dev \
 
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
