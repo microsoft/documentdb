@@ -24,6 +24,7 @@
 #include "vector/vector_spec.h"
 #include "commands/commands_common.h"
 #include "configs/config_initialization.h"
+#include "index_am/documentdb_rum.h"
 
 /* --------------------------------------------------------- */
 /* Data Types & Enum values */
@@ -92,6 +93,9 @@ InstallDocumentDBApiPostgresHooks(void)
 
 	RegisterScanNodes();
 	RegisterQueryScanNodes();
+
+	/* Load the rum routine in the shared_preload_libraries to avoid LoadLibrary calls all the time */
+	LoadRumRoutine();
 }
 
 

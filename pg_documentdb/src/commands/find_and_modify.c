@@ -460,10 +460,12 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 						 text *transactionId)
 {
 	int64 shardKeyHash = 0;
+	bool shardKeyValueCollationAware = false;
 	bool hasShardKeyValueFilter = ComputeShardKeyHashForQuery(collection->shardKey,
 															  collection->collectionId,
 															  spec->query,
-															  &shardKeyHash);
+															  &shardKeyHash,
+															  &shardKeyValueCollationAware);
 
 	if (!hasShardKeyValueFilter)
 	{

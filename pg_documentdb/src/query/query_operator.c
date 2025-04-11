@@ -1007,13 +1007,19 @@ ExpandBsonQueryOperator(OpExpr *queryOpExpr, Node *queryNode,
 			{
 				/* extract the shard_key_value filter for the given collection */
 				bson_value_t queryDocValue = ConvertPgbsonToBsonValue(queryDocument);
+				bool areShardKeysCollationAware = false;
 				Expr *shardKeyFilters =
 					CreateShardKeyFiltersForQuery(&queryDocValue, collection->shardKey,
 												  collection->collectionId,
-												  collectionVarno);
+												  collectionVarno,
+												  &areShardKeysCollationAware);
 
-				/* include shard_key_value filter in quals */
-				if (shardKeyFilters != NULL)
+				/* add the shard key filter if the query's shard key value is */
+				/* not collation-sensitive. */
+				/* If it is, we ignore the filter and distribute the execution. */
+				if (shardKeyFilters != NULL &&
+					!(IsCollationApplicable(collationString) &&
+					  areShardKeysCollationAware))
 				{
 					hasShardKeyFilters = true;
 					quals = lappend(quals, shardKeyFilters);
@@ -2698,8 +2704,8 @@ CreateFuncExprForQueryOperator(BsonQueryOperatorContext *context, const char *pa
  * CreateConstFromBsonValue returns a Const that mimics the output of bson_get_value.
  */
 static Const *
-CreateConstFromBsonValue(const char *path, const bson_value_t *value, const
-						 char *collationString)
+CreateConstFromBsonValue(const char *path, const bson_value_t *value,
+						 const char *collationString)
 {
 	/* convert value to BSON Datum */
 	pgbson_writer writer;
@@ -2712,17 +2718,7 @@ CreateConstFromBsonValue(const char *path, const bson_value_t *value, const
 	}
 
 	pgbson *bson = PgbsonWriterGetPgbson(&writer);
-
-	Const *bsonValueDoc = makeNode(Const);
-	bsonValueDoc->consttype = BsonTypeId();
-	bsonValueDoc->consttypmod = -1;
-	bsonValueDoc->constlen = -1;
-	bsonValueDoc->constvalue = PointerGetDatum(bson);
-	bsonValueDoc->constbyval = false;
-	bsonValueDoc->constisnull = false;
-	bsonValueDoc->location = -1;
-
-	return bsonValueDoc;
+	return MakeBsonConst(bson);
 }
 
 
@@ -2843,7 +2839,8 @@ CreateExprForDollarAll(const char *path,
  */
 Expr *
 CreateShardKeyFiltersForQuery(const bson_value_t *queryDocument, pgbson *shardKeyBson,
-							  uint64_t collectionId, Index collectionVarno)
+							  uint64_t collectionId, Index collectionVarno,
+							  bool *isShardKeyValueCollationAware)
 {
 	/* compute the hash of the shard key valeus */
 	if (shardKeyBson == NULL)
@@ -2853,13 +2850,16 @@ CreateShardKeyFiltersForQuery(const bson_value_t *queryDocument, pgbson *shardKe
 		Const *shardKeyValueConst = makeConst(INT8OID, -1, InvalidOid, 8,
 											  shardKeyFieldValuesHashDatum, false, true);
 
+		*isShardKeyValueCollationAware = false;
+
 		/* construct document <operator> <value> expression */
 		return CreateShardKeyValueFilter(collectionVarno, shardKeyValueConst);
 	}
 
 	/* Now for sharded cases */
 	return ComputeShardKeyExprForQueryValue(shardKeyBson, collectionId, queryDocument,
-											collectionVarno);
+											collectionVarno,
+											isShardKeyValueCollationAware);
 }
 
 

@@ -2,12 +2,10 @@ SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documen
 SET citus.next_shard_id TO 250000;
 SET documentdb.next_collection_id TO 2500;
 SET documentdb.next_collection_index_id TO 2500;
-\set prevEcho :ECHO
-\set ECHO none
 BEGIN;
-set local documentdb.enableGenerateNonExistsTerm to off;
 set local enable_seqscan TO off;
 set local documentdb.forceUseIndexIfAvailable to on;
+set local documentdb.enableNewCompositeIndexOpClass to on;
 \i sql/bson_query_operator_tests_core.sql
 -- Check NULL filter for @@ should not seg fault
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ NULL ORDER BY object_id;

@@ -1,5 +1,6 @@
-s/test: bson_query_operator_tests_explain_runtime//g
-s/test: bson_query_operator_tests_explain_index//g
+s/test: bson_query_operator_tests_explain_runtime/test: bson_query_operator_tests_pg17_explain_runtime/g
+s/test: bson_query_operator_tests_explain_index_composite/test: bson_query_operator_tests_pg17_explain_index_composite/g
+s/test: bson_query_operator_tests_explain_index/test: bson_query_operator_tests_pg17_explain_index/g
 s/bson_aggregation_date_operators_tests //g
 s/bson_aggregation_stage_inversematch_tests //g
 s/bson_unique_index//g

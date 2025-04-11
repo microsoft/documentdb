@@ -26,6 +26,7 @@
 #include "commands/parse_error.h"
 #include "commands/commands_common.h"
 #include "metadata/collection.h"
+#include "aggregation/bson_query.h"
 
 extern bool EnableNativeColocation;
 extern int ShardingMaxChunks;
@@ -103,16 +104,18 @@ static void InitShardKeyFieldValues(pgbson *shardKey,
 									ShardKeyFieldValues *shardKeyValues);
 static int ShardKeyFieldIndex(ShardKeyFieldValues *shardKey, const char *path);
 static bool ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
-										   int64 *shardKeyHash);
+										   int64 *shardKeyHash,
+										   bool *isShardKeyValueCollationAware);
 static void ValidateShardKey(const pgbson *shardKeyDoc);
 static void FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 											ShardKeyFieldValues *shardKeyValues);
 static bool ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
-											 const
-											 bson_value_t *query,
-											 int64 *shardKeyHash);
+											 const bson_value_t *query,
+											 int64 *shardKeyHash,
+											 bool *isShardKeyValueCollationAware);
 static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int
-									 collectionVarno, ShardKeyFieldValues *fieldValues);
+									 collectionVarno, ShardKeyFieldValues *fieldValues,
+									 bool *isShardKeyValueCollationAware);
 
 static void ShardCollectionCore(ShardCollectionArgs *args);
 static void ShardCollectionLegacy(PG_FUNCTION_ARGS);
@@ -467,15 +470,16 @@ ShardKeyFieldIndex(ShardKeyFieldValues *shardKey, const char *path)
 /*
  * ComputeShardKeyFieldValuesHash returns whether all fields of the given
  * shardKeyValues are set and if so writes the hash of the shard key
- * values to shardKeyHash.
+ * values to shardKeyHash and sets isShardKeyFieldValueCollationAware.
  * NOTE: This method should only be used in the processing of query filters.
  */
 bool
 ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
-							   int64 *shardKeyHash)
+							   int64 *shardKeyHash,
+							   bool *isShardKeyValueCollationAware)
 {
 	*shardKeyHash = 0;
-
+	bool checkCollationAware = false;
 	for (int fieldIndex = 0; fieldIndex < shardKeyValues->fieldCount; fieldIndex++)
 	{
 		if (!shardKeyValues->isSet[fieldIndex])
@@ -493,9 +497,14 @@ ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
 			return false;
 		}
 
+		checkCollationAware = checkCollationAware ||
+							  IsBsonTypeCollationAware(value->value_type);
 		*shardKeyHash = BsonValueHash(value, *shardKeyHash);
 	}
 
+	/* preserve collation-sensitivity identified in prior OR branch */
+	*isShardKeyValueCollationAware = *isShardKeyValueCollationAware ||
+									 checkCollationAware;
 	return true;
 }
 
@@ -506,17 +515,18 @@ ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
  */
 bool
 ComputeShardKeyHashForQuery(pgbson *shardKey, uint64_t collectionId, pgbson *query,
-							int64 *shardKeyHash)
+							int64 *shardKeyHash, bool *isShardKeyValueCollationAware)
 {
 	if (shardKey == NULL)
 	{
 		*shardKeyHash = collectionId;
+		*isShardKeyValueCollationAware = false;
 		return true;
 	}
 
 	bson_value_t queryValue = ConvertPgbsonToBsonValue(query);
 	return ComputeShardKeyHashForQueryValue(shardKey, collectionId, &queryValue,
-											shardKeyHash);
+											shardKeyHash, isShardKeyValueCollationAware);
 }
 
 
@@ -525,7 +535,8 @@ ComputeShardKeyHashForQuery(pgbson *shardKey, uint64_t collectionId, pgbson *que
  */
 Expr *
 ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
-								 bson_value_t *queryDocument, int32_t collectionVarno)
+								 bson_value_t *queryDocument, int32_t collectionVarno,
+								 bool *isShardKeyValueCollationAware)
 {
 	if (shardKey == NULL)
 	{
@@ -546,7 +557,8 @@ ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
 	ShardKeyFieldValues fieldValues;
 	InitShardKeyFieldValues(shardKey, &fieldValues);
 
-	return FindShardKeyValuesExpr(&queryDocIter, shardKey, collectionVarno, &fieldValues);
+	return FindShardKeyValuesExpr(&queryDocIter, shardKey, collectionVarno, &fieldValues,
+								  isShardKeyValueCollationAware);
 }
 
 
@@ -578,11 +590,13 @@ CreateShardKeyValueFilter(int collectionVarno, Const *valueConst)
  */
 static bool
 ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
-								 const bson_value_t *query, int64 *shardKeyHash)
+								 const bson_value_t *query, int64 *shardKeyHash,
+								 bool *isShardKeyValueCollationAware)
 {
 	if (shardKey == NULL)
 	{
 		*shardKeyHash = collectionId;
+		*isShardKeyValueCollationAware = false;
 		return true;
 	}
 
@@ -596,7 +610,8 @@ ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
 	FindShardKeyFieldValuesForQuery(&queryDocIter, &shardKeyValues);
 
 	/* compute the hash, returns false if not all shard key fields are set */
-	return ComputeShardKeyFieldValuesHash(&shardKeyValues, shardKeyHash);
+	return ComputeShardKeyFieldValuesHash(&shardKeyValues, shardKeyHash,
+										  isShardKeyValueCollationAware);
 }
 
 
@@ -712,7 +727,8 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
  */
 static Expr *
 FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collectionVarno,
-					   ShardKeyFieldValues *fieldValues)
+					   ShardKeyFieldValues *fieldValues,
+					   bool *isShardKeyValueCollationAware)
 {
 	List *shardKeyMultiClause = NIL;
 	while (bson_iter_next(queryDocIter))
@@ -742,7 +758,8 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 				}
 
 				Expr *innerExpr = FindShardKeyValuesExpr(&andElementIterator, shardKey,
-														 collectionVarno, fieldValues);
+														 collectionVarno, fieldValues,
+														 isShardKeyValueCollationAware);
 				if (innerExpr != NULL && IsA(innerExpr, BoolExpr))
 				{
 					BoolExpr *innerBoolExpr = (BoolExpr *) innerExpr;
@@ -781,7 +798,8 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 				ShardKeyFieldValues orValues;
 				InitShardKeyFieldValues(shardKey, &orValues);
 				Expr *orExpr = FindShardKeyValuesExpr(&orElementIterator, shardKey,
-													  collectionVarno, &orValues);
+													  collectionVarno, &orValues,
+													  isShardKeyValueCollationAware);
 				if (orExpr != NULL)
 				{
 					orExprs = lappend(orExprs, orExpr);
@@ -855,7 +873,8 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 	}
 
 	int64_t shardKeyHash;
-	if (ComputeShardKeyFieldValuesHash(fieldValues, &shardKeyHash))
+	if (ComputeShardKeyFieldValuesHash(fieldValues, &shardKeyHash,
+									   isShardKeyValueCollationAware))
 	{
 		/* Single shard key found via series of ANDs */
 		Datum shardKeyFieldValuesHashDatum = Int64GetDatum(shardKeyHash);

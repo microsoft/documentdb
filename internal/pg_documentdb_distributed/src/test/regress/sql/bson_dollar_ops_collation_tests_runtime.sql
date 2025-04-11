@@ -630,15 +630,106 @@ SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$in" :
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$nin" : ["CAT", "DOG"]} }', NULL, 'en-u-ks-level1');
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{ "a": {"$nin" : ["càt", "dòg"]} }', NULL, 'fr-u-ks-level3');
 
--- not supported yet
--- query match: sharded collection with collation-aware shard key
-SELECT documentdb_api.insert_one('db', 'coll_query_op', '{ "_id": "cat", "a": "cat" }');
-SELECT documentdb_api.insert_one('db', 'coll_query_op', '{ "_id": "dog", "a": "dog" }');
+-- query match: sharded collection
+ALTER SYSTEM SET documentdb_core.enablecollation='on';
+SELECT pg_reload_conf();
 
-SELECT documentdb_api.shard_collection('db', 'coll_query_op', '{ "_id": "hashed" }', false);
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "cat", "a": "cat" }');
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "dog", "a": "dog" }');
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": 3, "a": "peacock" }');
 
-SELECT document from documentdb_api.collection('db', 'coll_query_op') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+-- query match: single shard key
+SELECT documentdb_api.shard_collection('db', 'coll_qm_sharded', '{ "_id": "hashed" }', false);
+
+-- we expect the query to be distributed: shard key value is collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT" }', NULL, 'en-u-ks-level1');
+
+-- we do not expect the query to be distributed: shard key value is not collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3 }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3 }', NULL, 'en-u-ks-level1');
+
+-- query match: compound shard key
+SELECT documentdb_api.drop_collection('db', 'coll_qm_sharded');
+
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "cAt", "a": "cAt" }');
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": "doG", "a": "DOg" }');
+SELECT documentdb_api.insert_one('db', 'coll_qm_sharded', '{ "_id": 3, "a": "doG" }');
+
+SELECT documentdb_api.shard_collection('db', 'coll_qm_sharded', '{ "_id": "hashed", "a": "hashed" }', false);
+
+-- we expect the query to be distributed: shard key filter values is collation-aware
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT", "a": "CAT" }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": "CAT", "a": "CAT" }', NULL, 'en-u-ks-level1');
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$and": [{"_id": "cat", "a": "1"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$and": [{"_id": "cat", "a": "1"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": "cat", "a": "CAT"}, {"_id": 3, "a": "dog"}] }', NULL, 'en-u-ks-level1');
+
+-- we do not expect the query to be distributed
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 1, "a": "CAT" }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 1, "a": "CAT" }', NULL, 'en-u-ks-level1');
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3, "a": 4 }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{ "_id": 3, "a": 4 }', NULL, 'en-u-ks-level1');
+
+SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": 3, "a": "dog"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": 3, "a": "dog"}, {"_id": 3, "a": 3}] }', NULL, 'en-u-ks-level1');
+
+-- collation on sharded collections: aggregation
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cat", "a": "cat" }');
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cAt", "a": "cAt" }');
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "dog", "a": "dog" }');
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "dOg", "a": "dOg" }');
+
+-- simple shard key
+SELECT documentdb_api.shard_collection('db', 'coll_sharded_agg', '{ "_id": "hashed" }', false);
+
+-- query is distributed to all shards
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": "CAT" } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": "CAT" } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 2} }');
+
+-- query is not distributed to all shards (shard key value is not collation-aware)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": 2 } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "_id": { "$eq": 2 } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": 1 } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match": { "_id": { "$eq": 1 } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 2} }');
+
+-- compound shard key
+SELECT documentdb_api.drop_collection('db', 'coll_sharded_agg');
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "cAt", "a": "cAt" }');
+SELECT documentdb_api.insert_one('db', 'coll_sharded_agg', '{ "_id": "doG", "a": "Dog" }');
+
+SELECT documentdb_api.shard_collection('db', 'coll_sharded_agg', '{ "_id": "hashed", "a": "hashed" }', false);
+
+-- query is distributed to all shards (filter by shard_key_value is omitted)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "a": { "$eq": "Cat" }, "_id": "caT" }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "a": { "$eq": "Cat" }, "_id": "caT" }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": "CAT", "a": "CAT"} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": "CAT", "a": "CAT"} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "1", "a": "CaT"}, {"_id": "DOG"}]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "1", "a": "CaT"}, {"_id": "DOG"}]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$and": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_sharded_agg", "filter": { "$and": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "cat", "a": 2 }, {"_id": 1, "a": 1 }]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"$or": [{"_id": "cat", "a": 2 }, {"_id": 1, "a": 1 }]} } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+
+-- query is not distributed to all shards
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
 
 RESET documentdb.enableLetAndCollationForQueryMatch;
-
 RESET documentdb_core.enablecollation;

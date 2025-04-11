@@ -309,7 +309,8 @@ static void ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *tre
 											 nonIdFieldInclusion,
 											 WildcardProjFieldInclusionMode *
 											 idFieldInclusion);
-static char * GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
+static char * GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
+								   IndexDefKey *indexDefKey,
 								   const BsonIntermediatePathNode *
 								   indexDefWildcardProjTree,
 								   const char *indexName, const char *defaultLanguage,
@@ -1758,6 +1759,19 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			else
 			{
 				indexDef->enableLargeIndexKeys = BoolIndexOption_False;
+			}
+		}
+		else if (EnableNewCompositeIndexOpclass && strcmp(indexDefDocKey,
+														  "enableCompositeTerm") == 0)
+		{
+			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
+			if (BsonValueAsBool(value))
+			{
+				indexDef->enableCompositeTerm = BoolIndexOption_True;
+			}
+			else
+			{
+				indexDef->enableCompositeTerm = BoolIndexOption_False;
 			}
 		}
 		else if (!SkipFailOnCollation && strcmp(indexDefDocKey, "collation") == 0)
@@ -4432,12 +4446,20 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 			enableLargeIndexKeys = true;
 		}
 
+		bool enableNewIndexOpClass = false;
+		if (EnableNewCompositeIndexOpclass &&
+			indexDef->enableCompositeTerm == BoolIndexOption_True)
+		{
+			enableNewIndexOpClass = true;
+		}
+
 		bool supportsAlternateIndexHandler = false;
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_rum (%s) %s%s%s",
 						 indexId, ExtensionObjectPrefix,
-						 GenerateIndexExprStr(unique, sparse, indexDef->key,
+						 GenerateIndexExprStr(unique, sparse, enableNewIndexOpClass,
+											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
 											  indexDef->name,
 											  indexDef->defaultLanguage,
@@ -4564,6 +4586,13 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 								   BoolIndexOption_False;
 		}
 
+		bool enableNewIndexOpClass = false;
+		if (EnableNewCompositeIndexOpclass &&
+			indexDef->enableCompositeTerm == BoolIndexOption_True)
+		{
+			enableNewIndexOpClass = true;
+		}
+
 		/* Currently alternate index handler is only supported for single path simple indexes, this will be updated as we add more support. */
 		bool supportsAlternateIndexHandler = AlternateIndexHandler != NULL &&
 											 !indexDef->unique &&
@@ -4581,7 +4610,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
 						 indexAmSuffix,
-						 GenerateIndexExprStr(unique, sparse, indexDef->key,
+						 GenerateIndexExprStr(unique, sparse, enableNewIndexOpClass,
+											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
 											  indexDef->name,
 											  indexDef->defaultLanguage,
@@ -4916,7 +4946,8 @@ ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *treeParentNode,
  * have a "wildcardProjection" specification.
  */
 static char *
-GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
+GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
+					 IndexDefKey *indexDefKey,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
 					 const char *languageOverride, bool enableLargeIndexKeys,
@@ -5080,7 +5111,7 @@ GenerateIndexExprStr(bool unique, bool sparse, IndexDefKey *indexDefKey,
 		}
 	}
 	else if (EnableNewCompositeIndexOpclass &&
-			 list_length(indexDefKey->keyPathList) > 1 &&
+			 enableCompositeOpClass &&
 			 !unique && !indexDefKey->isWildcard &&
 			 !indexDefKey->hasTextIndexes && !indexDefKey->hasHashedIndexes &&
 			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex)
