@@ -1,7 +1,7 @@
 name: SQL Tests
 run-name: ${{ github.event.pull_request.title || '' }}
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: sql-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
@@ -36,6 +36,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Install CMake 3.22
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake=3.22.*
+          cmake --version
 
       - name: Install package dependencies
         run: |

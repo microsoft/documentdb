@@ -69,3 +69,6 @@ build/
 
 # temp schedules
 *.tmp
+
+# deb packages
+*.deb
