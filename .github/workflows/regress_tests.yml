@@ -112,13 +112,13 @@ jobs:
           cp ./scripts/install_setup_pgvector.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_pgvector.sh
 
-          sudo add-apt-repository -y ppa:ubuntugis/ppa 
           sudo apt-get update
           sudo apt-get install -qy \
           libproj-dev \
           libxml2-dev \
           libjson-c-dev \
-          libgeos++-dev libgeos3.10.2 libgeos-c1v5 libgeos-dev \
+          libgeos++-dev \
+          libgeos-dev \
 
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
