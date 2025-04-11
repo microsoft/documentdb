@@ -15,16 +15,12 @@
 
 
 DollarRangeParams *
-ParseQueryDollarRange(pgbson *rangeFilter)
+ParseQueryDollarRange(pgbsonelement *filterElement)
 {
-	pgbsonelement filterElement;
-	PgbsonToSinglePgbsonElement(rangeFilter, &filterElement);
-
-
 	DollarRangeParams *rangeParams = palloc0(sizeof(DollarRangeParams));
 
 	bson_iter_t rangeIter;
-	BsonValueInitIterator(&filterElement.bsonValue, &rangeIter);
+	BsonValueInitIterator(&filterElement->bsonValue, &rangeIter);
 	while (bson_iter_next(&rangeIter))
 	{
 		const char *key = bson_iter_key(&rangeIter);

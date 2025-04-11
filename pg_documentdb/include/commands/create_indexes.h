@@ -193,6 +193,9 @@ typedef struct
 
 	/* Feature flag to enable large index term. */
 	BoolIndexOption enableLargeIndexKeys;
+
+	/* Feature flag to enable the composite term index */
+	BoolIndexOption enableCompositeTerm;
 } IndexDef;
 
 /*

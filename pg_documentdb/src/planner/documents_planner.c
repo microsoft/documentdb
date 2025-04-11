@@ -106,6 +106,7 @@ static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundP
 extern bool ForceRUMIndexScanToBitmapHeapScan;
 extern bool AllowNestedAggregationFunctionInQueries;
 extern bool EnableLetAndCollationForQueryMatch;
+extern bool EnableIndexOrderbyPushdown;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -689,6 +690,11 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 		ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
 															&indexContext);
 
+	if (EnableIndexOrderbyPushdown)
+	{
+		ConsiderIndexOrderByPushdown(root, rel, rte, rti, &indexContext);
+	}
+
 	ForceIndexForQueryOperators(root, rel, &indexContext);
 
 	/* Now before modifying any paths, walk to check for raw path optimizations */
@@ -704,7 +710,9 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 		 * Streaming cursors auto convert into Bitmap Paths.
 		 * Handle force conversion of bitmap paths.
 		 */
-		if (ForceRUMIndexScanToBitmapHeapScan && !IsAMergeOuterQuery(root, rel))
+		if (ForceRUMIndexScanToBitmapHeapScan &&
+			!EnableIndexOrderbyPushdown &&
+			!IsAMergeOuterQuery(root, rel))
 		{
 			UpdatePathsToForceRumIndexScanToBitmapHeapScan(root, rel);
 		}

@@ -128,8 +128,8 @@ Expr * CreateQualForBsonExpression(const bson_value_t *expression, const char *q
 Expr * CreateNonShardedShardKeyValueFilter(int collectionVarNo, const
 										   MongoCollection *collection);
 Expr * CreateShardKeyFiltersForQuery(const bson_value_t *queryDocument, pgbson *shardKey,
-									 uint64_t collectionId,
-									 Index collectionVarno);
+									 uint64_t collectionId, Index collectionVarno,
+									 bool *isShardKeyCollationAware);
 Expr * CreateIdFilterForQuery(List *existingQuals,
 							  Index collectionVarno, bool *isCollationAware,
 							  bool *isPointRead);

@@ -11,6 +11,8 @@
 #ifndef METADATA_CACHE_H
 #define METADATA_CACHE_H
 
+#include <nodes/parsenodes.h>
+
 #include "utils/type_cache.h"
 
 extern PGDLLIMPORT char *ApiDataSchemaName;
@@ -166,6 +168,7 @@ Oid ApiCatalogCollectionIndexIdSequenceId(void);
 /* order by */
 Oid BsonOrderByFunctionOid(void);
 Oid BsonOrderByPartitionFunctionOid(void);
+Oid BsonOrderByIndexOperatorId(void);
 
 /* Postgres internal functions */
 Oid PostgresDrandomFunctionId(void);
@@ -400,5 +403,8 @@ Oid DeleteWorkerFunctionOid(void);
 
 /* Compat functions*/
 Oid DocumentDBCoreBsonToBsonFunctionOId(void);
+
+/* Helper functions */
+TypeName * ParseTypeNameCore(const char *typeName);
 
 #endif

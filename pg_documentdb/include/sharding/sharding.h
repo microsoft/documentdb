@@ -16,11 +16,12 @@
 int64 ComputeShardKeyHashForDocument(pgbson *shardKey, uint64_t collectionId,
 									 pgbson *document);
 bool ComputeShardKeyHashForQuery(pgbson *shardKey, uint64_t collectionId, pgbson *query,
-								 int64 *shardKeyHash);
+								 int64 *shardKeyHash, bool *isShardKeyCollationAware);
 
 Expr * ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
-										bson_value_t *queryDocument, int32_t
-										collectionVarno);
+										bson_value_t *queryDocument,
+										int32_t collectionVarno,
+										bool *isShardKeyCollationAware);
 
 Expr * CreateShardKeyValueFilter(int collectionVarNo, Const *valueConst);
 #endif

@@ -78,7 +78,6 @@ Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootNonExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootTruncatedTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootMultiKeyTerm(const IndexTermCreateMetadata *);
-
 int32_t CompareBsonIndexTerm(BsonIndexTerm *left, BsonIndexTerm *right,
 							 bool *isComparisonValid);
 

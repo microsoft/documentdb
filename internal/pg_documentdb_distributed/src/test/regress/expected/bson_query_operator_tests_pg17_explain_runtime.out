@@ -1024,7 +1024,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (10 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "_id"  : { "$eq" : 2, "$in": [ 1, 2 ] }}' ORDER BY object_id;
-                                                                             QUERY PLAN                                                                             
+                                                                                                                                                            QUERY PLAN                                                                                                                                                            
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=1 loops=1)
    Task Count: 1
@@ -1034,7 +1034,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Tuple data received from node: 40 bytes
          Node: host=localhost port=58070 dbname=regression
          ->  Index Scan using _id_ on documents_1300_1300002 collection (actual rows=1 loops=1)
-               Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson))
+               Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"1\" } }","{ \"\" : { \"$numberInt\" : \"2\" } }"}'::documentdb_core.bson[])))
                Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "_id" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }'::documentdb_core.bson)
 (10 rows)
 
@@ -1054,7 +1054,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (10 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "_id"  : { "$all": [ 2 ], "$in": [ 1, 2 ] } }' ORDER BY object_id;
-                                                                                                             QUERY PLAN                                                                                                             
+                                                                                                          QUERY PLAN                                                                                                          
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=1 loops=1)
    Task Count: 1
@@ -1063,14 +1063,11 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
    ->  Task
          Tuple data received from node: 40 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=1 loops=1)
-               Sort Key: object_id
-               Sort Method: quicksort  Memory: 25kB
-               ->  Index Scan using _id_ on documents_1300_1300002 collection (actual rows=1 loops=1)
-                     Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"1\" } }","{ \"\" : { \"$numberInt\" : \"2\" } }"}'::documentdb_core.bson[])))
-                     Filter: (document OPERATOR(documentdb_api_catalog.@&=) '{ "_id" : [ { "$numberInt" : "2" } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 1
-(14 rows)
+         ->  Index Scan using _id_ on documents_1300_1300002 collection (actual rows=1 loops=1)
+               Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"1\" } }","{ \"\" : { \"$numberInt\" : \"2\" } }"}'::documentdb_core.bson[])))
+               Filter: (document OPERATOR(documentdb_api_catalog.@&=) '{ "_id" : [ { "$numberInt" : "2" } ] }'::documentdb_core.bson)
+               Rows Removed by Filter: 1
+(11 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "_id"  : { "$all": [ 2 ], "$ne": 40 }}' ORDER BY object_id;
                                                                                                                           QUERY PLAN                                                                                                                          
@@ -1156,7 +1153,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (10 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or"  : [{"_id":1},{"_id":2}]}' ORDER BY object_id;
-                                                                                                             QUERY PLAN                                                                                                             
+                                                                                                          QUERY PLAN                                                                                                          
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=2 loops=1)
    Task Count: 1
@@ -1165,12 +1162,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
    ->  Task
          Tuple data received from node: 80 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=2 loops=1)
-               Sort Key: object_id
-               Sort Method: quicksort  Memory: 25kB
-               ->  Index Scan using _id_ on documents_1300_1300002 collection (actual rows=2 loops=1)
-                     Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"1\" } }","{ \"\" : { \"$numberInt\" : \"2\" } }"}'::documentdb_core.bson[])))
-(12 rows)
+         ->  Index Scan using _id_ on documents_1300_1300002 collection (actual rows=2 loops=1)
+               Index Cond: ((shard_key_value = '1300'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"1\" } }","{ \"\" : { \"$numberInt\" : \"2\" } }"}'::documentdb_core.bson[])))
+(9 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or"  : [{"_id": { "$gt": 1, "$lte" : 5 }}, {"_id":1}]}' ORDER BY object_id;
                                                                                                                                                                               QUERY PLAN                                                                                                                                                                               

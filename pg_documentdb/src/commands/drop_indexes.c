@@ -505,6 +505,11 @@ DropIndexesConcurrentlyInternal(char *dbName, pgbson *arg)
 		ErrorData *edata = CopyErrorDataAndFlush();
 		dropIndexResult->errcode = edata->sqlerrcode;
 		dropIndexResult->errmsg = edata->message;
+
+		/* Since we no longer have an active transcation we need to restart the transaction */
+		PopAllActiveSnapshots();
+		AbortCurrentTransaction();
+		StartTransactionCommand();
 	}
 	PG_END_TRY();
 	return dropIndexResult;

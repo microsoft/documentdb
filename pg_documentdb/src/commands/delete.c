@@ -660,9 +660,10 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 	int64 shardKeyHash = 0;
 
 	/* if the collection is sharded, check whether we can use a single hash value */
+	bool isShardKeyValueCollationAware = false;
 	bool hasShardKeyValueFilter =
 		ComputeShardKeyHashForQuery(collection->shardKey, collection->collectionId, query,
-									&shardKeyHash);
+									&shardKeyHash, &isShardKeyValueCollationAware);
 
 	/* determine whether query filters by a single object ID */
 	bson_iter_t queryDocIter;
