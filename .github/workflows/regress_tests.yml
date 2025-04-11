@@ -36,10 +36,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: check cmake version
-        run: |
-          cmake --version
       
       - name: Install CMake 3.22
         run: |
