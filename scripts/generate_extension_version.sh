@@ -7,7 +7,7 @@ set -e
 outputFile=$1
 extensionName=${2:-""}
 extensionDir=${3:-$extensionName}
-gitIndexDir=$4
+gitIndexDir=${4:-"unknown"}
 
 source="${BASH_SOURCE[0]}"
 while [[ -h $source ]]; do
