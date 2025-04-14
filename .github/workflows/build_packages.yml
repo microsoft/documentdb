@@ -15,8 +15,9 @@ on:
 jobs:
   build-deb-packages:
     runs-on: ${{ matrix.runner }}
-    name: ${{ matrix.arch }}-${{ matrix.os }} build for PG ${{ matrix.pg_version }}
+    name: ${{ matrix.os }}-${{ matrix.arch }} build for PG ${{ matrix.pg_version }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu22.04, ubuntu24.04, debian11, debian12]
         arch: [amd64, arm64]
@@ -43,12 +44,12 @@ jobs:
 
       - name: Build Debian Package
         run: |
-          ./packaging/build_packages.sh --os ${{ matrix.os_name }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
+          ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
 
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: archive-${{ matrix.os_name }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
+          name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
           path: packaging/*.deb
           retention-days: 7
           if-no-files-found: error
