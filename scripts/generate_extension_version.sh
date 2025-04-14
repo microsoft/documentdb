@@ -45,8 +45,7 @@ if [ -f $gitIndexDir ]; then
 
     GIT_SHA=" sha:${GIT_SHA}"
 else 
-    # In case we are not in a git repo, we will use the GIT_VERSION, BUILD_VER
-    # and GIT_SHA as "unknown"
+    # In case we are not in a git repo, we will use the GIT_VERSION, BUILD_VER and GIT_SHA as "unknown"
     echo "Not inside a Git repository or Git index file not found."
     
     GIT_VERSION="unknown"
