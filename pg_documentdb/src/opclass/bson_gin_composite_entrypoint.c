@@ -930,6 +930,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		context.options = (void *) singlePathOptions;
 		context.traverseOptionsFunc = &GetSinglePathIndexTraverseOption;
 		context.generateNotFoundTerm = true;
+		context.skipGeneratedPathUndefinedTermOnLiteralNull = true;
 		context.termMetadata = GetIndexTermMetadata(singlePathOptions);
 
 		bool addRootTerm = false;

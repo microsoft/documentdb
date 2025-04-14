@@ -527,10 +527,14 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 		if (EnableIndexOrderbyPushdown)
 		{
-			/* TODO: Support order by */
-			if (norderbys != 1)
+			if (norderbys > 1)
 			{
 				ereport(ERROR, (errmsg("Cannot push down multi-order by yet")));
+			}
+
+			if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_HasArrays)
+			{
+				ereport(ERROR, (errmsg("Cannot push down order by on path with arrays")));
 			}
 
 			coreRoutine->amrescan(outerScanState->innerScan,

@@ -1280,6 +1280,7 @@ GenerateTermsCore(bson_iter_t *bsonIter, const char *basePath,
 				}
 
 				if (context->generateNotFoundTerm &&
+					!context->skipGeneratedPathUndefinedTermOnLiteralNull &&
 					(type == BSON_TYPE_NULL || type == BSON_TYPE_UNDEFINED))
 				{
 					/* In this case, we also generate the undefined term */

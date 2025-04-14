@@ -145,6 +145,9 @@ typedef struct
 	/* Whether or not to generate the not found term for a path */
 	bool generateNotFoundTerm;
 
+	/* Whether or not to skip generating the path undefined term on null */
+	bool skipGeneratedPathUndefinedTermOnLiteralNull;
+
 	/* metadata including truncation limit for index terms. */
 	IndexTermCreateMetadata termMetadata;
 

@@ -256,6 +256,10 @@ MergeSingleVariableBounds(VariableIndexBounds *variableBounds,
 						  &bound->upperBound);
 		}
 
+		runData->indexBounds[set->indexAttribute].requiresRuntimeRecheck =
+			runData->indexBounds[set->indexAttribute].requiresRuntimeRecheck ||
+			set->bounds->requiresRuntimeRecheck;
+
 		/* Postgres requires that we don't use cell or anything in foreach after
 		 * calling delete. explicity add a continue to match that contract.
 		 */
