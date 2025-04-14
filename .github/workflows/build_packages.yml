@@ -11,6 +11,12 @@ on:
     paths-ignore:
       - '.devcontainer/**'
       - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
 
 jobs:
   build-deb-packages:
