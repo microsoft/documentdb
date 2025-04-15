@@ -574,6 +574,8 @@ HandleDocumentsStage(const bson_value_t *existingValue, Query *query,
 	PgbsonWriterInit(&writer);
 
 	ParseAggregationExpressionContext parseContext = { 0 };
+	parseContext.collationString = context->collationString;
+
 	AggregationExpressionData expressionData;
 	memset(&expressionData, 0, sizeof(AggregationExpressionData));
 
