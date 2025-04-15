@@ -123,16 +123,16 @@ jobs:
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
 
+          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
+
       - name: Configure, Build and Install DocumentDB
         run: |
-          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
           which pg_config
           make
           sudo PATH=$PATH make install
 
       - name: Run Tests
         run: |
-          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
           which pg_config    
           export LC_ALL=en_US.UTF-8
           export LANGUAGE=en_US
@@ -142,7 +142,6 @@ jobs:
 
       - name: Citus Indent
         run: |
-          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
           citus_indent --check || (echo ""; echo "citus_indent failed, refer to CONTRIBUTING.md on how to use citus_indent"; exit 1)
 
       - name: Validate sanity of files
