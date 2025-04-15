@@ -197,7 +197,11 @@ static Datum * GenerateExistsEqualityTerms(int32 *nentries, bool **partialmatch,
 										   const void *indexOptions,
 										   const IndexTermCreateMetadata *metadata);
 static bson_value_t GetLowerBoundForLessThan(bson_type_t inputBsonType);
-
+static void GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
+							 uint32_t basePathLength, bool inArrayContext,
+							 bool isArrayTerm, GenerateTermsContext *context,
+							 bool isCheckForArrayTermsWithNestedDocument,
+							 StringInfo pathStringInfo);
 
 /*
  * returns true if the index is a wildcard index
@@ -1136,6 +1140,242 @@ GenerateTerms(pgbson *bson, GenerateTermsContext *context, bool addRootTerm)
 }
 
 
+static void
+GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
+				  uint32_t pathtoInsertLength, bool inArrayContext,
+				  bool isArrayTerm, GenerateTermsContext *context,
+				  bool isCheckForArrayTermsWithNestedDocument)
+{
+	check_stack_depth();
+	CHECK_FOR_INTERRUPTS();
+
+	StringInfoData pathBuilderBuffer = { 0 };
+	initStringInfo(&pathBuilderBuffer);
+	bson_iter_t containerIter;
+
+	/* Count the array terms - to pre-allocate the term Datum pointers */
+	const bson_value_t *arrayValue = bson_iter_value(bsonIter);
+	int32_t arrayCapacityEstimate = Max(1, (int) log2(arrayValue->value.v_doc.data_len));
+	EnsureTermCapacity(context, arrayCapacityEstimate);
+
+	if (bson_iter_recurse(bsonIter, &containerIter))
+	{
+		while (bson_iter_next(&containerIter))
+		{
+			bson_iter_t containerCopy = containerIter;
+			bool inArrayContextInner = true;
+			bool isArrayTermInner = false;
+			bool isCheckForArrayTermsWithNestedDocumentInner = false;
+			GenerateTermPath(&containerIter, pathToInsert, pathtoInsertLength,
+							 inArrayContextInner, isArrayTermInner, context,
+							 isCheckForArrayTermsWithNestedDocumentInner,
+							 &pathBuilderBuffer);
+
+			/*
+			 * for array of arrays, having document inside it. We will generate parent path terms *
+			 * if below recursive call get triggerd with isCheckForArrayTermsWithNestedDocument set to true then we will check that
+			 * array of array has document inside it , for document we will generate parent path term.
+			 *
+			 * e.g, a: [[{b: 10}]]  => is suppose to genrate a.0.b :10 as one of the path term because array of array has document inside it.
+			 */
+			inArrayContextInner = true;
+			isArrayTermInner = true;
+			isCheckForArrayTermsWithNestedDocumentInner = inArrayContext;
+			GenerateTermPath(&containerCopy, pathToInsert, pathtoInsertLength,
+							 inArrayContextInner, isArrayTermInner, context,
+							 isCheckForArrayTermsWithNestedDocumentInner,
+							 &pathBuilderBuffer);
+		}
+	}
+
+	if (pathBuilderBuffer.data != NULL)
+	{
+		pfree(pathBuilderBuffer.data);
+	}
+}
+
+
+static void
+GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
+				 uint32_t basePathLength, bool inArrayContext,
+				 bool isArrayTerm, GenerateTermsContext *context,
+				 bool isCheckForArrayTermsWithNestedDocument,
+				 StringInfo pathStringInfo)
+{
+	const char *pathToInsert;
+	uint32_t pathtoInsertLength;
+
+	/* if array of array has not document inside it , we will not be generating parent path term */
+	if (isCheckForArrayTermsWithNestedDocument && !BSON_ITER_HOLDS_DOCUMENT(bsonIter))
+	{
+		return;
+	}
+
+	if (isArrayTerm)
+	{
+		/* if isArrayTerm is true (because we're inside an array context and we're generating */
+		/* and we're building the non array-index based terms, then just use the base path) */
+		/* this is because mongo can filter on array entries based on the array index (a.b.0 / a.b.1) */
+		/* or simply on the array path itself (a.b) */
+		pathToInsert = basePath;
+		pathtoInsertLength = basePathLength;
+	}
+	else if (basePathLength == 0)
+	{
+		/* if we're at the root, simply use the field path. */
+		pathToInsert = bson_iter_key(bsonIter);
+		pathtoInsertLength = bson_iter_key_len(bsonIter);
+	}
+	else
+	{
+		/* otherwise build the path to insert. We use 'base.field' for the path */
+		/* since dot paths are illegal in mongo for field names. */
+		uint32_t fieldPathLength = bson_iter_key_len(bsonIter);
+		uint32_t pathToInsertAllocLength;
+
+		/* the length includes the two fields + the extra dot. */
+		pathtoInsertLength = fieldPathLength + basePathLength + 1;
+
+		/* need one more character for the \0 */
+		pathToInsertAllocLength = pathtoInsertLength + 1;
+
+		if (pathStringInfo->len == 0)
+		{
+			/* if there's no temp buffer create one */
+			enlargeStringInfo(pathStringInfo, pathToInsertAllocLength);
+		}
+		else if (pathStringInfo->len < (int) pathToInsertAllocLength)
+		{
+			/* if there's not enough space in the temp buffer, realloc to ensure enough length. */
+			enlargeStringInfo(pathStringInfo, pathToInsertAllocLength);
+		}
+
+		/* construct <basePath>.<current key> string */
+		memcpy(pathStringInfo->data, basePath, basePathLength);
+		pathStringInfo->data[basePathLength] = '.';
+		memcpy(&pathStringInfo->data[basePathLength + 1], bson_iter_key(bsonIter),
+			   fieldPathLength);
+		pathStringInfo->data[pathtoInsertLength] = 0;
+
+		pathToInsert = pathStringInfo->data;
+	}
+
+	/* query whether or not to index the specific path given the options. */
+	IndexTraverseOption option = context->traverseOptionsFunc(context->options,
+															  pathToInsert,
+															  pathtoInsertLength,
+															  bson_iter_type(
+																  bsonIter));
+	switch (option)
+	{
+		case IndexTraverse_Invalid:
+		{
+			/* path is invalid (e.g. index is for 'a.b' inclusive, and the current path is 'c') */
+			return;
+		}
+
+		case IndexTraverse_Recurse:
+		{
+			/* path is invalid, but may have valid descendants (e.g. index is for 'a.b.c' inclusive, */
+			/* and the current path is 'a.b') */
+			if (inArrayContext || BSON_ITER_HOLDS_ARRAY(bsonIter))
+			{
+				/* Mark the path as having array ancestors leading to the index path */
+				context->hasArrayAncestors = true;
+			}
+
+			break;
+		}
+
+		case IndexTraverse_Match:
+		{
+			/*
+			 * if array of array has document inside it, we will be iterating document and generating parent path term
+			 * not the term directly with value of document.
+			 * e.g, a:[[{b:1}]] -> we will be generating a.0.b : 1 but not generating a.0 : {b:1}
+			 */
+			if (isCheckForArrayTermsWithNestedDocument)
+			{
+				break;
+			}
+
+			/* path is valid and a match */
+			bson_type_t type = bson_iter_type(bsonIter);
+
+			/* Construct the { <path> : <typecode> <value> } BSON and add it to index entries */
+			pgbsonelement element = { 0 };
+			element.path = pathToInsert;
+			element.pathLength = pathtoInsertLength;
+			element.bsonValue = *bson_iter_value(bsonIter);
+			BsonIndexTermSerialized serializedTerm = SerializeBsonIndexTerm(
+				&element, &context->termMetadata);
+			AddTerm(context, PointerGetDatum(
+						serializedTerm.indexTermVal));
+			if (serializedTerm.isIndexTermTruncated)
+			{
+				context->hasTruncatedTerms = true;
+			}
+
+			if (context->generateNotFoundTerm &&
+				!context->skipGeneratedPathUndefinedTermOnLiteralNull &&
+				(type == BSON_TYPE_NULL || type == BSON_TYPE_UNDEFINED))
+			{
+				/* In this case, we also generate the undefined term */
+				AddTerm(context, GeneratePathUndefinedTerm(
+							context->options));
+			}
+
+			break;
+		}
+
+		default:
+		{
+			ereport(ERROR, (errmsg("Unknown prefix match on index %d", option)));
+			break;
+		}
+	}
+
+	if (BSON_ITER_HOLDS_DOCUMENT(bsonIter))
+	{
+		if (inArrayContext && option == IndexTraverse_Match)
+		{
+			/* Mark the path as having array ancestors leading to the index path */
+			context->hasArrayAncestors = true;
+		}
+
+		bson_iter_t containerIter;
+		if (bson_iter_recurse(bsonIter, &containerIter))
+		{
+			bool inArrayContextInner = false;
+			bool isArrayTermInner = false;
+			bool isCheckForArrayTermsWithNestedDocumentInner = false;
+			GenerateTermsCore(&containerIter, pathToInsert, pathtoInsertLength,
+							  inArrayContextInner, isArrayTermInner,
+							  context, isCheckForArrayTermsWithNestedDocumentInner);
+		}
+	}
+
+	/* if we're already recursing because of an array's parent path term, */
+	/* then we don't recurse into nested arrays. */
+	/* if we're not in that case, we recurse down to produce inner terms of arrays. */
+	if (!isArrayTerm)
+	{
+		if (BSON_ITER_HOLDS_ARRAY(bsonIter))
+		{
+			if (inArrayContext && option == IndexTraverse_Match)
+			{
+				/* Mark the path as having array ancestors leading to the index path */
+				context->hasArrayAncestors = true;
+			}
+
+			GenerateArrayPath(bsonIter, pathToInsert, pathtoInsertLength,
+							  inArrayContext, isArrayTerm, context,
+							  isCheckForArrayTermsWithNestedDocument);
+		}
+	}
+}
+
+
 /*
  * GenerateTerms walks the bson document and for each path creates the term that will be
  * stored in the index for that term. Each term is of the form '{path}{typeCode}{value}'
@@ -1156,223 +1396,21 @@ GenerateTermsCore(bson_iter_t *bsonIter, const char *basePath,
 				  bool isArrayTerm, GenerateTermsContext *context,
 				  bool isCheckForArrayTermsWithNestedDocument)
 {
-	char *pathBuilderBuffer = NULL;
-	uint32_t pathBuilderBufferLength = 0;
+	StringInfoData pathBuilderBuffer = { 0 };
+	initStringInfo(&pathBuilderBuffer);
 	check_stack_depth();
 	CHECK_FOR_INTERRUPTS();
 	while (bson_iter_next(bsonIter))
 	{
-		const char *pathToInsert;
-		uint32_t pathtoInsertLength;
-
-		/* if array of array has not document inside it , we will not be generating parent path term */
-		if (isCheckForArrayTermsWithNestedDocument && !BSON_ITER_HOLDS_DOCUMENT(bsonIter))
-		{
-			continue;
-		}
-
-		if (isArrayTerm)
-		{
-			/* if isArrayTerm is true (because we're inside an array context and we're generating */
-			/* and we're building the non array-index based terms, then just use the base path) */
-			/* this is because mongo can filter on array entries based on the array index (a.b.0 / a.b.1) */
-			/* or simply on the array path itself (a.b) */
-			pathToInsert = basePath;
-			pathtoInsertLength = basePathLength;
-		}
-		else if (basePathLength == 0)
-		{
-			/* if we're at the root, simply use the field path. */
-			pathToInsert = bson_iter_key(bsonIter);
-			pathtoInsertLength = bson_iter_key_len(bsonIter);
-		}
-		else
-		{
-			/* otherwise build the path to insert. We use 'base.field' for the path */
-			/* since dot paths are illegal in mongo for field names. */
-			uint32_t fieldPathLength = bson_iter_key_len(bsonIter);
-			uint32_t pathToInsertAllocLength;
-
-			/* the length includes the two fields + the extra dot. */
-			pathtoInsertLength = fieldPathLength + basePathLength + 1;
-
-			/* need one more character for the \0 */
-			pathToInsertAllocLength = pathtoInsertLength + 1;
-
-			if (pathBuilderBufferLength == 0)
-			{
-				/* if there's no temp buffer create one */
-				pathBuilderBuffer = (char *) palloc(pathToInsertAllocLength);
-				pathBuilderBufferLength = pathToInsertAllocLength;
-			}
-			else if (pathBuilderBufferLength < pathToInsertAllocLength)
-			{
-				/* if there's not enough space in the temp buffer, realloc to ensure enough length. */
-				pathBuilderBuffer = (char *) repalloc(pathBuilderBuffer,
-													  pathToInsertAllocLength);
-				pathBuilderBufferLength = pathToInsertAllocLength;
-			}
-
-			/* construct <basePath>.<current key> string */
-			memcpy(pathBuilderBuffer, basePath, basePathLength);
-			pathBuilderBuffer[basePathLength] = '.';
-			memcpy(&pathBuilderBuffer[basePathLength + 1], bson_iter_key(bsonIter),
-				   fieldPathLength);
-			pathBuilderBuffer[pathtoInsertLength] = 0;
-
-			pathToInsert = pathBuilderBuffer;
-		}
-
-		/* query whether or not to index the specific path given the options. */
-		IndexTraverseOption option = context->traverseOptionsFunc(context->options,
-																  pathToInsert,
-																  pathtoInsertLength,
-																  bson_iter_type(
-																	  bsonIter));
-		switch (option)
-		{
-			case IndexTraverse_Invalid:
-			{
-				/* path is invalid (e.g. index is for 'a.b' inclusive, and the current path is 'c') */
-				continue;
-			}
-
-			case IndexTraverse_Recurse:
-			{
-				/* path is invalid, but may have valid descendants (e.g. index is for 'a.b.c' inclusive, */
-				/* and the current path is 'a.b') */
-				if (inArrayContext || BSON_ITER_HOLDS_ARRAY(bsonIter))
-				{
-					/* Mark the path as having array ancestors leading to the index path */
-					context->hasArrayAncestors = true;
-				}
-
-				break;
-			}
-
-			case IndexTraverse_Match:
-			{
-				/*
-				 * if array of array has document inside it, we will be iterating document and generating parent path term
-				 * not the term directly with value of document.
-				 * e.g, a:[[{b:1}]] -> we will be generating a.0.b : 1 but not generating a.0 : {b:1}
-				 */
-				if (isCheckForArrayTermsWithNestedDocument)
-				{
-					break;
-				}
-
-				/* path is valid and a match */
-				bson_type_t type = bson_iter_type(bsonIter);
-
-				/* Construct the { <path> : <typecode> <value> } BSON and add it to index entries */
-				pgbsonelement element = { 0 };
-				element.path = pathToInsert;
-				element.pathLength = pathtoInsertLength;
-				element.bsonValue = *bson_iter_value(bsonIter);
-				BsonIndexTermSerialized serializedTerm = SerializeBsonIndexTerm(
-					&element, &context->termMetadata);
-				AddTerm(context, PointerGetDatum(
-							serializedTerm.indexTermVal));
-				if (serializedTerm.isIndexTermTruncated)
-				{
-					context->hasTruncatedTerms = true;
-				}
-
-				if (context->generateNotFoundTerm &&
-					!context->skipGeneratedPathUndefinedTermOnLiteralNull &&
-					(type == BSON_TYPE_NULL || type == BSON_TYPE_UNDEFINED))
-				{
-					/* In this case, we also generate the undefined term */
-					AddTerm(context, GeneratePathUndefinedTerm(
-								context->options));
-				}
-
-				break;
-			}
-
-			default:
-			{
-				ereport(ERROR, (errmsg("Unknown prefix match on index %d", option)));
-				break;
-			}
-		}
-
-		if (BSON_ITER_HOLDS_DOCUMENT(bsonIter))
-		{
-			if (inArrayContext && option == IndexTraverse_Match)
-			{
-				/* Mark the path as having array ancestors leading to the index path */
-				context->hasArrayAncestors = true;
-			}
-
-			bson_iter_t containerIter;
-			if (bson_iter_recurse(bsonIter, &containerIter))
-			{
-				bool inArrayContextInner = false;
-				bool isArrayTermInner = false;
-				bool isCheckForArrayTermsWithNestedDocumentInner = false;
-				GenerateTermsCore(&containerIter, pathToInsert, pathtoInsertLength,
-								  inArrayContextInner, isArrayTermInner,
-								  context, isCheckForArrayTermsWithNestedDocumentInner);
-			}
-		}
-
-		/* if we're already recursing because of an array's parent path term, */
-		/* then we don't recurse into nested arrays. */
-		/* if we're not in that case, we recurse down to produce inner terms of arrays. */
-		if (!isArrayTerm)
-		{
-			if (BSON_ITER_HOLDS_ARRAY(bsonIter))
-			{
-				if (inArrayContext && option == IndexTraverse_Match)
-				{
-					/* Mark the path as having array ancestors leading to the index path */
-					context->hasArrayAncestors = true;
-				}
-
-				bson_iter_t containerIter;
-
-				/* Count the array terms - to pre-allocate the term Datum pointers */
-				int32_t arrayCount = BsonDocumentValueCountKeys(bson_iter_value(
-																	bsonIter));
-				EnsureTermCapacity(context, arrayCount);
-
-				if (bson_iter_recurse(bsonIter, &containerIter))
-				{
-					bool inArrayContextInner = true;
-					bool isArrayTermInner = false;
-					bool isCheckForArrayTermsWithNestedDocumentInner = false;
-					GenerateTermsCore(&containerIter, pathToInsert, pathtoInsertLength,
-									  inArrayContextInner, isArrayTermInner,
-									  context,
-									  isCheckForArrayTermsWithNestedDocumentInner);
-				}
-
-				/*
-				 * for array of arrays, having document inside it. We will generate parent path terms *
-				 * if below recursive call get triggerd with isCheckForArrayTermsWithNestedDocument set to true then we will check that
-				 * array of array has document inside it , for document we will generate parent path term.
-				 *
-				 * e.g, a: [[{b: 10}]]  => is suppose to genrate a.0.b :10 as one of the path term because array of array has document inside it.
-				 */
-				if (bson_iter_recurse(bsonIter, &containerIter))
-				{
-					bool inArrayContextInner = true;
-					bool isArrayTermInner = true;
-					bool isCheckForArrayTermsWithNestedDocumentInner = inArrayContext;
-					GenerateTermsCore(&containerIter, pathToInsert, pathtoInsertLength,
-									  inArrayContextInner, isArrayTermInner,
-									  context,
-									  isCheckForArrayTermsWithNestedDocumentInner);
-				}
-			}
-		}
+		GenerateTermPath(bsonIter, basePath, basePathLength,
+						 inArrayContext, isArrayTerm, context,
+						 isCheckForArrayTermsWithNestedDocument,
+						 &pathBuilderBuffer);
 	}
 
-	if (pathBuilderBuffer != NULL)
+	if (pathBuilderBuffer.data != NULL)
 	{
-		pfree(pathBuilderBuffer);
+		pfree(pathBuilderBuffer.data);
 	}
 }
 
