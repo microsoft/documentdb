@@ -142,6 +142,7 @@ jobs:
 
       - name: Citus Indent
         run: |
+          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
           citus_indent --check || (echo ""; echo "citus_indent failed, refer to CONTRIBUTING.md on how to use citus_indent"; exit 1)
 
       - name: Validate sanity of files
