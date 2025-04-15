@@ -123,7 +123,9 @@ jobs:
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
 
-          export PATH=/usr/lib/postgresql/${{ matrix.pg_version }}/bin:$PATH
+      - name: Export pg_config PATH
+        run: |
+          echo "/usr/lib/postgresql/${{ matrix.pg_version }}/bin" >> $GITHUB_PATH
 
       - name: Configure, Build and Install DocumentDB
         run: |
