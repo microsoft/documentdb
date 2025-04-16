@@ -858,7 +858,8 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 		}
 	}
 
-	return traverse == IndexTraverse_Match;
+	return traverse == IndexTraverse_Match ||
+		   traverse == IndexTraverse_MatchAndRecurse;
 }
 
 
@@ -953,7 +954,8 @@ ValidateIndexForQualifierPathForDollarIn(bytea *indexOptions, const StringView *
 		}
 	}
 
-	return traverse == IndexTraverse_Match;
+	return traverse == IndexTraverse_Match ||
+		   traverse == IndexTraverse_MatchAndRecurse;
 }
 
 
@@ -1065,7 +1067,8 @@ GetWildcardProjectionPathIndexTraverseOption(void *contextOptions, const
 				 currentPath[indexPathLength] == '.') ||
 				indexPathLength == currentPathLength)
 			{
-				return option->isExclusion ? IndexTraverse_Invalid : IndexTraverse_Match;
+				return option->isExclusion ?
+					   IndexTraverse_Invalid : IndexTraverse_MatchAndRecurse;
 			}
 		}
 
@@ -1084,11 +1087,11 @@ GetWildcardProjectionPathIndexTraverseOption(void *contextOptions, const
 	/* handle special cases - id inclusion or exclusion. */
 	if (currentPathLength == 3 && memcmp(currentPath, "_id", 3) == 0)
 	{
-		return option->includeId ? IndexTraverse_Match : IndexTraverse_Invalid;
+		return option->includeId ? IndexTraverse_MatchAndRecurse : IndexTraverse_Invalid;
 	}
 
 	/* no path matched, if it's exclusion then generate terms; otherwise skip. */
-	return option->isExclusion ? IndexTraverse_Match : IndexTraverse_Invalid;
+	return option->isExclusion ? IndexTraverse_MatchAndRecurse : IndexTraverse_Invalid;
 }
 
 
@@ -1123,7 +1126,7 @@ GetSinglePathIndexTraverseOptionCore(const char *indexPath,
 	if (indexPathLength == 0 && isWildcard)
 	{
 		/* wildcard at the root, all paths are valid. */
-		return IndexTraverse_Match;
+		return IndexTraverse_MatchAndRecurse;
 	}
 
 	/* current path is some dotted path into the document (e.g. a.b.c) */
@@ -1132,14 +1135,14 @@ GetSinglePathIndexTraverseOptionCore(const char *indexPath,
 		strncmp(indexPath, currentPath, indexPathLength) == 0)
 	{
 		return isWildcard && currentPath[indexPathLength] == '.' ?
-			   IndexTraverse_Match : IndexTraverse_Invalid;
+			   IndexTraverse_MatchAndRecurse : IndexTraverse_Invalid;
 	}
 
 	if (indexPathLength == currentPathLength &&
 		strncmp(indexPath, currentPath, indexPathLength) == 0)
 	{
 		/* this is an exact match on the path. */
-		return IndexTraverse_Match;
+		return isWildcard ? IndexTraverse_MatchAndRecurse : IndexTraverse_Match;
 	}
 
 	/* current path is some dotted path into the document (e.g. a.b.c) */

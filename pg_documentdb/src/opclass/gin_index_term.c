@@ -22,6 +22,7 @@
 #define IndexTermMetadataFlag 0x2
 
 extern bool EnableIndexTermTruncationOnNestedObjects;
+extern bool IndexTermUseUnsafeTransform;
 
 /* --------------------------------------------------------- */
 /* Forward Declaration */
@@ -171,7 +172,14 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	value.value.v_doc.data_len = indexTermSize - 1;
 	value.value.v_doc.data = (uint8_t *) &buffer[1];
 
-	BsonValueToPgbsonElement(&value, &indexTerm->element);
+	if (IndexTermUseUnsafeTransform)
+	{
+		BsonValueToPgbsonElementUnsafe(&value, &indexTerm->element);
+	}
+	else
+	{
+		BsonValueToPgbsonElement(&value, &indexTerm->element);
+	}
 }
 
 

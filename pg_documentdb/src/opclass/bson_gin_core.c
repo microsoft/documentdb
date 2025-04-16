@@ -1287,6 +1287,7 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 			break;
 		}
 
+		case IndexTraverse_MatchAndRecurse:
 		case IndexTraverse_Match:
 		{
 			/*
@@ -1337,7 +1338,9 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 
 	if (BSON_ITER_HOLDS_DOCUMENT(bsonIter))
 	{
-		if (inArrayContext && option == IndexTraverse_Match)
+		if (inArrayContext &&
+			(option == IndexTraverse_Match ||
+			 option == IndexTraverse_MatchAndRecurse))
 		{
 			/* Mark the path as having array ancestors leading to the index path */
 			context->hasArrayAncestors = true;
@@ -1362,7 +1365,9 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 	{
 		if (BSON_ITER_HOLDS_ARRAY(bsonIter))
 		{
-			if (inArrayContext && option == IndexTraverse_Match)
+			if (inArrayContext &&
+				(option == IndexTraverse_Match ||
+				 option == IndexTraverse_MatchAndRecurse))
 			{
 				/* Mark the path as having array ancestors leading to the index path */
 				context->hasArrayAncestors = true;

@@ -35,6 +35,9 @@ bool TryGetSinglePgbsonElementFromBsonIterator(bson_iter_t *iterator,
 void BsonValueToPgbsonElement(const bson_value_t *value, pgbsonelement *element);
 bool TryGetBsonValueToPgbsonElement(const bson_value_t *value, pgbsonelement *element);
 
+/* Unsafe version of the BsonValueToPgbsonElement that assumes value is a single field doc */
+void BsonValueToPgbsonElementUnsafe(const bson_value_t *bsonValue,
+									pgbsonelement *element);
 pgbson * PgbsonElementToPgbson(pgbsonelement *element);
 
 #endif

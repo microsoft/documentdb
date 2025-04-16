@@ -123,6 +123,9 @@ bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
+#define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
+bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
+
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -376,5 +379,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"alter creation_time of data table."),
 		NULL, &AlterCreationTimeInCompleteUpgrade,
 		ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.indexTermUseUnsafeTransform", newGucPrefix),
+		gettext_noop(
+			"use the unsafe transform for index term elements."),
+		NULL, &IndexTermUseUnsafeTransform,
+		DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

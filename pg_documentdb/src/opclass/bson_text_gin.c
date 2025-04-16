@@ -750,7 +750,8 @@ RewriteQueryTree(QTNode *node, bool *rewrote)
 inline static IndexTraverseOption
 FormatTraverseOptionForText(IndexTraverseOption pathOption, bson_type_t bsonType)
 {
-	if (pathOption == IndexTraverse_Match)
+	if (pathOption == IndexTraverse_Match ||
+		pathOption == IndexTraverse_MatchAndRecurse)
 	{
 		switch (bsonType)
 		{

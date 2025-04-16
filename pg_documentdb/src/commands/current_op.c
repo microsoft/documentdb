@@ -1421,7 +1421,8 @@ WriteIndexBuildProgressAndGetMessage(SingleWorkerActivity *activity,
 	/* NULLIF(blocks_total) ensures that "Progress" is NULL if blocks_total is 0 so we don't get div by zero errors and row_get_bson skips the field. */
 	appendStringInfo(str,
 					 "WITH c1 AS (SELECT phase, blocks_done, blocks_total, (blocks_done * 100.0 / NULLIF(blocks_total, 0)) AS \"Progress\", "
-					 " tuples_done AS \"documents_done\", tuples_total AS \"documents_total\", ");
+					 " tuples_done AS \"terms_done\", tuples_total AS \"terms_total\", "
+					 " (tuples_done * 100.0 / NULLIF(tuples_total, 0)) AS \"terms_progress\", ");
 
 	if (DefaultInlineWriteOperations)
 	{

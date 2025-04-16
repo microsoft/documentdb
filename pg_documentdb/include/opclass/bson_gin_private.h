@@ -85,6 +85,9 @@ typedef enum IndexTraverseOption
 
 	/* the path is a match and should be added to the index. */
 	IndexTraverse_Match,
+
+	/* The path is a match and child paths are also matches */
+	IndexTraverse_MatchAndRecurse,
 } IndexTraverseOption;
 
 
