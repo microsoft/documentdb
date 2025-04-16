@@ -21,9 +21,9 @@ on:
       - '*.md'
 
 jobs:
-  ubuntu_build:
-    runs-on: ${{ matrix.os_name }}
-    name: ${{ matrix.os_name }} build for PG ${{ matrix.pg_version }}
+  test-run-in-Ubuntu:
+    runs-on: ${{ matrix.runner }}
+    name: ${{ matrix.runner }} with PG ${{ matrix.pg_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,8 +31,14 @@ jobs:
           - 15
           - 16
           - 17
-        os_name:
-          - ubuntu-22.04
+        arch:
+          - amd64
+          - arm64
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -112,27 +118,30 @@ jobs:
           cp ./scripts/install_setup_pgvector.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_pgvector.sh
 
-          sudo add-apt-repository -y ppa:ubuntugis/ppa 
           sudo apt-get update
           sudo apt-get install -qy \
           libproj-dev \
           libxml2-dev \
           libjson-c-dev \
           libgeos++-dev \
-          libgeos-dev
+          libgeos-dev \
 
           cp ./scripts/install_setup_postgis.sh /tmp/install_setup/
           sudo INSTALL_DEPENDENCIES_ROOT=$INSTALL_DEPENDENCIES_ROOT PGVERSION=$PG_VERSION /tmp/install_setup/install_setup_postgis.sh
-          
-          export PATH=$PATH:/usr/lib/postgresql/$PG_VERSION/bin
+
+      - name: Export pg_config PATH
+        run: |
+          echo "/usr/lib/postgresql/${{ matrix.pg_version }}/bin" >> $GITHUB_PATH
 
       - name: Configure, Build and Install DocumentDB
         run: |
+          which pg_config
           make
-          sudo make install
+          sudo PATH=$PATH make install
 
       - name: Run Tests
-        run: |          
+        run: |
+          which pg_config    
           export LC_ALL=en_US.UTF-8
           export LANGUAGE=en_US
           export LC_COLLATE=en_US.UTF-8
@@ -151,6 +160,6 @@ jobs:
         if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.os_name }}_PG${{ matrix.pg_version }}
+          name: logs_$${{ matrix.runner }}_PG${{ matrix.pg_version }}
           overwrite: true
           path: "**/*.log"

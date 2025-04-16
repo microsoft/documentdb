@@ -205,8 +205,8 @@ SELECT documentdb_api.insert_one('db','geonear_lookup_1','{ "_id": 1, "a": [10, 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "geonear_lookup_1", "indexes": [{"key": {"a": "2dsphere"}, "name": "lookup1_2ds_a_idx" }]}', true);
 SELECT documentdb_api.insert_one('db','geonear_lookup_2','{ "_id": 5, "foo": "bar", "a": [5, 5], "x": 5 }', NULL);
 
-SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "geonear_lookup_1", "pipeline": [ { "$geoNear": {"near": {"type": "Point", "coordinates": [0, 1]}, "distanceField": "distance", "spherical": true, "key": "a"}}, {"$lookup": {"from": "geonear_lookup_2", "localField": "x", "foreignField": "x", "as": "new"}}] } ');
-EXPLAIN (VERBOSE ON, COSTS OFF) SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "geonear_lookup_1", "pipeline": [ { "$geoNear": {"near": {"type": "Point", "coordinates": [0, 1]}, "distanceField": "distance", "spherical": true, "key": "a"}}, {"$lookup": {"from": "geonear_lookup_2", "localField": "x", "foreignField": "x", "as": "new"}}]} ');
+SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "geonear_lookup_1", "pipeline": [ { "$geoNear": {"near": {"type": "Point", "coordinates": [0, 1]}, "distanceField": "dist.calculated", "spherical": true, "key": "a"}}, {"$lookup": {"from": "geonear_lookup_2", "localField": "x", "foreignField": "x", "as": "new"}}, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ] } ');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "geonear_lookup_1", "pipeline": [ { "$geoNear": {"near": {"type": "Point", "coordinates": [0, 1]}, "distanceField": "dist.calculated", "spherical": true, "key": "a"}}, {"$lookup": {"from": "geonear_lookup_2", "localField": "x", "foreignField": "x", "as": "new"}}, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ] } ');
 
 
 -- This fails because no valid index on geonear_lookup_2 for $geoNear
@@ -217,9 +217,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 
 -- Now it should pass
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db','{ "aggregate": "geonear_lookup_1", "pipeline": [ '
-'{ "$lookup": { "from": "geonear_lookup_2", "pipeline": [{ "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a"} } ], "as": "c"  } }]}');
+'{ "$lookup": { "from": "geonear_lookup_2", "pipeline": [{ "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a"} }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ], "as": "c"  } }]}');
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db','{ "aggregate": "geonear_lookup_1", "pipeline": [ '
-'{ "$lookup": { "from": "geonear_lookup_2", "pipeline": [{ "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a"} } ], "as": "c"  } }]}');
+'{ "$lookup": { "from": "geonear_lookup_2", "pipeline": [{ "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a"} }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ], "as": "c"  } }]}');
 
 -- Additional checks with legacy pair array
 BEGIN;

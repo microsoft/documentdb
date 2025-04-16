@@ -866,15 +866,16 @@ SELECT public.ST_ASTEXT(
     public.ST_SUBDIVIDE(
         public.ST_MAKEVALID(public.ST_SEGMENTIZE('SRID=4326;POLYGON((-180 40, -157.5 40, -157.5 55, -180 55, -180 40))'::public.geography, 500000)::public.geometry),
         8 -- 8 is the default number of max vertices a divide segment can have
-    )::public.geography
+    )::public.geography,
+    12 -- Limit output to 12 decimal digits
 );
-                                                                                                  st_astext                                                                                                   
+                                                                                     st_astext                                                                                      
 ---------------------------------------------------------------------
- POLYGON((-157.5 40.234375,-157.5 40,-160.29991441874373 40.205209224804754,-157.5 40.234375))
- POLYGON((-163.1021234145348 40.4105866220272,-160.29991441874373 40.205209224804754,-180 40,-174.39787658546524 40.4105866220272,-168.75000000000003 40.54826391836536,-163.1021234145348 40.4105866220272))
+ POLYGON((-157.5 40.234375,-157.5 40,-160.299914418744 40.205209224805,-157.5 40.234375))
+ POLYGON((-163.102123414535 40.410586622027,-160.299914418744 40.205209224805,-180 40,-174.397876585465 40.410586622027,-168.75 40.548263918365,-163.102123414535 40.410586622027))
  POLYGON((-157.5 54.765625,11.25 53.0078125,11.25 41.9921875,-157.5 40.234375,-157.5 54.765625))
- POLYGON((180 51.25000000000001,180 43.75000000000001,11.25 41.9921875,11.25 53.0078125,180 51.25000000000001))
- POLYGON((-168.75000000000003 55.520540637748496,-163.08803378528958 55.389661039662776,-157.5 55,-157.5 54.765625,-180 55,-174.41196621471047 55.389661039662776,-168.75000000000003 55.520540637748496))
+ POLYGON((180 51.25,180 43.75,11.25 41.9921875,11.25 53.0078125,180 51.25))
+ POLYGON((-168.75 55.520540637748,-163.08803378529 55.389661039663,-157.5 55,-157.5 54.765625,-180 55,-174.41196621471 55.389661039663,-168.75 55.520540637748))
 (5 rows)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "segmentsTest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds" }]}', true);
@@ -912,7 +913,7 @@ SELECT document FROM documentdb_api.collection('db', 'segmentsTest') WHERE docum
 (2 rows)
 
 EXPLAIN SELECT document FROM documentdb_api.collection('db', 'segmentsTest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[-180, 40], [-157.5, 40], [-157.5, 55], [-180, 55], [-180, 40]]]}}}}'; -- Polygon with points on a great circle of earth
-                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                                    
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)  (cost=0.00..0.00 rows=0 width=0)
    Task Count: 1
