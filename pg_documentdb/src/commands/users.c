@@ -98,10 +98,7 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	if (userCount >= MaxUserLimit)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_USERCOUNTLIMITEXCEEDED),
-						errmsg(
-							"Exceeded the limit of %d user roles." \
-							"For more options, visit https://aka.ms/mongodbvcore-rbac.",
-							MaxUserLimit)));
+						errmsg("Exceeded the limit of %d user roles.", MaxUserLimit)));
 	}
 
 	pgbson *createUserBson = PG_GETARG_PGBSON(0);

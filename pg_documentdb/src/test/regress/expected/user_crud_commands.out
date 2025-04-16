@@ -283,7 +283,7 @@ SELECT documentdb_api.create_user('{"createUser":"newUser11", "pwd":"test_passwo
 
 -- This call should fail since we're only allowed to create 11 users
 SELECT documentdb_api.create_user('{"createUser":"newUser12", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
-ERROR:  Exceeded the limit of 11 user roles.For more options, visit https://aka.ms/mongodbvcore-rbac.
+ERROR:  Exceeded the limit of 11 user roles.
 -- Increase allowed users to 12
 SET documentdb.maxUserLimit TO 12;
 -- This should now succeed
@@ -295,7 +295,7 @@ SELECT documentdb_api.create_user('{"createUser":"newUser12", "pwd":"test_passwo
 
 -- This should fail
 SELECT documentdb_api.create_user('{"createUser":"newUser13", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
-ERROR:  Exceeded the limit of 12 user roles.For more options, visit https://aka.ms/mongodbvcore-rbac.
+ERROR:  Exceeded the limit of 12 user roles.
 -- Delete a user and try to create again, this should succeed
 SELECT documentdb_api.drop_user('{"dropUser":"newUser7"}');
              drop_user             

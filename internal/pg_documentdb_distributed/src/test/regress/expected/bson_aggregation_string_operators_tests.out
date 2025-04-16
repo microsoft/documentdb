@@ -1730,7 +1730,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "I use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                           
+                                                                          bson_dollar_project                                                                          
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "I USE TO EAT ONE APPLE 🍎 A DAY THAT BECAME REASON OF MY BREAKUP 💔 AS ONE APPLE A DAY KEEPS DOCTOR AWAY AND SHE👧🏽 WAS A DOCTOR 🧑🏽‍⚕️" }
 (1 row)
@@ -1940,7 +1940,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "I USE To Eat One aPple 🍎 a dAy That Became rEasOn of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                           
+                                                                          bson_dollar_project                                                                          
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "i use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️" }
 (1 row)
@@ -2981,7 +2981,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input
  { "_id" : "1", "result" : false }
 (1 row)
 
-select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input":"vcore", "regex" : "Ru-Based" }} }');
+select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input":"v_core", "regex" : "Ru-Based" }} }');
         bson_dollar_project        
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : false }
