@@ -33,8 +33,8 @@ void TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 static inline bool
 IsBsonTypeCollationAware(bson_type_t type)
 {
-	return type == BSON_TYPE_UTF8 || type == BSON_TYPE_DOCUMENT || type ==
-		   BSON_TYPE_ARRAY;
+	return type == BSON_TYPE_UTF8 || type == BSON_TYPE_DOCUMENT ||
+		   type == BSON_TYPE_ARRAY;
 }
 
 

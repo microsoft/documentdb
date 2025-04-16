@@ -2568,6 +2568,12 @@ static Query *
 HandleBucket(const bson_value_t *existingValue, Query *query,
 			 AggregationPipelineBuildContext *context)
 {
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("collation is not supported in $bucket stage yet.")));
+	}
+
 	ReportFeatureUsage(FEATURE_STAGE_BUCKET);
 
 	bson_value_t groupSpec = { 0 };
@@ -2645,6 +2651,13 @@ HandleFill(const bson_value_t *existingValue, Query *query,
 		   AggregationPipelineBuildContext *context)
 {
 	ReportFeatureUsage(FEATURE_STAGE_FILL);
+
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg(
+							"collation is not supported in the $fill stage yet.")));
+	}
 
 	bool hasSortBy = false;
 	bool onlyHasValueFill = true;
@@ -4036,6 +4049,13 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_GEONEAR);
 
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg(
+							"collation is not supported in the $geoNear stage yet.")));
+	}
+
 	if (context->stageNum != 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40603),
@@ -4492,6 +4512,13 @@ HandleSortByCount(const bson_value_t *existingValue, Query *query,
 				  AggregationPipelineBuildContext *context)
 {
 	ReportFeatureUsage(FEATURE_STAGE_SORT_BY_COUNT);
+
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg(
+							"collation is not supported in the $sortByCount stage yet.")));
+	}
 
 	/* Do validations */
 	bool isInvalidSpec = false;
@@ -5221,6 +5248,12 @@ Query *
 HandleGroup(const bson_value_t *existingValue, Query *query,
 			AggregationPipelineBuildContext *context)
 {
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("collation is not supported in $group stage yet.")));
+	}
+
 	ReportFeatureUsage(FEATURE_STAGE_GROUP);
 
 	/* Part 1, let's do the group */

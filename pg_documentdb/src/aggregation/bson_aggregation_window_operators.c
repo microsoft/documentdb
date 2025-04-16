@@ -565,6 +565,13 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 {
 	ReportFeatureUsage(FEATURE_STAGE_SETWINDOWFIELDS);
 
+	if (IsCollationApplicable(context->collationString))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg(
+							"collation is not supported in the $setWindowFields stage yet.")));
+	}
+
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
