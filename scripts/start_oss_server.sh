@@ -12,7 +12,8 @@ initSetup="false"
 help="false"
 stop="false"
 distributed="false"
-while getopts "d:hcsx" opt; do
+prebuild="false"
+while getopts "d:hcsxp" opt; do
   case $opt in
     d) postgresDirectory="$OPTARG"
     ;;
@@ -23,6 +24,8 @@ while getopts "d:hcsx" opt; do
     s) stop="true"
     ;;
     x) distributed="true"
+    ;;
+    p) prebuild="true"
     ;;
   esac
 
@@ -46,6 +49,7 @@ if [ "$help" == "true" ]; then
     echo "${green}[-c] - optional argument. removes all existing data if it exists"
     echo "${green}[-s] - optional argument. Stops all servers and exits"
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
+    echo "${green}[-p] - start oss server for prebuild image, will skip the preload of citus"
     echo "${green}if postgresDir not specified assumed to be ~/documentdb_test"
     exit 1;
 fi
@@ -57,6 +61,10 @@ else
 fi
 
 preloadLibraries="pg_documentdb_core, pg_documentdb"
+
+if [ "$prebuild" == "false" ]; then
+  preloadLibraries="citus, $preloadLibraries"
+fi
 
 if [ "$distributed" == "true" ]; then
   preloadLibraries="$preloadLibraries, pg_documentdb_distributed"
