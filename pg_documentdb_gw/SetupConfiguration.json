@@ -1,0 +1,9 @@
+{
+  "NodeHostName": "localhost",
+  "BlockedRolePrefixes": [ "documentdb", "citus", "pg", "internal_role" ],
+  "GatewayListenPort": 10260,
+  "TransactionTimeoutSecs": 5,
+  "CursorTimeoutSecs": 10,
+  "PostgresCommandTimeoutSecs": 10,
+  "EnforceSslTcp": true
+}
