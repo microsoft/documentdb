@@ -132,6 +132,9 @@ extern bool EnableSchemaValidation;
 
 /*
  * command_insert implements the insert command.
+ *
+ * Server-side implementation of the insert command never attempts to deduplicate
+ * the given document/s to be inserted.
  */
 Datum
 command_insert(PG_FUNCTION_ARGS)
