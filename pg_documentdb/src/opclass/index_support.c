@@ -1295,7 +1295,8 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 	else if (IsA(clause, ScalarArrayOpExpr))
 	{
 		if (EnableIndexOperatorBounds &&
-			IsClusterVersionAtleast(DocDB_V0, 102, 0) &&
+			(IsClusterVersionAtLeastPatch(DocDB_V0, 101, 1) ||
+			 IsClusterVersionAtleast(DocDB_V0, 102, 0)) &&
 			context->inputData.isShardQuery && trimClauses)
 		{
 			ScalarArrayOpExpr *arrayOpExpr = (ScalarArrayOpExpr *) clause;

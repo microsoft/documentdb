@@ -1861,7 +1861,8 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				if (EnableIndexOperatorBounds && context->simplifyOperators &&
 					context->coerceOperatorExprIfApplicable &&
 					context->inputType == MongoQueryOperatorInputType_Bson &&
-					IsClusterVersionAtleast(DocDB_V0, 102, 0) &&
+					(IsClusterVersionAtLeastPatch(DocDB_V0, 101, 1) ||
+					 IsClusterVersionAtleast(DocDB_V0, 102, 0)) &&
 					operator->operatorType == QUERY_OPERATOR_IN &&
 					!hasRegex)
 				{
