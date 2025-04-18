@@ -59,7 +59,7 @@ fi
 preloadLibraries="pg_documentdb_core, pg_documentdb"
 
 if [ "$distributed" == "true" ]; then
-  preloadLibraries="$preloadLibraries, pg_documentdb_distributed"
+  preloadLibraries="citus, $preloadLibraries, pg_documentdb_distributed"
 fi
 
 source="${BASH_SOURCE[0]}"
