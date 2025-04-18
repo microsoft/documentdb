@@ -12,17 +12,21 @@
 #include <postgres.h>
 #include <fmgr.h>
 #include <miscadmin.h>
+#include <access/toast_compression.h>
+#include <access/toast_internals.h>
 #include "opclass/bson_gin_index_term.h"
 #include "query/bson_compare.h"
 #include "utils/documentdb_errors.h"
 #include "types/decimal128.h"
 #include "io/bsonvalue_utils.h"
 
+
 #define IndexTermTruncatedFlag 0x1
 #define IndexTermMetadataFlag 0x2
 
 extern bool EnableIndexTermTruncationOnNestedObjects;
 extern bool IndexTermUseUnsafeTransform;
+extern int IndexTermCompressionThreshold;
 
 /* --------------------------------------------------------- */
 /* Forward Declaration */
@@ -43,6 +47,10 @@ static bool TruncateArrayTerm(int32_t dataSize, int32_t indexTermSoftLimit, int3
 							  indexTermHardLimit,
 							  bson_iter_t *arrayIterator,
 							  pgbson_array_writer *arrayWriter);
+static bytea * BuildSerializedIndexTerm(pgbsonelement *indexElement, const
+										IndexTermCreateMetadata *createMetadata,
+										bool forceTruncated, bool isMetadataTerm,
+										BsonIndexTerm *indexTerm);
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -877,61 +885,17 @@ SerializeBsonIndexTermCore(pgbsonelement *indexElement,
 						   bool forceTruncated,
 						   bool isMetadataTerm)
 {
-	BsonIndexTerm indexTerm = {
-		false, false, { 0 }
-	};
 	BsonIndexTermSerialized serializedTerm = {
 		false, false, NULL
 	};
+	BsonIndexTerm indexTerm = {
+		false, false, { 0 }
+	};
 
-	pgbson_writer writer;
-	PgbsonWriterInit(&writer);
-	indexTerm.isIndexTermTruncated = SerializeTermToWriter(&writer, indexElement,
-														   createMetadata);
-	if (forceTruncated)
-	{
-		indexTerm.isIndexTermTruncated = true;
-	}
-	if (isMetadataTerm)
-	{
-		indexTerm.isIndexTermMetadata = true;
-	}
+	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
+												   forceTruncated,
+												   isMetadataTerm, &indexTerm);
 
-	uint32_t dataSize = PgbsonWriterGetSize(&writer);
-
-	if (createMetadata->indexTermSizeLimit > 0 &&
-		dataSize > (uint32_t) createMetadata->indexTermSizeLimit)
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg(
-							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
-							createMetadata->indexTermSizeLimit, BsonTypeName(
-								indexElement->bsonValue.value_type), dataSize,
-							indexTerm.isIndexTermTruncated),
-						errdetail_log(
-							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
-							createMetadata->indexTermSizeLimit, BsonTypeName(
-								indexElement->bsonValue.value_type), dataSize,
-							indexTerm.isIndexTermTruncated)));
-	}
-
-	int indexTermSize = dataSize + VARHDRSZ + sizeof(uint8_t);
-	bytea *indexTermVal = (bytea *) palloc(indexTermSize);
-	SET_VARSIZE(indexTermVal, indexTermSize);
-
-	uint8_t *buffer = (uint8_t *) VARDATA(indexTermVal);
-	buffer[0] = 0;
-	if (indexTerm.isIndexTermTruncated)
-	{
-		buffer[0] = buffer[0] | IndexTermTruncatedFlag;
-	}
-
-	if (indexTerm.isIndexTermMetadata)
-	{
-		buffer[0] = buffer[0] | IndexTermMetadataFlag;
-	}
-
-	PgbsonWriterCopyToBuffer(&writer, &buffer[1], dataSize);
 	serializedTerm.indexTermVal = indexTermVal;
 	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
 	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
@@ -956,6 +920,43 @@ SerializeBsonIndexTerm(pgbsonelement *indexElement, const
 	bool isMetadataTerm = false;
 	return SerializeBsonIndexTermCore(indexElement, indexTermSizeLimit, forceTruncated,
 									  isMetadataTerm);
+}
+
+
+BsonCompressableIndexTermSerialized
+SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
+									  const IndexTermCreateMetadata *createMetadata)
+{
+	Assert(createMetadata != NULL);
+
+	bool forceTruncated = false;
+	bool isMetadataTerm = false;
+
+	BsonIndexTerm indexTerm = {
+		false, false, { 0 }
+	};
+	BsonCompressableIndexTermSerialized serializedTerm = {
+		false, false, (Datum) NULL
+	};
+
+	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
+												   forceTruncated,
+												   isMetadataTerm, &indexTerm);
+	serializedTerm.indexTermDatum = PointerGetDatum(indexTermVal);
+	if (VARSIZE(indexTermVal) > (Size) IndexTermCompressionThreshold)
+	{
+		Datum result = toast_compress_datum(serializedTerm.indexTermDatum,
+											default_toast_compression);
+		if (result != (Datum) NULL)
+		{
+			pfree(indexTermVal);
+			serializedTerm.indexTermDatum = result;
+		}
+	}
+
+	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
+	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
+	return serializedTerm;
 }
 
 
@@ -1074,4 +1075,62 @@ GenerateRootTruncatedTerm(const IndexTermCreateMetadata *termData)
 	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
 													  forceTruncated,
 													  isMetadataTerm).indexTermVal);
+}
+
+
+static bytea *
+BuildSerializedIndexTerm(pgbsonelement *indexElement, const
+						 IndexTermCreateMetadata *createMetadata,
+						 bool forceTruncated, bool isMetadataTerm,
+						 BsonIndexTerm *indexTerm)
+{
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+	indexTerm->isIndexTermTruncated = SerializeTermToWriter(&writer, indexElement,
+															createMetadata);
+	if (forceTruncated)
+	{
+		indexTerm->isIndexTermTruncated = true;
+	}
+	if (isMetadataTerm)
+	{
+		indexTerm->isIndexTermMetadata = true;
+	}
+
+	uint32_t dataSize = PgbsonWriterGetSize(&writer);
+
+	if (createMetadata->indexTermSizeLimit > 0 &&
+		dataSize > (uint32_t) createMetadata->indexTermSizeLimit)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg(
+							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
+							createMetadata->indexTermSizeLimit, BsonTypeName(
+								indexElement->bsonValue.value_type), dataSize,
+							indexTerm->isIndexTermTruncated),
+						errdetail_log(
+							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
+							createMetadata->indexTermSizeLimit, BsonTypeName(
+								indexElement->bsonValue.value_type), dataSize,
+							indexTerm->isIndexTermTruncated)));
+	}
+
+	int indexTermSize = dataSize + VARHDRSZ + sizeof(uint8_t);
+	bytea *indexTermVal = (bytea *) palloc(indexTermSize);
+	SET_VARSIZE(indexTermVal, indexTermSize);
+
+	uint8_t *buffer = (uint8_t *) VARDATA(indexTermVal);
+	buffer[0] = 0;
+	if (indexTerm->isIndexTermTruncated)
+	{
+		buffer[0] = buffer[0] | IndexTermTruncatedFlag;
+	}
+
+	if (indexTerm->isIndexTermMetadata)
+	{
+		buffer[0] = buffer[0] | IndexTermMetadataFlag;
+	}
+
+	PgbsonWriterCopyToBuffer(&writer, &buffer[1], dataSize);
+	return indexTermVal;
 }

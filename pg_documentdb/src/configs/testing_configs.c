@@ -60,6 +60,9 @@ bool EnableNativeColocation = DEFAULT_ENABLE_NATIVE_COLOCATION;
 #define DEFAULT_MAX_ALLOWED_DOCS_IN_DENSIFY 500000
 extern int32 PEC_InternalQueryMaxAllowedDensifyDocs;
 
+#define DEFAULT_FORCE_WILDCARD_REDUCED_TERM false
+bool ForceWildcardReducedTerm = DEFAULT_FORCE_WILDCARD_REDUCED_TERM;
+
 extern int32 PEC_InternalDocumentSourceDensifyMaxMemoryBytes;
 
 void
@@ -138,6 +141,13 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Whether to force the feature for index term truncation"),
 		NULL, &ForceIndexTermTruncation, DEFAULT_FORCE_INDEX_TERM_TRUNCATION,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceWildcardReducedTerm", prefix),
+		gettext_noop(
+			"Whether to force the feature for the wildcard reduced term generation"),
+		NULL, &ForceWildcardReducedTerm, DEFAULT_FORCE_WILDCARD_REDUCED_TERM,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

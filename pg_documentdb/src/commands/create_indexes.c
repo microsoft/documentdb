@@ -186,6 +186,7 @@ extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
 extern bool DisableStatisticsForUniqueColumns;
 extern bool EnableNewCompositeIndexOpclass;
+extern bool ForceWildcardReducedTerm;
 
 char *AlternateIndexHandler = NULL;
 
@@ -316,7 +317,8 @@ static char * GenerateIndexExprStr(bool unique, bool sparse, bool enableComposit
 								   const char *indexName, const char *defaultLanguage,
 								   const char *languageOverride,
 								   bool enableLargeIndexKeys,
-								   bool supportsAlternateIndexHandler);
+								   bool supportsAlternateIndexHandler,
+								   bool useReducedWildcardTerms);
 static char * Generate2dsphereIndexExprStr(const IndexDefKey *indexDefKey);
 static char * Generate2dsphereSparseExprStr(const IndexDefKey *indexDefKey);
 static char * GenerateIndexFilterStr(uint64 collectionId, Expr *indexDefPartFilterExpr);
@@ -1772,6 +1774,18 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			else
 			{
 				indexDef->enableCompositeTerm = BoolIndexOption_False;
+			}
+		}
+		else if (strcmp(indexDefDocKey, "enableReducedWildcardTerm") == 0)
+		{
+			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
+			if (BsonValueAsBool(value))
+			{
+				indexDef->enableReducedWildcardTerms = BoolIndexOption_True;
+			}
+			else
+			{
+				indexDef->enableReducedWildcardTerms = BoolIndexOption_False;
 			}
 		}
 		else if (!SkipFailOnCollation && strcmp(indexDefDocKey, "collation") == 0)
@@ -4512,6 +4526,7 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		}
 
 		bool supportsAlternateIndexHandler = false;
+		bool useReducedWildcardTermGeneration = false;
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_rum (%s) %s%s%s",
@@ -4523,7 +4538,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  supportsAlternateIndexHandler),
+											  supportsAlternateIndexHandler,
+											  useReducedWildcardTermGeneration),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4664,6 +4680,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 
 		char *indexAmSuffix = GetIndexAmHandlerName(supportsAlternateIndexHandler);
 
+		bool useReducedWildcardTermGeneration = ForceWildcardReducedTerm ||
+												(indexDef->enableReducedWildcardTerms ==
+												 BoolIndexOption_True);
 		appendStringInfo(cmdStr,
 						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
@@ -4675,7 +4694,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  supportsAlternateIndexHandler),
+											  supportsAlternateIndexHandler,
+											  useReducedWildcardTermGeneration),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -5009,7 +5029,8 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
 					 const char *languageOverride, bool enableLargeIndexKeys,
-					 bool supportsAlternateIndexHandler)
+					 bool supportsAlternateIndexHandler,
+					 bool useReducedWildcardTerms)
 {
 	StringInfo indexExprStr = makeStringInfo();
 
@@ -5096,14 +5117,21 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 		}
 		else if (!indexDefWildcardProjTree)
 		{
+			const char *useReducedWildcardOption = "";
+			if (useReducedWildcardTerms)
+			{
+				useReducedWildcardOption = ",rwt=true";
+			}
+
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_single_path_ops"
-							 "(path='', iswildcard=true%s%s)",
+							 "(path='', iswildcard=true%s%s%s)",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
 							 indexOpClassAmName,
 							 indexTermSizeLimitArg,
-							 wildcardIndexTruncatedPathLimit);
+							 wildcardIndexTruncatedPathLimit,
+							 useReducedWildcardOption);
 
 			firstColumnWritten = true;
 		}
@@ -5281,18 +5309,28 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 						}
 					}
 
+					const char *useReducedWildcardOption = "";
+					const char *generateNotFoundTermOption = "";
+					if (useReducedWildcardTerms && indexKeyPath->isWildcard)
+					{
+						useReducedWildcardOption = ",rwt=true";
+					}
+
+					if (generateNotFoundTerm)
+					{
+						generateNotFoundTermOption = ",generateNotFoundTerm=true";
+					}
+
 					appendStringInfo(indexExprStr,
-									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s)",
+									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
 									 ApiCatalogSchemaName,
 									 indexOpClassAmName,
 									 quote_literal_cstr(keyPath),
 									 indexKeyPath->isWildcard ? ",iswildcard=true" : "",
 									 indexTermSizeLimitArg,
-
-									 generateNotFoundTerm ?
-									 ", generateNotFoundTerm=true" :
-									 "");
+									 generateNotFoundTermOption,
+									 useReducedWildcardOption);
 					if (unique)
 					{
 						appendStringInfo(indexExprStr, " WITH OPERATOR(%s.=?=)",
