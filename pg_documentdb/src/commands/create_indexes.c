@@ -2688,9 +2688,9 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
  * Parse cosmosSearchOptions from the given indexDefDocIter.
  * Index of ivfflat and hnsw is supported.
  * ivfflat:
- *    { "kind": "vector-ivf", "numLists": 100, "similarity": "COS", "dimensions": 3 }
+ *    { "kind": "vector-ivf", "numLists": 100, "similarity": "COS", "dimensions": 3, "compression": "none" }
  * hnsw:
- *    { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "COS", "dimensions": 3 }
+ *    { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "COS", "dimensions": 3, "compression": "half" }
  */
 static CosmosSearchOptions *
 ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
@@ -2780,6 +2780,61 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 
 			cosmosSearchOptions->commonOptions.numDimensions = BsonValueAsInt32(keyValue);
 		}
+		else if (strcmp(searchOptionsIterKey, "compression") == 0)
+		{
+			if (!BSON_ITER_HOLDS_UTF8(&cosmosSearchIter))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"compression must be a string not %s",
+									BsonTypeName(bson_iter_type(&cosmosSearchIter)))));
+			}
+
+			StringView str = {
+				.string = keyValue->value.v_utf8.str, .length = keyValue->value.v_utf8.len
+			};
+
+			if (StringViewEqualsCString(&str, "half"))
+			{
+				if (!EnableVectorCompressionHalf)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"Compression type 'half' is not enabled.")));
+				}
+
+				/* check if the half vector type is supported, older versions of
+				 * pgvector do not support half vector type */
+				MemoryContext savedMemoryContext = CurrentMemoryContext;
+				PG_TRY();
+				{
+					if (HalfVectorTypeId() == InvalidOid)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+										errmsg(
+											"Compression type 'half' is not supported.")));
+					}
+				}
+				PG_CATCH();
+				{
+					MemoryContextSwitchTo(savedMemoryContext);
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"Compression type 'half' is not supported.")));
+				}
+				PG_END_TRY();
+
+				ReportFeatureUsage(FEATURE_CREATE_INDEX_VECTOR_COMPRESSION_HALF);
+				cosmosSearchOptions->commonOptions.compressionType =
+					VectorIndexCompressionType_Half;
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg("Invalid compression type of vector index: %s",
+									   str.string)));
+			}
+		}
 	}
 
 	/* Check the common required options */
@@ -2788,6 +2843,9 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 						errmsg("cosmosSearch index kind must be specified")));
 	}
+
+	/* The max limit error is thrown by pgvector, will be caught by the gateway */
+	/* So we don't check the max limit here */
 
 	if (cosmosSearchOptions->commonOptions.numDimensions <= 1)
 	{

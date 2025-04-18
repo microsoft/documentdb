@@ -154,6 +154,7 @@ Oid BsonRumCompositeIndexOperatorFamily(void);
 /* types */
 Oid BsonQueryTypeId(void);
 Oid VectorTypeId(void);
+Oid HalfVectorTypeId(void);
 Oid IndexSpecTypeId(void);
 Oid MongoCatalogCollectionsTypeOid(void);
 Oid GetClusterBsonQueryTypeId(void);
@@ -214,18 +215,27 @@ Oid Float8MultiplyOperatorId(void);
 /* Vector Functions */
 Oid PgDoubleToVectorFunctionOid(void);
 Oid VectorAsVectorFunctionOid(void);
+Oid VectorAsHalfVecFunctionOid(void);
 Oid ApiCatalogBsonExtractVectorFunctionId(void);
 Oid ApiBsonSearchParamFunctionId(void);
 Oid ApiBsonDocumentAddScoreFieldFunctionId(void);
 
 /* Vector Operators */
 Oid VectorOrderByQueryOperatorId(void);
-Oid VectorCosineSimilaritySearchOperatorId(void);
-Oid VectorL2SimilaritySearchOperatorId(void);
-Oid VectorIPSimilaritySearchOperatorId(void);
-Oid VectorCosineSimilaritySearchFunctionId(void);
-Oid VectorL2SimilaritySearchFunctionId(void);
-Oid VectorIPSimilaritySearchFunctionId(void);
+Oid VectorCosineSimilarityOperatorId(void);
+Oid VectorL2SimilarityOperatorId(void);
+Oid VectorIPSimilarityOperatorId(void);
+Oid VectorCosineSimilarityFunctionId(void);
+Oid VectorL2SimilarityFunctionId(void);
+Oid VectorIPSimilarityFunctionId(void);
+
+/* Half Vector Operators */
+Oid VectorHalfCosineSimilarityOperatorId(void);
+Oid VectorHalfL2SimilarityOperatorId(void);
+Oid VectorHalfIPSimilarityOperatorId(void);
+Oid VectorHalfCosineSimilarityFunctionId(void);
+Oid VectorHalfL2SimilarityFunctionId(void);
+Oid VectorHalfIPSimilarityFunctionId(void);
 
 /* Geospatial data/type/support functions */
 Oid Box2dfTypeId(void);

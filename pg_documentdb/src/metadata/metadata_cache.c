@@ -158,6 +158,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the vector type */
 	Oid VectorTypeId;
 
+	/* OID of the half vector type */
+	Oid HalfVectorTypeId;
+
 	/* OID of the index_spec_type */
 	Oid IndexSpecTypeId;
 
@@ -249,22 +252,40 @@ typedef struct DocumentDBApiOidCacheData
 	Oid VectorOrderByQueryOperatorId;
 
 	/* OID of the pg_vector cosine similarity operator */
-	Oid VectorCosineSimilaritySearchOperatorId;
+	Oid VectorCosineSimilarityOperatorId;
 
 	/* OID of the pg_vector l2 similarity operator */
-	Oid VectorL2SimilaritySearchOperatorId;
+	Oid VectorL2SimilarityOperatorId;
 
 	/* OID of the pg_vector ip similarity operator */
-	Oid VectorIPSimilaritySearchOperatorId;
+	Oid VectorIPSimilarityOperatorId;
 
 	/* OID of the cosine_distance function */
-	Oid VectorCosineSimilaritySearchFunctionId;
+	Oid VectorCosineSimilarityFunctionId;
 
 	/* OID of the l2_distance function */
-	Oid VectorL2SimilaritySearchFunctionId;
+	Oid VectorL2SimilarityFunctionId;
 
 	/* OID of the vector_negative_inner_product function */
-	Oid VectorIPSimilaritySearchFunctionId;
+	Oid VectorIPSimilarityFunctionId;
+
+	/* OID of the pg_vector half cosine similarity operator */
+	Oid VectorHalfCosineSimilarityOperatorId;
+
+	/* OID of the pg_vector half l2 similarity operator */
+	Oid VectorHalfL2SimilarityOperatorId;
+
+	/* OID of the pg_vector half ip similarity operator */
+	Oid VectorHalfIPSimilarityOperatorId;
+
+	/* OID of the halfvec_cosine_distance function */
+	Oid VectorHalfCosineSimilarityFunctionId;
+
+	/* OID of the halfvec_l2_distance function */
+	Oid VectorHalfL2SimilarityFunctionId;
+
+	/* OID of the halfvec_negative_inner_product function */
+	Oid VectorHalfIPSimilarityFunctionId;
 
 	/* OID of the pg_vector ivfflat cosine similarity operator */
 	Oid VectorIVFFlatCosineSimilarityOperatorFamilyId;
@@ -581,6 +602,9 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* OID of the vector as vector Cast function */
 	Oid VectorAsVectorFunctionOid;
+
+	/* OID of the vector as half vector Cast function */
+	Oid VectorAsHalfVecFunctionOid;
 
 	/* OID of the bson_extract_vector function from a document and path */
 	Oid ApiCatalogBsonExtractVectorFunctionId;
@@ -2772,6 +2796,29 @@ VectorAsVectorFunctionOid(void)
 
 
 /*
+ * VectorAsHalfVecFunctionOid returns the OID of the vector as half vector cast function.
+ */
+Oid
+VectorAsHalfVecFunctionOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorAsHalfVecFunctionOid == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString("public"),
+											makeString("vector_to_halfvec"));
+
+		Oid paramOids[3] = { VectorTypeId(), INT4OID, BOOLOID };
+		bool missingOK = false;
+		Cache.VectorAsHalfVecFunctionOid =
+			LookupFuncName(functionNameList, 3, paramOids, missingOK);
+	}
+
+	return Cache.VectorAsHalfVecFunctionOid;
+}
+
+
+/*
  * BsonTrueFunctionId returns the OID of the bson_true_match function.
  */
 Oid
@@ -4626,6 +4673,26 @@ VectorTypeId(void)
 
 
 /*
+ * HalfVectorTypeId returns the OID of the half vector type.
+ */
+Oid
+HalfVectorTypeId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.HalfVectorTypeId == InvalidOid)
+	{
+		List *vectorTypeNameList = list_make2(makeString("public"), makeString(
+												  "halfvec"));
+		TypeName *vectorTypeName = makeTypeNameFromNameList(vectorTypeNameList);
+		Cache.HalfVectorTypeId = typenameTypeId(NULL, vectorTypeName);
+	}
+
+	return Cache.HalfVectorTypeId;
+}
+
+
+/*
  * IndexSpecTypeId returns the OID of the ApiCatalogSchemaName.index_spec_type.
  */
 Oid
@@ -5498,126 +5565,250 @@ Float8MultiplyOperatorId(void)
 
 
 /*
- * VectorCosineSimilaritySearchOperatorId returns the OID of the <vector> <=> <vector> operator.
+ * VectorCosineSimilarityOperatorId returns the OID of the <vector> <=> <vector> operator.
  */
 Oid
-VectorCosineSimilaritySearchOperatorId(void)
+VectorCosineSimilarityOperatorId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorCosineSimilaritySearchOperatorId == InvalidOid)
+	if (Cache.VectorCosineSimilarityOperatorId == InvalidOid)
 	{
 		List *operatorNameList = list_make2(makeString("public"), makeString("<=>"));
 
-		Cache.VectorCosineSimilaritySearchOperatorId =
+		Cache.VectorCosineSimilarityOperatorId =
 			OpernameGetOprid(operatorNameList, VectorTypeId(), VectorTypeId());
 	}
 
-	return Cache.VectorCosineSimilaritySearchOperatorId;
+	return Cache.VectorCosineSimilarityOperatorId;
 }
 
 
 /*
- * VectorL2SimilaritySearchOperatorId returns the OID of the <vector> <-> <vector> operator.
+ * VectorL2SimilarityOperatorId returns the OID of the <vector> <-> <vector> operator.
  */
 Oid
-VectorL2SimilaritySearchOperatorId(void)
+VectorL2SimilarityOperatorId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorL2SimilaritySearchOperatorId == InvalidOid)
+	if (Cache.VectorL2SimilarityOperatorId == InvalidOid)
 	{
 		List *operatorNameList = list_make2(makeString("public"), makeString("<->"));
 
-		Cache.VectorL2SimilaritySearchOperatorId =
+		Cache.VectorL2SimilarityOperatorId =
 			OpernameGetOprid(operatorNameList, VectorTypeId(), VectorTypeId());
 	}
 
-	return Cache.VectorL2SimilaritySearchOperatorId;
+	return Cache.VectorL2SimilarityOperatorId;
 }
 
 
 /*
- * VectorIPSimilaritySearchOperatorId returns the OID of the <vector> <#> <vector> operator.
+ * VectorIPSimilarityOperatorId returns the OID of the <vector> <#> <vector> operator.
  */
 Oid
-VectorIPSimilaritySearchOperatorId(void)
+VectorIPSimilarityOperatorId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorIPSimilaritySearchOperatorId == InvalidOid)
+	if (Cache.VectorIPSimilarityOperatorId == InvalidOid)
 	{
 		List *operatorNameList = list_make2(makeString("public"), makeString("<#>"));
 
-		Cache.VectorIPSimilaritySearchOperatorId =
+		Cache.VectorIPSimilarityOperatorId =
 			OpernameGetOprid(operatorNameList, VectorTypeId(), VectorTypeId());
 	}
 
-	return Cache.VectorIPSimilaritySearchOperatorId;
+	return Cache.VectorIPSimilarityOperatorId;
 }
 
 
 /* OID of the cosine_distance(vector, vector) function */
 Oid
-VectorCosineSimilaritySearchFunctionId(void)
+VectorCosineSimilarityFunctionId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorCosineSimilaritySearchFunctionId == InvalidOid)
+	if (Cache.VectorCosineSimilarityFunctionId == InvalidOid)
 	{
 		List *functionNameList = list_make2(makeString("public"), makeString(
 												"cosine_distance"));
 		Oid paramOids[2] = { VectorTypeId(), VectorTypeId() };
 		bool missingOK = false;
 
-		Cache.VectorCosineSimilaritySearchFunctionId = LookupFuncName(functionNameList, 2,
-																	  paramOids,
-																	  missingOK);
+		Cache.VectorCosineSimilarityFunctionId = LookupFuncName(functionNameList, 2,
+																paramOids,
+																missingOK);
 	}
 
-	return Cache.VectorCosineSimilaritySearchFunctionId;
+	return Cache.VectorCosineSimilarityFunctionId;
 }
 
 
 /* OID of the l2_distance(vector, vector) function */
 Oid
-VectorL2SimilaritySearchFunctionId(void)
+VectorL2SimilarityFunctionId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorL2SimilaritySearchFunctionId == InvalidOid)
+	if (Cache.VectorL2SimilarityFunctionId == InvalidOid)
 	{
 		List *functionNameList = list_make2(makeString("public"), makeString(
 												"l2_distance"));
 		Oid paramOids[2] = { VectorTypeId(), VectorTypeId() };
 		bool missingOK = false;
 
-		Cache.VectorL2SimilaritySearchFunctionId = LookupFuncName(functionNameList, 2,
-																  paramOids, missingOK);
+		Cache.VectorL2SimilarityFunctionId = LookupFuncName(functionNameList, 2,
+															paramOids, missingOK);
 	}
 
-	return Cache.VectorL2SimilaritySearchFunctionId;
+	return Cache.VectorL2SimilarityFunctionId;
 }
 
 
 /* OID of the vector_negative_inner_product(vector, vector) function */
 Oid
-VectorIPSimilaritySearchFunctionId(void)
+VectorIPSimilarityFunctionId(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.VectorIPSimilaritySearchFunctionId == InvalidOid)
+	if (Cache.VectorIPSimilarityFunctionId == InvalidOid)
 	{
 		List *functionNameList = list_make2(makeString("public"), makeString(
 												"vector_negative_inner_product"));
 		Oid paramOids[2] = { VectorTypeId(), VectorTypeId() };
 		bool missingOK = false;
 
-		Cache.VectorIPSimilaritySearchFunctionId = LookupFuncName(functionNameList, 2,
-																  paramOids, missingOK);
+		Cache.VectorIPSimilarityFunctionId = LookupFuncName(functionNameList, 2,
+															paramOids, missingOK);
 	}
 
-	return Cache.VectorIPSimilaritySearchFunctionId;
+	return Cache.VectorIPSimilarityFunctionId;
+}
+
+
+/*
+ * VectorHalfCosineSimilarityOperatorId returns the OID of the <halfvec> <=> <halfvec> operator.
+ */
+Oid
+VectorHalfCosineSimilarityOperatorId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfCosineSimilarityOperatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString("public"), makeString("<=>"));
+
+		Cache.VectorHalfCosineSimilarityOperatorId =
+			OpernameGetOprid(operatorNameList, HalfVectorTypeId(), HalfVectorTypeId());
+	}
+
+	return Cache.VectorHalfCosineSimilarityOperatorId;
+}
+
+
+/*
+ * VectorHalfL2SimilarityOperatorId returns the OID of the <halfvec> <-> <halfvec> operator.
+ */
+Oid
+VectorHalfL2SimilarityOperatorId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfL2SimilarityOperatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString("public"), makeString("<->"));
+
+		Cache.VectorHalfL2SimilarityOperatorId =
+			OpernameGetOprid(operatorNameList, HalfVectorTypeId(), HalfVectorTypeId());
+	}
+
+	return Cache.VectorHalfL2SimilarityOperatorId;
+}
+
+
+/*
+ * VectorHalfIPSimilarityOperatorId returns the OID of the <halfvec> <#> <halfvec> operator.
+ */
+Oid
+VectorHalfIPSimilarityOperatorId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfIPSimilarityOperatorId == InvalidOid)
+	{
+		List *operatorNameList = list_make2(makeString("public"), makeString("<#>"));
+
+		Cache.VectorHalfIPSimilarityOperatorId =
+			OpernameGetOprid(operatorNameList, HalfVectorTypeId(), HalfVectorTypeId());
+	}
+
+	return Cache.VectorHalfIPSimilarityOperatorId;
+}
+
+
+/* OID of the cosine_distance(halfvec, halfvec) function */
+Oid
+VectorHalfCosineSimilarityFunctionId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfCosineSimilarityFunctionId == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString("public"), makeString(
+												"cosine_distance"));
+		Oid paramOids[2] = { HalfVectorTypeId(), HalfVectorTypeId() };
+		bool missingOK = false;
+
+		Cache.VectorHalfCosineSimilarityFunctionId = LookupFuncName(functionNameList, 2,
+																	paramOids,
+																	missingOK);
+	}
+
+	return Cache.VectorHalfCosineSimilarityFunctionId;
+}
+
+
+/* OID of the l2_distance(halfvec, halfvec) function */
+Oid
+VectorHalfL2SimilarityFunctionId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfL2SimilarityFunctionId == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString("public"), makeString(
+												"l2_distance"));
+		Oid paramOids[2] = { HalfVectorTypeId(), HalfVectorTypeId() };
+		bool missingOK = false;
+
+		Cache.VectorHalfL2SimilarityFunctionId = LookupFuncName(functionNameList, 2,
+																paramOids, missingOK);
+	}
+
+	return Cache.VectorHalfL2SimilarityFunctionId;
+}
+
+
+/* OID of the halfvec_negative_inner_product(halfvec, halfvec) function */
+Oid
+VectorHalfIPSimilarityFunctionId(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.VectorHalfIPSimilarityFunctionId == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString("public"), makeString(
+												"halfvec_negative_inner_product"));
+		Oid paramOids[2] = { HalfVectorTypeId(), HalfVectorTypeId() };
+		bool missingOK = false;
+
+		Cache.VectorHalfIPSimilarityFunctionId = LookupFuncName(functionNameList, 2,
+																paramOids, missingOK);
+	}
+
+	return Cache.VectorHalfIPSimilarityFunctionId;
 }
 
 

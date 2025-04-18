@@ -112,6 +112,8 @@ SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "vectorIndexCollFC", "indexes": [ { "key": { "vector_ivf": "cosmosSearch" }, "name": "ivf_index", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 2, "similarity": "L2", "dimensions": 3 } } ] }', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "vectorIndexCollFC", "indexes": [ { "key": { "vector_hnsw": "cosmosSearch" }, "name": "hnsw_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "COS", "dimensions": 4 } } ] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "vectorIndexCollFC", "indexes": [ { "key": { "vector_ivf_half": "cosmosSearch" }, "name": "ivf_index_half", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 2, "similarity": "L2", "dimensions": 3, "compression": "half" } } ] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "vectorIndexCollFC", "indexes": [ { "key": { "vector_hnsw_half": "cosmosSearch" }, "name": "hnsw_index_half", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "COS", "dimensions": 4, "compression": "half" } } ] }', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "vectorIndexCollFC", "indexes": [ { "key": { "elem": 1 }, "name": "elem_index" } ] }', true);
 RESET client_min_messages;
 
@@ -121,6 +123,8 @@ ANALYZE;
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "vector_ivf", "nProbes": 10}  } } ], "cursor": {} }');
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0, 1.0 ], "k": 2, "path": "vector_hnsw", "efSearch": 5 }  } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "vector_ivf_half", "nProbes": 10}  } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0, 1.0 ], "k": 2, "path": "vector_hnsw_half", "efSearch": 5 }  } } ], "cursor": {} }');
 
 BEGIN;
 SET LOCAL documentdb.enableVectorPreFilter = on;

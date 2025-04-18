@@ -136,23 +136,31 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('vector_db', '{ "
 (1 row)
 
 set documentdb.enableVectorPreFilter to on;
-EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('vector_db', '{ "aggregate": "agg_vector_hnsw_planner", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": 1, "filter": { "a": { "$lt": "s" }} }  } } ], "cursor": {} }');
-                                                                    QUERY PLAN                                                                    
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('vector_db', '{ "aggregate": "agg_vector_hnsw_planner", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": 1, "filter": { "a": { "$lt": "s" }} }  } } ], "cursor": {} }');
+                                                                                                       QUERY PLAN                                                                                                        
 ---------------------------------------------------------------------
- Limit (actual rows=0 loops=1)
-   ->  Nested Loop (actual rows=0 loops=1)
-         Join Filter: (collection_1.ctid = collection.ctid)
-         Rows Removed by Join Filter: 1
-         ->  Custom Scan (DocumentDBApiQueryScan) (actual rows=1 loops=1)
-               CosmosSearch Custom Params: { "efSearch" : 1 }
-               ->  Index Scan using foo_1 on documents_8401_8400002 collection_1 (actual rows=1 loops=1)
-                     Order By: (public.vector(bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector)
-                     Filter: bson_search_param(document, '{ "efSearch" : { "$numberInt" : "1" } }'::bson)
-         ->  Materialize (actual rows=1 loops=1)
-               ->  Seq Scan on documents_8401_8400002 collection (actual rows=1 loops=1)
-                     Filter: (document @< '{ "a" : "s" }'::bson)
-                     Rows Removed by Filter: 99
-(13 rows)
+ Subquery Scan on agg_stage_0 (actual rows=0 loops=1)
+   Output: bson_document_add_score_field(agg_stage_0.document, ('1'::double precision - (public.vector(bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector)))
+   ->  Limit (actual rows=0 loops=1)
+         Output: collection_1.document, ((public.vector(bson_extract_vector(collection_1.document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector))
+         ->  Nested Loop (actual rows=0 loops=1)
+               Output: collection_1.document, ((public.vector(bson_extract_vector(collection_1.document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector))
+               Join Filter: (collection_1.ctid = collection.ctid)
+               Rows Removed by Join Filter: 1
+               ->  Custom Scan (DocumentDBApiQueryScan) (actual rows=1 loops=1)
+                     Output: collection_1.document, (public.vector(bson_extract_vector(collection_1.document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector), collection_1.ctid
+                     CosmosSearch Custom Params: { "efSearch" : 1 }
+                     ->  Index Scan using foo_1 on documentdb_data.documents_8401_8400002 collection_1 (actual rows=1 loops=1)
+                           Output: collection_1.document, collection_1.ctid
+                           Order By: (public.vector(bson_extract_vector(collection_1.document, 'v'::text), 3, true) OPERATOR(public.<=>) '[3,4.9,1]'::public.vector)
+                           Filter: bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "1" } }'::bson)
+               ->  Materialize (actual rows=1 loops=1)
+                     Output: collection.ctid
+                     ->  Seq Scan on documentdb_data.documents_8401_8400002 collection (actual rows=1 loops=1)
+                           Output: collection.ctid
+                           Filter: (collection.document @< '{ "a" : "s" }'::bson)
+                           Rows Removed by Filter: 99
+(21 rows)
 
 set documentdb.enableVectorPreFilterV2 to on;
 -- This is currently a post-filter and will not use the filter index.

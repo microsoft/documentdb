@@ -41,6 +41,10 @@
 static Expr * GenerateVectorExractionExprFromQueryWithCast(Node *vectorQuerySpecNode,
 														   FuncExpr *vectorCastFunc);
 
+static VectorIndexDistanceMetric GetDistanceMetricFromOpId(Oid similaritySearchOpId);
+static VectorIndexDistanceMetric GetDistanceMetricFromOpName(const
+															 char *similaritySearchOpName);
+
 /* --------------------------------------------------------- */
 /* Top level exports */
 /* --------------------------------------------------------- */
@@ -136,6 +140,9 @@ CalculateSearchParamBsonForIndexPath(IndexPath *vectorSearchPath)
 
 /*
  * Generates the Index expression for the vector index column
+ * e.g.
+ *      CAST(API_CATALOG_SCHEMA_NAME.bson_extract_vector(document, 'vect'::text) AS public.vector(2000)) public.vector_l2_ops
+ *      CAST(API_CATALOG_SCHEMA_NAME.bson_extract_vector(document, 'vect'::text) AS public.halfvec(4000)) public.halfvec_l2_ops
  */
 char *
 GenerateVectorIndexExprStr(const char *keyPath,
@@ -144,31 +151,65 @@ GenerateVectorIndexExprStr(const char *keyPath,
 	StringInfo indexExprStr = makeStringInfo();
 
 	char *options;
-	switch (searchOptions->commonOptions.distanceMetric)
+	char *castVectorType;
+
+	if (searchOptions->commonOptions.compressionType == VectorIndexCompressionType_Half)
 	{
-		case VectorIndexDistanceMetric_IPDistance:
+		castVectorType = "halfvec";
+		switch (searchOptions->commonOptions.distanceMetric)
 		{
-			options = "vector_ip_ops";
-			break;
-		}
+			case VectorIndexDistanceMetric_IPDistance:
+			{
+				options = "halfvec_ip_ops";
+				break;
+			}
 
-		case VectorIndexDistanceMetric_CosineDistance:
-		{
-			options = "vector_cosine_ops";
-			break;
-		}
+			case VectorIndexDistanceMetric_CosineDistance:
+			{
+				options = "halfvec_cosine_ops";
+				break;
+			}
 
-		case VectorIndexDistanceMetric_L2Distance:
-		default:
+			case VectorIndexDistanceMetric_L2Distance:
+			default:
+			{
+				options = "halfvec_l2_ops";
+				break;
+			}
+		}
+	}
+	else
+	{
+		/* VectorIndexCompression_None */
+		castVectorType = "vector";
+		switch (searchOptions->commonOptions.distanceMetric)
 		{
-			options = "vector_l2_ops";
-			break;
+			case VectorIndexDistanceMetric_IPDistance:
+			{
+				options = "vector_ip_ops";
+				break;
+			}
+
+			case VectorIndexDistanceMetric_CosineDistance:
+			{
+				options = "vector_cosine_ops";
+				break;
+			}
+
+			case VectorIndexDistanceMetric_L2Distance:
+			default:
+			{
+				options = "vector_l2_ops";
+				break;
+			}
 		}
 	}
 
 	appendStringInfo(indexExprStr,
-					 "CAST(%s.bson_extract_vector(document, %s::text) AS public.vector(%d)) public.%s",
-					 ApiCatalogToApiInternalSchemaName, quote_literal_cstr(keyPath),
+					 "CAST(%s.bson_extract_vector(document, %s::text) AS public.%s(%d)) public.%s",
+					 ApiCatalogToApiInternalSchemaName,
+					 quote_literal_cstr(keyPath),
+					 castVectorType,
 					 searchOptions->commonOptions.numDimensions,
 					 options);
 	return indexExprStr->data;
@@ -181,7 +222,7 @@ GenerateVectorIndexExprStr(const char *keyPath,
  */
 bool
 IsMatchingVectorIndex(Relation indexRelation, const char *queryVectorPath,
-					  FuncExpr **vectorExtractorFunc)
+					  FuncExpr **vectorCastFunc)
 {
 	if (indexRelation->rd_index->indnkeyatts != 1)
 	{
@@ -211,16 +252,23 @@ IsMatchingVectorIndex(Relation indexRelation, const char *queryVectorPath,
 		return false;
 	}
 
-	FuncExpr *verctorCtrExpr = (FuncExpr *) linitial(indexprs);
-	if (verctorCtrExpr->funcid != VectorAsVectorFunctionOid())
+	FuncExpr *vectorCtrExpr = (FuncExpr *) linitial(indexprs);
+	if (vectorCtrExpr->funcid != VectorAsVectorFunctionOid() &&
+		vectorCtrExpr->funcid != VectorAsHalfVecFunctionOid())
 	{
 		/* Any other index with function expression is not valid vector index */
 		return false;
 	}
 
-	*vectorExtractorFunc = verctorCtrExpr;
+	/* public.vector(ApiCatalogSchemaName.bson_extract_vector(document, 'v'::text), 2000, true) */
+	/* public.vector_to_halfvec(ApiCatalogSchemaName.bson_extract_vector(document, 'v'::text), 4000, true) */
+	*vectorCastFunc = vectorCtrExpr;
+
+	/* First argument is extract vector function, ApiCatalogSchemaName.bson_extract_vector(document, 'v'::text) */
 	FuncExpr *vectorSimilarityIndexFuncExpr = (FuncExpr *) linitial(
-		verctorCtrExpr->args);                                                 /* First argument */
+		vectorCtrExpr->args);
+
+	/* Second argument is the vector path */
 	Expr *vectorSimilarityIndexPathExpr = (Expr *) lsecond(
 		vectorSimilarityIndexFuncExpr->args);
 	Assert(IsA(vectorSimilarityIndexPathExpr, Const));
@@ -246,15 +294,25 @@ IsMatchingVectorIndex(Relation indexRelation, const char *queryVectorPath,
  *      vector(ApiCatalogSchema.bson_extract_vector('{ "vector" : [8.0, 1.0, 9.0], "k" : 2, "path" : "v"}', 'vector'), 3, true)
  */
 Expr *
-GenerateVectorSortExpr(const char *queryVectorPath,
+GenerateVectorSortExpr(VectorSearchOptions *vectorSearchOptions,
 					   FuncExpr *vectorCastFunc, Relation indexRelation,
-					   Node *documentExpr, Node *vectorQuerySpecNode,
-					   bool exactSearch)
+					   Node *documentExpr, Node *vectorQuerySpecNode)
 {
+	const char *queryVectorPath = vectorSearchOptions->searchPath;
 	Datum queryVectorPathDatum = CStringGetTextDatum(queryVectorPath);
 	Const *vectorSimilarityIndexPathConst = makeConst(
 		TEXTOID, -1, DEFAULT_COLLATION_OID, -1, queryVectorPathDatum,
 		false, false);
+
+	/* For the exact search, we don't use the vector index
+	 * so force the cast function to the full vector if it is a half vector */
+	if (vectorSearchOptions->exactSearch &&
+		vectorCastFunc->funcid == VectorAsHalfVecFunctionOid())
+	{
+		/* copy the vector cast expr, change the function id to full vector */
+		vectorCastFunc = (FuncExpr *) copyObject(vectorCastFunc);
+		vectorCastFunc->funcid = VectorAsVectorFunctionOid();
+	}
 
 	/* ApiCatalogSchemaName.bson_extract_vector(document, 'elem') */
 	List *args = list_make2(documentExpr, vectorSimilarityIndexPathConst);
@@ -287,15 +345,28 @@ GenerateVectorSortExpr(const char *queryVectorPath,
 													righttype,
 													1);
 
-	if (exactSearch)
+	vectorSearchOptions->distanceMetric = GetDistanceMetricFromOpId(
+		similaritySearchOpOid);
+	if (vectorSearchOptions->distanceMetric == VectorIndexDistanceMetric_Unknown)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg(
+							"unsupported vector search operator type")));
+	}
+
+	if (vectorSearchOptions->exactSearch)
 	{
 		/*
 		 * Use the underlying function of the similarity operator
 		 * To avoid vector search using vector index
 		 * e.g.
 		 *      the operator '<=>' with the function 'public.cosine_distance'.
+		 *
+		 * In exact search, we should always use the full vector function to calculate the distance
 		 */
-		Oid similarityFuncOid = get_opcode(similaritySearchOpOid);
+		Oid fullSimilarityOpOid = GetFullVectorOperatorId(
+			vectorSearchOptions->distanceMetric);
+		Oid similarityFuncOid = get_opcode(fullSimilarityOpOid);
 
 		FuncExpr *funcExpr = (FuncExpr *) makeFuncExpr(
 			similarityFuncOid, FLOAT8OID,
@@ -361,6 +432,40 @@ TrySetDefaultSearchParamForCustomScan(SearchQueryEvalData *querySearchData)
 }
 
 
+/*
+ * This function returns the full vector operator id for the given distance metric.
+ */
+Oid
+GetFullVectorOperatorId(VectorIndexDistanceMetric distanceMetric)
+{
+	switch (distanceMetric)
+	{
+		case VectorIndexDistanceMetric_CosineDistance:
+		{
+			return VectorCosineSimilarityOperatorId();
+		}
+
+		case VectorIndexDistanceMetric_IPDistance:
+		{
+			return VectorIPSimilarityOperatorId();
+		}
+
+		case VectorIndexDistanceMetric_L2Distance:
+		{
+			return VectorL2SimilarityOperatorId();
+		}
+
+		default:
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg("unsupported vector search distance type")));
+		}
+	}
+
+	return InvalidOid;
+}
+
+
 /* --------------------------------------------------------- */
 /* Private methods */
 /* --------------------------------------------------------- */
@@ -401,4 +506,39 @@ GenerateVectorExractionExprFromQueryWithCast(Node *vectorQuerySpecNode,
 							  COERCE_EXPLICIT_CALL);
 
 	return vectorExractionFromQueryFuncWithCast;
+}
+
+
+static VectorIndexDistanceMetric
+GetDistanceMetricFromOpId(Oid similaritySearchOpId)
+{
+	const char *similaritySearchOpName = get_opname(similaritySearchOpId);
+	return GetDistanceMetricFromOpName(similaritySearchOpName);
+}
+
+
+static VectorIndexDistanceMetric
+GetDistanceMetricFromOpName(const char *similaritySearchOpName)
+{
+	if (similaritySearchOpName == NULL)
+	{
+		return VectorIndexDistanceMetric_Unknown;
+	}
+
+	if (strcmp(similaritySearchOpName, "<->") == 0)
+	{
+		return VectorIndexDistanceMetric_L2Distance;
+	}
+	else if (strcmp(similaritySearchOpName, "<=>") == 0)
+	{
+		return VectorIndexDistanceMetric_CosineDistance;
+	}
+	else if (strcmp(similaritySearchOpName, "<#>") == 0)
+	{
+		return VectorIndexDistanceMetric_IPDistance;
+	}
+	else
+	{
+		return VectorIndexDistanceMetric_Unknown;
+	}
 }
