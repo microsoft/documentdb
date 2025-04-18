@@ -1486,6 +1486,11 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 		{
 			/* We ignore this for now (TODO Support this?) */
 		}
+		else if (StringViewEqualsCString(&keyView, "$db") ||
+				 StringViewEqualsCString(&keyView, "lsid"))
+		{
+			/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
+		}
 		else if ((StringViewEqualsCString(&keyView, "returnKey") ||
 				  StringViewEqualsCString(&keyView, "showRecordId")) &&
 				 BsonValueAsBool(value))
