@@ -82,6 +82,7 @@ typedef struct
 	BsonGinIndexOptionsBase base;
 	bool isWildcard;
 	bool generateNotFoundTerm;
+	bool useReducedWildcardTerms;
 	int path;
 } BsonGinSinglePathOptions;
 

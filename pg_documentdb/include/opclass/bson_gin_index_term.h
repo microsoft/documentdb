@@ -41,6 +41,19 @@ typedef struct BsonIndexTermSerialized
 	bytea *indexTermVal;
 } BsonIndexTermSerialized;
 
+/* Struct for a serialized index term */
+typedef struct BsonCompressableIndexTermSerialized
+{
+	/* Whether or not the term is truncated */
+	bool isIndexTermTruncated;
+
+	/* Whether or not it's a root metadata term (exists/not exists) */
+	bool isRootMetadataTerm;
+
+	/* The serialized index term value */
+	Datum indexTermDatum;
+} BsonCompressableIndexTermSerialized;
+
 /*
  * Index term metadata used in creating index terms.
  */
@@ -72,6 +85,11 @@ void InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTer
 BsonIndexTermSerialized SerializeBsonIndexTerm(pgbsonelement *indexElement,
 											   const IndexTermCreateMetadata *
 											   indexMetadata);
+BsonCompressableIndexTermSerialized SerializeBsonIndexTermWithCompression(
+	pgbsonelement *indexElement,
+	const
+	IndexTermCreateMetadata
+	*indexMetadata);
 
 Datum GenerateRootTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);

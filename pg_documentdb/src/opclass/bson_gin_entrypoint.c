@@ -59,6 +59,8 @@ static IndexTraverseOption GetHashIndexTraverseOption(void *contextOptions,
 													  uint32_t currentPathLength);
 static void ValidateWildcardProjectPathSpec(const char *prefix);
 static Size FillWildcardProjectPathSpec(const char *prefix, void *buffer);
+static bool QueryPathHasDigits(const char *path, uint32_t pathLength);
+static void FailIfQueryPathHasDigitsForWildcard(Datum query, bytea *options);
 
 
 extern Datum gin_bson_exclusion_pre_consistent(PG_FUNCTION_ARGS);
@@ -85,7 +87,6 @@ gin_bson_single_path_extract_value(PG_FUNCTION_ARGS)
 		(BsonGinSinglePathOptions *) PG_GET_OPCLASS_OPTIONS();
 
 	GenerateTermsContext context = { 0 };
-
 	GenerateSinglePathTermsCore(bson, &context, options);
 
 	*nentries = context.totalTermCount;
@@ -171,8 +172,15 @@ gin_bson_extract_query(PG_FUNCTION_ARGS)
 
 	Datum query = PG_GETARG_DATUM(0);
 	bytea *options = (bytea *) PG_GET_OPCLASS_OPTIONS();
+
 	if (!ValidateIndexForQualifierValue(options, query, strategy))
 	{
+		/*
+		 * At this layer, if we see a path with digits for the reduced options then fail, rather than
+		 * returning 0 results
+		 */
+		FailIfQueryPathHasDigitsForWildcard(query, options);
+
 		*nentries = 0;
 
 		/* Note: we don't use PG_RETURN_NULL here since fmgr complains
@@ -181,9 +189,23 @@ gin_bson_extract_query(PG_FUNCTION_ARGS)
 		PG_RETURN_POINTER(NULL);
 	}
 
+	pgbson *queryBson = DatumGetPgBsonPacked(query);
+	pgbsonelement filterElement;
+	const char *collationString = NULL;
+	if (EnableCollation)
+	{
+		collationString = PgbsonToSinglePgbsonElementWithCollation(queryBson,
+																   &filterElement);
+	}
+	else
+	{
+		PgbsonToSinglePgbsonElement(queryBson, &filterElement);
+	}
+
 	BsonExtractQueryArgs args =
 	{
-		.query = PG_GETARG_PGBSON(0),
+		.filterElement = filterElement,
+		.collationString = collationString,
 		.nentries = (int32 *) PG_GETARG_POINTER(1),
 		.partialmatch = (bool **) PG_GETARG_POINTER(3),
 		.extra_data = (Pointer **) PG_GETARG_POINTER(4),
@@ -377,7 +399,8 @@ gin_bson_consistent(PG_FUNCTION_ARGS)
  *      isWildcard bool,
  *      generateNotFoundTerm bool default false,
  *      addMetadata bool default false,
- *      termLength int)
+ *      termLength int,
+ *      enableReducedWildcardTerms bool default false)
  *
  */
 Datum
@@ -406,6 +429,8 @@ gin_bson_get_single_path_generated_terms(PG_FUNCTION_ARGS)
 		options->path = sizeof(BsonGinSinglePathOptions);
 		options->isWildcard = PG_GETARG_BOOL(2);
 		options->generateNotFoundTerm = PG_GETARG_BOOL(3);
+
+		options->useReducedWildcardTerms = PG_NARGS() > 6 ? PG_GETARG_BOOL(6) : false;
 
 		int32_t truncateLimit = PG_GETARG_INT32(5);
 		options->base.indexTermTruncateLimit = truncateLimit;
@@ -615,6 +640,11 @@ gin_bson_single_path_options(PG_FUNCTION_ARGS)
 							offsetof(BsonGinSinglePathOptions,
 									 base.wildcardIndexTruncatedPathLimit));
 
+	add_local_bool_reloption(relopts, "rwt",
+							 "Whether to generate reduced wildcard terms for a wildcard index",
+							 false,
+							 offsetof(BsonGinSinglePathOptions, useReducedWildcardTerms));
+
 	add_local_int_reloption(relopts, "v",
 							"The version of the options struct.",
 							IndexOptionsVersion_V0,         /* default value */
@@ -714,6 +744,69 @@ gin_bson_wildcard_project_options(PG_FUNCTION_ARGS)
 
 
 /*
+ * Validates that a dotted path has no field that is purely a digit.
+ * e.g. a.0.b is invalid, but a.a0b.c is valid. Digits within the field
+ * is okay, but a pure numeric digit path is not invalid. This is used
+ * to ensure invalid field paths aren't pushed to a wildcard index.
+ */
+static bool
+QueryPathHasDigits(const char *path, uint32_t pathLength)
+{
+	StringView fieldPathName = { .string = path, .length = pathLength };
+	bool fieldPathHasValidIndexTermChars = false;
+	bool skipPushdownToIndex = false;
+	for (uint32_t i = 0; i < fieldPathName.length; i++)
+	{
+		if (fieldPathName.string[i] == '.')
+		{
+			/* We got to a dot check and reset field path */
+			if (!fieldPathHasValidIndexTermChars)
+			{
+				/* Don't push down */
+				skipPushdownToIndex = true;
+				break;
+			}
+
+			fieldPathHasValidIndexTermChars = false;
+		}
+		else if (!isdigit(fieldPathName.string[i]))
+		{
+			fieldPathHasValidIndexTermChars = true;
+		}
+	}
+
+	return !fieldPathHasValidIndexTermChars || skipPushdownToIndex;
+}
+
+
+static void
+FailIfQueryPathHasDigitsForWildcard(Datum query, bytea *options)
+{
+	BsonGinIndexOptionsBase *indexOptions = (BsonGinIndexOptionsBase *) options;
+	if (indexOptions->type != IndexOptionsType_SinglePath)
+	{
+		return;
+	}
+
+	BsonGinSinglePathOptions *singlePathOptions =
+		(BsonGinSinglePathOptions *) indexOptions;
+	if (!singlePathOptions->useReducedWildcardTerms)
+	{
+		return;
+	}
+
+	pgbson *queryBson = DatumGetPgBson(query);
+	pgbsonelement filterElement;
+	PgbsonToSinglePgbsonElement(queryBson, &filterElement);
+	if (QueryPathHasDigits(filterElement.path, filterElement.pathLength))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED), errmsg(
+							"FieldPath must not have digits in the path for this index.")));
+	}
+}
+
+
+/*
  * ValidateIndexForQualifierValue checks that a given queryValue can be satisfied
  * by the current index given the indexOptions for that index and an operator strategy.
  */
@@ -799,6 +892,20 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOTTEDFIELDNAME), errmsg(
 										"FieldPath must not end with a '.'.")));
+				}
+			}
+
+			if (singlePathOptions->useReducedWildcardTerms)
+			{
+				/* currently we don't yet support pushing down paths with fields that have
+				 * purely numbers as their paths. TODO: We need to lift this requirement.
+				 */
+				if (QueryPathHasDigits(filterElement.path,
+									   filterElement.pathLength))
+				{
+					/* Don't push down */
+					traverse = IndexTraverse_Invalid;
+					break;
 				}
 			}
 

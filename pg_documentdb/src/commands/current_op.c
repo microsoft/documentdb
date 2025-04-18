@@ -1349,9 +1349,13 @@ PhaseToUserMessage(const char *phaseString)
 	{
 		return "Sorting tuples (building index).";
 	}
+	else if (strstr(phaseString, "merging tuples (workers)") != NULL)
+	{
+		return "Concurrently merging tuples on workers (building index).";
+	}
 	else if (strstr(phaseString, "merging tuples") != NULL)
 	{
-		return "Merging tuples (building index).";
+		return "Merging tuples into index (building index).";
 	}
 	else if (strcmp(phaseString, "cleaning up") == 0)
 	{
