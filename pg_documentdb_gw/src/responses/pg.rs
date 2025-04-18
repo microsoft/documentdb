@@ -3,6 +3,7 @@ use core::str;
 use bson::{Bson, Document, RawDocument, RawDocumentBuf};
 
 use documentdb_macros::documentdb_int_error_mapping;
+use regex::Regex;
 use tokio_postgres::{error::SqlState, Row};
 
 use crate::{
@@ -12,12 +13,29 @@ use crate::{
 };
 
 use super::{raw::RawResponse, Response};
+use once_cell::sync::Lazy;
 
 /// A server response from PG - holds ownership of the whole response from the backend
 #[derive(Debug)]
 pub struct PgResponse {
     rows: Vec<Row>,
 }
+
+static VECTOR_INDEX_LENGTH_CONTRAINT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"column cannot have more than (?<dimension>\d+) dimensions for")
+        .expect("Static input")
+});
+
+static VECTOR_DIMENSIONS_EXCEEDED_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"vector cannot have more than (?<dimension>\d+) dimensions").expect("Static input")
+});
+
+static VECTOR_DISKANN_INDEX_LENGTH_CONTRAINT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"vector dimension cannot be larger than (?<dimension>\d+) dimensions for diskann index",
+    )
+    .expect("Static input")
+});
 
 impl PgResponse {
     pub fn new(rows: Vec<Row>) -> Self {
@@ -108,8 +126,8 @@ impl PgResponse {
             {
                 return Err(DocumentDBError::UntypedDocumentDBError(
                     known,
-                    opt.unwrap_or("").to_string(),
-                    error_code.unwrap_or("DocumentDB Error").to_string(),
+                    opt.unwrap_or("".to_string()),
+                    error_code.unwrap_or("DocumentDB Error".to_string()),
                     std::backtrace::Backtrace::capture(),
                 ));
             }
@@ -155,7 +173,7 @@ impl PgResponse {
         connection_context: &ConnectionContext,
         state: &SqlState,
         msg: &str,
-    ) -> Option<(i32, Option<&'static str>, Option<&'static str>)> {
+    ) -> Option<(i32, Option<String>, Option<String>)> {
         if let Some(known) = PgResponse::known_error_code(state) {
             return Some((known, None, None));
         }
@@ -174,13 +192,13 @@ impl PgResponse {
             }
             SqlState::UNIQUE_VIOLATION => Some((
                 ErrorCode::DuplicateKey as i32,
-                Some("Duplicate key violation on the requested collection"), None
+                Some("Duplicate key violation on the requested collection".to_string()), None
             )),
             SqlState::EXCLUSION_VIOLATION => Some((
                 (ErrorCode::DuplicateKey as i32),
-                Some("Duplicate key violation on the requested collection"), None
+                Some("Duplicate key violation on the requested collection".to_string()), None
             )),
-            SqlState::DISK_FULL => Some((ErrorCode::OutOfDiskSpace as i32, Some("The database disk is full"), None)),
+            SqlState::DISK_FULL => Some((ErrorCode::OutOfDiskSpace as i32, Some("The database disk is full".to_string()), None)),
             SqlState::UNDEFINED_TABLE => Some((ErrorCode::NamespaceNotFound as i32, None, None)),
             SqlState::QUERY_CANCELED => Some((ErrorCode::ExceededTimeLimit as i32, None, None)),
             SqlState::LOCK_NOT_AVAILABLE if connection_context.transaction.is_some() => {
@@ -197,15 +215,42 @@ impl PgResponse {
             }
             SqlState::DATA_EXCEPTION => Some((
                 ErrorCode::InternalError as i32,
-                Some("An unexpected internal error has occurred"), None
+                Some("An unexpected internal error has occurred".to_string()), None
             )),
-            SqlState::INTERNAL_ERROR
+            SqlState::PROGRAM_LIMIT_EXCEEDED =>
+            {
+                if msg.contains("MB, maintenance_work_mem is")
+                {
+                    Some((
+                        ErrorCode::ExceededMemoryLimit as i32,
+                        Some("index creation requires resources too large to fit in the resource memory limit, please try creating index with less number of documents or creating index before inserting documents into collection".to_string()), None
+                    ))
+                }
+                else if let Some(captures) = VECTOR_INDEX_LENGTH_CONTRAINT_REGEX.captures(msg) {
+                    let dimension = captures.name("dimension").unwrap().as_str();
+                    Some((
+                        ErrorCode::BadValue as i32,
+                        Some(format!("field cannot have more than {} dimensions for vector index", dimension)), None
+                    ))
+                }
+                else if let Some(captures) = VECTOR_DIMENSIONS_EXCEEDED_REGEX.captures(msg) {
+                    let dimension = captures.name("dimension").unwrap().as_str();
+                    Some((
+                        ErrorCode::BadValue as i32,
+                        Some(format!("field cannot have more than {} dimensions for vector index", dimension)), None
+                    ))
+                }
+                else {
+                    Some((ErrorCode::InternalError as i32, None, None))
+                }
+            },
+            SqlState::NUMERIC_VALUE_OUT_OF_RANGE
                 if msg
-                    .contains("column cannot have more than 2000 dimensions for ivfflat index") =>
+                    .contains("is out of range for type halfvec") =>
             {
                 Some((
                     ErrorCode::BadValue as i32,
-                    Some("field cannot have more than 2000 dimensions for ivfflat index"), None
+                    Some("Some values in the vector are out of range for half vector index".to_string()), None
                 ))
             },
             SqlState::OBJECT_NOT_IN_PREREQUISITE_STATE
@@ -214,59 +259,39 @@ impl PgResponse {
             {
                 Some((
                     ErrorCode::InvalidOptions as i32,
-                    Some("The diskann index needs to be upgraded to the latest version, please drop and recreate the index"), None
+                    Some("The diskann index needs to be upgraded to the latest version, please drop and recreate the index".to_string()), None
                 ))
             },
-            SqlState::INTERNAL_ERROR
-                if msg
-                    .contains("vector dimension cannot be larger than 2000 dimensions for diskann index") =>
+            SqlState::INTERNAL_ERROR =>
             {
-                Some((
-                    ErrorCode::BadValue as i32,
-                    Some("field cannot have more than 2000 dimensions for diskann index"), None
-                ))
-            },
-            SqlState::INTERNAL_ERROR
-                if msg
-                    .contains("column cannot have more than 2000 dimensions for hnsw index") =>
-            {
-                Some((
-                    ErrorCode::BadValue as i32,
-                    Some("field cannot have more than 2000 dimensions for hnsw index"), None
-                ))
-            },
-            SqlState::INTERNAL_ERROR
-                if msg
-                    .contains("vector cannot have more than 16000 dimensions") =>
-            {
-                Some((
-                    ErrorCode::BadValue as i32,
-                    Some("field cannot have more than 2000 dimensions for vector index"), None
-                ))
+                if let Some(captures) = VECTOR_DISKANN_INDEX_LENGTH_CONTRAINT_REGEX.captures(msg)
+                {
+                    let dimension = captures.name("dimension").unwrap().as_str();
+                    Some((
+                        ErrorCode::BadValue as i32,
+                        Some(format!("field cannot have more than {} dimensions for diskann index", dimension)), None
+                    ))
+                }
+                else {
+                    Some((ErrorCode::InternalError as i32, None, None))
+                }
             },
             SqlState::INVALID_TEXT_REPRESENTATION
             | SqlState::INVALID_PARAMETER_VALUE
             | SqlState::INVALID_ARGUMENT_FOR_NTH_VALUE => {
                 Some((ErrorCode::BadValue as i32, None, None))
             },
-            SqlState::PROGRAM_LIMIT_EXCEEDED if msg.contains("MB, maintenance_work_mem is") =>
-            {
-                Some((
-                    ErrorCode::ExceededMemoryLimit as i32,
-                    Some("index creation requires resources too large to fit in the resource memory limit, please try creating index with less number of documents or creating index before inserting documents into collection"), None
-                ))
-            },
             SqlState::READ_ONLY_SQL_TRANSACTION if connection_context.dynamic_configuration().is_replica_cluster().await => {
-                Some((ErrorCode::IllegalOperation as i32, Some("Cannot execute the operation on this replica cluster"), None))
+                Some((ErrorCode::IllegalOperation as i32, Some("Cannot execute the operation on this replica cluster".to_string()), None))
             },
             SqlState::READ_ONLY_SQL_TRANSACTION => {
-                Some((ErrorCode::ExceededTimeLimit as i32, Some("Timed out while waiting for new primary to be elected"), Some("ExceededTimeLimit")))
+                Some((ErrorCode::ExceededTimeLimit as i32, Some("Timed out while waiting for new primary to be elected".to_string()), Some("ExceededTimeLimit".to_string())))
             },
             SqlState::INSUFFICIENT_PRIVILEGE => {
-                Some((ErrorCode::Unauthorized as i32, Some("User is not authorized to perform this action"), Some("Unauthorized")))
+                Some((ErrorCode::Unauthorized as i32, Some("User is not authorized to perform this action".to_string()), Some("Unauthorized".to_string())))
             },
             SqlState::T_R_DEADLOCK_DETECTED => {
-                Some((ErrorCode::LockTimeout as i32, Some("Could not acquire lock for operation due to deadlock"), None))
+                Some((ErrorCode::LockTimeout as i32, Some("Could not acquire lock for operation due to deadlock".to_string()), None))
             }
             _ => None,
         }

@@ -13,6 +13,7 @@
 #include <float.h>
 #include <fmgr.h>
 #include <miscadmin.h>
+#include <math.h>
 
 #include <access/reloptions.h>
 #include <catalog/pg_operator_d.h>
@@ -81,7 +82,7 @@ static void AddSearchParamFunctionToQuery(Query *query, Oid accessMethodOid,
 
 static Expr * AddScoreFieldToDocumentEntry(TargetEntry *documentEntry,
 										   Expr *vectorSortExpr,
-										   Expr *orderVar);
+										   VectorIndexDistanceMetric distanceMetric);
 
 static TargetEntry * AddCtidToQueryTargetList(Query *query,
 											  bool replaceTargetList);
@@ -132,10 +133,15 @@ static void ParseAndValidateCosmosSearchQuerySpec(const pgbson *vectorSearchSpec
 static void ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 												VectorSearchOptions *vectorSearchOptions);
 
-static Expr * GenerateScoreExpr(const Expr *orderVar, Oid similarityDistanceOid);
+static Expr * GenerateScoreExpr(const Expr *orderVar, VectorIndexDistanceMetric
+								distanceMetric);
 
-static Query * ReorderQueryResults(Query *joinQuery,
-								   AggregationPipelineBuildContext *context);
+static Query * ReorderResultsForFilter(Query *joinQuery,
+									   AggregationPipelineBuildContext *context);
+
+static Query * ReorderResultsForCompression(Query *joinQuery,
+											AggregationPipelineBuildContext *context,
+											Expr *scoreExpr);
 
 static Node * ReplaceDocumentVarOnSort(Node *input,
 									   ReplaceDocumentVarOnSortContext *context);
@@ -595,12 +601,7 @@ JoinVectorSearchQueryWithFilterQuery(Query *leftQuery, Query *rightQuery,
 	sortBy->sortby_dir = SORTBY_DEFAULT; /* reset later */
 	sortBy->node = (Node *) orderVar;
 
-	if (!needsReordering)
-	{
-		/* Hide the orderVar if we don't need to reorder */
-		resjunk = true;
-	}
-
+	resjunk = false;
 	TargetEntry *topSortEntry = makeTargetEntry((Expr *) orderVar,
 												(AttrNumber) parseState->p_next_resno++,
 												pstrdup("sortScore"),
@@ -612,10 +613,6 @@ JoinVectorSearchQueryWithFilterQuery(Query *leftQuery, Query *rightQuery,
 	pfree(parseState);
 	finalQuery->sortClause = sortlist;
 
-	/* Add the similarity score field to the metadata in the document */
-	Assert(IsA(sortEntry->expr, OpExpr));
-	AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr, (Expr *) orderVar);
-
 	return finalQuery;
 }
 
@@ -626,18 +623,30 @@ JoinVectorSearchQueryWithFilterQuery(Query *leftQuery, Query *rightQuery,
  */
 static Expr *
 AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
-							 Expr *orderVar)
+							 VectorIndexDistanceMetric distanceMetric)
 {
-	Oid similarityDistanceOid = InvalidOid;
-	if (IsA(vectorSortExpr, OpExpr))
+	ReplaceDocumentVarOnSortContext sortContext =
 	{
-		OpExpr *orderOpExpr = (OpExpr *) vectorSortExpr;
-		similarityDistanceOid = orderOpExpr->opno;
+		.sourceExpr = MakeSimpleDocumentVar(),
+		.targetExpr = documentEntry->expr,
+	};
+
+	/* Use expression_tree_mutator so we copy the orderby Expr before changing it */
+	Expr *scoreExprInput = (Expr *) expression_tree_mutator((Node *) vectorSortExpr,
+															ReplaceDocumentVarOnSort,
+															&sortContext);
+
+	/* For half vector index, we need to use full vector to re-calculate the score */
+	List *orderArgs = NIL;
+	if (IsA(scoreExprInput, OpExpr))
+	{
+		OpExpr *orderOpExpr = (OpExpr *) scoreExprInput;
+		orderArgs = orderOpExpr->args;
 	}
-	else if (IsA(vectorSortExpr, FuncExpr))
+	else if (IsA(scoreExprInput, FuncExpr))
 	{
-		FuncExpr *orderFuncExpr = (FuncExpr *) vectorSortExpr;
-		similarityDistanceOid = orderFuncExpr->funcid;
+		FuncExpr *orderFuncExpr = (FuncExpr *) scoreExprInput;
+		orderArgs = orderFuncExpr->args;
 	}
 	else
 	{
@@ -646,18 +655,55 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
 							"unsupported vector search operator/function type")));
 	}
 
-	ReplaceDocumentVarOnSortContext sortContext =
+	FuncExpr *leftArgFuncWithCast = (FuncExpr *) linitial(orderArgs);
+	FuncExpr *rightArgFuncWithCast = (FuncExpr *) lsecond(orderArgs);
+
+	if (leftArgFuncWithCast->funcid == VectorAsHalfVecFunctionOid())
 	{
-		.sourceExpr = MakeSimpleDocumentVar(),
-		.targetExpr = documentEntry->expr,
-	};
+		/* The compressed orderExpr example:
+		 *   public.vector_to_halfvec(bson_extract_vector(document, 'v'::text), 3, true)
+		 *   OPERATOR(public.<->)
+		 *   public.vector_to_halfvec(bson_extract_vector('{ "vector" : [ 1, 2, 3 ] }'::bson, 'vector'::text), 3, true)))
+		 * 1. replace the cast function "vector_to_halfvec" with "vector""
+		 * 2. replace the operator "<->" with the full-vector version
+		 */
 
-	/* Use expression_tree_mutator so we copy the orderby Expr before changing it */
-	Expr *scoreExprInput = (Expr *) expression_tree_mutator((Node *) orderVar,
-															ReplaceDocumentVarOnSort,
-															&sortContext);
+		/* Replace the cast function "vector_to_halfvec" with "vector" */
+		Expr *fullLeftArgFuncWithCast = (Expr *) makeFuncExpr(
+			VectorAsVectorFunctionOid(), VectorTypeId(), leftArgFuncWithCast->args,
+			InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 
-	Expr *scoreExpr = GenerateScoreExpr((Expr *) scoreExprInput, similarityDistanceOid);
+		Expr *fullRightArgFuncWithCast = (Expr *) makeFuncExpr(
+			VectorAsVectorFunctionOid(), VectorTypeId(), rightArgFuncWithCast->args,
+			InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+
+		List *newArgs = list_make2(fullLeftArgFuncWithCast, fullRightArgFuncWithCast);
+
+		/* Replace the operator "<->" with the full-vector version */
+		Oid similarityOpOid = GetFullVectorOperatorId(distanceMetric);
+		if (similarityOpOid == InvalidOid)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg(
+								"unknown vector search operator type")));
+		}
+
+		if (IsA(scoreExprInput, FuncExpr))
+		{
+			FuncExpr *orderFuncExpr = (FuncExpr *) scoreExprInput;
+			orderFuncExpr->funcid = get_opcode(similarityOpOid);
+			orderFuncExpr->args = newArgs;
+		}
+		else /* OpExpr */
+		{
+			OpExpr *orderOpExpr = (OpExpr *) scoreExprInput;
+			orderOpExpr->opno = similarityOpOid;
+			orderOpExpr->args = newArgs;
+		}
+	}
+
+	/* Add the score field to the document */
+	Expr *scoreExpr = GenerateScoreExpr((Expr *) scoreExprInput, distanceMetric);
 
 	List *args = list_make2(documentEntry->expr, scoreExpr);
 	FuncExpr *resultExpr = makeFuncExpr(
@@ -677,11 +723,10 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
  * l2: orderScore
  */
 static Expr *
-GenerateScoreExpr(const Expr *orderVar, Oid similarityDistanceOid)
+GenerateScoreExpr(const Expr *orderVar, VectorIndexDistanceMetric distanceMetric)
 {
 	Expr *scoreExpr = NULL;
-	if (similarityDistanceOid == VectorCosineSimilaritySearchOperatorId() ||
-		similarityDistanceOid == VectorCosineSimilaritySearchFunctionId())
+	if (distanceMetric == VectorIndexDistanceMetric_CosineDistance)
 	{
 		/* Similarity search score is 1.0 - orderVar */
 		Const *oneConst = makeConst(FLOAT8OID, -1, InvalidOid,
@@ -691,8 +736,7 @@ GenerateScoreExpr(const Expr *orderVar, Oid similarityDistanceOid)
 			Float8MinusOperatorId(), FLOAT8OID, false,
 			(Expr *) oneConst, (Expr *) orderVar, InvalidOid, InvalidOid);
 	}
-	else if (similarityDistanceOid == VectorIPSimilaritySearchOperatorId() ||
-			 similarityDistanceOid == VectorIPSimilaritySearchFunctionId())
+	else if (distanceMetric == VectorIndexDistanceMetric_IPDistance)
 	{
 		/* Similarity search score is -1.0 * orderVar */
 		Const *minusOneConst = makeConst(FLOAT8OID, -1, InvalidOid,
@@ -702,8 +746,7 @@ GenerateScoreExpr(const Expr *orderVar, Oid similarityDistanceOid)
 			Float8MultiplyOperatorId(), FLOAT8OID, false,
 			(Expr *) minusOneConst, (Expr *) orderVar, InvalidOid, InvalidOid);
 	}
-	else if (similarityDistanceOid == VectorL2SimilaritySearchOperatorId() ||
-			 similarityDistanceOid == VectorL2SimilaritySearchFunctionId())
+	else if (distanceMetric == VectorIndexDistanceMetric_L2Distance)
 	{
 		/* Similarity search score is orderVar */
 		scoreExpr = (Expr *) orderVar;
@@ -726,7 +769,7 @@ GenerateScoreExpr(const Expr *orderVar, Oid similarityDistanceOid)
  *    SELECT document FROM (JOIN c1 ON c1.ctid = c2.ctid limit k) ORDER BY c1.orderVal + 0
  */
 static Query *
-ReorderQueryResults(Query *joinQuery, AggregationPipelineBuildContext *context)
+ReorderResultsForFilter(Query *joinQuery, AggregationPipelineBuildContext *context)
 {
 	context->expandTargetList = true;
 	Query *wrapperQuery = MigrateQueryToSubQuery(joinQuery, context);
@@ -766,6 +809,58 @@ ReorderQueryResults(Query *joinQuery, AggregationPipelineBuildContext *context)
 	TargetEntry *topSortEntry = makeTargetEntry((Expr *) scoreExpr,
 												(AttrNumber) parseState->p_next_resno++,
 												pstrdup("orderScore"),
+												resjunk);
+	wrapperQuery->targetList = lappend(wrapperQuery->targetList, topSortEntry);
+	List *sortlist = addTargetToSortList(parseState, topSortEntry,
+										 NIL, wrapperQuery->targetList, sortBy);
+
+	pfree(parseState);
+	wrapperQuery->sortClause = sortlist;
+
+	return wrapperQuery;
+}
+
+
+/*
+ * Adds a wrapper select query to the query and re-order by the full-vector distance.
+ */
+static Query *
+ReorderResultsForCompression(Query *query, AggregationPipelineBuildContext *context,
+							 Expr *fullScoreExpr)
+{
+	TargetEntry *scoreEntry = makeTargetEntry(fullScoreExpr, 2, "fullScoreVal", false);
+	query->targetList = lappend(query->targetList, scoreEntry);
+
+	context->expandTargetList = true;
+	Query *wrapperQuery = MigrateQueryToSubQuery(query, context);
+
+	/* document var is added by the MigrateQueryToSubQuery */
+	/* orderScore var is the second target entry of subquery*/
+	/* Add the sort clause for the re-order query */
+	Var *orderVar = makeVar(1,
+							2,
+							FLOAT8OID,
+							-1,
+							InvalidOid,
+							0);
+
+	ParseState *parseState = make_parsestate(NULL);
+	parseState->p_expr_kind = EXPR_KIND_ORDER_BY;
+
+	/* set after what is already taken */
+	parseState->p_next_resno = list_length(wrapperQuery->targetList) + 1;
+
+	SortBy *sortBy = makeNode(SortBy);
+	sortBy->location = -1;
+	sortBy->sortby_dir = SORTBY_DEFAULT; /* reset later */
+
+	sortBy->node = (Node *) orderVar;
+
+	/* Hide the orderScore*/
+	bool resjunk = true;
+	TargetEntry *topSortEntry = makeTargetEntry((Expr *) orderVar,
+												(AttrNumber) parseState->p_next_resno++,
+												pstrdup("scoreValue"),
 												resjunk);
 	wrapperQuery->targetList = lappend(wrapperQuery->targetList, topSortEntry);
 	List *sortlist = addTargetToSortList(parseState, topSortEntry,
@@ -927,11 +1022,6 @@ GeneratePrefilteringVectorSearchQuery(Query *searchQuery,
 		context->expandTargetList = false;
 		Query *wrapperQuery = MigrateQueryToSubQuery(searchQuery, context);
 
-		/* Add sort score to the metadata in the document */
-		TargetEntry *documentEntry = linitial(wrapperQuery->targetList);
-		AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
-									 sortEntry->expr);
-
 		return wrapperQuery;
 	}
 	else
@@ -982,13 +1072,21 @@ GeneratePrefilteringVectorSearchQuery(Query *searchQuery,
 																  vectorIndexDef->
 																  needsReorderAfterFilter);
 
-		/* Add the limit to the query before reordering */
+		/* Add the limit to the sub-query */
 		joinedQuery->limitCount = limitCount;
 
-		if (vectorSearchOptions->vectorIndexDef->needsReorderAfterFilter)
+		if (vectorSearchOptions->vectorIndexDef->needsReorderAfterFilter &&
+			vectorSearchOptions->compressionType == VectorIndexCompressionType_None)
 		{
 			/* Search result by iterative search may be disordered, so we need to reorder the result */
-			joinedQuery = ReorderQueryResults(joinedQuery, context);
+			/* If index is compressed, we will recalculate and then reorder the results, so skip here */
+			joinedQuery = ReorderResultsForFilter(joinedQuery, context);
+		}
+		else
+		{
+			/* Wrapper query */
+			context->expandTargetList = false;
+			joinedQuery = MigrateQueryToSubQuery(joinedQuery, context);
 		}
 
 		return joinedQuery;
@@ -1230,18 +1328,23 @@ CheckVectorIndexAndGenerateSortExpr(Query *query,
 
 	foreach(indexId, indexIdList)
 	{
-		FuncExpr *vectorExtractFunc = NULL;
+		FuncExpr *vectorCastFunc = NULL;
 		Relation indexRelation = RelationIdGetRelation(lfirst_oid(indexId));
 		if (IsMatchingVectorIndex(indexRelation, vectorSearchOptions->searchPath,
-								  &vectorExtractFunc))
+								  &vectorCastFunc))
 		{
 			/* Vector search is on the doc even if there's projectors etc. */
 			processedSortExpr = GenerateVectorSortExpr(
-				vectorSearchOptions->searchPath, vectorExtractFunc, indexRelation,
-				(Node *) MakeSimpleDocumentVar(), queryNode,
-				vectorSearchOptions->exactSearch);
+				vectorSearchOptions, vectorCastFunc, indexRelation,
+				(Node *) MakeSimpleDocumentVar(), queryNode);
 
 			vectorSearchOptions->vectorAccessMethodOid = indexRelation->rd_rel->relam;
+
+			if (vectorCastFunc != NULL &&
+				vectorCastFunc->funcid == VectorAsHalfVecFunctionOid())
+			{
+				vectorSearchOptions->compressionType = VectorIndexCompressionType_Half;
+			}
 		}
 		RelationClose(indexRelation);
 		if (processedSortExpr != NULL)
@@ -1349,11 +1452,40 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 	/* Add the sort by to the query */
 	TargetEntry *sortEntry = AddSortByToQuery(query, processedSortExpr);
 
+	/* Calculate the limit for oversampling */
+	int innerLimit = vectorSearchOptions->resultCount;
+	if (vectorSearchOptions->oversampling > 1)
+	{
+		if (vectorSearchOptions->exactSearch)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg(
+								"oversampling is not allowed for exact search.")));
+		}
+		else if (vectorSearchOptions->compressionType == VectorIndexCompressionType_None)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg(
+								"oversampling is not allowed for non-compressed vector index.")));
+		}
+
+		/* ceiling the inner limit to resultCount * oversampling */
+		innerLimit = ceil(vectorSearchOptions->resultCount *
+						  vectorSearchOptions->oversampling);
+	}
+
+	/* feature usage of compression type */
+	if (vectorSearchOptions->compressionType == VectorIndexCompressionType_Half)
+	{
+		ReportFeatureUsage(FEATURE_STAGE_SEARCH_VECTOR_COMPRESSION_HALF);
+	}
+
 	Node *limitCount = (Node *) makeConst(INT8OID, -1, InvalidOid, sizeof(int64_t),
-										  Int64GetDatum(
-											  vectorSearchOptions->resultCount),
+										  Int64GetDatum(innerLimit),
 										  false,
 										  true);
+
+	Expr *scoreExpr = NULL;
 
 	/* If there's a filter, add it to the query */
 	if (EnableVectorPreFilterV2 &&
@@ -1385,14 +1517,14 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 		 * matching the filter.
 		 */
 		TargetEntry *documentEntry = linitial(query->targetList);
-		Expr *scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
-													   sortEntry->expr);
+		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												 vectorSearchOptions->distanceMetric);
 
 		TargetEntry *scoreEntry = makeTargetEntry(scoreExpr, 2, "sortVal", false);
 		query->targetList = lappend(query->targetList, scoreEntry);
 
 		/* now reorder to ensure it matches the score order by */
-		query = ReorderQueryResults(query, context);
+		query = ReorderResultsForFilter(query, context);
 	}
 	else if (EnableVectorPreFilter &&
 			 vectorSearchOptions->filterBson.value_type != BSON_TYPE_EOD &&
@@ -1414,6 +1546,11 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 													  sortEntry,
 													  processedSortExpr,
 													  limitCount);
+
+		/* Add the score field */
+		TargetEntry *documentEntry = linitial(query->targetList);
+		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												 vectorSearchOptions->distanceMetric);
 	}
 	else
 	{
@@ -1425,7 +1562,29 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 
 		/* Add the score field */
 		TargetEntry *documentEntry = linitial(query->targetList);
-		AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr, sortEntry->expr);
+		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												 vectorSearchOptions->distanceMetric);
+	}
+
+	/* Reorder for the compression index */
+	if (vectorSearchOptions->compressionType != VectorIndexCompressionType_None &&
+		scoreExpr != NULL &&
+		vectorSearchOptions->exactSearch == false)
+	{
+		/* reorder the results by the full vector distance */
+		/* Exact search doesn't need to reorder */
+		query = ReorderResultsForCompression(query, context, scoreExpr);
+	}
+
+	/* Add k limit to the top level query if oversampling is specified */
+	if (vectorSearchOptions->oversampling > 1)
+	{
+		query->limitCount = (Node *) makeConst(INT8OID, -1, InvalidOid,
+											   sizeof(int64_t),
+											   Int64GetDatum(
+												   vectorSearchOptions->resultCount),
+											   false,
+											   true);
 	}
 
 	/* Push next stage to a new subquery (since we did a sort) */
@@ -1544,6 +1703,24 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 
 			vectorSearchOptions->exactSearch = BsonValueAsBool(value);
 		}
+		else if (strcmp(key, "oversampling") == 0)
+		{
+			if (!BSON_ITER_HOLDS_NUMBER(&specIter))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"$oversampling must be a number value.")));
+			}
+
+			vectorSearchOptions->oversampling = BsonValueAsDouble(value);
+
+			if (vectorSearchOptions->oversampling < 1)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"$oversampling should be greater than or equal to 1.")));
+			}
+		}
 		else if (strcmp(key, "score") == 0)
 		{
 			if (!BSON_ITER_HOLDS_DOCUMENT(&specIter))
@@ -1583,6 +1760,12 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
 							"$k is required field for using a vector index.")));
+	}
+
+	/* Set default values for optional parameters */
+	if (vectorSearchOptions->oversampling == 0)
+	{
+		vectorSearchOptions->oversampling = 1;
 	}
 }
 

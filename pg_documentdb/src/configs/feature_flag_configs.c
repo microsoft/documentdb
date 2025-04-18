@@ -33,6 +33,12 @@ bool EnableVectorPreFilterV2 = DEFAULT_ENABLE_VECTOR_PRE_FILTER_V2;
 #define DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN false
 bool EnableVectorForceIndexPushdown = DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN;
 
+/*
+ * GUC to enable vector compression for vector search.
+ */
+#define DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF true
+bool EnableVectorCompressionHalf = DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF;
+
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
@@ -155,6 +161,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Enables ensuring that vector index queries are always pushed to the vector index."),
 		NULL, &EnableVectorForceIndexPushdown, DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableVectorCompressionHalf", newGucPrefix),
+		gettext_noop(
+			"Enables support for vector index compression"),
+		NULL, &EnableVectorCompressionHalf, DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

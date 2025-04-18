@@ -95,9 +95,9 @@ static const SkippableError SkippableErrors[] = {
 	{ 16908482 /* Postgres ERRCODE_EXCLUSION_VIOLATION */, NULL },
 	{ ERRCODE_DOCUMENTDB_DUPLICATEKEY /* Postgres ERRCODE_DOCUMENTDB_DUPLICATEKEY */,
 	  NULL },
-	{ 2600, "column cannot have more than 2000 dimensions for ivfflat index" },
-	{ 2600, "column cannot have more than 2000 dimensions for hnsw index" },
-	{ 2600, "vector dimension cannot be larger than 2000 dimensions for diskann index" },
+	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "column cannot have more than " }, /* max dimension for hnsw and ivf */
+	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "vector cannot have more than " }, /* VECTOR_MAX_DIM in pgvector */
+	{ 2600, "vector dimension cannot be larger than " }, /* max dimension for diskann */
 	{ 261 /* Postgres ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "index row size " },
 	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "memory required is " },
 	{ ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX, "unsupported language: " },

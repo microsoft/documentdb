@@ -158,8 +158,8 @@ impl CommandError {
         {
             Some(CommandError::new(
                 known,
-                code.unwrap_or("Backend error").to_string(),
-                known_msg.unwrap_or(msg).to_string(),
+                code.unwrap_or("Backend error".to_string()),
+                known_msg.unwrap_or(msg.to_string()),
             ))
         } else {
             None

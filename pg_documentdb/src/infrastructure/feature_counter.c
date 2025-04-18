@@ -234,6 +234,8 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_CREATE_INDEX_UNIQUE] = "create_index_unique",
 	[FEATURE_CREATE_INDEX_VECTOR] = "create_index_vector",
 	[FEATURE_CREATE_INDEX_VECTOR_COS] = "create_index_vector_cos",
+	[FEATURE_CREATE_INDEX_VECTOR_COMPRESSION_HALF] =
+		"create_index_vector_compression_half",
 	[FEATURE_CREATE_INDEX_VECTOR_IP] = "create_index_vector_ip",
 	[FEATURE_CREATE_INDEX_VECTOR_L2] = "create_index_vector_l2",
 	[FEATURE_CREATE_INDEX_VECTOR_TYPE_DISKANN] = "create_index_vector_type_diskann",
@@ -289,6 +291,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_STAGE_SAMPLE] = "sample",
 	[FEATURE_STAGE_SEARCH] = "search",
 	[FEATURE_STAGE_SEARCH_VECTOR] = "search_vector",
+	[FEATURE_STAGE_SEARCH_VECTOR_COMPRESSION_HALF] = "search_vector_compression_half",
 	[FEATURE_STAGE_SEARCH_VECTOR_DISKANN] = "search_vector_diskann",
 	[FEATURE_STAGE_SEARCH_VECTOR_EXACT] = "search_vector_exact",
 	[FEATURE_STAGE_SEARCH_VECTOR_GEN_EMBEDDINGS] = "search_vector_gen_embeddings",
