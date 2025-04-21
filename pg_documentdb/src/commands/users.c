@@ -72,6 +72,35 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 							"'createUser', 'pwd' and 'roles' fields must be specified.")));
 	}
 
+	if (!IsMetadataCoordinator())
+	{
+		StringInfo createUserQuery = makeStringInfo();
+		appendStringInfo(createUserQuery,
+						 "SELECT %s.create_user(%s::%s.bson)",
+						 ApiSchemaNameV2,
+						 quote_literal_cstr(PgbsonToHexadecimalString(PG_GETARG_PGBSON(
+																		  0))),
+						 CoreSchemaNameV2);
+		DistributedRunCommandResult result = RunCommandOnMetadataCoordinator(
+			createUserQuery->data);
+
+		if (!result.success)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg(
+								"Internal error creating user in metadata coordinator %s",
+								text_to_cstring(result.response)),
+							errdetail_log(
+								"Internal error creating user in metadata coordinator via distributed call %s",
+								text_to_cstring(result.response))));
+		}
+
+		pgbson_writer finalWriter;
+		PgbsonWriterInit(&finalWriter);
+		PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+		PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
+	}
+
 	/*Verify that we have not yet hit the limit of users allowed */
 	const char *cmdStr = FormatSqlQuery(
 		"SELECT COUNT(*) FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN pg_roles child " \
@@ -432,6 +461,35 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 						errmsg("'dropUser' is a required field.")));
 	}
 
+	if (!IsMetadataCoordinator())
+	{
+		StringInfo dropUserQuery = makeStringInfo();
+		appendStringInfo(dropUserQuery,
+						 "SELECT %s.drop_user(%s::%s.bson)",
+						 ApiSchemaNameV2,
+						 quote_literal_cstr(PgbsonToHexadecimalString(PG_GETARG_PGBSON(
+																		  0))),
+						 CoreSchemaNameV2);
+		DistributedRunCommandResult result = RunCommandOnMetadataCoordinator(
+			dropUserQuery->data);
+
+		if (!result.success)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg(
+								"Internal error dropping user in metadata coordinator %s",
+								text_to_cstring(result.response)),
+							errdetail_log(
+								"Internal error dropping user in metadata coordinator via distributed call %s",
+								text_to_cstring(result.response))));
+		}
+
+		pgbson_writer finalWriter;
+		PgbsonWriterInit(&finalWriter);
+		PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+		PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
+	}
+
 	pgbson *dropUserSpec = PG_GETARG_PGBSON(0);
 	char *dropUser = ParseDropUserSpec(dropUserSpec);
 
@@ -553,6 +611,35 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg("'updateUser' and 'pwd' are required fields.")));
+	}
+
+	if (!IsMetadataCoordinator())
+	{
+		StringInfo updateUserQuery = makeStringInfo();
+		appendStringInfo(updateUserQuery,
+						 "SELECT %s.update_user(%s::%s.bson)",
+						 ApiSchemaNameV2,
+						 quote_literal_cstr(PgbsonToHexadecimalString(PG_GETARG_PGBSON(
+																		  0))),
+						 CoreSchemaNameV2);
+		DistributedRunCommandResult result = RunCommandOnMetadataCoordinator(
+			updateUserQuery->data);
+
+		if (!result.success)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg(
+								"Internal error updating user in metadata coordinator %s",
+								text_to_cstring(result.response)),
+							errdetail_log(
+								"Internal error updating user in metadata coordinator via distributed call %s",
+								text_to_cstring(result.response))));
+		}
+
+		pgbson_writer finalWriter;
+		PgbsonWriterInit(&finalWriter);
+		PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+		PG_RETURN_POINTER(PgbsonWriterGetPgbson(&finalWriter));
 	}
 
 	pgbson *updateUserSpec = PG_GETARG_PGBSON(0);
