@@ -8,13 +8,13 @@ ARG DEB_PACKAGE_REL_PATH=packages/postgresql-16-documentdb-1_1.0.0_amd64.deb
 RUN apt-get update
 
 RUN apt-get install -y --no-install-recommends \
-    make \
     wget \
     gnupg2 \
     lsb-release \
     ca-certificates \
     locales \
-    sudo 
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen en_US.UTF-8
@@ -26,7 +26,8 @@ ENV LC_CTYPE=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main ${POSTGRES_VERSION}" > /etc/apt/sources.list.d/pgdg.list && \
-    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && rm -rf /var/lib/apt/lists/*
 
 # actual dependencies of the package
 RUN apt-get update && apt-get install -y \
@@ -34,7 +35,8 @@ RUN apt-get update && apt-get install -y \
     postgresql-${POSTGRES_VERSION}-cron \
     postgresql-${POSTGRES_VERSION}-pgvector \
     postgresql-${POSTGRES_VERSION}-postgis-3 \
-    postgresql-${POSTGRES_VERSION}-rum
+    postgresql-${POSTGRES_VERSION}-rum \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /scripts
 
