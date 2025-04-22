@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/reader.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::io::{Cursor, ErrorKind};
 use std::str::FromStr;
 

@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/util.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::io::Read;
 
 use crate::error::DocumentDBError;

@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/responses/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use bson::{rawdoc, Document, RawDocument};
 
 use crate::error::Result;

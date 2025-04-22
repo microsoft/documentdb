@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/auth.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::str::from_utf8;
 
 use bson::{rawdoc, spec::BinarySubtype};

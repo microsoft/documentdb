@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/session.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, Result},

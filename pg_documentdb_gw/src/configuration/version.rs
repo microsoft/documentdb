@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/configuration/version.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use bson::RawArrayBuf;
 
 pub enum Version {

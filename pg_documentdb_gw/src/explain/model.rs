@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/explain/model.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]

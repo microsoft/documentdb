@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/bson.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::io::Cursor;
 
 use bson::{spec::ElementType, RawBsonRef, RawDocument};

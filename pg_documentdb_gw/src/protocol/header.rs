@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/header.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use uuid::Uuid;
 

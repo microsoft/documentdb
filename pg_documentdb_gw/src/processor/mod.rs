@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 mod constant;
 mod cursor;
 mod delete;

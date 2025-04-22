@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/opcode.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OpCode {
     INVALID = 0,

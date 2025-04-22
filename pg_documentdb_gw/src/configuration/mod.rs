@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/configuration/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 mod dynamic;
 mod pg_configuration;
 mod setup;

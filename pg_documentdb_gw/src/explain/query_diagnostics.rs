@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/explain/query_diagnostics.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use bson::RawDocumentBuf;
 use once_cell::sync::Lazy;
 use regex::{CaptureMatches, Regex};

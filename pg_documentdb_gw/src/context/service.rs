@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/context/service.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::{borrow::Cow, collections::HashMap, sync::Arc, time::Duration};
 
 use tokio::sync::RwLock;

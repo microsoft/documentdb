@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/configuration/setup.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::path::Path;
 
 use serde::Deserialize;

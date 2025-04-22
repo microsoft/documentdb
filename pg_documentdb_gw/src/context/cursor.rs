@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/context/cursor.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::{
     collections::HashMap,
     sync::Arc,

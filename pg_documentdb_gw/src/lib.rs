@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/lib.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 #![allow(clippy::too_many_arguments)]
 
 use configuration::{CertificateOptions, DynamicConfiguration, SetupConfiguration};

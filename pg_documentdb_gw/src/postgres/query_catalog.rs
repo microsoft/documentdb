@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/postgres/query_catalog.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Default, Clone)]

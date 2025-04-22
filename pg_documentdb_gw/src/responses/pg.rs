@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/responses/pg.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use core::str;
 
 use bson::{Bson, Document, RawDocument, RawDocumentBuf};

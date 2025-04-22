@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/message.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::io::Cursor;
 
 use ::bson::RawDocument;

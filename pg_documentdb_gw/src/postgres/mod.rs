@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/postgres/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 mod client;
 mod document;
 mod query_catalog;

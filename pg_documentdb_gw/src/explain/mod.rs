@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/explain/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use core::f64;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 

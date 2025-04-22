@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/postgres/document.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use bson::RawDocument;
 use tokio_postgres::types::private::BytesMut;
 use tokio_postgres::types::{to_sql_checked, FromSql, ToSql, Type};

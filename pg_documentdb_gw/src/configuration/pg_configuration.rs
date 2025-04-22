@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/configuration/pg_configuration.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

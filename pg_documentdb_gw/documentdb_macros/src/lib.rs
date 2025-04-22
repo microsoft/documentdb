@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * documentdb_macros/src/lib.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;

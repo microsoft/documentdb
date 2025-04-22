@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/users.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use tokio_postgres::types::Type;
 
 use crate::{

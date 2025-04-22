@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/error.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::{backtrace::Backtrace, fmt::Display, io};
 
 use bson::raw::ValueAccessError;

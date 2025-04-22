@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/context/connection.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::{
     net::SocketAddr,
     sync::{

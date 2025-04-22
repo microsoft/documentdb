@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/main.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use log::info;
 use simple_logger::SimpleLogger;
 use std::{env, path::PathBuf, sync::Arc};

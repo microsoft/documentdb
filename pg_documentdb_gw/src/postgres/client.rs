@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/postgres/client.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::time::Duration;
 
 use super::{PgDocument, QueryCatalog};

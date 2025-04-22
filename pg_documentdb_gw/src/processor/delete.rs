@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/delete.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::sync::Arc;
 
 use bson::rawdoc;

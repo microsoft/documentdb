@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/cursor.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::sync::Arc;
 
 use bson::{rawdoc, RawArrayBuf};

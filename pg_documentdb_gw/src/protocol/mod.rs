@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/protocol/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use crate::error::{DocumentDBError, Result};
 
 pub mod header;

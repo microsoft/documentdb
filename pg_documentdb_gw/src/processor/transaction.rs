@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/transaction.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},

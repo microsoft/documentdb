@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/context/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 mod connection;
 mod cursor;
 mod service;

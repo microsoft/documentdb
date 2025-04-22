@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/processor/indexing.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 

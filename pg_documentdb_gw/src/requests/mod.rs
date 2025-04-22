@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/requests/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 pub mod compute_request_tracker;
 
 use std::{

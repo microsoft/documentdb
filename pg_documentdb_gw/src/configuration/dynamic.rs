@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/configuration/dynamic.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::fmt::Debug;
 
 use async_trait::async_trait;

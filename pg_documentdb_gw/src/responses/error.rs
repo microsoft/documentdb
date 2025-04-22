@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/responses/error.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::error::Error;
 
 use bson::raw::ValueAccessErrorKind;

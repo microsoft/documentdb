@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * src/telemetry.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use crate::context::ConnectionContext;
 use crate::protocol::header::Header;
 use crate::requests::compute_request_tracker::ComputeRequestTracker;
