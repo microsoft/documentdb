@@ -12,7 +12,8 @@ initSetup="false"
 help="false"
 stop="false"
 distributed="false"
-while getopts "d:hcsx" opt; do
+allowExternalAccess="false"
+while getopts "d:hcsxe" opt; do
   case $opt in
     d) postgresDirectory="$OPTARG"
     ;;
@@ -23,6 +24,8 @@ while getopts "d:hcsx" opt; do
     s) stop="true"
     ;;
     x) distributed="true"
+    ;;
+    e) allowExternalAccess="true"
     ;;
   esac
 
@@ -41,11 +44,12 @@ reset=`tput sgr0`
 
 if [ "$help" == "true" ]; then
     echo "${green}sets up and launches a postgres server with extension installed on port $coordinatorPort."
-    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x]"
+    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x] [-e]"
     echo "${green}<postgresDir> is the data directory for your postgres instance with extension"
     echo "${green}[-c] - optional argument. removes all existing data if it exists"
     echo "${green}[-s] - optional argument. Stops all servers and exits"
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
+    echo "${green}[-e] - optional argument. Allows PostgreSQL access from any IP address"
     echo "${green}if postgresDir not specified assumed to be ~/documentdb_test"
     exit 1;
 fi
@@ -96,6 +100,16 @@ fi
 
 if [ "$initSetup" == "true" ]; then
     InitDatabaseExtended $postgresDirectory "$preloadLibraries"
+fi
+
+if [ "$allowExternalAccess" == "true" ]; then
+  postgresConfigFile="$postgresDirectory/postgresql.conf"
+  hbaConfigFile="$postgresDirectory/pg_hba.conf"
+
+  echo "${green}Configuring PostgreSQL to allow access from any IP address${reset}"
+  echo "listen_addresses = '*'" >> $postgresConfigFile
+  echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
+  echo "host all all ::0/0 trust" >> $hbaConfigFile
 fi
 
 userName=$(whoami)

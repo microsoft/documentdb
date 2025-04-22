@@ -13,4 +13,4 @@ USER documentdb
 RUN make  && sudo make install
   
 # Set the entry point to run the new script at container startup  
-CMD ["bash", "-c", "/home/documentdb/code/scripts/start_oss_server.sh & tail -f /dev/null"]
+ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/code/scripts/start_oss_server.sh \"$@\" & tail -f /dev/null", "--"]
