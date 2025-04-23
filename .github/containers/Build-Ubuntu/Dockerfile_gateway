@@ -1,0 +1,52 @@
+FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:base
+
+RUN sudo apt-get update && \
+    sudo apt-get install -y --no-install-recommends \
+    jq
+
+USER documentdb
+
+# Install rustup (which includes rustc and cargo) in user directory
+ENV RUSTUP_HOME=/home/documentdb/.rustup \
+    CARGO_HOME=/home/documentdb/.cargo \
+    PATH=/home/documentdb/.cargo/bin:$PATH
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path --default-toolchain stable
+
+# Optional: show versions
+RUN rustc --version && cargo --version
+
+ENV LANGUAGE=en_US.UTF-8 \
+    TERM=xterm-256color \
+    ENFORCE_SSL=true \
+    GATEWAY_PUBLIC_ENDPOINT="" \
+    MONGO_PORT=10260 \
+    ENABLE_TELEMETRY=false \
+    LOG_LEVEL=info \
+    DATA_PATH="/home/documentdb/postgresql/data" \
+    SCRIPT_DIR=/home/documentdb/code/scripts \
+    ORIGINAL_USER="" \
+    INSTALL_DEPENDENCIES_ROOT=/root/ \
+    WORKSPACE_ROOT=/home/documentdb/code \
+    CERTS_ROOT=/home/documentdb/code/scripts/certs \
+    CERT_SECRET=secret \
+    COSMOS_EMULATOR_RELEASE_VERSION=$RELEASE_VERSION \
+    CUSTOM_USERNAME="documentdb"
+
+WORKDIR /home/documentdb/code  
+
+COPY . /home/documentdb/code  
+
+RUN sudo chown -R documentdb:documentdb /home/documentdb/code
+
+RUN git config --global --add safe.directory /home/documentdb/code
+    
+RUN make  && sudo make install
+
+WORKDIR /home/documentdb/code/pg_documentdb_gw
+
+RUN cargo build
+
+WORKDIR /home/documentdb/code  
+
+ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/code/scripts/gateway_entrypoint.sh \"$@\"", "--"]
