@@ -273,7 +273,8 @@ CREATE OR REPLACE FUNCTION documentdb_distributed_test_helpers.gin_bson_get_sing
     isWildcard bool,
     generateNotFoundTerm bool default false,
     addMetadata bool default false,
-    indexTermSizeLimit int default -1)
+    indexTermSizeLimit int default -1,
+    enableReducedWildcardTerms bool default false)
  RETURNS SETOF documentdb_core.bson
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT ROWS 100

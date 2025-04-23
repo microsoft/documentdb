@@ -196,6 +196,9 @@ typedef struct
 
 	/* Feature flag to enable the composite term index */
 	BoolIndexOption enableCompositeTerm;
+
+	/* Feature flag to enable the composite term index */
+	BoolIndexOption enableReducedWildcardTerms;
 } IndexDef;
 
 /*

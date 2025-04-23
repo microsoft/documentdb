@@ -347,8 +347,6 @@ CompareBsonIter(bson_iter_t *leftIter, bson_iter_t *rightIter, bool compareField
 		bool leftNext = bson_iter_next(leftIter);
 		bool rightNext = bson_iter_next(rightIter);
 		int32_t cmp;
-		pgbsonelement leftElement;
-		pgbsonelement rightElement;
 
 		if (!leftNext && !rightNext)
 		{
@@ -363,16 +361,20 @@ CompareBsonIter(bson_iter_t *leftIter, bson_iter_t *rightIter, bool compareField
 			return leftNext ? 1 : -1;
 		}
 
-		BsonIterToPgbsonElement(leftIter, &leftElement);
-		BsonIterToPgbsonElement(rightIter, &rightElement);
+		StringView leftKey = bson_iter_key_string_view(leftIter);
+		StringView rightKey = bson_iter_key_string_view(rightIter);
+
+		const bson_value_t *leftValue = bson_iter_value(leftIter);
+		const bson_value_t *rightValue = bson_iter_value(rightIter);
+
 		if (!compareFields)
 		{
-			leftElement.pathLength = 0;
-			rightElement.pathLength = 0;
+			leftKey.length = 0;
+			rightKey.length = 0;
 		}
 
 		/* they both have values compare typeCode. */
-		cmp = CompareBsonSortOrderType(&leftElement.bsonValue, &rightElement.bsonValue);
+		cmp = CompareBsonSortOrderType(leftValue, rightValue);
 		if (cmp != 0)
 		{
 			return cmp;
@@ -380,15 +382,16 @@ CompareBsonIter(bson_iter_t *leftIter, bson_iter_t *rightIter, bool compareField
 
 		/* next compare field name. */
 		const char *collationStringIgnore = NULL;
-		cmp = CompareStrings(leftElement.path, leftElement.pathLength, rightElement.path,
-							 rightElement.pathLength, collationStringIgnore);
+		cmp = CompareStrings(leftKey.string, leftKey.length,
+							 rightKey.string, rightKey.length,
+							 collationStringIgnore);
 		if (cmp != 0)
 		{
 			return cmp;
 		}
 
 		bool ignoreIsComparisonValid;
-		cmp = CompareBsonValue(&leftElement.bsonValue, &rightElement.bsonValue,
+		cmp = CompareBsonValue(leftValue, rightValue,
 							   &ignoreIsComparisonValid, collationString);
 		if (cmp != 0)
 		{

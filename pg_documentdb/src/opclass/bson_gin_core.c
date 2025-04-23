@@ -376,6 +376,8 @@ GenerateSinglePathTermsCore(pgbson *bson, GenerateTermsContext *context,
 	context->traverseOptionsFunc = &GetSinglePathIndexTraverseOption;
 	context->generateNotFoundTerm = singlePathOptions->generateNotFoundTerm;
 	context->termMetadata = GetIndexTermMetadata(singlePathOptions);
+	context->useReducedWildcardTerms =
+		singlePathOptions->isWildcard && singlePathOptions->useReducedWildcardTerms;
 
 	bool addRootTerm = true;
 	GenerateTerms(bson, context, addRootTerm);
@@ -1144,48 +1146,74 @@ static void
 GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 				  uint32_t pathtoInsertLength, bool inArrayContext,
 				  bool isArrayTerm, GenerateTermsContext *context,
-				  bool isCheckForArrayTermsWithNestedDocument)
+				  bool isCheckForArrayTermsWithNestedDocument,
+				  bool generateOnlyArrayPathTerms)
 {
 	check_stack_depth();
 	CHECK_FOR_INTERRUPTS();
 
-	StringInfoData pathBuilderBuffer = { 0 };
-	initStringInfo(&pathBuilderBuffer);
 	bson_iter_t containerIter;
+	if (!bson_iter_recurse(bsonIter, &containerIter))
+	{
+		return;
+	}
 
 	/* Count the array terms - to pre-allocate the term Datum pointers */
 	const bson_value_t *arrayValue = bson_iter_value(bsonIter);
 	int32_t arrayCapacityEstimate = Max(1, (int) log2(arrayValue->value.v_doc.data_len));
+
+	StringInfoData pathBuilderBuffer = { 0 };
+	initStringInfo(&pathBuilderBuffer);
 	EnsureTermCapacity(context, arrayCapacityEstimate);
 
-	if (bson_iter_recurse(bsonIter, &containerIter))
+	while (bson_iter_next(&containerIter))
 	{
-		while (bson_iter_next(&containerIter))
+		bson_iter_t containerCopy = containerIter;
+		bool inArrayContextInner = true;
+		bool isArrayTermInner = false;
+		bool isCheckForArrayTermsWithNestedDocumentInner = false;
+
+		/* For wildcard indexes if there's a match, any path that is a.0, a.2 etc
+		 * can also be reached from 'a'.
+		 * Consequently we can skip generating terms for the path.
+		 * The one exception is if we have arrays of arrays. To descend into
+		 * the child array, we still need the parent array path
+		 * i.e. for a [ [ { b: 10 } ] ] we need to generate a.0.b
+		 */
+		if (context->useReducedWildcardTerms &&
+			generateOnlyArrayPathTerms &&
+			!inArrayContext)
 		{
-			bson_iter_t containerCopy = containerIter;
-			bool inArrayContextInner = true;
-			bool isArrayTermInner = false;
-			bool isCheckForArrayTermsWithNestedDocumentInner = false;
+			if (BSON_ITER_HOLDS_ARRAY(&containerIter))
+			{
+				GenerateTermPath(&containerIter, pathToInsert, pathtoInsertLength,
+								 inArrayContextInner, isArrayTermInner, context,
+								 isCheckForArrayTermsWithNestedDocumentInner,
+								 &pathBuilderBuffer);
+			}
+		}
+		else
+		{
 			GenerateTermPath(&containerIter, pathToInsert, pathtoInsertLength,
 							 inArrayContextInner, isArrayTermInner, context,
 							 isCheckForArrayTermsWithNestedDocumentInner,
 							 &pathBuilderBuffer);
-
-			/*
-			 * for array of arrays, having document inside it. We will generate parent path terms *
-			 * if below recursive call get triggerd with isCheckForArrayTermsWithNestedDocument set to true then we will check that
-			 * array of array has document inside it , for document we will generate parent path term.
-			 *
-			 * e.g, a: [[{b: 10}]]  => is suppose to genrate a.0.b :10 as one of the path term because array of array has document inside it.
-			 */
-			inArrayContextInner = true;
-			isArrayTermInner = true;
-			isCheckForArrayTermsWithNestedDocumentInner = inArrayContext;
-			GenerateTermPath(&containerCopy, pathToInsert, pathtoInsertLength,
-							 inArrayContextInner, isArrayTermInner, context,
-							 isCheckForArrayTermsWithNestedDocumentInner,
-							 &pathBuilderBuffer);
 		}
+
+		/*
+		 * for array of arrays, having document inside it. We will generate parent path terms *
+		 * if below recursive call get triggerd with isCheckForArrayTermsWithNestedDocument set to true then we will check that
+		 * array of array has document inside it , for document we will generate parent path term.
+		 *
+		 * e.g, a: [[{b: 10}]]  => is suppose to genrate a.0.b :10 as one of the path term because array of array has document inside it.
+		 */
+		inArrayContextInner = true;
+		isArrayTermInner = true;
+		isCheckForArrayTermsWithNestedDocumentInner = inArrayContext;
+		GenerateTermPath(&containerCopy, pathToInsert, pathtoInsertLength,
+						 inArrayContextInner, isArrayTermInner, context,
+						 isCheckForArrayTermsWithNestedDocumentInner,
+						 &pathBuilderBuffer);
 	}
 
 	if (pathBuilderBuffer.data != NULL)
@@ -1308,10 +1336,10 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 			element.path = pathToInsert;
 			element.pathLength = pathtoInsertLength;
 			element.bsonValue = *bson_iter_value(bsonIter);
-			BsonIndexTermSerialized serializedTerm = SerializeBsonIndexTerm(
-				&element, &context->termMetadata);
-			AddTerm(context, PointerGetDatum(
-						serializedTerm.indexTermVal));
+			BsonCompressableIndexTermSerialized serializedTerm =
+				SerializeBsonIndexTermWithCompression(
+					&element, &context->termMetadata);
+			AddTerm(context, serializedTerm.indexTermDatum);
 			if (serializedTerm.isIndexTermTruncated)
 			{
 				context->hasTruncatedTerms = true;
@@ -1338,6 +1366,7 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 
 	if (BSON_ITER_HOLDS_DOCUMENT(bsonIter))
 	{
+		bool shouldIndexDocument = true;
 		if (inArrayContext &&
 			(option == IndexTraverse_Match ||
 			 option == IndexTraverse_MatchAndRecurse))
@@ -1346,8 +1375,19 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 			context->hasArrayAncestors = true;
 		}
 
+		/*
+		 * If we're not dealing with arrays, and the document was an exact match
+		 * that is, it's just a child document of a path that matched, we don't need
+		 * recurse into the document since all child document paths will simply generate
+		 * paths that will not match.
+		 */
+		if (!inArrayContext && option == IndexTraverse_Match)
+		{
+			shouldIndexDocument = false;
+		}
+
 		bson_iter_t containerIter;
-		if (bson_iter_recurse(bsonIter, &containerIter))
+		if (shouldIndexDocument && bson_iter_recurse(bsonIter, &containerIter))
 		{
 			bool inArrayContextInner = false;
 			bool isArrayTermInner = false;
@@ -1365,17 +1405,24 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 	{
 		if (BSON_ITER_HOLDS_ARRAY(bsonIter))
 		{
+			/*
+			 * Only recurse into arrays if it's a recursive match. e.g.
+			 * if the match is on an exact path "a", then all of the terms generated below
+			 * if it's not the arrayTerm is a.0, a.1, a.2 which means it'll never match "a".
+			 * If the path is "matchAndRecurse", then traverse down.
+			 */
 			if (inArrayContext &&
-				(option == IndexTraverse_Match ||
-				 option == IndexTraverse_MatchAndRecurse))
+				option == IndexTraverse_MatchAndRecurse)
 			{
 				/* Mark the path as having array ancestors leading to the index path */
 				context->hasArrayAncestors = true;
 			}
 
+			bool generateOnlyArrayPathTerms = option == IndexTraverse_MatchAndRecurse;
 			GenerateArrayPath(bsonIter, pathToInsert, pathtoInsertLength,
 							  inArrayContext, isArrayTerm, context,
-							  isCheckForArrayTermsWithNestedDocument);
+							  isCheckForArrayTermsWithNestedDocument,
+							  generateOnlyArrayPathTerms);
 		}
 	}
 }
@@ -1611,20 +1658,10 @@ GenerateNullEqualityIndexTerms(int32 *nentries, bool **partialmatch,
 static Datum *
 GinBsonExtractQueryEqual(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Datum *entries;
-	pgbsonelement filterElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &filterElement); /* TODO: collation index support */
-	}
+	pgbsonelement filterElement = args->filterElement;
 
 	if (filterElement.bsonValue.value_type == BSON_TYPE_NULL)
 	{
@@ -1654,34 +1691,24 @@ GinBsonExtractQueryEqual(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryDollarBitWiseOperators(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
-	pgbsonelement filterElement;
+	pgbsonelement filterElement = args->filterElement;
 	Datum *entries;
 
 	*partialmatch = (bool *) palloc(sizeof(bool) * 3);
 	*extra_data = (Pointer *) palloc(sizeof(Pointer) * 3);
 
 	/* add query address to extra_data for all entries so that we can use positional array from query during partial comparison*/
-	(*extra_data)[0] = (Pointer) query;
-	(*extra_data)[1] = (Pointer) query;
+	pgbson *reconstructedQuery = PgbsonElementToPgbson(&filterElement);
+	(*extra_data)[0] = (Pointer) reconstructedQuery;
+	(*extra_data)[1] = (Pointer) reconstructedQuery;
 
 	/* Enable partial match for all entries*/
 	(*partialmatch)[0] = true;
 	(*partialmatch)[1] = true;
 	(*partialmatch)[2] = false;
-
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &filterElement); /* TODO: collation index support */
-	}
 
 	/* lowest possible values can be lowest of type double or binary */
 	/* we are assuming (decimal128(nan) == double(nan)) < all possible numbers */
@@ -1714,20 +1741,11 @@ static Datum *
 GinBsonExtractQueryDollarRange(BsonExtractQueryArgs *args)
 {
 	/* query: document @<> { "path": [ "min": MINVALUE, "max": MAXVALUE ] } */
-	pgbson *filter = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 
-	pgbsonelement filterElement;
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(filter, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(filter, &filterElement); /* TODO: collation index support */
-	}
+	pgbsonelement filterElement = args->filterElement;
 	DollarRangeValues *rangeValues = palloc0(sizeof(DollarRangeValues));
 
 	DollarRangeParams *params = ParseQueryDollarRange(&filterElement);
@@ -1826,19 +1844,10 @@ GinBsonExtractQueryDollarRange(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryNotEqual(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	Datum *entries = (Datum *) palloc(sizeof(Datum) * 6);
 
-	pgbsonelement element;
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &element);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &element); /* TODO: collation index support */
-	}
+	pgbsonelement element = args->filterElement;
 
 	if (element.bsonValue.value_type == BSON_TYPE_NULL)
 	{
@@ -1894,20 +1903,11 @@ GenerateNegationTerms(Datum *entries, int nextIndex,
 static Datum *
 GinBsonExtractQueryGreaterEqual(BsonExtractQueryArgs *args, bool isNegation)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Datum *entries;
 
-	pgbsonelement element;
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &element);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &element); /* TODO: collation index support */
-	}
+	pgbsonelement element = args->filterElement;
 	if (element.bsonValue.value_type == BSON_TYPE_NULL)
 	{
 		/* special case for $gte: null */
@@ -1961,21 +1961,11 @@ GinBsonExtractQueryGreaterEqual(BsonExtractQueryArgs *args, bool isNegation)
 static Datum *
 GinBsonExtractQueryGreater(BsonExtractQueryArgs *args, bool isNegation)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Datum *entries;
 
-	pgbsonelement element;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &element);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &element); /* TODO: collation index support */
-	}
+	pgbsonelement element = args->filterElement;
 
 	int numTerms = isNegation ? 5 : 2;
 	entries = (Datum *) palloc(sizeof(Datum) * numTerms);
@@ -2009,20 +1999,11 @@ GinBsonExtractQueryGreater(BsonExtractQueryArgs *args, bool isNegation)
 static Datum *
 GinBsonExtractQueryLessEqual(BsonExtractQueryArgs *args, bool isNegation)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	Datum *entries;
-	pgbsonelement documentElement;
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &documentElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &documentElement); /* TODO: collation index support */
-	}
+	pgbsonelement documentElement = args->filterElement;
 
 	/* Clone it for now */
 	pgbsonelement queryElement = documentElement;
@@ -2090,21 +2071,11 @@ GinBsonExtractQueryLessEqual(BsonExtractQueryArgs *args, bool isNegation)
 static Datum *
 GinBsonExtractQueryLess(BsonExtractQueryArgs *args, bool isNegation)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	Datum *entries;
-	pgbsonelement documentElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &documentElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &documentElement); /* TODO: collation index support */
-	}
+	pgbsonelement documentElement = args->filterElement;
 
 	/* Clone it for now */
 	pgbsonelement queryElement = documentElement;
@@ -2204,22 +2175,12 @@ AddNullArrayOpTerms(Datum *entries, int index,
 static Datum *
 GinBsonExtractQueryIn(BsonExtractQueryArgs *args)
 {
-	pgbson *inArray = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	int32_t inArraySize = 0, index = 0;
 	Datum *entries;
-	pgbsonelement queryElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(inArray, &queryElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(inArray, &queryElement); /* TODO: collation index support */
-	}
+	pgbsonelement queryElement = args->filterElement;
 
 	if (queryElement.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
@@ -2342,22 +2303,12 @@ GinBsonExtractQueryIn(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryNotIn(BsonExtractQueryArgs *args)
 {
-	pgbson *inArray = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	int32_t termCount, index;
 	Datum *entries;
-	pgbsonelement queryElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(inArray, &queryElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(inArray, &queryElement); /* TODO: collation index support */
-	}
+	pgbsonelement queryElement = args->filterElement;
 
 	if (queryElement.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
@@ -2495,20 +2446,10 @@ GinBsonExtractQueryNotIn(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryRegex(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
-	pgbsonelement queryElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &queryElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &queryElement); /* TODO: collation index support */
-	}
+	pgbsonelement queryElement = args->filterElement;
 
 	if ((queryElement.bsonValue.value_type != BSON_TYPE_UTF8) &&
 		(queryElement.bsonValue.value_type != BSON_TYPE_REGEX))
@@ -2594,26 +2535,16 @@ GinBsonExtractQueryRegex(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryMod(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 
 	Datum *entries;
 	pgbsonelement documentElement;
-	pgbsonelement filterElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &filterElement); /* TODO: collation index support */
-	}
+	pgbsonelement filterElement = args->filterElement;
 
 	*extra_data = (Pointer *) palloc(sizeof(Pointer));
-	**extra_data = (Pointer) query;
+	**extra_data = (Pointer) PgbsonElementToPgbson(&filterElement);
 
 	/* find all values starting at mininum value. */
 	documentElement.path = filterElement.path;
@@ -2643,17 +2574,7 @@ GinBsonExtractQueryMod(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryExists(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
-	pgbsonelement filterElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &filterElement); /* TODO: collation index support */
-	}
+	pgbsonelement filterElement = args->filterElement;
 
 	bool existsPositiveMatch = true;
 
@@ -2779,25 +2700,15 @@ GenerateExistsEqualityTerms(int32 *nentries, bool **partialmatch, Pointer **extr
 static Datum *
 GinBsonExtractQuerySize(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	Datum *entries = (Datum *) palloc(sizeof(Datum));
-	pgbsonelement documentElement;
+	pgbsonelement documentElement = args->filterElement;
 
 	*partialmatch = (bool *) palloc(sizeof(bool));
 	*nentries = 1;
 	**partialmatch = true;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &documentElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &documentElement); /* TODO: collation index support */
-	}
 
 	/* store the query value in extra data - this allows us to compute upper bound using */
 	/* this extra value. */
@@ -2820,21 +2731,11 @@ GinBsonExtractQuerySize(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryDollarType(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
 	Datum *entries = (Datum *) palloc(sizeof(Datum));
-	pgbsonelement documentElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &documentElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &documentElement); /* TODO: collation index support */
-	}
+	pgbsonelement documentElement = args->filterElement;
 
 	/* we only generate 1 term - minKey for the path. */
 	/* note that we can't simply use the minValue of the type */
@@ -2967,20 +2868,10 @@ GinBsonExtractQueryDollarType(BsonExtractQueryArgs *args)
 static Datum *
 GinBsonExtractQueryDollarAll(BsonExtractQueryArgs *args)
 {
-	pgbson *query = args->query;
 	int32 *nentries = args->nentries;
 	bool **partialmatch = args->partialmatch;
 	Pointer **extra_data = args->extra_data;
-	pgbsonelement filterElement;
-
-	if (EnableCollation)
-	{
-		PgbsonToSinglePgbsonElementWithCollation(query, &filterElement);
-	}
-	else
-	{
-		PgbsonToSinglePgbsonElement(query, &filterElement); /* TODO: collation index support */
-	}
+	pgbsonelement filterElement = args->filterElement;
 
 	if (filterElement.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{

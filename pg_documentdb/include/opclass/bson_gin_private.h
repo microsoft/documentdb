@@ -23,7 +23,9 @@
  */
 typedef struct BsonExtractQueryArgs
 {
-	pgbson *query;
+	pgbsonelement filterElement;
+
+	const char *collationString;
 
 	int32 *nentries;
 
@@ -164,6 +166,11 @@ typedef struct
 	 * For wildcard indexes, returns true if any path had an array ancestor
 	 */
 	bool hasArrayAncestors;
+
+	/*
+	 * Whether or not to use the reduced wildcard term generation support.
+	 */
+	bool useReducedWildcardTerms;
 } GenerateTermsContext;
 
 

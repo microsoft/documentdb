@@ -186,6 +186,7 @@ extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
 extern bool DisableStatisticsForUniqueColumns;
 extern bool EnableNewCompositeIndexOpclass;
+extern bool ForceWildcardReducedTerm;
 
 char *AlternateIndexHandler = NULL;
 
@@ -316,7 +317,8 @@ static char * GenerateIndexExprStr(bool unique, bool sparse, bool enableComposit
 								   const char *indexName, const char *defaultLanguage,
 								   const char *languageOverride,
 								   bool enableLargeIndexKeys,
-								   bool supportsAlternateIndexHandler);
+								   bool supportsAlternateIndexHandler,
+								   bool useReducedWildcardTerms);
 static char * Generate2dsphereIndexExprStr(const IndexDefKey *indexDefKey);
 static char * Generate2dsphereSparseExprStr(const IndexDefKey *indexDefKey);
 static char * GenerateIndexFilterStr(uint64 collectionId, Expr *indexDefPartFilterExpr);
@@ -1774,6 +1776,18 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 				indexDef->enableCompositeTerm = BoolIndexOption_False;
 			}
 		}
+		else if (strcmp(indexDefDocKey, "enableReducedWildcardTerm") == 0)
+		{
+			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
+			if (BsonValueAsBool(value))
+			{
+				indexDef->enableReducedWildcardTerms = BoolIndexOption_True;
+			}
+			else
+			{
+				indexDef->enableReducedWildcardTerms = BoolIndexOption_False;
+			}
+		}
 		else if (!SkipFailOnCollation && strcmp(indexDefDocKey, "collation") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
@@ -2688,9 +2702,9 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
  * Parse cosmosSearchOptions from the given indexDefDocIter.
  * Index of ivfflat and hnsw is supported.
  * ivfflat:
- *    { "kind": "vector-ivf", "numLists": 100, "similarity": "COS", "dimensions": 3 }
+ *    { "kind": "vector-ivf", "numLists": 100, "similarity": "COS", "dimensions": 3, "compression": "none" }
  * hnsw:
- *    { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "COS", "dimensions": 3 }
+ *    { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "COS", "dimensions": 3, "compression": "half" }
  */
 static CosmosSearchOptions *
 ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
@@ -2780,6 +2794,61 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 
 			cosmosSearchOptions->commonOptions.numDimensions = BsonValueAsInt32(keyValue);
 		}
+		else if (strcmp(searchOptionsIterKey, "compression") == 0)
+		{
+			if (!BSON_ITER_HOLDS_UTF8(&cosmosSearchIter))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"compression must be a string not %s",
+									BsonTypeName(bson_iter_type(&cosmosSearchIter)))));
+			}
+
+			StringView str = {
+				.string = keyValue->value.v_utf8.str, .length = keyValue->value.v_utf8.len
+			};
+
+			if (StringViewEqualsCString(&str, "half"))
+			{
+				if (!EnableVectorCompressionHalf)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"Compression type 'half' is not enabled.")));
+				}
+
+				/* check if the half vector type is supported, older versions of
+				 * pgvector do not support half vector type */
+				MemoryContext savedMemoryContext = CurrentMemoryContext;
+				PG_TRY();
+				{
+					if (HalfVectorTypeId() == InvalidOid)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+										errmsg(
+											"Compression type 'half' is not supported.")));
+					}
+				}
+				PG_CATCH();
+				{
+					MemoryContextSwitchTo(savedMemoryContext);
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"Compression type 'half' is not supported.")));
+				}
+				PG_END_TRY();
+
+				ReportFeatureUsage(FEATURE_CREATE_INDEX_VECTOR_COMPRESSION_HALF);
+				cosmosSearchOptions->commonOptions.compressionType =
+					VectorIndexCompressionType_Half;
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg("Invalid compression type of vector index: %s",
+									   str.string)));
+			}
+		}
 	}
 
 	/* Check the common required options */
@@ -2788,6 +2857,9 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 						errmsg("cosmosSearch index kind must be specified")));
 	}
+
+	/* The max limit error is thrown by pgvector, will be caught by the gateway */
+	/* So we don't check the max limit here */
 
 	if (cosmosSearchOptions->commonOptions.numDimensions <= 1)
 	{
@@ -4454,6 +4526,7 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		}
 
 		bool supportsAlternateIndexHandler = false;
+		bool useReducedWildcardTermGeneration = false;
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_rum (%s) %s%s%s",
@@ -4465,7 +4538,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  supportsAlternateIndexHandler),
+											  supportsAlternateIndexHandler,
+											  useReducedWildcardTermGeneration),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4606,6 +4680,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 
 		char *indexAmSuffix = GetIndexAmHandlerName(supportsAlternateIndexHandler);
 
+		bool useReducedWildcardTermGeneration = ForceWildcardReducedTerm ||
+												(indexDef->enableReducedWildcardTerms ==
+												 BoolIndexOption_True);
 		appendStringInfo(cmdStr,
 						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
@@ -4617,7 +4694,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  supportsAlternateIndexHandler),
+											  supportsAlternateIndexHandler,
+											  useReducedWildcardTermGeneration),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4951,7 +5029,8 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
 					 const char *languageOverride, bool enableLargeIndexKeys,
-					 bool supportsAlternateIndexHandler)
+					 bool supportsAlternateIndexHandler,
+					 bool useReducedWildcardTerms)
 {
 	StringInfo indexExprStr = makeStringInfo();
 
@@ -5038,14 +5117,21 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 		}
 		else if (!indexDefWildcardProjTree)
 		{
+			const char *useReducedWildcardOption = "";
+			if (useReducedWildcardTerms)
+			{
+				useReducedWildcardOption = ",rwt=true";
+			}
+
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_single_path_ops"
-							 "(path='', iswildcard=true%s%s)",
+							 "(path='', iswildcard=true%s%s%s)",
 							 firstColumnWritten ? "," : "",
 							 ApiCatalogSchemaName,
 							 indexOpClassAmName,
 							 indexTermSizeLimitArg,
-							 wildcardIndexTruncatedPathLimit);
+							 wildcardIndexTruncatedPathLimit,
+							 useReducedWildcardOption);
 
 			firstColumnWritten = true;
 		}
@@ -5223,18 +5309,28 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 						}
 					}
 
+					const char *useReducedWildcardOption = "";
+					const char *generateNotFoundTermOption = "";
+					if (useReducedWildcardTerms && indexKeyPath->isWildcard)
+					{
+						useReducedWildcardOption = ",rwt=true";
+					}
+
+					if (generateNotFoundTerm)
+					{
+						generateNotFoundTermOption = ",generateNotFoundTerm=true";
+					}
+
 					appendStringInfo(indexExprStr,
-									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s)",
+									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
 									 ApiCatalogSchemaName,
 									 indexOpClassAmName,
 									 quote_literal_cstr(keyPath),
 									 indexKeyPath->isWildcard ? ",iswildcard=true" : "",
 									 indexTermSizeLimitArg,
-
-									 generateNotFoundTerm ?
-									 ", generateNotFoundTerm=true" :
-									 "");
+									 generateNotFoundTermOption,
+									 useReducedWildcardOption);
 					if (unique)
 					{
 						appendStringInfo(indexExprStr, " WITH OPERATOR(%s.=?=)",

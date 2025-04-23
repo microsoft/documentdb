@@ -2,6 +2,7 @@
 * Support collation with aggregation and find on sharded collections *[Feature]*
 * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
 * Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
+* Support half-precision vector indexing, vectors can have up to 4,000 dimensions *[Feature]*
 * Support ARM64 architecture when building docker container *[Preview]*
 * Support collation with `$documents` and `$replceWith` stage of the aggregation pipeline *[Feature]*
 

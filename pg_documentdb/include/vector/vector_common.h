@@ -10,7 +10,8 @@
 #ifndef VECTOR_COMMON__H
 #define VECTOR_COMMON__H
 
-#define VECTOR_MAX_DIMENSIONS 2000
+/* pgvector VECTOR_MAX_DIM: 16000 */
+#define VECTOR_MAX_DIMENSIONS 16000
 
 /* ivfflat parameters */
 #define IVFFLAT_DEFAULT_NPROBES 1
@@ -66,5 +67,9 @@ extern bool EnableVectorHNSWIndex;
 extern bool EnableVectorPreFilter;
 extern bool EnableVectorPreFilterV2;
 
+/*
+ * GUC to enable vector compression feature for vector search.
+ */
+extern bool EnableVectorCompressionHalf;
 
 #endif

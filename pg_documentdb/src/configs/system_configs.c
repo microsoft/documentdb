@@ -106,6 +106,9 @@ char *CurrentOpApplicationName = DEFAULT_CURRENT_OP_APPLICATION_NAME;
 #define DEFAULT_AGGREGATION_STAGES_LIMIT 1000
 int MaxAggregationStagesAllowed = DEFAULT_AGGREGATION_STAGES_LIMIT;
 
+#define DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD INT_MAX
+int IndexTermCompressionThreshold = DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD;
+
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -304,5 +307,14 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		&MaxAggregationStagesAllowed,
 		DEFAULT_AGGREGATION_STAGES_LIMIT, DEFAULT_AGGREGATION_STAGES_LIMIT,
 		5 * DEFAULT_AGGREGATION_STAGES_LIMIT, /* Ballpark number for max is 5 times, we should rarely need to update it*/
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.index_term_compression_threshold", newGucPrefix),
+		gettext_noop("The size in bytes above which index terms will be compressed."),
+		NULL,
+		&IndexTermCompressionThreshold,
+		DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD, 256,
+		INT_MAX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
