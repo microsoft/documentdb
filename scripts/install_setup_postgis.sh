@@ -41,8 +41,8 @@ tar -xf ./postgis-$POSTGIS_REF.tar.gz --strip-components 1
 rm -rf postgis-$POSTGIS_REF.tar.gz
 
 echo "building and installing postgis extension with pg_path $pgBinDir ..."
-# Build postgis without protobuf, raster and topology support
-CONFIGURE_OPTIONS="--without-protobuf --without-raster --without-topology --with-pgconfig=$pgBinDir/pg_config"
+# Build postgis without protobuf and topology support
+CONFIGURE_OPTIONS="--without-protobuf --without-topology --with-pgconfig=$pgBinDir/pg_config"
 
 # If not set, assume it is available in the path
 if [ ! -z ${GEOS_BIN_DIR+x} ]; then
@@ -57,8 +57,6 @@ if [ ! -z ${PROJ_DIR+x} ]; then
 fi
 echo "Configure options for PostGIS $CONFIGURE_OPTIONS"
 ./configure $CONFIGURE_OPTIONS
-# Clean up any accidentally included components
-rm -rf ./raster ./topology
 make PATH=$PATH -j
 make PATH=$PATH install
 
