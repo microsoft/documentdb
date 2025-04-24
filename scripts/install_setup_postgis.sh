@@ -42,7 +42,7 @@ rm -rf postgis-$POSTGIS_REF.tar.gz
 
 echo "building and installing postgis extension with pg_path $pgBinDir ..."
 # Build postgis without protobuf, raster and topology support
-CONFIGURE_OPTIONS="--without-protobuf --without-raster --without-topology --with-pgconfig=$pgBinDir/pg_config"
+CONFIGURE_OPTIONS="--without-protobuf --without-topology --with-pgconfig=$pgBinDir/pg_config"
 
 # If not set, assume it is available in the path
 if [ ! -z ${GEOS_BIN_DIR+x} ]; then
@@ -54,6 +54,12 @@ fi
 if [ ! -z ${PROJ_DIR+x} ]; then
     echo "PROJ dir used $PROJ_DIR..."
     CONFIGURE_OPTIONS+=" --with-projdir=$PROJ_DIR"
+fi
+
+# If not set, assume it is available in the path
+if [ ! -z ${GDAL_DIR+x} ]; then
+    echo "GDAL dir used $GDAL_DIR..."
+    CONFIGURE_OPTIONS+=" --with-gdalconfig=$GDAL_DIR/bin/gdal-config"
 fi
 echo "Configure options for PostGIS $CONFIGURE_OPTIONS"
 ./configure $CONFIGURE_OPTIONS
