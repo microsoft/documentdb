@@ -3,7 +3,7 @@ FROM ${BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 
 ARG POSTGRES_VERSION=16
-ARG DEB_PACKAGE_REL_PATH=packaging/postgresql-16-documentdb-1_1.0.0_amd64.deb
+ARG DEB_PACKAGE_REL_PATH=packages/postgresql-16-documentdb-1_1.0.0_amd64.deb
 
 RUN apt-get update
 
@@ -54,4 +54,4 @@ RUN echo "%sudo ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/no-pass-ask
 
 USER documentdb
 
-CMD ["bash", "-c", "/scripts/start_oss_server.sh & tail -f /dev/null"]
+ENTRYPOINT ["/bin/bash", "-c", "/scripts/start_oss_server.sh \"$@\" & tail -f /dev/null", "--"]
