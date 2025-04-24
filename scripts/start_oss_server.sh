@@ -110,9 +110,6 @@ if [ "$allowExternalAccess" == "true" ]; then
   echo "listen_addresses = '*'" >> $postgresConfigFile
   echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
   echo "host all all ::0/0 trust" >> $hbaConfigFile
-
-  psql -p $coordinatorPort -d postgres -c "ALTER DATABASE postgres SET search_path = documentdb_core, documentdb_api_catalog, public;";
-  echo "${green}PostgreSQL search_path configured successfully.${reset}"
 fi
 
 userName=$(whoami)
@@ -129,4 +126,11 @@ if [ "$distributed" == "true" ]; then
   psql -p $coordinatorPort -d postgres -c "SELECT citus_set_coordinator_host('localhost', $coordinatorPort);"
   AddNodeToCluster $coordinatorPort $coordinatorPort
 fi
+
+if [ "$allowExternalAccess" == "true" ]; then
+  psql -p $coordinatorPort -d postgres -c "ALTER DATABASE postgres SET search_path TO documentdb_core,documentdb_api_catalog,public;";
+  psql -p $coordinatorPort -d postgres -c "ALTER DATABASE postgres SET documentdb_core.bsonUseEJson TO true;";
+  echo "${green}PostgreSQL search_path configured successfully.${reset}"
+fi
+
 . $scriptDir/setup_psqlrc.sh
