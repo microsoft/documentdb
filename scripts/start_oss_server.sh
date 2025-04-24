@@ -110,6 +110,9 @@ if [ "$allowExternalAccess" == "true" ]; then
   echo "listen_addresses = '*'" >> $postgresConfigFile
   echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
   echo "host all all ::0/0 trust" >> $hbaConfigFile
+
+  psql -p $coordinatorPort -d postgres -c "ALTER DATABASE postgres SET search_path = documentdb_core, documentdb_api_catalog, public;";
+  echo "${green}PostgreSQL search_path configured successfully.${reset}"
 fi
 
 userName=$(whoami)
