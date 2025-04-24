@@ -69,8 +69,6 @@ while [[ -L $source ]]; do
 done
 scriptDir="$(cd -P "$(dirname "$source")" && pwd)"
 
-pushd $scriptDir/../pg_documentdb_gw
-
 if [ $clean = "true" ]; then
     echo "Cleaning the build directory..."
     cargo clean
@@ -96,7 +94,7 @@ if [ $createUser = "true" ]; then
 fi
 
 if [ -z "$configFile" ]; then
-    cargo run
+    /home/documentdb/gateway/documentdb_gateway
 else
-    cargo run $configFile
+    /home/documentdb/gateway/documentdb_gateway $configFile
 fi

@@ -34,10 +34,10 @@ Optional arguments:
                         Overrides LOG_LEVEL environment variable.
                           quiet, error, warn, info (default), debug, trace
   --username            Specify the username for the DocumentDB emulator.
-                        Defaults to TestAdmin
+                        Defaults to documentdb_user
                         Overrides USERNAME environment variable.
   --password            Specify the password for the DocumentDB emulator.
-                        Defaults to TestPassword
+                        Defaults to Admin100
                         Overrides PASSWORD environment variable.
 EOF
 }
@@ -108,7 +108,7 @@ do
 done
 
 # Set default values if not provided
-export USERNAME=${CUSTOM_USERNAME:-documentdb}
+export USERNAME=${CUSTOM_USERNAME:-documentdb_user}
 CUSTOM_PASSWORD=${CUSTOM_PASSWORD:-Admin100}
 echo "Using username: $USERNAME"
 
@@ -146,7 +146,7 @@ fi
 exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
 
 echo "Starting OSS server..."
-/home/documentdb/code/scripts/start_oss_server.sh -c -d $DATA_PATH | tee -a /home/documentdb/oss_server.log
+/home/documentdb/gateway/scripts/start_oss_server.sh -c -d $DATA_PATH | tee -a /home/documentdb/oss_server.log
 
 echo "OSS server started."
 
@@ -165,35 +165,35 @@ done
 echo "PostgreSQL is running."
 
 # Setting up the configuration file
-cp /home/documentdb/code/pg_documentdb_gw/SetupConfiguration.json /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json
+cp /home/documentdb/gateway/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration_temp.json
 
 if [ -n "${DOCUMENTDB_PORT:-}" ]; then
     echo "Updating MongoListenPort in the configuration file..."
-    jq ".MongoListenPort = $DOCUMENTDB_PORT" /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json > /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp && \
-    mv /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json
+    jq ".MongoListenPort = $DOCUMENTDB_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
 if [ -n "${CERT_PATH:-}" ] && [ -n "${KEY_FILE:-}" ]; then
     echo "Adding CertificateOptions to the configuration file..."
     jq --arg certPath "$CERT_PATH" --arg keyFilePath "$KEY_FILE" \
        '. + { "CertificateOptions": { "CertType": "PemFile", "FilePath": $certPath, "KeyFilePath": $keyFilePath } }' \
-       /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json > /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp && \
-    mv /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json
+       /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
 if [ -n "${ENFORCE_SSL:-}" ]; then
     echo "Updating EnforceSslTcp in the configuration file..."
     jq --arg enforceSsl $ENFORCE_SSL \
-       '.EnforceSslTcp = ($enforceSsl == "true")' /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json > /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp && \
-    mv /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json.tmp /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json
+       '.EnforceSslTcp = ($enforceSsl == "true")' /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
-sudo chmod 755 /home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json
+sudo chmod 755 /home/documentdb/gateway/SetupConfiguration_temp.json
 
-configFile="/home/documentdb/code/pg_documentdb_gw/SetupConfiguration_temp.json"
+configFile="/home/documentdb/gateway/SetupConfiguration_temp.json"
 
 echo "Starting gateway in the background..."
-/home/documentdb/code/scripts/build_and_start_gateway.sh -u $USERNAME -p $CUSTOM_PASSWORD -d $configFile | tee -a /home/documentdb/gateway.log &
+/home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $USERNAME -p $CUSTOM_PASSWORD -d $configFile | tee -a /home/documentdb/gateway.log &
 gateway_pid=$! # Capture the PID of the gateway process
 
 # Wait for the gateway process to keep the container alive

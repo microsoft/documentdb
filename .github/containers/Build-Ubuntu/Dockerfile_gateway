@@ -1,10 +1,12 @@
-FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:base
+FROM prebuild:001 as stage
+
 
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
-    jq
+    jq curl sudo git make build-essential openssl pkg-config libssl-dev \
+    && sudo rm -rf /var/lib/apt/lists/*
 
-USER documentdb
+
 
 # Install rustup (which includes rustc and cargo) in user directory
 ENV RUSTUP_HOME=/home/documentdb/.rustup \
@@ -16,11 +18,35 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path --default-tool
 # Optional: show versions
 RUN rustc --version && cargo --version
 
+
+
+USER documentdb
+WORKDIR /home/documentdb/code  
+
+COPY . /home/documentdb/code  
+
+RUN sudo chown -R documentdb:documentdb /home/documentdb/code
+
+WORKDIR /home/documentdb/code/pg_documentdb_gw
+
+# Generate cert?
+#RUN cargo build --release
+
+RUN cargo build
+
+
+FROM prebuild:001 as final
+
+RUN sudo apt-get update && \
+    sudo apt-get install -y --no-install-recommends \
+    jq  \
+    && sudo rm -rf /var/lib/apt/lists/*
+
 ENV LANGUAGE=en_US.UTF-8 \
     TERM=xterm-256color \
     ENFORCE_SSL=true \
     GATEWAY_PUBLIC_ENDPOINT="" \
-    MONGO_PORT=10260 \
+    DOCUMENTDB_PORT=10260 \
     ENABLE_TELEMETRY=false \
     LOG_LEVEL=info \
     DATA_PATH="/home/documentdb/postgresql/data" \
@@ -30,23 +56,19 @@ ENV LANGUAGE=en_US.UTF-8 \
     WORKSPACE_ROOT=/home/documentdb/code \
     CERTS_ROOT=/home/documentdb/code/scripts/certs \
     CERT_SECRET=secret \
-    COSMOS_EMULATOR_RELEASE_VERSION=$RELEASE_VERSION \
-    CUSTOM_USERNAME="documentdb"
+    CUSTOM_USERNAME="documentdb_user"
 
-WORKDIR /home/documentdb/code  
+RUN sudo mkdir /home/documentdb/gateway
+#COPY --from=stage /home/documentdb/code/pg_documentdb_gw/target/release/documentdb_gateway /home/documentdb/gateway/documentdb_gateway
+COPY --from=stage /home/documentdb/code/pg_documentdb_gw/target/debug/documentdb_gateway /home/documentdb/gateway/documentdb_gateway
+COPY --from=stage /home/documentdb/code/pg_documentdb_gw/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration.json
+COPY --from=stage /home/documentdb/code/scripts/start_oss_server.sh /home/documentdb/gateway/scripts/start_oss_server.sh
+COPY --from=stage /home/documentdb/code/scripts/build_and_start_gateway.sh /home/documentdb/gateway/scripts/build_and_start_gateway.sh
+COPY --from=stage /home/documentdb/code/scripts/emulator_entrypoint.sh /home/documentdb/gateway/scripts/emulator_entrypoint.sh
+COPY --from=stage /home/documentdb/code/scripts/utils.sh /home/documentdb/gateway/scripts/utils.sh
+COPY --from=stage /home/documentdb/code/scripts/setup_psqlrc.sh /home/documentdb/gateway/scripts/setup_psqlrc.sh
 
-COPY . /home/documentdb/code  
+RUN sudo chown -R documentdb:documentdb /home/documentdb/gateway
 
-RUN sudo chown -R documentdb:documentdb /home/documentdb/code
-
-RUN git config --global --add safe.directory /home/documentdb/code
-    
-RUN make  && sudo make install
-
-WORKDIR /home/documentdb/code/pg_documentdb_gw
-
-RUN cargo build
-
-WORKDIR /home/documentdb/code  
-
-ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/code/scripts/gateway_entrypoint.sh \"$@\"", "--"]
+WORKDIR /home/documentdb/gateway/scripts
+ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/gateway/scripts/emulator_entrypoint.sh \"$@\"", "--"]
