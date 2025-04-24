@@ -123,7 +123,6 @@ jobs:
           libproj-dev \
           libxml2-dev \
           libjson-c-dev \
-          libgdal-dev \
           libgeos++-dev \
           libgeos-dev \
 
