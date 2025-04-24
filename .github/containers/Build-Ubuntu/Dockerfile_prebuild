@@ -54,4 +54,4 @@ RUN echo "%sudo ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/no-pass-ask
 
 USER documentdb
 
-CMD ["bash", "-c", "/scripts/start_oss_server.sh & tail -f /dev/null"]
+ENTRYPOINT ["/bin/bash", "-c", "/scripts/start_oss_server.sh \"$@\" & tail -f /dev/null", "--"]
