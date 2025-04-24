@@ -57,6 +57,8 @@ if [ ! -z ${PROJ_DIR+x} ]; then
 fi
 echo "Configure options for PostGIS $CONFIGURE_OPTIONS"
 ./configure $CONFIGURE_OPTIONS
+# Clean up any accidentally included components
+rm -rf ./raster ./topology
 make PATH=$PATH -j
 make PATH=$PATH install
 
