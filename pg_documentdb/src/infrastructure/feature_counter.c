@@ -219,6 +219,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_RESHARD_COLLECTION] = "command_reshard_collection",
 	[FEATURE_COMMAND_UNSHARD_COLLECTION] = "command_unshard_collection",
 	[FEATURE_COMMAND_UPDATE] = "command_update",
+	[FEATURE_COMMAND_UPDATE_BULK] = "command_update_bulk",
 	[FEATURE_COMMAND_VALIDATE_REPAIR] = "validate_repair",
 
 	[FEATURE_COMMAND_COLLMOD_VIEW] = "collMod_view",

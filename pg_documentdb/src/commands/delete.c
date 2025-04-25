@@ -995,6 +995,7 @@ command_delete_worker(PG_FUNCTION_ARGS)
 	pgbsonsequence *specDocuments = PG_GETARG_MAYBE_NULL_PGBSON_SEQUENCE(4);
 	text *transactionId = PG_ARGISNULL(5) ? NULL : PG_GETARG_TEXT_PP(5);
 
+	AllowNestedDistributionInCurrentTransaction();
 	pgbsonelement commandElement;
 	PgbsonToSinglePgbsonElement(deleteInternalSpec, &commandElement);
 

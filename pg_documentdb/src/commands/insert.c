@@ -1086,6 +1086,7 @@ command_insert_worker(PG_FUNCTION_ARGS)
 							"Explicit shardOid must be set - this is a server bug")));
 	}
 
+	AllowNestedDistributionInCurrentTransaction();
 	pgbsonelement element = { 0 };
 	PgbsonToSinglePgbsonElement(insertInternalSpec, &element);
 

@@ -132,6 +132,10 @@ typedef void (*RunQueryWithNestedDistribution_HookType)(const char *query,
 														int numValues);
 extern RunQueryWithNestedDistribution_HookType run_query_with_nested_distribution_hook;
 
+typedef void (*AllowNestedDistributionInCurrentTransaction_HookType)(void);
+extern AllowNestedDistributionInCurrentTransaction_HookType
+	allow_nested_distribution_in_current_transaction_hook;
+
 typedef bool (*IsShardTableForMongoTable_HookType)(const char *relName, const
 												   char *numEndPointer);
 

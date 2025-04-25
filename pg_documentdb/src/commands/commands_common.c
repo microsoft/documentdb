@@ -15,6 +15,8 @@
 #include "executor/spi.h"
 #include "lib/stringinfo.h"
 #include "utils/builtins.h"
+#include "storage/lmgr.h"
+#include "utils/snapmgr.h"
 
 #include "io/bson_core.h"
 #include "commands/commands_common.h"
@@ -440,6 +442,38 @@ RewriteDocumentWithCustomObjectId(pgbson *document,
 	}
 
 	return result;
+}
+
+
+/*
+ * For write procedures, commits and re-acquires the collection lock.
+ */
+void
+CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
+											   bool setSnapshot)
+{
+	ereport(DEBUG1, (errmsg("Commiting intermediate state and "
+							"reacquiring collection lock")));
+
+	if (ActiveSnapshotSet())
+	{
+		PopActiveSnapshot();
+	}
+
+	/* Commit the old transaction */
+	CommitTransactionCommand();
+
+	/* Start a new transaction */
+	StartTransactionCommand();
+
+	/* Push the active snapshot if commands need it (Portals do) */
+	if (setSnapshot)
+	{
+		PushActiveSnapshot(GetTransactionSnapshot());
+	}
+
+	/* Now acquire the collection lock */
+	LockRelationOid(collection->relationId, RowExclusiveLock);
 }
 
 

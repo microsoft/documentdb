@@ -207,6 +207,8 @@ struct Path * TryOptimizePathForBitmapAnd(struct PlannerInfo *root, struct
 char * TryGetExtendedVersionRefreshQuery(void);
 
 
+void AllowNestedDistributionInCurrentTransaction(void);
+
 void GetShardIdsAndNamesForCollection(Oid relationOid, const char *tableName,
 									  Datum **shardOidArray, Datum **shardNameArray,
 									  int32_t *shardCount);

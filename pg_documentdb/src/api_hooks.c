@@ -30,6 +30,8 @@ RunQueryWithSequentialModification_HookType
 DistributePostgresTable_HookType distribute_postgres_table_hook = NULL;
 ModifyTableColumnNames_HookType modify_table_column_names_hook = NULL;
 RunQueryWithNestedDistribution_HookType run_query_with_nested_distribution_hook = NULL;
+AllowNestedDistributionInCurrentTransaction_HookType
+	allow_nested_distribution_in_current_transaction_hook = NULL;
 IsShardTableForMongoTable_HookType is_shard_table_for_mongo_table_hook = NULL;
 HandleColocation_HookType handle_colocation_hook = NULL;
 RewriteListCollectionsQueryForDistribution_HookType rewrite_list_collections_query_hook =
@@ -141,6 +143,20 @@ RunMultiValueQueryWithNestedDistribution(const char *query, int nArgs, Oid *argT
 		ExtensionExecuteMultiValueQueryWithArgsViaSPI(
 			query, nArgs, argTypes, argDatums, argNulls,
 			readOnly, expectedSPIOK, datums, isNull, numValues);
+	}
+}
+
+
+/*
+ * Enables any settings needed for nested distribution
+ * Noops for single node.
+ */
+void
+AllowNestedDistributionInCurrentTransaction(void)
+{
+	if (allow_nested_distribution_in_current_transaction_hook != NULL)
+	{
+		allow_nested_distribution_in_current_transaction_hook();
 	}
 }
 
