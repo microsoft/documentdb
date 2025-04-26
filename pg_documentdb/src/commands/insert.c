@@ -82,11 +82,16 @@ typedef struct BatchInsertionResult
 
 	/* list of write errors for each insertion, or NIL */
 	List *writeErrors;
+
+	/* Memory context to write results/errors to */
+	MemoryContext resultMemoryContext;
 } BatchInsertionResult;
+
 
 PG_FUNCTION_INFO_V1(command_insert);
 PG_FUNCTION_INFO_V1(command_insert_one);
 PG_FUNCTION_INFO_V1(command_insert_worker);
+PG_FUNCTION_INFO_V1(command_insert_bulk);
 
 
 static BatchInsertionSpec * BuildBatchInsertionSpec(bson_iter_t *insertCommandIter,
@@ -96,11 +101,13 @@ static List * BuildInsertionListFromPgbsonSequence(pgbsonsequence *docSequence,
 												   bool *hasSkippedDocuments);
 static void ProcessBatchInsertion(MongoCollection *collection,
 								  BatchInsertionSpec *batchSpec,
-								  text *transactionId, BatchInsertionResult *batchResult);
+								  text *transactionId, BatchInsertionResult *batchResult,
+								  bool isTransactional);
 static void DoBatchInsertNoTransactionId(MongoCollection *collection,
 										 BatchInsertionSpec *batchSpec,
 										 BatchInsertionResult *batchResult,
-										 ExprEvalState *evalState);
+										 ExprEvalState *evalState,
+										 bool isTransactional);
 
 static uint64 ProcessInsertion(MongoCollection *collection, Oid insertShardOid, const
 							   bson_value_t *document,
@@ -120,6 +127,8 @@ static uint64 InsertOneWithTransactionCore(uint64 collectionId, const
 static uint64 CallInsertWorkerForInsertOne(MongoCollection *collection, int64
 										   shardKeyHash,
 										   pgbson *document, text *transactionId);
+static Datum CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext
+							   allocContext);
 
 /*
  * ApiGucPrefix.enable_create_collection_on_insert GUC determines whether
@@ -131,7 +140,7 @@ extern bool EnableBypassDocumentValidation;
 extern bool EnableSchemaValidation;
 
 /*
- * command_insert implements the insert command.
+ * command_insert handles the insert command invocation through a PostgreSQL function.
  *
  * Server-side implementation of the insert command never attempts to deduplicate
  * the given document/s to be inserted.
@@ -139,86 +148,40 @@ extern bool EnableSchemaValidation;
 Datum
 command_insert(PG_FUNCTION_ARGS)
 {
-	if (PG_ARGISNULL(0))
-	{
-		ereport(ERROR, (errmsg("database name cannot be NULL")));
-	}
-
-	if (PG_ARGISNULL(1))
-	{
-		ereport(ERROR, (errmsg("insert document cannot be NULL")));
-	}
-
-	Datum databaseNameDatum = PG_GETARG_DATUM(0);
-	pgbson *insertSpec = PG_GETARG_PGBSON(1);
-
-	pgbsonsequence *insertDocs = PG_GETARG_MAYBE_NULL_PGBSON_SEQUENCE(2);
-
-	text *transactionId = NULL;
-	if (!PG_ARGISNULL(3))
-	{
-		transactionId = PG_GETARG_TEXT_P(3);
-	}
-
 	ReportFeatureUsage(FEATURE_COMMAND_INSERT);
+	bool isTransactional = true;
+	PG_RETURN_DATUM(CommandInsertCore(fcinfo, isTransactional, CurrentMemoryContext));
+}
 
-	/* fetch TupleDesc for return value, not interested in resultTypeId */
-	Oid *resultTypeId = NULL;
-	TupleDesc resultTupDesc;
-	TypeFuncClass resultTypeClass =
-		get_call_result_type(fcinfo, resultTypeId, &resultTupDesc);
 
-	if (resultTypeClass != TYPEFUNC_COMPOSITE)
+/*
+ * command_insert_bulk handles the insert command invocation through a PostgreSQL procedure.
+ */
+Datum
+command_insert_bulk(PG_FUNCTION_ARGS)
+{
+	ReportFeatureUsage(FEATURE_COMMAND_INSERT_BULK);
+	bool isTopLevel = true;
+	if (IsInTransactionBlock(isTopLevel))
 	{
-		ereport(ERROR, (errmsg("return type must be a row type")));
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
+						errmsg("the insert procedure cannot be used in transactions."
+							   " Please use the insert function instead")));
 	}
 
-	bson_iter_t insertCommandIter;
-	PgbsonInitIterator(insertSpec, &insertCommandIter);
+	bool isTransactional = false;
 
-	/* we first validate insert command BSON and build a specification */
-	BatchInsertionSpec *batchSpec = BuildBatchInsertionSpec(&insertCommandIter,
-															insertDocs);
+	/* For results we need a stable memory context across transactions */
+	MemoryContext stableContext = fcinfo->flinfo->fn_mcxt;
+	Datum result = CommandInsertCore(fcinfo, isTransactional, stableContext);
 
-	BatchInsertionResult batchResult;
-
-	if (list_length(batchSpec->documents) == 0)
+	/* If it's not transactional, pop the active snapshot created during the transaction start */
+	if (ActiveSnapshotSet())
 	{
-		/* If there's no documents to insert exit and don't create the collection */
-		batchResult.rowsInserted = 0;
-		batchResult.ok = 1;
-		batchResult.writeErrors = NIL;
-	}
-	else
-	{
-		/* open the collection */
-		Datum collectionNameDatum = CStringGetTextDatum(batchSpec->collectionName);
-		MongoCollection *collection =
-			GetMongoCollectionByNameDatum(databaseNameDatum, collectionNameDatum,
-										  RowExclusiveLock);
-
-		if (collection == NULL)
-		{
-			collection = CreateCollectionForInsert(databaseNameDatum,
-												   collectionNameDatum);
-		}
-		else
-		{
-			batchSpec->insertShardOid = TryGetCollectionShardTable(collection,
-																   RowExclusiveLock);
-		}
-
-		/* do the inserts */
-		ProcessBatchInsertion(collection, batchSpec, transactionId, &batchResult);
+		PopActiveSnapshot();
 	}
 
-	Datum values[2];
-	bool isNulls[2] = { false, false };
-
-	values[0] = PointerGetDatum(BuildResponseMessage(&batchResult));
-	values[1] = BoolGetDatum(batchResult.writeErrors == NIL);
-	HeapTuple resultTuple = heap_form_tuple(resultTupDesc, values, isNulls);
-	PG_RETURN_DATUM(HeapTupleGetDatum(resultTuple));
+	PG_RETURN_DATUM(result);
 }
 
 
@@ -711,19 +674,17 @@ DoSingleInsert(MongoCollection *collection,
 
 		/* Abort the inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
-
-		/* Rollback changes MemoryContext */
-		MemoryContextSwitchTo(oldContext);
 		CurrentResourceOwner = oldOwner;
 
+		MemoryContextSwitchTo(batchResult->resultMemoryContext);
 		batchResult->writeErrors = lappend(batchResult->writeErrors,
 										   GetWriteErrorFromErrorData(errorData,
 																	  insertIndex));
+		MemoryContextSwitchTo(oldContext);
 		FreeErrorData(errorData);
 		isSuccess = false;
 	}
 	PG_END_TRY();
-
 	return isSuccess;
 }
 
@@ -741,7 +702,8 @@ DoSingleInsert(MongoCollection *collection,
  */
 static void
 ProcessBatchInsertion(MongoCollection *collection, BatchInsertionSpec *batchSpec,
-					  text *transactionId, BatchInsertionResult *batchResult)
+					  text *transactionId, BatchInsertionResult *batchResult, bool
+					  isTransactional)
 {
 	batchResult->ok = 1;
 	batchResult->rowsInserted = 0;
@@ -756,7 +718,7 @@ ProcessBatchInsertion(MongoCollection *collection, BatchInsertionSpec *batchSpec
 	if (CheckSchemaValidationEnabled(collection, batchSpec->bypassDocumentValidation))
 	{
 		evalState = PrepareForSchemaValidation(collection->schemaValidator.validator,
-											   CurrentMemoryContext);
+											   batchResult->resultMemoryContext);
 	}
 
 	/*
@@ -777,12 +739,13 @@ ProcessBatchInsertion(MongoCollection *collection, BatchInsertionSpec *batchSpec
 		/* The else scenario - we have no transactionId (or we ignore it)
 		 * and/or we have more than 1 document. Do a batch insert directly.
 		 */
-		DoBatchInsertNoTransactionId(collection, batchSpec, batchResult, evalState);
+		DoBatchInsertNoTransactionId(collection, batchSpec, batchResult, evalState,
+									 isTransactional);
 	}
 
 	if (evalState != NULL)
 	{
-		FreeExprEvalState(evalState, CurrentMemoryContext);
+		FreeExprEvalState(evalState, batchResult->resultMemoryContext);
 	}
 }
 
@@ -792,7 +755,8 @@ ProcessBatchInsertion(MongoCollection *collection, BatchInsertionSpec *batchSpec
  */
 static void
 DoBatchInsertNoTransactionId(MongoCollection *collection, BatchInsertionSpec *batchSpec,
-							 BatchInsertionResult *batchResult, ExprEvalState *evalState)
+							 BatchInsertionResult *batchResult, ExprEvalState *evalState,
+							 bool isTransactional)
 {
 	List *insertions = batchSpec->documents;
 	bool isOrdered = batchSpec->isOrdered;
@@ -804,6 +768,13 @@ DoBatchInsertNoTransactionId(MongoCollection *collection, BatchInsertionSpec *ba
 	while (insertIndex < list_length(insertions))
 	{
 		CHECK_FOR_INTERRUPTS();
+
+		if (!isTransactional && insertIndex > 0)
+		{
+			/* For each iteration of the loop, commit prior work */
+			bool setSnapshot = true;
+			CommitWriteProcedureAndReacquireCollectionLock(collection, setSnapshot);
+		}
 
 		if (list_length(insertions) > 1 && !hasBatchedInsertFailed)
 		{
@@ -831,7 +802,6 @@ DoBatchInsertNoTransactionId(MongoCollection *collection, BatchInsertionSpec *ba
 
 		insertCell = list_nth_cell(insertions, insertIndex);
 		const bson_value_t *document = lfirst(insertCell);
-
 		text *transactionId = NULL;
 		bool isSuccess = DoSingleInsert(collection, batchSpec->insertShardOid, document,
 										transactionId, batchResult,
@@ -914,6 +884,94 @@ ProcessInsertion(MongoCollection *collection,
 		return CallInsertWorkerForInsertOne(collection, shardKeyHash, insertDoc,
 											transactionId);
 	}
+}
+
+
+/* core implementation of insert command */
+static Datum
+CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocContext)
+{
+	if (PG_ARGISNULL(0))
+	{
+		ereport(ERROR, (errmsg("database name cannot be NULL")));
+	}
+
+	if (PG_ARGISNULL(1))
+	{
+		ereport(ERROR, (errmsg("insert document cannot be NULL")));
+	}
+
+	Datum databaseNameDatum = PG_GETARG_DATUM(0);
+	pgbson *insertSpec = PG_GETARG_PGBSON(1);
+
+	pgbsonsequence *insertDocs = PG_GETARG_MAYBE_NULL_PGBSON_SEQUENCE(2);
+
+	text *transactionId = NULL;
+	if (!PG_ARGISNULL(3))
+	{
+		transactionId = PG_GETARG_TEXT_P(3);
+	}
+
+	/* fetch TupleDesc for return value, not interested in resultTypeId */
+	Oid *resultTypeId = NULL;
+	TupleDesc resultTupDesc;
+	TypeFuncClass resultTypeClass =
+		get_call_result_type(fcinfo, resultTypeId, &resultTupDesc);
+
+	if (resultTypeClass != TYPEFUNC_COMPOSITE)
+	{
+		ereport(ERROR, (errmsg("return type must be a row type")));
+	}
+
+	bson_iter_t insertCommandIter;
+	PgbsonInitIterator(insertSpec, &insertCommandIter);
+	MemoryContext oldContext = MemoryContextSwitchTo(allocContext);
+
+	/* we first validate insert command BSON and build a specification */
+	BatchInsertionSpec *batchSpec = BuildBatchInsertionSpec(&insertCommandIter,
+															insertDocs);
+
+	BatchInsertionResult batchResult;
+	batchResult.resultMemoryContext = allocContext;
+	MemoryContextSwitchTo(oldContext);
+	if (list_length(batchSpec->documents) == 0)
+	{
+		/* If there's no documents to insert exit and don't create the collection */
+		batchResult.rowsInserted = 0;
+		batchResult.ok = 1;
+		batchResult.writeErrors = NIL;
+	}
+	else
+	{
+		/* open the collection */
+		Datum collectionNameDatum = CStringGetTextDatum(batchSpec->collectionName);
+		MongoCollection *collection =
+			GetMongoCollectionByNameDatum(databaseNameDatum, collectionNameDatum,
+										  RowExclusiveLock);
+
+		if (collection == NULL)
+		{
+			collection = CreateCollectionForInsert(databaseNameDatum,
+												   collectionNameDatum);
+		}
+		else
+		{
+			batchSpec->insertShardOid = TryGetCollectionShardTable(collection,
+																   RowExclusiveLock);
+		}
+
+		/* do the inserts */
+		ProcessBatchInsertion(collection, batchSpec, transactionId, &batchResult,
+							  isTransactional);
+	}
+
+	Datum values[2];
+	bool isNulls[2] = { false, false };
+
+	values[0] = PointerGetDatum(BuildResponseMessage(&batchResult));
+	values[1] = BoolGetDatum(batchResult.writeErrors == NIL);
+	HeapTuple resultTuple = heap_form_tuple(resultTupDesc, values, isNulls);
+	return HeapTupleGetDatum(resultTuple);
 }
 
 

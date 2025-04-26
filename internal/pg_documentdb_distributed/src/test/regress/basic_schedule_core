@@ -31,7 +31,7 @@ test: bson_query_operator_elemmatch_tests_index
 
 test: bson_aggregation_pipeline_tests_index_pushdown
 test: bson_aggregates_distinct_tests
-test: bson_dollar_ops_query_bits_tests_runtime
+test: bson_dollar_ops_query_bits_tests_runtime command_insert_procedure
 test: bson_dollar_ops_query_bits_tests_index
 test: bson_dollar_ops_query_bits_tests_explain
 test: bson_dollar_ops_query_mod_tests_runtime
