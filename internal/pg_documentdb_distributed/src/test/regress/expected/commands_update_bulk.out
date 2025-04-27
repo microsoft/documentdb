@@ -1825,3 +1825,50 @@ SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch
  { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "31" } }
 (3 rows)
 
+-- disable local writes
+set documentdb.useLocalExecutionShardQueries to off;
+-- These should all have 4 commit message (1 for each batchsize of 3, and 1 for the last one)
+CALL documentdb_api.update_bulk('update_bulk', :'update_query');
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+                                                    p_result                                                    | p_success 
+---------------------------------------------------------------------
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberLong" : "10" }, "n" : { "$numberLong" : "10" } } | t
+(1 row)
+
+CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+                                                                                                                                                                          p_result                                                                                                                                                                           | p_success 
+---------------------------------------------------------------------
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberLong" : "5" }, "n" : { "$numberLong" : "5" }, "writeErrors" : [ { "index" : { "$numberInt" : "5" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "unknown top level operator: $a. If you have a field name that starts with a '$' symbol, consider using $getField or $setField." } ] } | f
+(1 row)
+
+CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+DEBUG:  Commiting intermediate state and reacquiring collection lock
+DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_8501 WHERE shard_key_value = 8501" via SPI
+                                                                                                                                                                           p_result                                                                                                                                                                            | p_success 
+---------------------------------------------------------------------
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberLong" : "10" }, "n" : { "$numberLong" : "10" }, "writeErrors" : [ { "index" : { "$numberInt" : "5" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "unknown top level operator: $a. If you have a field name that starts with a '$' symbol, consider using $getField or $setField." } ] } | f
+(1 row)
+
+-- still increments
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+                                            document                                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "41" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "21" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "41" } }
+(3 rows)
+

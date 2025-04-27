@@ -715,3 +715,14 @@ CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
 
 -- still increments
 SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+
+-- disable local writes
+set documentdb.useLocalExecutionShardQueries to off;
+
+-- These should all have 4 commit message (1 for each batchsize of 3, and 1 for the last one)
+CALL documentdb_api.update_bulk('update_bulk', :'update_query');
+CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
+CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
+
+-- still increments
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
