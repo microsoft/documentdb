@@ -583,7 +583,7 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 
 	if (rowsCount > 0)
 	{
-		ReportFeatureUsage(FEATURE_TTL_PURGER_CALLS);
+		ReportFeatureUsage(FEATURE_USAGE_TTL_PURGER_CALLS);
 	}
 
 	return rowsCount;

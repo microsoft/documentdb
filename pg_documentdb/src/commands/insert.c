@@ -178,6 +178,12 @@ command_insert_bulk(PG_FUNCTION_ARGS)
 	/* If it's not transactional, pop the active snapshot created during the transaction start */
 	if (ActiveSnapshotSet())
 	{
+		Snapshot snapshot = GetActiveSnapshot();
+		if (ActivePortal != NULL && ActivePortal->portalSnapshot == snapshot)
+		{
+			ActivePortal->portalSnapshot = NULL;
+		}
+
 		PopActiveSnapshot();
 	}
 

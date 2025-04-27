@@ -13,17 +13,16 @@
 #include <utils/guc.h>
 #include "configs/config_initialization.h"
 
+
 /*
- * GUC to enable HNSW index type and query for vector search.
- * This is disabled by default.
+ * SECTION: Vector Search flags
  */
+
+/* GUC to enable HNSW index type and query for vector search. */
 #define DEFAULT_ENABLE_VECTOR_HNSW_INDEX true
 bool EnableVectorHNSWIndex = DEFAULT_ENABLE_VECTOR_HNSW_INDEX;
 
-/*
- * GUC to enable vector pre-filtering feature for vector search.
- * This is disabled by default.
- */
+/* GUC to enable vector pre-filtering feature for vector search. */
 #define DEFAULT_ENABLE_VECTOR_PRE_FILTER false
 bool EnableVectorPreFilter = DEFAULT_ENABLE_VECTOR_PRE_FILTER;
 
@@ -33,24 +32,77 @@ bool EnableVectorPreFilterV2 = DEFAULT_ENABLE_VECTOR_PRE_FILTER_V2;
 #define DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN false
 bool EnableVectorForceIndexPushdown = DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN;
 
-/*
- * GUC to enable vector compression for vector search.
- */
+/* GUC to enable vector compression for vector search. */
 #define DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF true
 bool EnableVectorCompressionHalf = DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF;
 
+
+/*
+ * SECTION: Indexing feature flags
+ */
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
 #define DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS true
 bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS;
 
-#define DEFAULT_ENABLE_RUM_INDEX_SCAN false
-bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
-
 #define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
 bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
 
+#define DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS true
+bool EnableIndexTermTruncationOnNestedObjects =
+	DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS;
+
+#define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
+bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
+
+#define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
+bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
+
+/*
+ * SECTION: Planner feature flags
+ */
+#define DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY false
+bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
+
+#define DEFAULT_ENABLE_RUM_INDEX_SCAN false
+bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
+
+#define DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN false
+bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
+
+#define DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES true
+bool AllowNestedAggregationFunctionInQueries =
+	DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES;
+
+#define DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY false
+bool EnableSortbyIdPushDownToPrimaryKey =
+	DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY;
+
+
+/*
+ * SECTION: Aggregation & Query feature flags
+ */
+#define DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION true
+bool EnableLookupUnwindSupport = DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION;
+
+#define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
+bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
+
+#define DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS true
+bool EnableSimplifyGroupAccumulators = DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS;
+
+#define DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP true
+bool EnableMatchWithLetInLookup =
+	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
+
+#define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
+bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
+
+
+/*
+ * SECTION: Top level feature flags
+ */
 #define DEFAULT_ENABLE_SCHEMA_VALIDATION false
 bool EnableSchemaValidation =
 	DEFAULT_ENABLE_SCHEMA_VALIDATION;
@@ -62,14 +114,12 @@ bool EnableBypassDocumentValidation =
 #define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
 bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 
-/* Can remove post V0.25 */
-#define DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION true
-bool EnableLookupUnwindSupport = DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION;
+#define DEFAULT_ENABLE_USER_CRUD false
+bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
 
-#define DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS true
-bool EnableIndexTermTruncationOnNestedObjects =
-	DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS;
-
+/*
+ * SECTION: Collation feature flags
+ */
 #define DEFAULT_SKIP_FAIL_ON_COLLATION false
 bool SkipFailOnCollation = DEFAULT_SKIP_FAIL_ON_COLLATION;
 
@@ -77,12 +127,14 @@ bool SkipFailOnCollation = DEFAULT_SKIP_FAIL_ON_COLLATION;
 bool EnableLookupIdJoinOptimizationOnCollation =
 	DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION;
 
-#define DEFAULT_ENABLE_USER_CRUD false
-bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
+#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
+bool EnableLetAndCollationForQueryMatch =
+	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
 
-#define DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY false
-bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
 
+/*
+ * SECTION: Cluster administration & DDL feature flags
+ */
 #define DEFAULT_RECREATE_RETRY_TABLE_ON_SHARDING false
 bool RecreateRetryTableOnSharding = DEFAULT_RECREATE_RETRY_TABLE_ON_SHARDING;
 
@@ -92,45 +144,13 @@ bool EnableMergeTargetCreation = DEFAULT_ENABLE_MERGE_TARGET_CREATION;
 #define DEFAULT_ENABLE_MERGE_ACROSS_DB true
 bool EnableMergeAcrossDB = DEFAULT_ENABLE_MERGE_ACROSS_DB;
 
-#define DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN false
-bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
-
-#define DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES true
-bool AllowNestedAggregationFunctionInQueries =
-	DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES;
-
-#define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
-bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
-
 #define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
 bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
-
-#define DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS true
-bool EnableSimplifyGroupAccumulators = DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS;
-
-#define DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY false
-bool EnableSortbyIdPushDownToPrimaryKey =
-	DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY;
-
-#define DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP true
-bool EnableMatchWithLetInLookup =
-	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
-
-#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
-bool EnableLetAndCollationForQueryMatch =
-	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
-
-#define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
-bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
-
-#define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
-bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
-#define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
-bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
+/* FEATURE FLAGS END */
 
 void
 InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix)

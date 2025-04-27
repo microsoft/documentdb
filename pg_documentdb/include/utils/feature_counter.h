@@ -302,11 +302,12 @@ typedef enum
 	FEATURE_STAGE_VECTOR_SEARCH_KNN,
 	FEATURE_STAGE_VECTOR_SEARCH_MONGO,
 
-	/* Feature usage stats */
-	FEATURE_TTL_PURGER_CALLS,
-
 	/* Feature counter region - Update operators */
 	FEATURE_UPDATE_OPERATOR_GEN_EMBEDDINGS,
+
+	/* Feature usage stats */
+	FEATURE_USAGE_TTL_PURGER_CALLS,
+	FEATURE_USAGE_INDEX_SCAN_WITH_LIMIT,
 
 	/* Feature mapping region - User CRUD*/
 	FEATURE_USER_CREATE,
