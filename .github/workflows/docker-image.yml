@@ -1,0 +1,32 @@
+name: Build and Push to ACR
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v4
+
+    - name: 'Login to Azure'
+      uses: azure/login@v2
+      with:
+        client-id: e17f6e42-8fef-48d3-86ad-504123baa937
+        tenant-id: 72f988bf-86f1-41af-91ab-2d7cd011db47
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: 'Build and Push image to ACR'
+      uses: azure/ACR-Tasks@v1
+      with:
+        registry: pgmongoemulator.azurecr.io
+        image: documentdb-gateway-test:latest
+        dockerfile: .github/containers/Build-Ubuntu/Dockerfile_gateway
+        context: .
