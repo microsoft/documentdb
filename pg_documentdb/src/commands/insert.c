@@ -1040,58 +1040,6 @@ CallInsertWorkerForInsertOne(MongoCollection *collection, int64 shardKeyHash,
 }
 
 
-bool
-TryInsertOne(MongoCollection *collection, pgbson *document, int64 shardKeyHash, bool
-			 sameSourceAndTarget, WriteError *writeError)
-{
-	volatile bool rowsInserted = false;
-	MemoryContext oldContext = CurrentMemoryContext;
-	ResourceOwner oldOwner = CurrentResourceOwner;
-
-	BeginInternalSubTransaction(NULL);
-
-	PG_TRY();
-	{
-		if (sameSourceAndTarget)
-		{
-			rowsInserted = InsertDocumentToTempCollection(collection,
-														  shardKeyHash, document);
-		}
-		else
-		{
-			rowsInserted = InsertDocument(collection->collectionId,
-										  collection->shardTableName,
-										  shardKeyHash, PgbsonGetDocumentId(document),
-										  document);
-		}
-		ReleaseCurrentSubTransaction();
-		MemoryContextSwitchTo(oldContext);
-		CurrentResourceOwner = oldOwner;
-	}
-	PG_CATCH();
-	{
-		MemoryContextSwitchTo(oldContext);
-
-		ErrorData *errorData = CopyErrorDataAndFlush();
-		if (writeError != NULL)
-		{
-			writeError->code = errorData->sqlerrcode;
-			writeError->errmsg = errorData->message;
-		}
-
-		/* Abort the inner transaction */
-		RollbackAndReleaseCurrentSubTransaction();
-		MemoryContextSwitchTo(oldContext);
-		CurrentResourceOwner = oldOwner;
-
-		rowsInserted = false;
-	}
-	PG_END_TRY();
-
-	return rowsInserted;
-}
-
-
 /*
  * command_insert_one is the internal implementation of the db.collection.insertOne() API.
  */
@@ -1299,44 +1247,6 @@ InsertOrReplaceDocument(uint64 collectionId, const char *shardTableName, int64
 	SPI_finish();
 
 	return spiStatus == SPI_OK_INSERT || spiStatus == SPI_OK_UPDATE;
-}
-
-
-bool
-InsertDocumentToTempCollection(MongoCollection *collection, int64 shardKeyValue,
-							   pgbson *document)
-{
-	const int argCount = 3;
-	Oid argTypes[3];
-	Datum argValues[3];
-	pgbson *objectId = PgbsonGetDocumentId(document);
-	StringInfoData query;
-	int spiStatus PG_USED_FOR_ASSERTS_ONLY = 0;
-
-	SPI_connect();
-	initStringInfo(&query);
-	appendStringInfo(&query,
-					 "INSERT INTO \"%s\""
-					 " (shard_key_value, object_id, document) "
-					 " VALUES ($1, %s.bson_from_bytea($2), "
-					 "%s.bson_from_bytea($3))", collection->tableName,
-					 CoreSchemaName, CoreSchemaName);
-	argTypes[0] = INT8OID;
-	argValues[0] = Int64GetDatum(shardKeyValue);
-	argTypes[1] = BYTEAOID;
-	argValues[1] = PointerGetDatum(CastPgbsonToBytea(objectId));
-	argTypes[2] = BYTEAOID;
-	argValues[2] = PointerGetDatum(CastPgbsonToBytea(document));
-
-	SPIPlanPtr plan = GetSPIQueryPlan(collection->collectionId, QUERY_ID_INSERT,
-									  query.data, argTypes, argCount);
-
-	spiStatus = SPI_execute_plan(plan, argValues, NULL, false, 1);
-	pfree(query.data);
-
-	SPI_finish();
-
-	return spiStatus == SPI_OK_INSERT;
 }
 
 
