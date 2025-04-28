@@ -139,14 +139,15 @@ jobs:
           which pg_config
           make
           sudo PATH=$PATH make install
+        
+      - name: Dump Environment
+        run: |
+          env
+          locale
+          pg_config
 
       - name: Run Tests
         run: |
-          which pg_config    
-          export LC_ALL=en_US.UTF-8
-          export LANGUAGE=en_US
-          export LC_COLLATE=en_US.UTF-8
-          export LC_CTYPE=en_US.UTF-8
           make check-minimal -C pg_documentdb EXTRA_TESTS=authentication_scram_sha_256
 
       - name: Citus Indent
