@@ -28,6 +28,6 @@ jobs:
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}
         az acr build \
           --registry pgmongoemulator.azurecr.io \
-          --image documentdb-gateway-test:$IMAGE_TAG \
+          --image documentdb-gateway-preview:$IMAGE_TAG \
           --file .github/containers/Build-Ubuntu/Dockerfile_gateway \
           .
