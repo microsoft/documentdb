@@ -1,4 +1,4 @@
-name: Build and Push to ACR
+name: Gateway Image - Build and Push to ACR
 
 on:
   push:
