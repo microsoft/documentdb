@@ -24,9 +24,9 @@ jobs:
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: 'Build and Push image to ACR'
-      uses: Azure/acr-build@v1
-      with:
-        registry: pgmongoemulator.azurecr.io
-        image: documentdb-gateway-test:latest
-        dockerfile: .github/containers/Build-Ubuntu/Dockerfile_gateway
-        context: .
+      run: |
+        az acr build \
+          --registry pgmongoemulator.azurecr.io \
+          --image documentdb-gateway-test:latest \
+          --file .github/containers/Build-Ubuntu/Dockerfile_gateway \
+          .
