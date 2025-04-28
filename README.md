@@ -81,40 +81,30 @@ You are all set to work with DocumentDB.
 
 ### Using the Prebuilt Docker Image
 
-You can use a prebuilt Docker image for DocumentDB instead of building it from source. Follow these steps:
+You can use a [prebuilt docker image](.github\containers\Build-Ubuntu\PrebuildImageList.md) for DocumentDB instead of building it from source.  Follow these steps:
 
-#### Option 1: Build the Prebuilt Image Locally
+#### Pull the Prebuilt Image
 
-To build the prebuilt image locally, run the following command:
-
-```bash
-docker build . -f ./.github/containers/Build-Ubuntu/Dockerfile_prebuild -t <image-tag>
-```
-
-Replace `<image-tag>` with your desired tag for the image.
-
-#### Option 2: Pull the Prebuilt Image
-
-You can pull the prebuilt image directly from the Microsoft Container Registry:
+Pull the prebuilt image directly from the Microsoft Container Registry:
 
 ```bash
-docker pull mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:20.04
+docker pull mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0
 ```
 
 #### Running the Prebuilt Image
 
 To run the prebuilt image, use one of the following commands:
 
-1. Run the container with port mapping:
+1. Run the container:
 
 ```bash
-docker run -p 9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:20.04
+docker run -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0
 ```
 
 2. If external access is required, run the container with parameter "-e":
 
 ```bash
-docker run -p 9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:20.04 -e
+docker run -p 127.0.0.1:9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 -e
 ```
 
 This will start the container and map port `9712` from the container to the host.
@@ -125,6 +115,11 @@ Step 1: Run `start_oss_server.sh` to initialize the DocumentDB server and manage
 
 ```bash
 ./scripts/start_oss_server.sh
+```
+
+Or logging into the container if using prebuild image
+```bash
+docker exec -it <container-id> bash
 ```
 
 Step 2: Connect to `psql` shell
