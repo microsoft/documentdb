@@ -1,5 +1,10 @@
-FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as stage
+# Define a build argument to choose architecture
+ARG BASE_ARCH=AMD64
 
+# Define the base image dynamically
+FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-0.103.0 AS stage
+
+# Install dependencies
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
     jq curl sudo git make build-essential openssl pkg-config libssl-dev \
@@ -12,31 +17,30 @@ ENV RUSTUP_HOME=/home/documentdb/.rustup \
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path --default-toolchain stable
 
-# Optional: show versions
 RUN rustc --version && cargo --version
 
 USER documentdb
-WORKDIR /home/documentdb/code  
+WORKDIR /home/documentdb/code
 
-COPY . /home/documentdb/code  
+COPY . /home/documentdb/code
 
 RUN sudo chown -R documentdb:documentdb /home/documentdb/code
 
 WORKDIR /home/documentdb/code/pg_documentdb_gw
 
-# Generate cert?
-#RUN cargo build --release
-
+# Compile the code
 RUN cargo build
 
 #------------------------------------------------------------------------------------------------
-    
-FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as final
+
+# Same logic for the final image
+ARG BASE_ARCH=AMD64
+FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-0.103.0 AS final
 
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
-    jq  \
-    && sudo rm -rf /var/lib/apt/lists/*
+    jq && \
+    sudo rm -rf /var/lib/apt/lists/*
 
 ENV LANGUAGE=en_US.UTF-8 \
     TERM=xterm-256color \
@@ -55,7 +59,7 @@ ENV LANGUAGE=en_US.UTF-8 \
     CUSTOM_USERNAME="documentdb_user"
 
 RUN sudo mkdir /home/documentdb/gateway
-#COPY --from=stage /home/documentdb/code/pg_documentdb_gw/target/release/documentdb_gateway /home/documentdb/gateway/documentdb_gateway
+
 COPY --from=stage /home/documentdb/code/pg_documentdb_gw/target/debug/documentdb_gateway /home/documentdb/gateway/documentdb_gateway
 COPY --from=stage /home/documentdb/code/pg_documentdb_gw/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration.json
 COPY --from=stage /home/documentdb/code/scripts/start_oss_server.sh /home/documentdb/gateway/scripts/start_oss_server.sh
