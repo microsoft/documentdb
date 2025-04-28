@@ -1,12 +1,9 @@
 FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as stage
 
-
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
     jq curl sudo git make build-essential openssl pkg-config libssl-dev \
     && sudo rm -rf /var/lib/apt/lists/*
-
-
 
 # Install rustup (which includes rustc and cargo) in user directory
 ENV RUSTUP_HOME=/home/documentdb/.rustup \
@@ -17,8 +14,6 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path --default-tool
 
 # Optional: show versions
 RUN rustc --version && cargo --version
-
-
 
 USER documentdb
 WORKDIR /home/documentdb/code  
@@ -34,7 +29,8 @@ WORKDIR /home/documentdb/code/pg_documentdb_gw
 
 RUN cargo build
 
-
+#------------------------------------------------------------------------------------------------
+    
 FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as final
 
 RUN sudo apt-get update && \
