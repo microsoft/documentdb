@@ -22,7 +22,7 @@ Optional arguments:
   --data-path [PATH]    Specify a directory for data. Frequently used with docker run --mount option 
                         (e.g. if DATA_PATH=/usr/documentdb/data, you'd add an option like the following to your 
                         docker run: --mount type=bind,source=./.local/data,target=/usr/documentdb/data)
-                        Defaults to ~/postgresql/data
+                        Defaults to ~/data
                         Overrides DATA_PATH environment variable.
   --documentdb-port     The port of the DocumentDB endpoint on the container. 
                         You still need to publish this port (e.g. -p 10260:10260).
@@ -34,7 +34,7 @@ Optional arguments:
                         Overrides LOG_LEVEL environment variable.
                           quiet, error, warn, info (default), debug, trace
   --username            Specify the username for the DocumentDB emulator.
-                        Defaults to documentdb_user
+                        Defaults to default_user
                         Overrides USERNAME environment variable.
   --password            Specify the password for the DocumentDB emulator.
                         Defaults to Admin100
@@ -93,7 +93,7 @@ do
 
     --username)
         shift
-        export CUSTOM_USERNAME=$1
+        CUSTOM_USERNAME=$1
         shift;;
 
     --password)
@@ -108,7 +108,7 @@ do
 done
 
 # Set default values if not provided
-export USERNAME=${CUSTOM_USERNAME:-documentdb_user}
+export USERNAME=${CUSTOM_USERNAME:-default_user}
 CUSTOM_PASSWORD=${CUSTOM_PASSWORD:-Admin100}
 echo "Using username: $USERNAME"
 

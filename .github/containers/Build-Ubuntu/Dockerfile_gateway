@@ -49,14 +49,14 @@ ENV LANGUAGE=en_US.UTF-8 \
     DOCUMENTDB_PORT=10260 \
     ENABLE_TELEMETRY=false \
     LOG_LEVEL=info \
-    DATA_PATH="/home/documentdb/postgresql/data" \
+    DATA_PATH="/home/documentdb/data" \
     SCRIPT_DIR=/home/documentdb/code/scripts \
     ORIGINAL_USER="" \
     INSTALL_DEPENDENCIES_ROOT=/root/ \
     WORKSPACE_ROOT=/home/documentdb/code \
     CERTS_ROOT=/home/documentdb/code/scripts/certs \
     CERT_SECRET=secret \
-    CUSTOM_USERNAME="documentdb_user"
+    CUSTOM_USERNAME="default_user"
 
 RUN sudo mkdir /home/documentdb/gateway
 
