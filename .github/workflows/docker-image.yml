@@ -24,7 +24,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: 'Build and Push image to ACR'
-      uses: azure/ACR-Tasks@v1
+      uses: Azure/acr-build@v1
       with:
         registry: pgmongoemulator.azurecr.io
         image: documentdb-gateway-test:latest
