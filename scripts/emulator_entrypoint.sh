@@ -22,7 +22,7 @@ Optional arguments:
   --data-path [PATH]    Specify a directory for data. Frequently used with docker run --mount option 
                         (e.g. if DATA_PATH=/usr/documentdb/data, you'd add an option like the following to your 
                         docker run: --mount type=bind,source=./.local/data,target=/usr/documentdb/data)
-                        Defaults to /data
+                        Defaults to ~/postgresql/data
                         Overrides DATA_PATH environment variable.
   --documentdb-port     The port of the DocumentDB endpoint on the container. 
                         You still need to publish this port (e.g. -p 10260:10260).
