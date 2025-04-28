@@ -104,7 +104,7 @@ docker run -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64
 2. If external access is required, run the container with parameter "-e":
 
 ```bash
-docker run -p 9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 -e
+docker run -p 127.0.0.1:9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 -e
 ```
 
 This will start the container and map port `9712` from the container to the host.
