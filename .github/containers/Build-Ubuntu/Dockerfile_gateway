@@ -1,4 +1,4 @@
-FROM prebuild:001 as stage
+FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as stage
 
 
 RUN sudo apt-get update && \
@@ -35,7 +35,7 @@ WORKDIR /home/documentdb/code/pg_documentdb_gw
 RUN cargo build
 
 
-FROM prebuild:001 as final
+FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 as final
 
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
