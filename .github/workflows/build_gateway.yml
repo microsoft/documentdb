@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - arm64
 
 permissions:
   id-token: write
