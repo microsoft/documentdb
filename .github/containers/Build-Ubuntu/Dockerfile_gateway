@@ -65,10 +65,11 @@ COPY --from=stage /home/documentdb/code/pg_documentdb_gw/SetupConfiguration.json
 COPY --from=stage /home/documentdb/code/scripts/start_oss_server.sh /home/documentdb/gateway/scripts/start_oss_server.sh
 COPY --from=stage /home/documentdb/code/scripts/build_and_start_gateway.sh /home/documentdb/gateway/scripts/build_and_start_gateway.sh
 COPY --from=stage /home/documentdb/code/scripts/emulator_entrypoint.sh /home/documentdb/gateway/scripts/emulator_entrypoint.sh
+COPY --from=stage /home/documentdb/code/scripts/emulator_entrypoint_gateway_only.sh /home/documentdb/gateway/scripts/emulator_entrypoint_gateway_only.sh
 COPY --from=stage /home/documentdb/code/scripts/utils.sh /home/documentdb/gateway/scripts/utils.sh
 COPY --from=stage /home/documentdb/code/scripts/setup_psqlrc.sh /home/documentdb/gateway/scripts/setup_psqlrc.sh
 
 RUN sudo chown -R documentdb:documentdb /home/documentdb/gateway
 
 WORKDIR /home/documentdb/gateway/scripts
-ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/gateway/scripts/emulator_entrypoint.sh \"$@\"", "--"]
+ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/gateway/scripts/emulator_entrypoint_gateway_only.sh \"$@\"", "--"]
