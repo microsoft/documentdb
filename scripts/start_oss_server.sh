@@ -81,7 +81,7 @@ scriptDir="$( cd -P "$( dirname "$source" )" && pwd )"
 . $scriptDir/utils.sh
 
 if [ -z $postgresDirectory ]; then
-    postgresDirectory="~/data"
+    postgresDirectory="/home/documentdb/postgresql/data"
 fi
 
 if ! [ -d "$postgresDirectory" ]; then
