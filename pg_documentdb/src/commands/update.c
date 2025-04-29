@@ -597,7 +597,9 @@ PerformUpdateCore(Datum databaseNameDatum, pgbson *updateSpec,
 	else if (!isTransactional)
 	{
 		/* Non transaction with an unsharded remote collection: Process in coordinator */
+		oldContext = MemoryContextSwitchTo(allocContext);
 		BuildUpdates(batchSpec);
+		MemoryContextSwitchTo(oldContext);
 		ProcessBatchUpdateNonTransactionalUnsharded(collection, batchSpec, transactionId,
 													&batchResult);
 		result = BuildResponseMessage(&batchResult);
@@ -2306,7 +2308,10 @@ WriteUpdateOneParamsAsUpdateSpec(UpdateOneParams *params, pgbson_writer *writer)
 
 	if (params->arrayFilters != NULL)
 	{
-		PgbsonWriterAppendDocument(writer, "arrayFilters", -1, params->arrayFilters);
+		pgbsonelement arrayFilterElement = { 0 };
+		PgbsonToSinglePgbsonElement(params->arrayFilters, &arrayFilterElement);
+		PgbsonWriterAppendValue(writer, "arrayFilters", 12,
+								&arrayFilterElement.bsonValue);
 	}
 }
 
