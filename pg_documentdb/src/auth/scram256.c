@@ -506,7 +506,10 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	memset(&result, 0, sizeof(result));
 	result.serverSignature = "";
 
-	ereport(NOTICE, (errmsg("PG_ARGISNULL(0): %d, PG_ARGISNULL(1): %d, PG_ARGISNULL(2): %d", PG_ARGISNULL(0), PG_ARGISNULL(1), PG_ARGISNULL(2))));
+	ereport(NOTICE, (errmsg(
+						 "PG_ARGISNULL(0): %d, PG_ARGISNULL(1): %d, PG_ARGISNULL(2): %d",
+						 PG_ARGISNULL(0),
+						 PG_ARGISNULL(1), PG_ARGISNULL(2))));
 
 	/* User Name */
 	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
@@ -520,7 +523,7 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	scramState.authMessage = text_to_cstring(PG_GETARG_TEXT_P(2));
 
 	ereport(LOG, (errmsg("Auth Message received is [%s].",
-							scramState.authMessage)));
+						 scramState.authMessage)));
 
 	if (GenerateSaltedPasswordForTest(&scramState, password, saltedPassword) < 0)
 	{
@@ -538,7 +541,7 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	result.serverSignature = BuildServerFinalMessage(&scramState);
 
 	ereport(LOG, (errmsg("Server Signature generated is [%s].",
-							result.serverSignature)));
+						 result.serverSignature)));
 	PG_RETURN_POINTER(BuildResponseMsgForAuthRequest(&result));
 }
 
