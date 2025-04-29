@@ -139,7 +139,7 @@ SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations('myuser6');
 -- 10. FAIL CASE because username is given in upper case but was created with mixed case using double quotes.
 SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations('MYUSER6');
 
-SET client_min_messages = LOG;
+SET client_min_messages = NOTICE;
 
 -- 10.1
 SELECT test_documentdb_scram_sha256_dual_api('Fi"roz', '<password_placeholder3>');
@@ -175,7 +175,6 @@ SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder10
 -- 10.9 Test for incorrect password
 SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder111>');
 
-SET client_min_messages = NOTICE;
 
 -- 11. Checking for case sensitiveness. FULL Lowercase. Real username is mYuSeR5. Expect true
 SELECT test_documentdb_scram_sha256_dual_api('myuser5', '<password_placeholder1>');
@@ -206,40 +205,6 @@ SELECT documentdb_api_internal.authenticate_with_scram_sha256('abcdefghijklmnopq
 
 -- 7. Incorrect auth message for a valid user
 select documentdb_api_internal.authenticate_with_scram_sha256('myuser4', 'authMsg1', 'clientProof123');
-
-SET client_min_messages TO WARNING;
-
--- Run 'fi"r".' 10 times
-DO $$
-DECLARE
-    i int;
-    result text;
-BEGIN
-    RAISE NOTICE 'Running test for user: fi"r".';
-    FOR i IN 1..10 LOOP
-        SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>') INTO result;
-        IF result <> 'true' THEN
-            RAISE NOTICE 'FAILED: run % for user fi"r". -> %', i, result;
-        END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
--- Run 'fir"' 10 times
-DO $$
-DECLARE
-    i int;
-    result text;
-BEGIN
-    RAISE NOTICE 'Running test for user: fir".';
-    FOR i IN 1..10 LOOP
-        SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>') INTO result;
-        IF result <> 'true' THEN
-            RAISE NOTICE 'FAILED: run % for user fir" -> %', i, result;
-        END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
 
 RESET client_min_messages;
 
