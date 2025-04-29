@@ -76,8 +76,12 @@ BEGIN
         --       If matched, then authentication is success.
         SELECT generate_server_signature(p_user_name, p_password, auth_message) into serv_sign_gen;
         SELECT substring(serv_sign_gen similar '%"ServerSignature" : "#"_+#""%' escape '#') into serv_sign_gen;
+        -- print length of serv_sign_gen and serv_sign
+        RAISE NOTICE 'Length of serv_sign: %', length(serv_sign);
+        RAISE NOTICE 'Length of serv_sign_gen: %', length(serv_sign_gen);
               
         IF serv_sign <> serv_sign_gen THEN
+            RAISE NOTICE 'Server Signature mismatch, change result to false';
             return 'false';
         END IF;
         
@@ -144,9 +148,13 @@ SELECT test_documentdb_scram_sha256_dual_api('fi"r"oZ', '<password_placeholder4>
 -- 10.3
 SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>');
 
-SELECT rolname
-FROM pg_authid
-WHERE rolname LIKE 'f%';
+\echo 'Roles starting with f:'
+SELECT rolname, rolpassword FROM pg_authid WHERE rolname LIKE 'f%' ORDER BY rolname;
+
+\echo 'Server locale and encoding:'
+SHOW lc_collate;
+SHOW lc_ctype;
+SHOW server_encoding;
 
 -- 10.4
 SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>');

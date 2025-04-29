@@ -152,7 +152,15 @@ jobs:
           export LANGUAGE=en_US
           export LC_COLLATE=en_US.UTF-8
           export LC_CTYPE=en_US.UTF-8
-          make check-minimal -C pg_documentdb EXTRA_TESTS=authentication_scram_sha_256
+          set -e
+          for i in {1..100}; do
+            echo "🔁 Run #$i"
+            if ! make check-minimal -C pg_documentdb EXTRA_TESTS=authentication_scram_sha_256; then
+              echo "❌ Test failed on iteration #$i"
+              exit 1
+            fi
+          done
+          echo "✅ Passed all 100 runs."
 
       - name: Citus Indent
         run: |
