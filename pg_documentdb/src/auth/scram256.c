@@ -506,6 +506,8 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	memset(&result, 0, sizeof(result));
 	result.serverSignature = "";
 
+	ereport(LOG, (errmsg("PG_ARGISNULL(0): %d, PG_ARGISNULL(1): %d, PG_ARGISNULL(2): %d", PG_ARGISNULL(0), PG_ARGISNULL(1), PG_ARGISNULL(2))));
+
 	/* User Name */
 	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
 	{

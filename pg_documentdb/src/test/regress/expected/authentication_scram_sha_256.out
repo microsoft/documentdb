@@ -187,6 +187,7 @@ SET client_min_messages = LOG;
 SELECT test_documentdb_scram_sha256_dual_api('Fi"roz', '<password_placeholder3>');
 NOTICE:  username: Fi"roz
 NOTICE:  password: <password_placeholder3>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -198,6 +199,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('fi"r"oZ', '<password_placeholder4>');
 NOTICE:  username: fi"r"oZ
 NOTICE:  password: <password_placeholder4>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -209,6 +211,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>');
 NOTICE:  username: fi"r".
 NOTICE:  password: <password_placeholder5>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -248,6 +251,7 @@ SELECT rolname FROM pg_authid WHERE rolname = '"fir"""';
 SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>');
 NOTICE:  username: fir"
 NOTICE:  password: <password_placeholder6>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -259,6 +263,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('firo""', '<password_placeholder7>');
 NOTICE:  username: firo""
 NOTICE:  password: <password_placeholder7>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -270,6 +275,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('fi""ro"', '<password_placeholder8>');
 NOTICE:  username: fi""ro"
 NOTICE:  password: <password_placeholder8>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -281,6 +287,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('firoz ev', '<password_placeholder9>');
 NOTICE:  username: firoz ev
 NOTICE:  password: <password_placeholder9>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -292,6 +299,7 @@ NOTICE:  Length of serv_sign_gen: 44
 SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder10>');
 NOTICE:  username: Fi\troz
 NOTICE:  password: <password_placeholder10>
+LOG:  PG_ARGISNULL(0): 0, PG_ARGISNULL(1): 0, PG_ARGISNULL(2): 0
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
