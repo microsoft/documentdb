@@ -118,6 +118,17 @@ typedef const pgbson *(*GetUserInfoFromExternalIdentityProvider_HookType)();
 extern GetUserInfoFromExternalIdentityProvider_HookType
 	get_user_info_from_external_identity_provider_hook;
 
+
+/* Method for username validation */
+typedef bool (*UserNameValidation_HookType)(const char *username);
+extern UserNameValidation_HookType username_validation_hook;
+
+
+/* Method for password validation */
+typedef bool (*PasswordValidation_HookType)(const char *username, const char *password);
+extern PasswordValidation_HookType password_validation_hook;
+
+
 /*
  * Hook for enabling running a query with nested distribution enabled.
  */

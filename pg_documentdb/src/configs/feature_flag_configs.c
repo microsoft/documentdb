@@ -150,6 +150,9 @@ bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
+#define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
+bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
+
 /* FEATURE FLAGS END */
 
 void
@@ -420,5 +423,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"use the unsafe transform for index term elements."),
 		NULL, &IndexTermUseUnsafeTransform,
 		DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableUsernamePasswordConstraints", newGucPrefix),
+		gettext_noop(
+			"Determines whether username and password constraints are enabled."),
+		NULL, &EnableUsernamePasswordConstraints,
+		DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
