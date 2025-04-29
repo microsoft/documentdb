@@ -148,12 +148,8 @@ SELECT test_documentdb_scram_sha256_dual_api('fi"r"oZ', '<password_placeholder4>
 -- 10.3
 SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>');
 
-\echo 'Roles starting with f:'
-SELECT rolname, rolpassword FROM pg_authid WHERE rolname LIKE 'f%' ORDER BY rolname;
+SELECT rolname, length(rolpassword) FROM pg_authid WHERE rolname LIKE 'f%' ORDER BY rolname;
 
-\echo 'Server locale and encoding:'
-SHOW lc_collate;
-SHOW lc_ctype;
 SHOW server_encoding;
 
 -- 10.4
