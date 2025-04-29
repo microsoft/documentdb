@@ -3,6 +3,7 @@ SET documentdb.next_collection_index_id TO 1972800;
 
 --set Feature flag for user crud
 SET documentdb.enableUserCrud TO ON;
+SET documentdb.maxUserLimit TO 10;
 \set VERBOSITY TERSE
 
 show documentdb.blockedRolePrefixList;
@@ -211,5 +212,5 @@ SELECT documentdb_api.drop_user('{"dropUser":"test_user_injection_attack"}');
 SELECT documentdb_api.drop_user('{"dropUser":"readOnlyUser"}');
 SELECT documentdb_api.drop_user('{"dropUser":"adminUser"}');
 
--- Reset the max user limit to 10
-SET documentdb.maxUserLimit TO 10;
+-- Reset the max user limit to 500
+SET documentdb.maxUserLimit TO 500;

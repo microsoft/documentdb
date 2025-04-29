@@ -67,7 +67,7 @@ int MaxSchemaValidatorSize = DEFAULT_MAX_SCHEMA_VALIDATOR_SIZE;
 #define SCRAM_DEFAULT_SALT_LEN 28
 int ScramDefaultSaltLen = SCRAM_DEFAULT_SALT_LEN;
 
-#define MAX_USER_LIMIT 10
+#define MAX_USER_LIMIT 500
 int MaxUserLimit = MAX_USER_LIMIT;
 
 #define DEFAULT_TDIGEST_COMPRESSION_ACCURACY 1500
@@ -263,7 +263,7 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		psprintf("%s.maxUserLimit", newGucPrefix),
 		gettext_noop("The default number of users allowed."),
 		NULL, &MaxUserLimit,
-		MAX_USER_LIMIT, 1, 100,
+		MAX_USER_LIMIT, 1, 500,
 		PGC_SUSET,
 		0,
 		NULL, NULL, NULL);
