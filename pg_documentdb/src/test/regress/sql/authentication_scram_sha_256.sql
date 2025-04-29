@@ -74,6 +74,8 @@ BEGIN
         --     ServerSignature = HMAC(ServerKey, AuthMessage)
         --   This ServerSignature has to be compared against serv_sign (which is received from extension).
         --       If matched, then authentication is success.
+        RAISE NOTICE 'username: %', p_user_name;
+        RAISE NOTICE 'password: %', p_password;
         SELECT generate_server_signature(p_user_name, p_password, auth_message) into serv_sign_gen;
         SELECT substring(serv_sign_gen similar '%"ServerSignature" : "#"_+#""%' escape '#') into serv_sign_gen;
         -- print length of serv_sign_gen and serv_sign
@@ -151,6 +153,9 @@ SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>'
 SELECT rolname, length(rolpassword) FROM pg_authid WHERE rolname LIKE 'f%' ORDER BY rolname;
 
 SHOW server_encoding;
+
+SELECT rolname FROM pg_authid WHERE rolname = 'fir"';
+SELECT rolname FROM pg_authid WHERE rolname = '"fir"""';
 
 -- 10.4
 SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>');

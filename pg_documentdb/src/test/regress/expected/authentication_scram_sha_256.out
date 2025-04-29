@@ -71,6 +71,8 @@ BEGIN
         --     ServerSignature = HMAC(ServerKey, AuthMessage)
         --   This ServerSignature has to be compared against serv_sign (which is received from extension).
         --       If matched, then authentication is success.
+        RAISE NOTICE 'username: %', p_user_name;
+        RAISE NOTICE 'password: %', p_password;
         SELECT generate_server_signature(p_user_name, p_password, auth_message) into serv_sign_gen;
         SELECT substring(serv_sign_gen similar '%"ServerSignature" : "#"_+#""%' escape '#') into serv_sign_gen;
         -- print length of serv_sign_gen and serv_sign
@@ -104,6 +106,8 @@ create role "Fi\troz"    with LOGIN PASSWORD '<password_placeholder10>';
 RESET client_min_messages;
 -- 1. CALL THE TEST FUNCTION with a valid user name
 SELECT test_documentdb_scram_sha256_dual_api('myuser4', '<password_placeholder>');
+NOTICE:  username: myuser4
+NOTICE:  password: <password_placeholder>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -113,6 +117,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 2. CALL THE TEST FUNCTION with a valid user name
 SELECT test_documentdb_scram_sha256_dual_api('Myuser6', '<password_placeholder2>');
+NOTICE:  username: Myuser6
+NOTICE:  password: <password_placeholder2>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -179,6 +185,8 @@ SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations('MYUSER6');
 SET client_min_messages = LOG;
 -- 10.1
 SELECT test_documentdb_scram_sha256_dual_api('Fi"roz', '<password_placeholder3>');
+NOTICE:  username: Fi"roz
+NOTICE:  password: <password_placeholder3>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -188,6 +196,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.2
 SELECT test_documentdb_scram_sha256_dual_api('fi"r"oZ', '<password_placeholder4>');
+NOTICE:  username: fi"r"oZ
+NOTICE:  password: <password_placeholder4>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -197,6 +207,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.3
 SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>');
+NOTICE:  username: fi"r".
+NOTICE:  password: <password_placeholder5>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -221,8 +233,21 @@ SHOW server_encoding;
  UTF8
 (1 row)
 
+SELECT rolname FROM pg_authid WHERE rolname = 'fir"';
+ rolname 
+---------
+ fir"
+(1 row)
+
+SELECT rolname FROM pg_authid WHERE rolname = '"fir"""';
+ rolname 
+---------
+(0 rows)
+
 -- 10.4
 SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>');
+NOTICE:  username: fir"
+NOTICE:  password: <password_placeholder6>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -232,6 +257,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.5
 SELECT test_documentdb_scram_sha256_dual_api('firo""', '<password_placeholder7>');
+NOTICE:  username: firo""
+NOTICE:  password: <password_placeholder7>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -241,6 +268,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.6
 SELECT test_documentdb_scram_sha256_dual_api('fi""ro"', '<password_placeholder8>');
+NOTICE:  username: fi""ro"
+NOTICE:  password: <password_placeholder8>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -250,6 +279,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.7
 SELECT test_documentdb_scram_sha256_dual_api('firoz ev', '<password_placeholder9>');
+NOTICE:  username: firoz ev
+NOTICE:  password: <password_placeholder9>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -259,6 +290,8 @@ NOTICE:  Length of serv_sign_gen: 44
 
 -- 10.8
 SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder10>');
+NOTICE:  username: Fi\troz
+NOTICE:  password: <password_placeholder10>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
@@ -277,6 +310,8 @@ LOG:  Client proof verification failed.
 SET client_min_messages = NOTICE;
 -- 11. Checking for case sensitiveness. FULL Lowercase. Real username is mYuSeR5. Expect true
 SELECT test_documentdb_scram_sha256_dual_api('myuser5', '<password_placeholder1>');
+NOTICE:  username: myuser5
+NOTICE:  password: <password_placeholder1>
 NOTICE:  Length of serv_sign: 44
 NOTICE:  Length of serv_sign_gen: 44
  test_documentdb_scram_sha256_dual_api 
