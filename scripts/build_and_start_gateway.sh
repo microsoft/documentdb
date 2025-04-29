@@ -127,6 +127,8 @@ if [ "$createUser" = "true" ]; then
         echo "Failed to grant role $userName to $owner."
         exit 1
     fi
+else
+    echo "Skipping user creation."
 fi
 
 if [ -z "$configFile" ]; then

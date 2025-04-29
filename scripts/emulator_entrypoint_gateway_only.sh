@@ -41,6 +41,8 @@ Optional arguments:
                         Overrides PASSWORD environment variable.
   --create-user         Specify whether to create a user. 
                         Defaults to true.
+  --start-pg            Specify whether to start the PostgreSQL server.
+                        Defaults to false.
 EOF
 }
 
@@ -49,8 +51,9 @@ if [[ -f "/version.txt" ]]; then
   echo "Release Version: $DocumentDB_EMULATOR_RELEASE_VERSION"
 fi
 
-# Default value for createUser
+# Default values for arguments
 createUser="true"
+startPg="false"
 
 # Handle arguments
 
@@ -111,6 +114,11 @@ do
         createUser=$1
         shift;;
 
+    --start-pg)
+        shift
+        startPg=$1
+        shift;;
+
     -*)
         echo "Unknown option $1"
         exit 1;; 
@@ -152,27 +160,30 @@ if [ -n "$LOG_LEVEL" ] && \
     exit 1
 fi
 
-# Start Postgres
-exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
+if [ "$startPg" = "true" ]; then
+    echo "Starting PostgreSQL server..."
+    exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
 
-echo "Starting OSS server..."
-/home/documentdb/gateway/scripts/start_oss_server.sh -c -d $DATA_PATH | tee -a /home/documentdb/oss_server.log
+    echo "Starting OSS server..."
+    /home/documentdb/gateway/scripts/start_oss_server.sh -c -d $DATA_PATH | tee -a /home/documentdb/oss_server.log
 
-echo "OSS server started."
+    echo "OSS server started."
 
-# Ensure PostgreSQL is running
-echo "Checking if PostgreSQL is running..."
-i=0
-while [ ! -f "$DATA_PATH/postmaster.pid" ]; do
-    sleep 1
-    if [ $i -ge 60 ]; then
-        echo "PostgreSQL failed to start within 60 seconds."
-        cat /home/documentdb/oss_server.log
-        exit 1
-    fi
-    i=$((i + 1))
-done
-echo "PostgreSQL is running."
+    echo "Checking if PostgreSQL is running..."
+    i=0
+    while [ ! -f "$DATA_PATH/postmaster.pid" ]; do
+        sleep 1
+        if [ $i -ge 60 ]; then
+            echo "PostgreSQL failed to start within 60 seconds."
+            cat /home/documentdb/oss_server.log
+            exit 1
+        fi
+        i=$((i + 1))
+    done
+    echo "PostgreSQL is running."
+else
+    echo "Skipping PostgreSQL server start."
+fi
 
 # Setting up the configuration file
 cp /home/documentdb/gateway/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration_temp.json
