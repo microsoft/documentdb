@@ -672,7 +672,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": {"$timestamp" 
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": [[]]}}');
 
 -- $toDate negative tests
--- only support double, decimal128, long, objectId, timestamp, date. String support will be added with $dateFromString.
+-- Currently double, decimal128, long, objectId, timestamp, date and string are supported.
 -- Numeric, will be added to the Unix epoch 0 and shouldn't exceed int64 limits. Takes exactly 1 argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"input": ""}}}');
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": []}}');
@@ -682,7 +682,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"$numberDecimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"$numberDecimal": "-9223372036854775809"}}}');
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"$numberDouble": "-9223372036854775809"}}}');
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": 1}}');
+
+-- $toDate test for string case
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2022-01-01T00:00:00.000Z"}}');
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2022-01-01 00:00:00.000"}}');
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2018-03-20T12:00:00+0500"}}');
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2018-03-20"}}');
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2017-Jul-04 noon"}}');
 
 -- $$toHashedIndexKey tests
 --test int

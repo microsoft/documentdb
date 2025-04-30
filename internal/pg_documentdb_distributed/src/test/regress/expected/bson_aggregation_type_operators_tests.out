@@ -1937,7 +1937,7 @@ ERROR:  Unsupported conversion from timestamp to string in $convert with no onEr
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": [[]]}}');
 ERROR:  Unsupported conversion from array to string in $convert with no onError value
 -- $toDate negative tests
--- only support double, decimal128, long, objectId, timestamp, date. String support will be added with $dateFromString.
+-- Currently double, decimal128, long, objectId, timestamp, date and string are supported.
 -- Numeric, will be added to the Unix epoch 0 and shouldn't exceed int64 limits. Takes exactly 1 argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to date in $convert with no onError value
@@ -1959,8 +1959,37 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"$numberDouble"
 
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": 1}}');
 ERROR:  Unsupported conversion from int to date in $convert with no onError value
+-- $toDate test for string case
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2022-01-01T00:00:00.000Z"}}');
-ERROR:  Unsupported conversion from string to date in $convert with no onError value
+                       bson_dollar_project                        
+---------------------------------------------------------------------
+ { "result" : { "$date" : { "$numberLong" : "1641024000000" } } }
+(1 row)
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2022-01-01 00:00:00.000"}}');
+                       bson_dollar_project                        
+---------------------------------------------------------------------
+ { "result" : { "$date" : { "$numberLong" : "1641024000000" } } }
+(1 row)
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2018-03-20T12:00:00+0500"}}');
+                       bson_dollar_project                        
+---------------------------------------------------------------------
+ { "result" : { "$date" : { "$numberLong" : "1521554400000" } } }
+(1 row)
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2018-03-20"}}');
+                       bson_dollar_project                        
+---------------------------------------------------------------------
+ { "result" : { "$date" : { "$numberLong" : "1521529200000" } } }
+(1 row)
+
+SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": "2017-Jul-04 noon"}}');
+                       bson_dollar_project                        
+---------------------------------------------------------------------
+ { "result" : { "$date" : { "$numberLong" : "1499194800000" } } }
+(1 row)
+
 -- $$toHashedIndexKey tests
 --test int
 select *from bson_dollar_project('{"tests": 3}', '{"result": { "$toHashedIndexKey": "$tests" } }');
