@@ -8,6 +8,7 @@
 * Support half-precision vector indexing, vectors can have up to 4,000 dimensions *[Feature]*
 * Support ARM64 architecture when building docker container *[Preview]*
 * Support collation with `$documents` and `$replceWith` stage of the aggregation pipeline *[Feature]*
+* Push pg_documentdb_gw for documentdb connections *[Feature]*
 
 ### documentdb v0.102-0 (March 26, 2025) ###
 * Support index pushdown for vector search queries *[Bugfix]*
