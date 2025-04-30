@@ -249,7 +249,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
-                           CosmosSearch Custom Params: { "efSearch" : 40 }
+                           CosmosSearch Custom Params: { "efSearch" : 16 }
                            ->  Index Scan using foo_1 on documentdb_data.documents_8200_8200003 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
@@ -663,6 +663,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 (1 row)
 
 ANALYZE;
+SET documentdb.enableVectorPreFilter = off;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "filter": {"a": "some sentence"} }  } } ], "cursor": {} }');
 ERROR:  $filter is not supported for vector search yet.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 1, "path": "v", "filter": "some sentence" }  } } ], "cursor": {} }');
@@ -3394,7 +3395,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                            Output: collection.document, ((vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec))
                            ->  Custom Scan (DocumentDBApiQueryScan)
                                  Output: collection.document, (vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec)
-                                 CosmosSearch Custom Params: { "efSearch" : 40 }
+                                 CosmosSearch Custom Params: { "efSearch" : 64 }
                                  ->  Index Scan using half_index on documentdb_data.documents_8207_8200135 collection
                                        Output: collection.document
                                        Order By: (vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec)
@@ -3434,7 +3435,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                  Output: collection.document, ((vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec))
                                  ->  Custom Scan (DocumentDBApiQueryScan)
                                        Output: collection.document, (vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec)
-                                       CosmosSearch Custom Params: { "efSearch" : 40 }
+                                       CosmosSearch Custom Params: { "efSearch" : 64 }
                                        ->  Index Scan using half_index on documentdb_data.documents_8207_8200135 collection
                                              Output: collection.document
                                              Order By: (vector_to_halfvec(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.8984375,1]'::halfvec)

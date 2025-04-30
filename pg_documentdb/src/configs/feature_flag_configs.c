@@ -23,7 +23,7 @@
 bool EnableVectorHNSWIndex = DEFAULT_ENABLE_VECTOR_HNSW_INDEX;
 
 /* GUC to enable vector pre-filtering feature for vector search. */
-#define DEFAULT_ENABLE_VECTOR_PRE_FILTER false
+#define DEFAULT_ENABLE_VECTOR_PRE_FILTER true
 bool EnableVectorPreFilter = DEFAULT_ENABLE_VECTOR_PRE_FILTER;
 
 #define DEFAULT_ENABLE_VECTOR_PRE_FILTER_V2 false

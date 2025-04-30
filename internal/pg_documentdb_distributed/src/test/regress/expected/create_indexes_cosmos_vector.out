@@ -382,7 +382,7 @@ EXPLAIN(COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggr
          ->  Subquery Scan on agg_stage_0
                ->  Limit
                      ->  Custom Scan (DocumentDBApiQueryScan)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 2 }
                            ->  Index Scan using foo_2 on documents_91001_91000016 collection
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(document, 'myvector2'::text), 4, true) <=> '[8,1,9,-1]'::vector)
 (11 rows)
@@ -542,7 +542,7 @@ EXPLAIN (costs off, verbose on) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[-1,2,-3]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[-1,2,-3]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using foo_1 on documentdb_data.documents_91002_91000037 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[-1,2,-3]'::vector)
@@ -564,7 +564,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[3,4.9,1]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[3,4.9,1]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using foo_1 on documentdb_data.documents_91002_91000037 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <=> '[3,4.9,1]'::vector)
@@ -646,7 +646,7 @@ EXPLAIN (costs off, verbose on) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[-1,2,-3]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[-1,2,-3]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using sim_l2 on documentdb_data.documents_91003_91000050 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[-1,2,-3]'::vector)
@@ -668,7 +668,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using sim_l2 on documentdb_data.documents_91003_91000050 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
@@ -750,7 +750,7 @@ EXPLAIN (costs off, verbose on) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[-1,2,-3]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[-1,2,-3]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using sim_ip on documentdb_data.documents_91004_91000066 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[-1,2,-3]'::vector)
@@ -772,7 +772,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[3,4.9,1]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[3,4.9,1]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           CosmosSearch Custom Params: { "nProbes" : 100 }
                            ->  Index Scan using sim_ip on documentdb_data.documents_91004_91000066 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <#> '[3,4.9,1]'::vector)
