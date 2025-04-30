@@ -51,6 +51,7 @@ pub async fn run_server(
     certificate_options: CertificateOptions,
     telemetry: Option<Box<dyn TelemetryProvider>>,
     token: CancellationToken,
+    cipher_map: Option<fn(Option<&str>) -> i32>,
 ) -> Result<()> {
     let listener = TcpListener::bind(format!(
         "{}:{}",
@@ -73,6 +74,7 @@ pub async fn run_server(
             &listener,
             token.clone(),
             enforce_ssl_tcp,
+            cipher_map
         )
         .await
         {
@@ -137,6 +139,7 @@ async fn listen_for_connections(
     listener: &TcpListener,
     token: CancellationToken,
     enforce_ssl_tcp: bool,
+    cipher_map: Option<fn(Option<&str>) -> i32>
 ) -> Result<bool> {
     let token_clone = token.clone();
 
@@ -163,7 +166,7 @@ async fn listen_for_connections(
             socket2::SockRef::from(&stream).set_tcp_keepalive(&TcpKeepalive::new().with_interval(Duration::from_secs(60)).with_time(Duration::from_secs(180)))?;
             tokio::spawn(async move {
                 tokio::select! {
-                    _ = handle_connection(ssl, sc, telemetry, ip, stream, enforce_ssl_tcp) => {}
+                    _ = handle_connection(ssl, sc, telemetry, ip, stream, enforce_ssl_tcp, cipher_map) => {}
                     _ = token_clone.cancelled() => {}
                 }
             });
@@ -188,6 +191,7 @@ async fn handle_connection(
     ip: SocketAddr,
     stream: TcpStream,
     enforce_ssl_tcp: bool,
+    cipher_map: Option<fn(Option<&str>) -> i32>
 ) {
     let mut connection_context =
         ConnectionContext::new(sc, telemetry, ip, ssl.version_str().to_string()).await;
@@ -195,8 +199,10 @@ async fn handle_connection(
     match enforce_ssl_tcp {
         true => match get_stream(ssl, stream).await {
             Ok(stream) => {
-                connection_context.cipher_type =
-                    get_cipher_type(stream.ssl().current_cipher().map(|cipher| cipher.name()));
+                connection_context.cipher_type = match cipher_map {
+                    Some(map) => map(stream.ssl().current_cipher().map(|cipher| cipher.name())),
+                    None => 0,
+                };
                 handle_stream(stream, connection_context).await
             }
             Err(e) => log::error!("Failed to create SslStream: {}", e),
@@ -449,69 +455,4 @@ where
     Ok(())
 }
 
-fn get_cipher_type(cipher_name: Option<&str>) -> i32 {
-    match cipher_name {
-        Some("TLS_AES_256_GCM_SHA384") => 1,
-        Some("TLS_CHACHA20_POLY1305_SHA256") => 2,
-        Some("TLS_AES_128_GCM_SHA256") => 3,
-        Some("ECDHE_ECDSA_AES256_GCM_SHA384") => 4,
-        Some("ECDHE_RSA_AES256_GCM_SHA384") => 5,
-        Some("DHE_RSA_AES256_GCM_SHA384") => 6,
-        Some("ECDHE_ECDSA_CHACHA20_POLY1305") => 7,
-        Some("ECDHE_RSA_CHACHA20_POLY1305") => 8,
-        Some("DHE_RSA_CHACHA20_POLY1305") => 9,
-        Some("ECDHE_ECDSA_AES128_GCM_SHA256") => 10,
-        Some("ECDHE_RSA_AES128_GCM_SHA256") => 11,
-        Some("DHE_RSA_AES128_GCM_SHA256") => 12,
-        Some("ECDHE_ECDSA_AES256_SHA384") => 13,
-        Some("ECDHE_RSA_AES256_SHA384") => 14,
-        Some("DHE_RSA_AES256_SHA256") => 15,
-        Some("ECDHE_ECDSA_AES128_SHA256") => 16,
-        Some("ECDHE_RSA_AES128_SHA256") => 17,
-        Some("DHE_RSA_AES128_SHA256") => 18,
-        Some("ECDHE_ECDSA_AES256_SHA") => 19,
-        Some("ECDHE_RSA_AES256_SHA") => 20,
-        Some("DHE_RSA_AES256_SHA") => 21,
-        Some("ECDHE_ECDSA_AES128_SHA") => 22,
-        Some("ECDHE_RSA_AES128_SHA") => 23,
-        Some("DHE_RSA_AES128_SHA") => 24,
-        Some("RSA_PSK_AES256_GCM_SHA384") => 25,
-        Some("DHE_PSK_AES256_GCM_SHA384") => 26,
-        Some("RSA_PSK_CHACHA20_POLY1305") => 27,
-        Some("DHE_PSK_CHACHA20_POLY1305") => 28,
-        Some("ECDHE_PSK_CHACHA20_POLY1305") => 29,
-        Some("AES256_GCM_SHA384") => 30,
-        Some("PSK_AES256_GCM_SHA384") => 31,
-        Some("PSK_CHACHA20_POLY1305") => 32,
-        Some("RSA_PSK_AES128_GCM_SHA256") => 33,
-        Some("DHE_PSK_AES128_GCM_SHA256") => 34,
-        Some("AES128_GCM_SHA256") => 35,
-        Some("PSK_AES128_GCM_SHA256") => 36,
-        Some("AES256_SHA256") => 37,
-        Some("AES128_SHA256") => 38,
-        Some("ECDHE_PSK_AES256_CBC_SHA384") => 39,
-        Some("ECDHE_PSK_AES256_CBC_SHA") => 40,
-        Some("SRP_RSA_AES_256_CBC_SHA") => 41,
-        Some("SRP_AES_256_CBC_SHA") => 42,
-        Some("RSA_PSK_AES256_CBC_SHA384") => 43,
-        Some("DHE_PSK_AES256_CBC_SHA384") => 44,
-        Some("RSA_PSK_AES256_CBC_SHA") => 45,
-        Some("DHE_PSK_AES256_CBC_SHA") => 46,
-        Some("AES256_SHA") => 47,
-        Some("PSK_AES256_CBC_SHA384") => 48,
-        Some("PSK_AES256_CBC_SHA") => 49,
-        Some("ECDHE_PSK_AES128_CBC_SHA256") => 50,
-        Some("ECDHE_PSK_AES128_CBC_SHA") => 51,
-        Some("SRP_RSA_AES_128_CBC_SHA") => 52,
-        Some("SRP_AES_128_CBC_SHA") => 53,
-        Some("RSA_PSK_AES128_CBC_SHA256") => 54,
-        Some("DHE_PSK_AES128_CBC_SHA256") => 55,
-        Some("RSA_PSK_AES128_CBC_SHA") => 56,
-        Some("DHE_PSK_AES128_CBC_SHA") => 57,
-        Some("AES128_SHA") => 58,
-        Some("PSK_AES128_CBC_SHA256") => 59,
-        Some("PSK_AES128_CBC_SHA") => 60,
-        Some(_) => -1, // Unknown cipher
-        None => 0,     // No cipher (possibly not using SSL/TLS)
-    }
-}
+
