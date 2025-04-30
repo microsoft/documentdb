@@ -215,7 +215,7 @@ Oid Float8MultiplyOperatorId(void);
 /* Vector Functions */
 Oid PgDoubleToVectorFunctionOid(void);
 Oid VectorAsVectorFunctionOid(void);
-Oid VectorAsHalfVecFunctionOid(void);
+Oid VectorAsHalfVecFunctionOid(bool missingOK);
 Oid ApiCatalogBsonExtractVectorFunctionId(void);
 Oid ApiBsonSearchParamFunctionId(void);
 Oid ApiBsonDocumentAddScoreFieldFunctionId(void);

@@ -36,6 +36,8 @@ bool EnableVectorForceIndexPushdown = DEFAULT_ENABLE_VECTOR_FORCE_INDEX_PUSHDOWN
 #define DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF true
 bool EnableVectorCompressionHalf = DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF;
 
+#define DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ true
+bool EnableVectorCompressionPQ = DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ;
 
 /*
  * SECTION: Indexing feature flags
@@ -189,8 +191,16 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 	DefineCustomBoolVariable(
 		psprintf("%s.enableVectorCompressionHalf", newGucPrefix),
 		gettext_noop(
-			"Enables support for vector index compression"),
+			"Enables support for vector index compression half"),
 		NULL, &EnableVectorCompressionHalf, DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable
+	(
+		psprintf("%s.enableVectorCompressionPQ", newGucPrefix),
+		gettext_noop(
+			"Enables support for vector index compression product quantization"),
+		NULL, &EnableVectorCompressionPQ, DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

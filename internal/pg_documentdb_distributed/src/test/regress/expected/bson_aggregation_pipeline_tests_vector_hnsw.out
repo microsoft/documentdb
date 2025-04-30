@@ -3148,8 +3148,8 @@ ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo
 SET documentdb.enableVectorCompressionHalf = on;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "binary" } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : "binary" } } :: caused by :: Invalid compression type of vector index: binary
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "pq" } } ] }', true);
-ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : "pq" } } :: caused by :: Invalid compression type of vector index: pq
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "scalar" } } ] }', true);
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : "scalar" } } :: caused by :: Invalid compression type of vector index: scalar
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": 123 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : 123 } } :: caused by :: compression must be a string not int
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": {} } } ] }', true);
@@ -3703,6 +3703,32 @@ ERROR:  expected 3 dimensions, not 4000
 CONTEXT:  SQL statement "SELECT document FROM bson_aggregation_pipeline('db'::text, pipeine_text::bson)"
 PL/pgSQL function inline_code_block line 9 at SQL statement
 SELECT documentdb_api.drop_collection('db','aggregation_pipeline_hnsw_halfvec');
+ drop_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+---------------------------------------------------------------------
+-- PQ vector
+-- hnsw
+SELECT documentdb_api.create_collection('db', 'aggregation_pipeline_hnsw_pq');
+NOTICE:  creating collection
+ create_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+-- error cases, create index
+SET documentdb.enableVectorCompressionPQ = off;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 3, "compression": "pq" } } ] }', true);
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 3, "compression" : "pq" } } :: caused by :: Compression type 'pq' is not enabled.
+SET documentdb.enableVectorCompressionPQ = on;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4000, "compression": "pq" } } ] }', true);
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 4000, "compression" : "pq" } } :: caused by :: Compression type 'pq' is not supported for hnsw index
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2000, "compression": "pq" } } ] }', true);
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2000, "compression" : "pq" } } :: caused by :: Compression type 'pq' is not supported for hnsw index
+SET documentdb.enableVectorCompressionPQ = off;
+SELECT documentdb_api.drop_collection('db', 'aggregation_pipeline_hnsw_pq');
  drop_collection 
 ---------------------------------------------------------------------
  t

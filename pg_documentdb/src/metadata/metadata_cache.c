@@ -2801,9 +2801,11 @@ VectorAsVectorFunctionOid(void)
 
 /*
  * VectorAsHalfVecFunctionOid returns the OID of the vector as half vector cast function.
+ * Note: with older versions of pgvector, the cast function "public.vector_to_halfvec" is not supported.
+ * So we need to check InvalidOid
  */
 Oid
-VectorAsHalfVecFunctionOid(void)
+VectorAsHalfVecFunctionOid(bool missingOK)
 {
 	InitializeDocumentDBApiExtensionCache();
 
@@ -2813,7 +2815,6 @@ VectorAsHalfVecFunctionOid(void)
 											makeString("vector_to_halfvec"));
 
 		Oid paramOids[3] = { VectorTypeId(), INT4OID, BOOLOID };
-		bool missingOK = false;
 		Cache.VectorAsHalfVecFunctionOid =
 			LookupFuncName(functionNameList, 3, paramOids, missingOK);
 	}
