@@ -30,6 +30,8 @@ RunQueryWithSequentialModification_HookType
 DistributePostgresTable_HookType distribute_postgres_table_hook = NULL;
 ModifyTableColumnNames_HookType modify_table_column_names_hook = NULL;
 RunQueryWithNestedDistribution_HookType run_query_with_nested_distribution_hook = NULL;
+AllowNestedDistributionInCurrentTransaction_HookType
+	allow_nested_distribution_in_current_transaction_hook = NULL;
 IsShardTableForMongoTable_HookType is_shard_table_for_mongo_table_hook = NULL;
 HandleColocation_HookType handle_colocation_hook = NULL;
 RewriteListCollectionsQueryForDistribution_HookType rewrite_list_collections_query_hook =
@@ -60,6 +62,10 @@ GetUserInfoFromExternalIdentityProvider_HookType
 	get_user_info_from_external_identity_provider_hook = NULL;
 IsUserExternal_HookType
 	is_user_external_hook = NULL;
+UserNameValidation_HookType
+	username_validation_hook = NULL;
+PasswordValidation_HookType
+	password_validation_hook = NULL;
 
 /*
  * Single node scenario is always a metadata coordinator
@@ -141,6 +147,20 @@ RunMultiValueQueryWithNestedDistribution(const char *query, int nArgs, Oid *argT
 		ExtensionExecuteMultiValueQueryWithArgsViaSPI(
 			query, nArgs, argTypes, argDatums, argNulls,
 			readOnly, expectedSPIOK, datums, isNull, numValues);
+	}
+}
+
+
+/*
+ * Enables any settings needed for nested distribution
+ * Noops for single node.
+ */
+void
+AllowNestedDistributionInCurrentTransaction(void)
+{
+	if (allow_nested_distribution_in_current_transaction_hook != NULL)
+	{
+		allow_nested_distribution_in_current_transaction_hook();
 	}
 }
 
@@ -276,6 +296,36 @@ IsUserExternal(const char *userName)
 	}
 
 	return false;
+}
+
+
+/*
+ * Default password validation implementation, just returns true
+ */
+bool
+IsPasswordValid(const char *username, const char *password)
+{
+	if (password_validation_hook != NULL)
+	{
+		return password_validation_hook(username, password);
+	}
+	return true;
+}
+
+
+/*
+ * Default username validation implementation
+ * Returns true if username is valid, false otherwise
+ */
+bool
+IsUsernameValid(const char *username)
+{
+	if (username_validation_hook != NULL)
+	{
+		return username_validation_hook(username);
+	}
+
+	return true;
 }
 
 

@@ -215,10 +215,12 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_DELETE] = "command_delete",
 	[FEATURE_COMMAND_FINDANDMODIFY] = "command_findAndModify",
 	[FEATURE_COMMAND_INSERT] = "command_insert",
+	[FEATURE_COMMAND_INSERT_BULK] = "command_insert_bulk",
 	[FEATURE_COMMAND_SHARD_COLLECTION] = "command_shard_collection",
 	[FEATURE_COMMAND_RESHARD_COLLECTION] = "command_reshard_collection",
 	[FEATURE_COMMAND_UNSHARD_COLLECTION] = "command_unshard_collection",
 	[FEATURE_COMMAND_UPDATE] = "command_update",
+	[FEATURE_COMMAND_UPDATE_BULK] = "command_update_bulk",
 	[FEATURE_COMMAND_VALIDATE_REPAIR] = "validate_repair",
 
 	[FEATURE_COMMAND_COLLMOD_VIEW] = "collMod_view",
@@ -236,6 +238,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_CREATE_INDEX_VECTOR_COS] = "create_index_vector_cos",
 	[FEATURE_CREATE_INDEX_VECTOR_COMPRESSION_HALF] =
 		"create_index_vector_compression_half",
+	[FEATURE_CREATE_INDEX_VECTOR_COMPRESSION_PQ] = "create_index_vector_compression_pq",
 	[FEATURE_CREATE_INDEX_VECTOR_IP] = "create_index_vector_ip",
 	[FEATURE_CREATE_INDEX_VECTOR_L2] = "create_index_vector_l2",
 	[FEATURE_CREATE_INDEX_VECTOR_TYPE_DISKANN] = "create_index_vector_type_diskann",
@@ -292,6 +295,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_STAGE_SEARCH] = "search",
 	[FEATURE_STAGE_SEARCH_VECTOR] = "search_vector",
 	[FEATURE_STAGE_SEARCH_VECTOR_COMPRESSION_HALF] = "search_vector_compression_half",
+	[FEATURE_STAGE_SEARCH_VECTOR_COMPRESSION_PQ] = "search_vector_compression_pq",
 	[FEATURE_STAGE_SEARCH_VECTOR_DISKANN] = "search_vector_diskann",
 	[FEATURE_STAGE_SEARCH_VECTOR_EXACT] = "search_vector_exact",
 	[FEATURE_STAGE_SEARCH_VECTOR_GEN_EMBEDDINGS] = "search_vector_gen_embeddings",
@@ -311,11 +315,12 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_STAGE_VECTOR_SEARCH_KNN] = "vector_search_knn",
 	[FEATURE_STAGE_VECTOR_SEARCH_MONGO] = "vector_search_mongo",
 
-	/* Feature usage stats */
-	[FEATURE_TTL_PURGER_CALLS] = "ttl_purger_calls",
-
 	/* Feature Mapping region - Update operators */
 	[FEATURE_UPDATE_OPERATOR_GEN_EMBEDDINGS] = "update_operator_vector_gen_embeddings",
+
+	/* Feature usage stats */
+	[FEATURE_USAGE_TTL_PURGER_CALLS] = "ttl_purger_calls",
+	[FEATURE_USAGE_INDEX_SCAN_WITH_LIMIT] = "index_scan_with_limit",
 
 	/* Feature mapping region - User CRUD*/
 	[FEATURE_USER_CREATE] = "user_create",

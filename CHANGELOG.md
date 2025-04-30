@@ -1,3 +1,5 @@
+### documentdb v0.104-0 (Unreleased) ###
+
 ### documentdb v0.103-0 (Unreleased) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*
 * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
