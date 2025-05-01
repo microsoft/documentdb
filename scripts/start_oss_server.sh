@@ -6,13 +6,14 @@ set -e
 set -u
 
 PG_VERSION=${PG_VERSION_USED:-16}
-coordinatorPort="5432"
+coordinatorPort="9712"
 postgresDirectory=""
 initSetup="false"
 help="false"
 stop="false"
 distributed="false"
-while getopts "d:hcsx" opt; do
+allowExternalAccess="false"
+while getopts "d:p:hcsxe" opt; do
   case $opt in
     d) postgresDirectory="$OPTARG"
     ;;
@@ -23,6 +24,10 @@ while getopts "d:hcsx" opt; do
     s) stop="true"
     ;;
     x) distributed="true"
+    ;;    
+    e) allowExternalAccess="true"
+    ;;
+    p) coordinatorPort="$OPTARG"
     ;;
   esac
 
@@ -41,13 +46,20 @@ reset=`tput sgr0`
 
 if [ "$help" == "true" ]; then
     echo "${green}sets up and launches a postgres server with extension installed on port $coordinatorPort."
-    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x]"
+    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x] [-e] [-p <port>]"
     echo "${green}<postgresDir> is the data directory for your postgres instance with extension"
     echo "${green}[-c] - optional argument. removes all existing data if it exists"
     echo "${green}[-s] - optional argument. Stops all servers and exits"
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
+    echo "${green}[-e] - optional argument. Allows PostgreSQL access from any IP address"
+    echo "${green}[-p <port>] - optional argument. specifies the port for the coordinator"
     echo "${green}if postgresDir not specified assumed to be /home/documentdb/postgresql/data"
     exit 1;
+fi
+
+if ! [[ "$coordinatorPort" =~ ^[0-9]+$ ]]; then
+    echo "${red}Invalid port value $coordinatorPort, must be a number.${reset}"
+    exit 1
 fi
 
 if [ "$distributed" == "true" ]; then
@@ -99,13 +111,15 @@ if [ "$initSetup" == "true" ]; then
 fi
 
 # Update PostgreSQL configuration to allow access from any IP
-postgresConfigFile="$postgresDirectory/postgresql.conf"
-hbaConfigFile="$postgresDirectory/pg_hba.conf"
+if [ "$allowExternalAccess" == "true" ]; then
+  postgresConfigFile="$postgresDirectory/postgresql.conf"
+  hbaConfigFile="$postgresDirectory/pg_hba.conf"
 
-echo "${green}Configuring PostgreSQL to allow access from any IP address${reset}"
-echo "listen_addresses = '*'" >> $postgresConfigFile
-echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
-echo "host all all ::0/0 trust" >> $hbaConfigFile
+  echo "${green}Configuring PostgreSQL to allow access from any IP address${reset}"
+  echo "listen_addresses = '*'" >> $postgresConfigFile
+  echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
+  echo "host all all ::0/0 trust" >> $hbaConfigFile
+fi
 
 userName=$(whoami)
 sudo mkdir -p /var/run/postgresql

@@ -12,9 +12,10 @@ createUser="true"
 userName=""
 userPassword=""
 hostname="localhost"
-port="5432" # Default port
+port="9712" # Default port
+owner=$(whoami)
 
-while getopts "d:u:p:n:chs" opt; do
+while getopts "d:u:p:n:chsP:o:" opt; do
     case $opt in
     d)
         configFile="$OPTARG"
@@ -27,6 +28,12 @@ while getopts "d:u:p:n:chs" opt; do
         ;;
     n)
         hostname="$OPTARG"
+        ;;
+    P)
+        port="$OPTARG"
+        ;;
+    o)
+        owner="$OPTARG"
         ;;
     c)
         clean="true"
@@ -50,14 +57,16 @@ done
 green=$(tput setaf 2)
 if [ "$help" == "true" ]; then
     echo "${green}sets up and launches the documentdb gateway on the port specified in the config."
-    echo "${green}build_and_start_gateway.sh [-u <userName>] [-p <userPassword>] [-d <SetupConfigurationFile>] [-n <hostname>] [-s] [-c]"
+    echo "${green}build_and_start_gateway.sh [-u <userName>] [-p <userPassword>] [-d <SetupConfigurationFile>] [-n <hostname>] [-s] [-c] [-P <port>] [-o <owner>]"
     echo "${green}[-u] - required argument. username for the user to be created."
     echo "${green}[-p] - required argument. password for the user to be created."
     echo "${green}[-n] - optional argument. hostname for the database connection. Default is localhost."
+    echo "${green}[-P] - optional argument. port for the database connection. Default is 9712."
     echo "${green}[-c] - optional argument. runs cargo clean before building the gateway."
     echo "${green}[-d] - optional argument. path to custom SetupConfiguration file"
     echo "${green}[-s] - optional argument. Skips user creation. If provided, -u and -p."
     echo "${green}       are no longer required."
+    echo "${green}[-o] - optional argument. specifies the owner for the database operations. Default is postgres."
     echo "${green}if SetupConfigurationFile not specified assumed to be"
     echo "${green}oss/pg_documentdb_gw/SetupConfiguration.json and the default port is 10260"
     exit 1
@@ -105,10 +114,8 @@ if [ "$createUser" = "true" ]; then
         echo "User password is required. Use -p <userPassword> to specify the user password."
         exit 1
     fi
-    #owner=$(whoami)
-    owner="postgres"
 
-    echo "Setting up user $userName"
+    echo "Setting up user $userName with owner $owner"
     echo "Checking if role $userName exists..."
     if ! psql -h "$hostname" -p "$port" -U "$owner" -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname = '$userName';" | grep -q 1; then
         echo "Role $userName does not exist. Creating role..."
