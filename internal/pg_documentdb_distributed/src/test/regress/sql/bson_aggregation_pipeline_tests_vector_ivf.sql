@@ -1,6 +1,6 @@
 -- init a test user and set vector pre-filtering on
 SELECT current_user as original_test_user \gset
-CREATE ROLE test_filter_user WITH LOGIN INHERIT SUPERUSER CREATEDB CREATEROLE IN ROLE :original_test_user;
+CREATE ROLE test_filter_user_ivf WITH LOGIN INHERIT SUPERUSER CREATEDB CREATEROLE IN ROLE :original_test_user;
 
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 
@@ -125,7 +125,7 @@ $$;
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 1.1, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 1.8, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
--- default nProbes = 1
+-- default nProbes = numLists(2)
 BEGIN;
 SET LOCAL enable_seqscan = off;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v" }  } } ], "cursor": {} }');
@@ -304,11 +304,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ROLLBACK;
 
 -- check the vector index is forced to be used
-ALTER ROLE test_filter_user SET documentdb.enableVectorPreFilter = "True";
+ALTER ROLE test_filter_user_ivf SET documentdb.enableVectorPreFilter = "True";
 SELECT current_setting('citus' || '.next_shard_id') as vector_citus__next_shard_id \gset
 SELECT current_setting('documentdb' || '.next_collection_id') as vector__next_collection_id \gset
 SELECT current_setting('documentdb' || '.next_collection_index_id') as vector__next_collection_index_id \gset
-\c - test_filter_user
+\c - test_filter_user_ivf
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a": [ { "b" : 3 } ]}, "nProbes": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
@@ -316,8 +316,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 -- default nProbes = numLists(4)
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.b": { "$eq": 2 } }, { "meta.b": { "$eq": 5 } } ] } ] } }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
--- todo: add this test back when pgvector version upgrade is done.
--- EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.b": { "$eq": 2 } }, { "meta.b": { "$eq": 5 } } ] } ] } }  } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.b": { "$eq": 2 } }, { "meta.b": { "$eq": 5 } } ] } ] } }  } } ], "cursor": {} }');
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$or": [ { "meta.a":  { "$eq": "some sentence"}}, { "meta.a": [ { "b" : 3 } ] } ] }, "nProbes": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } }  ], "cursor": {} }');
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$or": [ { "meta.a":  { "$eq": "some sentence"}}, { "meta.a": [ { "b" : 3 } ] } ] }, "nProbes": 100 }  } }  ], "cursor": {} }');
@@ -371,7 +370,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "meta.a": { "$gt": "other sentence" } }, { "meta.a": { "$lt": "some sentence" } } ] }, "nProbes": 3 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter string: with $and, nProbes = 1, no match document
+-- ivf filter string: with $and, nProbes = 1, match 1 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -387,7 +386,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$or": [ { "meta.a": { "$gt": "other sentence" } }, { "meta.a": { "$lt": "some sentence" } } ] }, "nProbes": 3 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter string: with $or, nProbes = 1, match 1 document
+-- ivf filter string: with $or, nProbes = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -428,7 +427,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.b": 2 } }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter number, with $and, nProbes = 1, no match document
+-- ivf filter number, with $and, nProbes = 1, match 1 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -444,7 +443,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.b": { "$eq": 2 } }, { "meta.b": { "$eq": 5 } } ] }, { "meta.b": { "$lt": 5 } } ] } }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter number, with $or, nProbes = 1, match 1 document
+-- ivf filter number, with $or, nProbes = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -485,7 +484,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": true } }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter boolean, with nProbes = 1, match 1 document
+-- ivf filter boolean, with nProbes = 1, match 2 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -493,8 +492,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": true }, "nProbes": 1 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- TODO, current implementation is post-filtering, need to fix
--- ivf filter boolean, with c = false, nProbes = 1, match 0 document
+-- ivf filter boolean, with c = false, nProbes = 1, match 2 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -502,7 +500,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": false }, "nProbes": 1 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf filter boolean, with c = false, nProbes = 3, match 1 document
+-- ivf filter boolean, with c = false, nProbes = 3, match 2 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -579,7 +577,7 @@ SET LOCAL documentdb.enableVectorPreFilter = on;
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "filter": {"meta": { "a" : [ { "b" : 3 } ] } }, "nProbes": 4 }  } } , { "$project": { "rank": {"$round":[{"$multiply": [{"$meta": "searchScore" }, 100000]}]} } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf search: with filter and score projection, nProbes = 3, no match document
+-- ivf search: with filter and score projection, nProbes = 3, match 1 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -592,7 +590,7 @@ SET LOCAL documentdb.enableVectorPreFilter = on;
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "filter": {"meta.a": [ { "b" : 3 } ]}, "nProbes": 3 }  } } , { "$project": { "rank": {"$round":[{"$multiply": [{"$meta": "searchScore" }, 100000]}]} } } ], "cursor": {} }');
 ROLLBACK;
 
--- ivf search: with filter and score projection, $ne, nProbes = 1, no match document
+-- ivf search: with filter and score projection, $ne, nProbes = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -795,7 +793,7 @@ COMMIT;
 SELECT drop_collection('db','aggregation_pipeline_empty_vector');
 
 
-DROP ROLE IF EXISTS test_filter_user;
+DROP ROLE IF EXISTS test_filter_user_ivf;
 
 
 ----------------------------------------------------------------------------------------------------

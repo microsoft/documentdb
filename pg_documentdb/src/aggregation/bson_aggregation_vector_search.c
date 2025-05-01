@@ -45,6 +45,7 @@
 #include "utils/feature_counter.h"
 #include "utils/hashset_utils.h"
 #include "vector/vector_common.h"
+#include "vector/vector_configs.h"
 #include "vector/vector_spec.h"
 #include "vector/vector_utilities.h"
 #include "api_hooks.h"
@@ -77,7 +78,13 @@ typedef struct
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
-static void AddSearchParamFunctionToQuery(Query *query, Oid accessMethodOid,
+static bool IsPgvectorIterativeScanAvailable();
+
+static pgbson * SetIterativeScanToSearchParam(pgbson *searchParamPgbson);
+
+static char * GetVectorIterativeScanModeName(VectorIterativeScanMode iterativeScanMode);
+
+static void AddSearchParamFunctionToQuery(Query *query,
 										  pgbson *searchParamPgbson);
 
 static Expr * AddScoreFieldToDocumentEntry(TargetEntry *documentEntry,
@@ -89,9 +96,7 @@ static TargetEntry * AddCtidToQueryTargetList(Query *query,
 
 static Query * JoinVectorSearchQueryWithFilterQuery(Query *leftQuery, Query *rightQuery,
 													TargetEntry *leftJoinEntry,
-													TargetEntry *rightJoinEntry,
-													const TargetEntry *sortEntry,
-													bool needsReordering);
+													TargetEntry *rightJoinEntry);
 
 static void AddPathStringToHashset(List *indexIdList, HTAB *stringHashSet);
 
@@ -341,6 +346,69 @@ HandleMongoNativeVectorSearch(const bson_value_t *existingValue, Query *query,
 /* Private methods */
 /* --------------------------------------------------------- */
 
+/*
+ * The pgvector iterative scan is available from 0.8.0,
+ */
+static bool
+IsPgvectorIterativeScanAvailable()
+{
+	/* array_to_sparsevec function is introduced in 0.8.0 */
+	/* so we can check the function is available or not to indicate the iterative scan is available */
+	bool missingOK = true;
+	return OidIsValid(PgDoubleToSparseVecFunctionOid(missingOK));
+}
+
+
+static pgbson *
+SetIterativeScanToSearchParam(pgbson *searchParamPgbson)
+{
+	if (!IsPgvectorIterativeScanAvailable())
+	{
+		return searchParamPgbson;
+	}
+
+	pgbson_writer docWriter;
+	PgbsonWriterInit(&docWriter);
+
+	if (searchParamPgbson != NULL)
+	{
+		PgbsonWriterConcat(&docWriter, searchParamPgbson);
+	}
+
+	PgbsonWriterAppendUtf8(&docWriter,
+						   VECTOR_PARAMETER_NAME_ITERATIVE_SCAN,
+						   VECTOR_PARAMETER_NAME_ITERATIVE_SCAN_STR_LEN,
+						   GetVectorIterativeScanModeName(
+							   VectorPreFilterIterativeScanMode));
+
+	return PgbsonWriterGetPgbson(&docWriter);
+}
+
+
+static char *
+GetVectorIterativeScanModeName(VectorIterativeScanMode iterativeScanMode)
+{
+	switch (iterativeScanMode)
+	{
+		case VectorIterativeScan_RELAXED_ORDER:
+		{
+			return "relaxed_order";
+		}
+
+		case VectorIterativeScan_STRICT_ORDER:
+		{
+			return "strict_order";
+		}
+
+		case VectorIterativeScan_OFF:
+		default:
+		{
+			break;
+		}
+	}
+	return "off";
+}
+
 
 /*
  * Adds a wrapper function(bson_search_param) which includes the search parameters to the query.
@@ -348,14 +416,13 @@ HandleMongoNativeVectorSearch(const bson_value_t *existingValue, Query *query,
  * In custom scan, we will dynamically calculate search param depend on the number of vectors in the collection.
  *
  * The example of the search param:
- *      ivfflat: { "nProbes": 4 }
- *      hnsw: { "efSearch": 16 }
+ *      ivfflat: { "nProbes": 4, "iterativeScan": "strict_order"}
+ *      hnsw: { "efSearch": 16, "iterativeScan": "relaxed_order" }
  * e.g.
  *      WHERE bson_search_param(document, { "nProbes": 4 }) or WHERE bson_search_param(document, { "efSearch": 16 })
  */
 static void
-AddSearchParamFunctionToQuery(Query *query, Oid accessMethodOid,
-							  pgbson *searchParamPgbson)
+AddSearchParamFunctionToQuery(Query *query, pgbson *searchParamPgbson)
 {
 	if (searchParamPgbson != NULL)
 	{
@@ -431,9 +498,7 @@ AddCtidToQueryTargetList(Query *query, bool replaceTargetList)
 static Query *
 JoinVectorSearchQueryWithFilterQuery(Query *leftQuery, Query *rightQuery,
 									 TargetEntry *leftJoinEntry,
-									 TargetEntry *rightJoinEntry,
-									 const TargetEntry *sortEntry,
-									 bool needsReordering)
+									 TargetEntry *rightJoinEntry)
 {
 	Query *finalQuery = makeNode(Query);
 	finalQuery->commandType = CMD_SELECT;
@@ -637,20 +702,20 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
 	};
 
 	/* Use expression_tree_mutator so we copy the orderby Expr before changing it */
-	Expr *scoreExprInput = (Expr *) expression_tree_mutator((Node *) vectorSortExpr,
-															ReplaceDocumentVarOnSort,
-															&sortContext);
+	Expr *sortExprInput = (Expr *) expression_tree_mutator((Node *) vectorSortExpr,
+														   ReplaceDocumentVarOnSort,
+														   &sortContext);
 
 	/* For half vector index, we need to use full vector to re-calculate the score */
 	List *orderArgs = NIL;
-	if (IsA(scoreExprInput, OpExpr))
+	if (IsA(sortExprInput, OpExpr))
 	{
-		OpExpr *orderOpExpr = (OpExpr *) scoreExprInput;
+		OpExpr *orderOpExpr = (OpExpr *) sortExprInput;
 		orderArgs = orderOpExpr->args;
 	}
-	else if (IsA(scoreExprInput, FuncExpr))
+	else if (IsA(sortExprInput, FuncExpr))
 	{
-		FuncExpr *orderFuncExpr = (FuncExpr *) scoreExprInput;
+		FuncExpr *orderFuncExpr = (FuncExpr *) sortExprInput;
 		orderArgs = orderFuncExpr->args;
 	}
 	else
@@ -693,22 +758,22 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
 								"unknown vector search operator type")));
 		}
 
-		if (IsA(scoreExprInput, FuncExpr))
+		if (IsA(sortExprInput, FuncExpr))
 		{
-			FuncExpr *orderFuncExpr = (FuncExpr *) scoreExprInput;
+			FuncExpr *orderFuncExpr = (FuncExpr *) sortExprInput;
 			orderFuncExpr->funcid = get_opcode(similarityOpOid);
 			orderFuncExpr->args = newArgs;
 		}
 		else /* OpExpr */
 		{
-			OpExpr *orderOpExpr = (OpExpr *) scoreExprInput;
+			OpExpr *orderOpExpr = (OpExpr *) sortExprInput;
 			orderOpExpr->opno = similarityOpOid;
 			orderOpExpr->args = newArgs;
 		}
 	}
 
 	/* Add the score field to the document */
-	Expr *scoreExpr = GenerateScoreExpr((Expr *) scoreExprInput, distanceMetric);
+	Expr *scoreExpr = GenerateScoreExpr((Expr *) sortExprInput, distanceMetric);
 
 	List *args = list_make2(documentEntry->expr, scoreExpr);
 	FuncExpr *resultExpr = makeFuncExpr(
@@ -717,7 +782,7 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
 
 	documentEntry->expr = (Expr *) resultExpr;
 
-	return scoreExprInput;
+	return sortExprInput;
 }
 
 
@@ -1071,16 +1136,12 @@ GeneratePrefilteringVectorSearchQuery(Query *searchQuery,
 		Query *joinedQuery = JoinVectorSearchQueryWithFilterQuery(searchQuery,
 																  filterQuery,
 																  leftCtidEntry,
-																  rightCtidEntry,
-																  sortEntry,
-																  vectorSearchOptions->
-																  vectorIndexDef->
-																  needsReorderAfterFilter);
+																  rightCtidEntry);
 
 		/* Add the limit to the sub-query */
 		joinedQuery->limitCount = limitCount;
 
-		if (vectorSearchOptions->vectorIndexDef->needsReorderAfterFilter &&
+		if (VectorPreFilterIterativeScanMode == VectorIterativeScan_RELAXED_ORDER &&
 			vectorSearchOptions->compressionType == VectorIndexCompressionType_None)
 		{
 			/* Search result by iterative search may be disordered, so we need to reorder the result */
@@ -1464,8 +1525,17 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 	/* Create the WHERE bson_search_param(document, searchParamPgbson) and add it to the WHERE */
 	if (!vectorSearchOptions->exactSearch)
 	{
-		AddSearchParamFunctionToQuery(query, vectorSearchOptions->vectorAccessMethodOid,
-									  vectorSearchOptions->searchParamPgbson);
+		/* set iterative parameter for filtering */
+		/* e.g. Search param: { "iterativeScan": "relaxed_order" } */
+		bson_value_t filterBson = vectorSearchOptions->filterBson;
+		if (filterBson.value_type != BSON_TYPE_EOD &&
+			!IsBsonValueEmptyDocument(&filterBson))
+		{
+			vectorSearchOptions->searchParamPgbson = SetIterativeScanToSearchParam(
+				vectorSearchOptions->searchParamPgbson);
+		}
+
+		AddSearchParamFunctionToQuery(query, vectorSearchOptions->searchParamPgbson);
 	}
 	else
 	{
@@ -1515,7 +1585,7 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 										  false,
 										  true);
 
-	Expr *scoreExpr = NULL;
+	Expr *sortExpr = NULL;
 
 	/* If there's a filter, add it to the query */
 	if (EnableVectorPreFilterV2 &&
@@ -1547,10 +1617,10 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 		 * matching the filter.
 		 */
 		TargetEntry *documentEntry = linitial(query->targetList);
-		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
-												 vectorSearchOptions->distanceMetric);
+		sortExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												vectorSearchOptions->distanceMetric);
 
-		TargetEntry *scoreEntry = makeTargetEntry(scoreExpr, 2, "sortVal", false);
+		TargetEntry *scoreEntry = makeTargetEntry(sortExpr, 2, "sortVal", false);
 		query->targetList = lappend(query->targetList, scoreEntry);
 
 		/* now reorder to ensure it matches the score order by */
@@ -1579,8 +1649,8 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 
 		/* Add the score field */
 		TargetEntry *documentEntry = linitial(query->targetList);
-		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
-												 vectorSearchOptions->distanceMetric);
+		sortExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												vectorSearchOptions->distanceMetric);
 	}
 	else
 	{
@@ -1592,18 +1662,18 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 
 		/* Add the score field */
 		TargetEntry *documentEntry = linitial(query->targetList);
-		scoreExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
-												 vectorSearchOptions->distanceMetric);
+		sortExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
+												vectorSearchOptions->distanceMetric);
 	}
 
 	/* Reorder for the compression index */
 	if (vectorSearchOptions->compressionType != VectorIndexCompressionType_None &&
-		scoreExpr != NULL &&
+		sortExpr != NULL &&
 		vectorSearchOptions->exactSearch == false)
 	{
 		/* reorder the results by the full vector distance */
 		/* Exact search doesn't need to reorder */
-		query = ReorderResultsForCompression(query, context, scoreExpr);
+		query = ReorderResultsForCompression(query, context, sortExpr);
 	}
 
 	/* Add k limit to the top level query if oversampling is specified */

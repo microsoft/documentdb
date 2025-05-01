@@ -1,6 +1,6 @@
 -- init a test user and set vector pre-filtering on
 SELECT current_user as original_test_user \gset
-CREATE ROLE test_filter_user WITH LOGIN INHERIT SUPERUSER CREATEDB CREATEROLE IN ROLE :original_test_user;
+CREATE ROLE test_filter_user_hnsw WITH LOGIN INHERIT SUPERUSER CREATEDB CREATEROLE IN ROLE :original_test_user;
 
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 
@@ -302,11 +302,11 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.a": { "$regex": "^some", "$options" : "i" } }, { "meta.b": { "$eq": 5 } } ] }, { "meta.b": { "$lt": 5 } } ] } }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
 
 -- check the vector index is forced to be used
-ALTER ROLE test_filter_user SET documentdb.enableVectorPreFilter = "True";
+ALTER ROLE test_filter_user_hnsw SET documentdb.enableVectorPreFilter = "True";
 SELECT current_setting('citus' || '.next_shard_id') as vector_citus__next_shard_id \gset
 SELECT current_setting('documentdb' || '.next_collection_id') as vector__next_collection_id \gset
 SELECT current_setting('documentdb' || '.next_collection_index_id') as vector__next_collection_index_id \gset
-\c - test_filter_user
+\c - test_filter_user_hnsw
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a": [ { "b" : 3 } ]}, "efSearch": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
@@ -368,7 +368,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "meta.a": { "$gt": "other sentence" } }, { "meta.a": { "$lt": "some sentence" } } ] }, "efSearch": 3 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw filter string: with $and, efSearch = 1, no match document
+-- hnsw filter string: with $and, efSearch = 1, match 1 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -384,7 +384,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$or": [ { "meta.a": { "$gt": "other sentence" } }, { "meta.a": { "$lt": "some sentence" } } ] }, "efSearch": 3 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw filter string: with $or, efSearch = 1, match 1 document
+-- hnsw filter string: with $or, efSearch = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -440,7 +440,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "$or": [{ "meta.b": { "$eq": 2 } }, { "meta.b": { "$eq": 5 } } ] }, { "meta.b": { "$lt": 5 } } ] } }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw filter number, with $or, efSearch = 1, match 1 document
+-- hnsw filter number, with $or, efSearch = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -481,7 +481,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": true } }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw filter boolean, with efSearch = 1, match 1 document
+-- hnsw filter boolean, with efSearch = 1, match 2 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -489,8 +489,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": true }, "efSearch": 1 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- TODO, current implementation is post-filtering, need to fix
--- hnsw filter boolean, with c = false, efSearch = 1, match 0 document
+-- hnsw filter boolean, with c = false, efSearch = 1, match 2 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -498,7 +497,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": { "c": false }, "efSearch": 1 }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw filter boolean, with c = false, efSearch = 3, match 1 document
+-- hnsw filter boolean, with c = false, efSearch = 3, match 2 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -574,7 +573,7 @@ SET LOCAL documentdb.enableVectorPreFilter = on;
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "filter": {"meta": { "a" : [ { "b" : 3 } ] } }, "efSearch": 4 }  } } , { "$project": { "rank": {"$round":[{"$multiply": [{"$meta": "searchScore" }, 100000]}]} } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw search: with filter and score projection, efSearch = 3, no match document
+-- hnsw search: with filter and score projection, efSearch = 3, match 1 document
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -587,7 +586,7 @@ SET LOCAL documentdb.enableVectorPreFilter = on;
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_filter", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "filter": {"meta.a": [ { "b" : 3 } ]}, "efSearch": 3 }  } } , { "$project": { "rank": {"$round":[{"$multiply": [{"$meta": "searchScore" }, 100000]}]} } } ], "cursor": {} }');
 ROLLBACK;
 
--- hnsw search: with filter and score projection, $ne, efSearch = 1, no match document
+-- hnsw search: with filter and score projection, $ne, efSearch = 1, match 3 documents
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
@@ -776,7 +775,7 @@ COMMIT;
 
 SELECT drop_collection('db','aggregation_pipeline_empty_vector');
 
-DROP ROLE IF EXISTS test_filter_user;
+DROP ROLE IF EXISTS test_filter_user_hnsw;
 
 
 ----------------------------------------------------------------------------------------------------
@@ -957,6 +956,9 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_hnsw_halfvec', '{ "
 SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_hnsw_halfvec', '{ "_id": 9, "meta":{ "a" : [ { "b" : 3 } ] }, "c": false, "v": [15.0, 5.0, 0.1 ] }');
 SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_hnsw_halfvec', '{ "_id": 10, "meta":{ "a" : [ { "b" : 5 } ] }, "c": false }');
 
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "meta.a": 1 }, "name": "idx_meta.a" } ] }', true);
+ANALYZE;
+
 -- check half vector search, L2 similarity
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "L2", "dimensions": 3, "compression": "half" } } ] }', true);
 
@@ -979,18 +981,25 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 1.5 }  } } ], "cursor": {} }');
 ROLLBACK;
 
+-- filter
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } } ], "cursor": {} }');
+ROLLBACK;
+
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_hnsw_halfvec", "index": "half_index"}');
 
 -- check filter with half vector, COS similarity
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 16, "efConstruction": 64, "similarity": "COS", "dimensions": 3, "compression": "half" } } ] }', true);
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "meta.a": 1 }, "name": "idx_meta.a" } ] }', true);
 ANALYZE;
 
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$eq": "some sentence"}}, "efSearch": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
-EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$eq": "some sentence"}}, "efSearch": 100 }  } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } } ], "cursor": {} }');
 ROLLBACK;
 
 -- oversampling = 1.5
@@ -1024,6 +1033,14 @@ SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$eq": "some sentence"}}, "efSearch": 100, "exact": true, "oversampling": 1 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$eq": "some sentence"}}, "efSearch": 100, "exact": true, "oversampling": 1 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
+ROLLBACK;
+
+-- filter
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"meta.a":  { "$lte": "some sentence"}}, "efSearch": 100 }  } } ], "cursor": {} }');
 ROLLBACK;
 
 -- check value of vector is out of range

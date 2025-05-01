@@ -598,6 +598,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the array_to_vector function. */
 	Oid PgDoubleToVectorFunctionOid;
 
+	/* OID of the array_to_sparsevec function. */
+	Oid PgDoubleToSparseVecFunctionOid;
+
 	/* OID of the vector as vector Cast function */
 	Oid VectorAsVectorFunctionOid;
 
@@ -2773,6 +2776,32 @@ PgDoubleToVectorFunctionOid(void)
 	}
 
 	return Cache.PgDoubleToVectorFunctionOid;
+}
+
+
+/*
+ * Returns the function Oid for converting a double[] to a sparse vector specifically the array_to_sparsevec function.
+ * Note: the array_to_sparsevec function is introduced in pgvector 0.8.0,
+ * Currently it is only used for checking if the version of pgvector is 0.8.0
+ * Set missingOK to true, this function will return InvalidOid if the pgvector version is lower than that.
+ */
+Oid
+PgDoubleToSparseVecFunctionOid(bool missingOK)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.PgDoubleToSparseVecFunctionOid == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString("public"),
+											makeString("array_to_sparsevec"));
+
+		Oid paramOids[3] = { FLOAT8ARRAYOID, INT4OID, BOOLOID };
+
+		Cache.PgDoubleToSparseVecFunctionOid =
+			LookupFuncName(functionNameList, 3, paramOids, missingOK);
+	}
+
+	return Cache.PgDoubleToSparseVecFunctionOid;
 }
 
 

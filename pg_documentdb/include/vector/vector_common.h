@@ -45,6 +45,10 @@
 #define VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH "efSearch"
 #define VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH_STR_LEN 8
 
+/* Search parameter name for iterative scan mode */
+#define VECTOR_PARAMETER_NAME_ITERATIVE_SCAN "iterativeScan"
+#define VECTOR_PARAMETER_NAME_ITERATIVE_SCAN_STR_LEN 13
+
 /* dynamic calculation of nprobes or efSearch depending on collection size */
 #define VECTOR_SEARCH_SMALL_COLLECTION_ROWS 10000
 #define VECTOR_SEARCH_1M_COLLECTION_ROWS 1000000
@@ -67,6 +71,11 @@ extern bool EnableVectorHNSWIndex;
  */
 extern bool EnableVectorPreFilter;
 extern bool EnableVectorPreFilterV2;
+
+/*
+ * GUC to set the iterative scan mode for pre-filtering
+ */
+extern int VectorPreFilterIterativeScanMode;
 
 /*
  * GUC to enable vector compression feature for vector search.
