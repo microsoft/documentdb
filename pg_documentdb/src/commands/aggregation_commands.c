@@ -429,9 +429,14 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 
 	bool persistConnection = false;
 
+	/* See sql/udfs/commands_crud/query_cursors_aggregate--latest.sql */
+	AttrNumber maxOutAttrNum = 2;
+	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxOutAttrNum);
+
 	Datum responseDatum = PostProcessCursorPage(fcinfo, &cursorDoc, &arrayWriter, &writer,
 												getMoreInfo.cursorId, continuationDoc,
-												persistConnection, postBatchResumeToken);
+												persistConnection, postBatchResumeToken,
+												tupleDesc);
 	PG_RETURN_DATUM(responseDatum);
 }
 
@@ -639,9 +644,13 @@ HandleFirstPageRequest(PG_FUNCTION_ARGS,
 		}
 	}
 
+	/* See sql/udfs/commands_crud/query_cursors_aggregate--latest.sql */
+	AttrNumber maxOutAttrNum = 4;
+	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxOutAttrNum);
+
 	return PostProcessCursorPage(fcinfo, &cursorDoc, &arrayWriter, &writer, cursorId,
 								 continuationDoc, persistConnection,
-								 postBatchResumeToken);
+								 postBatchResumeToken, tupleDesc);
 }
 
 

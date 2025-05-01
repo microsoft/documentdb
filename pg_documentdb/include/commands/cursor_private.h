@@ -32,12 +32,15 @@ bool CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 								  accumulatedSize,
 								  pgbson_array_writer *arrayWriter);
 
+TupleDesc ConstructCursorResultTupleDesc(AttrNumber maxAttrNum);
+
 Datum PostProcessCursorPage(PG_FUNCTION_ARGS,
 							pgbson_writer *cursorDoc,
 							pgbson_array_writer *arrayWriter,
 							pgbson_writer *topLevelWriter, int64_t cursorId,
 							pgbson *continuation, bool persistConnection,
-							pgbson *lastContinuationToken);
+							pgbson *lastContinuationToken,
+							TupleDesc tupleDesc);
 
 HTAB * CreateCursorHashSet(void);
 HTAB * CreateTailableCursorHashSet(void);

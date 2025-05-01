@@ -13,6 +13,7 @@
 #include <funcapi.h>
 #include <utils/portal.h>
 #include <utils/varlena.h>
+#include <utils/typcache.h>
 #include <executor/spi.h>
 #include <tcop/dest.h>
 #include <tcop/pquery.h>
@@ -1211,6 +1212,45 @@ BuildContinuationMap(pgbson *continuationValue, HTAB *cursorMap)
 
 
 /*
+ * Creates a tuple descriptor for the cursor result. This is deliberately made a raw tuple descriptor
+ * instead of a know SQL type for performance reasons and to avoid overhead of maintaining the new type.ACL_SELECT_FOR_UPDATE
+ *
+ * The tuple descriptor has maximim maxAttrNum of attributes.
+ *
+ * CODESYNC: Change this whenever we modify the OUT variables in sql/udfs/commands_crud/query_cursors_aggregate--latest.sql
+ */
+TupleDesc
+ConstructCursorResultTupleDesc(AttrNumber maxAttrNum)
+{
+	Assert(maxAttrNum >= 2 && maxAttrNum <= 4);
+	AttrNumber attrIndex = 0;
+
+	TupleDesc tupleDescriptor = CreateTemplateTupleDesc(maxAttrNum);
+
+	TupleDescInitEntry(tupleDescriptor, ++attrIndex, "cursor", DocumentDBCoreBsonTypeId(),
+					   -1, 0);
+	TupleDescInitEntry(tupleDescriptor, ++attrIndex, "continuation",
+					   DocumentDBCoreBsonTypeId(), -1, 0);
+
+	if (maxAttrNum > 2)
+	{
+		TupleDescInitEntry(tupleDescriptor, ++attrIndex, "persistConnection", BOOLOID, -1,
+						   0);
+		TupleDescInitEntry(tupleDescriptor, ++attrIndex, "cursorId", INT8OID, -1, 0);
+	}
+
+	if (tupleDescriptor->tdtypeid == RECORDOID && tupleDescriptor->tdtypmod < 0)
+	{
+		/* Register the type */
+		assign_record_type_typmod(tupleDescriptor);
+	}
+
+	tupleDescriptor->natts = maxAttrNum;
+	return tupleDescriptor;
+}
+
+
+/*
  * At the beginning of the cursor's execution, takes the serialized pgbson
  * and builds the cursor map for tailable cursror with the per node values.
  */
@@ -1473,7 +1513,8 @@ PostProcessCursorPage(PG_FUNCTION_ARGS,
 					  pgbson_writer *cursorDoc, pgbson_array_writer *arrayWriter,
 					  pgbson_writer *topLevelWriter, int64_t cursorId,
 					  pgbson *continuation, bool persistConnection,
-					  pgbson *lastContinuationToken)
+					  pgbson *lastContinuationToken,
+					  TupleDesc cursorResultTupleDesc)
 {
 	/* Finish the cursor doc*/
 	PgbsonWriterEndArray(cursorDoc, arrayWriter);
@@ -1532,36 +1573,16 @@ PostProcessCursorPage(PG_FUNCTION_ARGS,
 	memset(values, 0, sizeof(values));
 	memset(nulls, 0, sizeof(nulls));
 
-	TupleDesc tupleDescriptor = NULL;
-	if (get_call_result_type(fcinfo, NULL, &tupleDescriptor) != TYPEFUNC_COMPOSITE)
-	{
-		elog(ERROR, "return type must be a row type");
-	}
-
-	if (tupleDescriptor->natts < 2 &&
-		tupleDescriptor->natts > 4)
-	{
-		elog(ERROR, "incorrect number of output arguments");
-	}
-
 	values[0] = PointerGetDatum(PgbsonWriterGetPgbson(topLevelWriter));
 	values[1] = queryFullyDrained ? (Datum) 0 : PointerGetDatum(continuation);
 	nulls[0] = false;
 	nulls[1] = queryFullyDrained;
+	values[2] = BoolGetDatum(persistConnection);
+	nulls[2] = false;
+	values[3] = Int64GetDatum(cursorId);
+	nulls[3] = false;
 
-	if (tupleDescriptor->natts >= 3)
-	{
-		values[2] = BoolGetDatum(persistConnection);
-		nulls[2] = false;
-	}
-
-	if (tupleDescriptor->natts == 4)
-	{
-		values[3] = Int64GetDatum(cursorId);
-		nulls[3] = false;
-	}
-
-	HeapTuple ret = heap_form_tuple(tupleDescriptor, values, nulls);
+	HeapTuple ret = heap_form_tuple(cursorResultTupleDesc, values, nulls);
 	return HeapTupleGetDatum(ret);
 }
 
