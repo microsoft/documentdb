@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_dollar_operators.c
+ * src/query/bson_dollar_operators.c
  *
  * Implementation of the BSON Comparison dollar operators.
  *
@@ -141,9 +141,6 @@ typedef struct TraverseInValidateState
 
 	/* true if array has any null value */
 	bool hasNull;
-
-	/* ICU standard colation string. See AggregationPipelineBuildContext for more details. */
-	const char *collationString;
 } TraverseInValidateState;
 
 
@@ -2619,36 +2616,15 @@ CompareInMatch(const pgbsonelement *documentIterator,
 	}
 
 	/* 2: verify if document matches with any entry of $in which are hashed */
-
-	if (IsCollationApplicable(inValidationState->collationString) &&
-		(documentIterator->bsonValue.value_type == BSON_TYPE_UTF8 ||
-		 documentIterator->bsonValue.value_type == BSON_TYPE_ARRAY ||
-		 documentIterator->bsonValue.value_type == BSON_TYPE_DOCUMENT))
+	const char *collationString = inValidationState->traverseState.collationString;
+	if (IsCollationApplicable(collationString))
 	{
-		char *sortKey;
+		BsonValueHashEntry hashEntry = {
+			.bsonValue = documentIterator->bsonValue,
+			.collationString = collationString
+		};
 
-		if (documentIterator->bsonValue.value_type != BSON_TYPE_UTF8)
-		{
-			/*
-			 *  See comments in PopulateDollarInStateFromQuery()
-			 *  We don't support nested objects with collation in $in query.
-			 *
-			 *  So, we can return `false` here safely until we support such case.
-			 */
-
-			return false;
-		}
-
-		sortKey = GetCollationSortKey(inValidationState->collationString,
-									  documentIterator->bsonValue.value.v_utf8.str,
-									  documentIterator->bsonValue.value.v_utf8.len);
-
-		bson_value_t bsonValue = { 0 };
-		bsonValue.value_type = BSON_TYPE_UTF8;
-		bsonValue.value.v_utf8.len = strlen(sortKey);
-		bsonValue.value.v_utf8.str = sortKey;
-
-		hash_search(inValidationState->bsonValueHashSet, &bsonValue,
+		hash_search(inValidationState->bsonValueHashSet, &hashEntry,
 					HASH_FIND, &match);
 	}
 	else
@@ -3360,10 +3336,10 @@ PopulateDollarInValidationState(PG_FUNCTION_ARGS,
 	}
 
 	*filterElement = dollarInState->filterElement;
-	state->collationString = dollarInState->collationString;
 
 	state->filter = filterElement;
 	state->traverseState.matchFunc = CompareInMatch;
+	state->traverseState.collationString = dollarInState->collationString;
 	state->hasNull = dollarInState->hasNull;
 	state->regexList = dollarInState->regexList;
 	state->bsonValueHashSet = dollarInState->bsonValueHashSet;
@@ -3400,7 +3376,16 @@ PopulateDollarInStateFromQuery(BsonDollarInQueryState *dollarInState,
 	dollarInState->regexList = NIL;
 
 	/* Generate a hash table for the $in input array, which is created per query and automatically destroyed after query execution. */
-	dollarInState->bsonValueHashSet = CreateBsonValueHashSet();
+	if (IsCollationApplicable(dollarInState->collationString))
+	{
+		int metadataSize = 0;
+		dollarInState->bsonValueHashSet = CreateBsonValueWithCollationHashSet(
+			metadataSize);
+	}
+	else
+	{
+		dollarInState->bsonValueHashSet = CreateBsonValueHashSet();
+	}
 
 	while (bson_iter_next(&arrayIterator))
 	{
@@ -3423,46 +3408,14 @@ PopulateDollarInStateFromQuery(BsonDollarInQueryState *dollarInState,
 		{
 			bool found = false;
 
-			if (IsCollationApplicable(collationString) &&
-				IsBsonTypeCollationAware(arrayValue->value_type))
+			if (IsCollationApplicable(collationString))
 			{
-				char *sortKey = NULL;
+				BsonValueHashEntry hashEntry = {
+					.bsonValue = *arrayValue,
+					.collationString = collationString
+				};
 
-				if (arrayValue->value_type == BSON_TYPE_UTF8)
-				{
-					sortKey = GetCollationSortKey(collationString,
-												  arrayValue->value.v_utf8.str,
-												  arrayValue->value.v_utf8.len);
-				}
-				else
-				{
-					/*
-					 *  TODO: Traverse nested object and replace UTF8 with sortKeys, or do a
-					 *  for loop based $in matching
-					 *
-					 *  $in queries of the folllowing for are collation aware, i.e., collation is
-					 *  applicable to any nested UTF8. Note that, serializing the nested objects to
-					 *  JSON and generating sort keys does not solve the problem, as the path names
-					 *  need to be collation agnostic.
-					 *
-					 *  ex1: {"$in" : [[{ "b" : "cat"}]]}   ex2: {"$in" : [{ "b" : "cat"}] }
-					 */
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-									errmsg(
-										"operator $in or operators that can be optimized to $in is not supported with collation, when $in contains nested objects"),
-									errdetail_log(
-										"operator $in or operators that can be optimized to $in is not supported with collation, when $in contains nested objects : %s",
-										collationString)));
-				}
-
-				bson_value_t *bsonValue = palloc0(sizeof(bson_value_t));
-				bsonValue->value_type = BSON_TYPE_UTF8;
-				bsonValue->value.v_utf8.len = strlen(sortKey);
-				bsonValue->value.v_utf8.str = palloc0(bsonValue->value.v_utf8.len);
-				strncpy(bsonValue->value.v_utf8.str, sortKey,
-						bsonValue->value.v_utf8.len);
-
-				hash_search(dollarInState->bsonValueHashSet, bsonValue, HASH_ENTER,
+				hash_search(dollarInState->bsonValueHashSet, &hashEntry, HASH_ENTER,
 							&found);
 			}
 			else

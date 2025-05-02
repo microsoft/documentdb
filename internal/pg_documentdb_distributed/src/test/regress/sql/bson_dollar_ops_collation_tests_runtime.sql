@@ -101,24 +101,12 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a" : {"$in" : ["cat", "DOG" ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 100, "collation": { "locale": "en", "strength" : 1} }');
 END;
 
-
 BEGIN;
 SET LOCAL documentdb_core.enablecollation TO on;
 EXPLAIN(VERBOSE ON, COSTS OFF)SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a" : {"$in" : [[{ "b" : "caT"}], [{ "c" : "caT"}]] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 100, "collation": { "locale": "en", "strength" : 1} }');
 END;
 
--- (6) currently unsupported scenarions: 
--- unsupported: $in with nested objects
-BEGIN;
-SET LOCAL documentdb_core.enablecollation TO on;
-SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a" : {"$in" : [{ "B" : "caT"}, { "c" : "caT"}] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 100, "collation": { "locale": "en", "strength" : 1} }');
-END;
-
-BEGIN;
-SET LOCAL documentdb_core.enablecollation TO on;
-SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a" : {"$in" : [[{ "B" : "caT"}], [{ "c" : "caT"}]] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 100, "collation": { "locale": "en", "strength" : 1} }');
-END;
-
+-- (6) currently unsupported scenarions:
 -- unsupported: $bucket
 SELECT document FROM bson_aggregation_pipeline('db', 
 '{
@@ -240,7 +228,6 @@ SELECT documentdb_api.insert_one('db', 'ci_search2', '{ "_id": 3, "a": "cat" }')
 SELECT documentdb_api.insert_one('db', 'ci_search2', '{ "_id": 4, "a": "CaT" }');
 SELECT documentdb_api.insert_one('db', 'ci_search2', '{ "_id": 5, "b": "Dog" }');
 SELECT documentdb_api.insert_one('db', 'ci_search2', '{ "_id": 6, "b": "DoG" }');
-
 
 -- (8) Query results with different collations
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "a": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
@@ -847,6 +834,46 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
 -- query is not distributed to all shards
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_sharded_agg", "pipeline": [ { "$match":{"_id": 1, "a": 1 } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+
+-- nested arrays
+SELECT documentdb_api_internal.bson_query_match('{"a": ["cat"]}', '{ "a": {"$in" : [["CAT"], "DOG"]} }', NULL, 'de-u-ks-level1');
+SELECT documentdb_api_internal.bson_query_match('{"a": ["cat"]}', '{ "a": {"$in" : [["CAT"], ["DOG"]] } }', NULL, 'de-u-ks-level3');
+
+SELECT documentdb_api.insert_one('db', 'nested_arrays', '{ "_id": 1, "a": ["dog"] }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays', '{ "_id": 2, "a": ["cat", "dog"] }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays', '{ "_id": 3, "a": [[["cat"]]] }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays", "filter": { "a" : {"$in" : [ ["dOG"] ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays", "filter": { "a" : {"$in" : [ [["CAT"]] ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays", "filter": { "a" : {"$in" : [["CAT"], ["DOG"]] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+-- nested documents
+SELECT documentdb_api_internal.bson_query_match('{"a": {"b": "cat"}}', '{ "a": {"b": "CAT"} }', NULL, 'en-u-ks-level1');
+SELECT documentdb_api_internal.bson_query_match('{"a": {"b": {"c": "cat"}}}', '{ "a": {"b": {"c": "CAT"}} }', NULL, 'en-u-ks-level2');
+
+SELECT documentdb_api.insert_one('db', 'nested_docs', '{ "_id": 1, "a": { "b": "cat" } }');
+SELECT documentdb_api.insert_one('db', 'nested_docs', '{ "_id": 2, "a": { "b": "dog" } }');
+SELECT documentdb_api.insert_one('db', 'nested_docs', '{ "_id": 3, "a": { "b": { "c": "cat" } } }');
+SELECT documentdb_api.insert_one('db', 'nested_docs', '{ "_id": 4, "a": { "b": { "c": "dog" } } }');
+SELECT documentdb_api.insert_one('db', 'nested_docs', '{ "_id": 5, "a": { "b": { "c": { "d": "cat" } } } }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_docs", "filter": { "a" : {"$in" : [ {"b": "dOG"} ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_docs", "filter": { "a" : {"$in" : [ {"b": { "c": "dOg" }} ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_docs", "filter": { "a" : {"$in" : [ {"b": { "c": { "d": "dOg" }}} ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+-- nested documents: keys are collation-agnostic
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_docs", "filter": { "a" : {"$in" : [ {"B": "dOG"} ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+-- nested arrays and documents
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 1, "a": { "b": ["cat"] } }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 2, "a": { "b": ["dog"] } }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 3, "a": { "b": ["cat", "dog"] } }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 4, "a": {"b": [["dog"]] } }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 5, "a": { "b": [[["cat"]]] } }');
+SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 6, "a": "cat" }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays_docs", "filter": { "a" : {"$in" : [ {"b": ["dOG"]}, "CAT" ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays_docs", "filter": { "a" : {"$in" : [ {"b": [["dOg"]] } ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
 
 RESET documentdb.enableLetAndCollationForQueryMatch;
 RESET documentdb_core.enablecollation;

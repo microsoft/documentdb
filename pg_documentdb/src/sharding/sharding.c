@@ -26,7 +26,7 @@
 #include "commands/parse_error.h"
 #include "commands/commands_common.h"
 #include "metadata/collection.h"
-#include "aggregation/bson_query.h"
+#include "collation/collation.h"
 
 extern bool EnableNativeColocation;
 extern int ShardingMaxChunks;
