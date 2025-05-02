@@ -187,6 +187,7 @@ extern bool SkipFailOnCollation;
 extern bool DisableStatisticsForUniqueColumns;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
+extern bool DefaultUseCompositeOpClass;
 
 char *AlternateIndexHandler = NULL;
 
@@ -4525,11 +4526,11 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 			enableLargeIndexKeys = true;
 		}
 
-		bool enableNewIndexOpClass = false;
-		if (EnableNewCompositeIndexOpclass &&
-			indexDef->enableCompositeTerm == BoolIndexOption_True)
+		bool enableNewIndexOpClass = EnableNewCompositeIndexOpclass &&
+									 DefaultUseCompositeOpClass;
+		if (indexDef->enableCompositeTerm != BoolIndexOption_Undefined)
 		{
-			enableNewIndexOpClass = true;
+			enableNewIndexOpClass = indexDef->enableCompositeTerm == BoolIndexOption_True;
 		}
 
 		bool supportsAlternateIndexHandler = false;
@@ -4667,11 +4668,11 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 								   BoolIndexOption_False;
 		}
 
-		bool enableNewIndexOpClass = false;
-		if (EnableNewCompositeIndexOpclass &&
-			indexDef->enableCompositeTerm == BoolIndexOption_True)
+		bool enableNewIndexOpClass = EnableNewCompositeIndexOpclass &&
+									 DefaultUseCompositeOpClass;
+		if (indexDef->enableCompositeTerm != BoolIndexOption_Undefined)
 		{
-			enableNewIndexOpClass = true;
+			enableNewIndexOpClass = indexDef->enableCompositeTerm == BoolIndexOption_True;
 		}
 
 		/* Currently alternate index handler is only supported for single path simple indexes, this will be updated as we add more support. */
