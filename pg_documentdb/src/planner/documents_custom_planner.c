@@ -133,6 +133,9 @@ TryCreatePointReadPlan(Query *query)
 	/* Finally, filter and set the projections if successful */
 	indexScan->scan.plan.targetlist = FormatProjections(query->targetList);
 	stmt->planTree = (Plan *) indexScan;
+#if PG_VERSION_NUM >= 160000
+	stmt->permInfos = query->rteperminfos;
+#endif
 
 #if (PG_VERSION_NUM >= 160000)
 

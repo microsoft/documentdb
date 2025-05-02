@@ -139,8 +139,7 @@ static pgbson * BuildPersistedContinuationDocument(const char *cursorName, int64
 												   timeSystemVariables,
 												   int numIterations);
 
-static Datum HandleFirstPageRequest(PG_FUNCTION_ARGS,
-									text *database, pgbson *querySpec, int64_t cursorId,
+static Datum HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 									QueryData *cursorState,
 									QueryKind queryKind, Query *query);
 
@@ -185,9 +184,8 @@ command_aggregate_cursor_first_page(PG_FUNCTION_ARGS)
 	Query *query = GenerateAggregationQuery(database, aggregationSpec, &queryData,
 											generateCursorParams, setStatementTimeout);
 
-	Datum response = HandleFirstPageRequest(
-		fcinfo, DatumGetTextP(database), aggregationSpec, cursorId, &queryData,
-		QueryKind_Aggregate, query);
+	Datum response = HandleFirstPageRequest(aggregationSpec, cursorId, &queryData,
+											QueryKind_Aggregate, query);
 
 	PG_RETURN_DATUM(response);
 }
@@ -213,9 +211,8 @@ command_find_cursor_first_page(PG_FUNCTION_ARGS)
 									 setStatementTimeout);
 
 	Datum response = HandleFirstPageRequest(
-		fcinfo, DatumGetTextPP(database), findSpec, cursorId, &queryData,
+		findSpec, cursorId, &queryData,
 		QueryKind_Find, query);
-
 	PG_RETURN_DATUM(response);
 }
 
@@ -242,7 +239,7 @@ command_list_collections_cursor_first_page(PG_FUNCTION_ARGS)
 
 	int64_t cursorId = 0;
 	Datum response = HandleFirstPageRequest(
-		fcinfo, DatumGetTextP(database), listCollectionsSpec, cursorId, &queryData,
+		listCollectionsSpec, cursorId, &queryData,
 		QueryKind_ListCollections, query);
 
 	PG_RETURN_DATUM(response);
@@ -270,7 +267,7 @@ command_list_indexes_cursor_first_page(PG_FUNCTION_ARGS)
 
 	int64_t cursorId = 0;
 	Datum response = HandleFirstPageRequest(
-		fcinfo, DatumGetTextP(database), listIndexesSpec, cursorId, &queryData,
+		listIndexesSpec, cursorId, &queryData,
 		QueryKind_ListIndexes, query);
 
 	PG_RETURN_DATUM(response);
@@ -433,7 +430,7 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 	AttrNumber maxOutAttrNum = 2;
 	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxOutAttrNum);
 
-	Datum responseDatum = PostProcessCursorPage(fcinfo, &cursorDoc, &arrayWriter, &writer,
+	Datum responseDatum = PostProcessCursorPage(&cursorDoc, &arrayWriter, &writer,
 												getMoreInfo.cursorId, continuationDoc,
 												persistConnection, postBatchResumeToken,
 												tupleDesc);
@@ -502,8 +499,7 @@ command_count_query(PG_FUNCTION_ARGS)
  * and builds a response for the first page.
  */
 static Datum
-HandleFirstPageRequest(PG_FUNCTION_ARGS,
-					   text *database, pgbson *querySpec, int64_t cursorId,
+HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 					   QueryData *queryData, QueryKind queryKind, Query *query)
 {
 	pgbson_writer writer;
@@ -648,7 +644,7 @@ HandleFirstPageRequest(PG_FUNCTION_ARGS,
 	AttrNumber maxOutAttrNum = 4;
 	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxOutAttrNum);
 
-	return PostProcessCursorPage(fcinfo, &cursorDoc, &arrayWriter, &writer, cursorId,
+	return PostProcessCursorPage(&cursorDoc, &arrayWriter, &writer, cursorId,
 								 continuationDoc, persistConnection,
 								 postBatchResumeToken, tupleDesc);
 }

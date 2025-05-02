@@ -34,8 +34,7 @@ bool CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 
 TupleDesc ConstructCursorResultTupleDesc(AttrNumber maxAttrNum);
 
-Datum PostProcessCursorPage(PG_FUNCTION_ARGS,
-							pgbson_writer *cursorDoc,
+Datum PostProcessCursorPage(pgbson_writer *cursorDoc,
 							pgbson_array_writer *arrayWriter,
 							pgbson_writer *topLevelWriter, int64_t cursorId,
 							pgbson *continuation, bool persistConnection,

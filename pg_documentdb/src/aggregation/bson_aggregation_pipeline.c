@@ -1388,133 +1388,266 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 		StringView keyView = bson_iter_key_string_view(&findIterator);
 		const bson_value_t *value = bson_iter_value(&findIterator);
 
-		if (StringViewEqualsCString(&keyView, "find"))
+		/*
+		 * Key off of the first character to avoid the several "if/else" checks for every
+		 * key. If any letter becomes to long, we should add another lookup table
+		 * block to speed up the comparison.
+		 */
+		switch (keyView.string[0])
 		{
-			hasFind = true;
-			EnsureTopLevelFieldType("find", &findIterator, BSON_TYPE_UTF8);
-			collectionName.string = bson_iter_utf8(&findIterator, &collectionName.length);
-		}
-		else if (StringViewEqualsCString(&keyView, "filter"))
-		{
-			EnsureTopLevelFieldType("filter", &findIterator, BSON_TYPE_DOCUMENT);
-			filter = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "limit"))
-		{
-			/* In case ntoreturn is present and has been parsed already we throw this error */
-			if (!isNtoReturnSupported && hasNtoreturn)
+			case '$':
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+				if (StringViewEqualsCString(&keyView, "$db"))
+				{
+					/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
+					continue;
+				}
+
+				goto default_find_case;
 			}
 
-			/* Validation handled in the stage processing */
-			limit = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "projection"))
-		{
-			/* Validation handled in the stage processing */
-			/* TODO - Mongo validates projection even if collection is not present */
-			/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
-			projection = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "skip"))
-		{
-			/* Validation handled in the stage processing */
-			skip = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "sort"))
-		{
-			EnsureTopLevelFieldType("sort", &findIterator, BSON_TYPE_DOCUMENT);
-			sort = *value;
-		}
-		else if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
-		{
-			EnsureTopLevelFieldType("collation", &findIterator, BSON_TYPE_DOCUMENT);
-			ReportFeatureUsage(FEATURE_COLLATION);
-			ParseAndGetCollationString(value, context.collationString);
-		}
-		else if (StringViewEqualsCString(&keyView, "singleBatch"))
-		{
-			EnsureTopLevelFieldType("singleBatch", &findIterator, BSON_TYPE_BOOL);
-			if (value->value.v_bool)
+			case 'a':
 			{
-				queryData->cursorKind = QueryCursorType_SingleBatch;
-			}
-		}
-		else if (StringViewEqualsCString(&keyView, "batchSize"))
-		{
-			/* In case ntoreturn is present and has been parsed already we throw this error */
-			if (!isNtoReturnSupported && hasNtoreturn)
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
-			}
-			SetBatchSize("batchSize", value, queryData);
-			hasBatchSize = !isNtoReturnSupported;
-		}
-		else if (StringViewEqualsCString(&keyView, "ntoreturn"))
-		{
-			/* In case of versions <6.0 we support ntoreturn */
-			if (isNtoReturnSupported)
-			{
-				SetBatchSize("ntoreturn", value, queryData);
+				if (StringViewEqualsCString(&keyView, "allowDiskUse") ||
+					StringViewEqualsCString(&keyView, "allowPartialResults"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
 			}
 
-			/* In case ntoreturn is the last option in the find command we first check if batchSize or limit is present */
-			if (limit.value_type != BSON_TYPE_EOD || hasBatchSize)
+			case 'b':
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+				if (StringViewEqualsCString(&keyView, "batchSize"))
+				{
+					/* In case ntoreturn is present and has been parsed already we throw this error */
+					if (!isNtoReturnSupported && hasNtoreturn)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+					SetBatchSize("batchSize", value, queryData);
+					hasBatchSize = !isNtoReturnSupported;
+					continue;
+				}
+
+				goto default_find_case;
 			}
-			hasNtoreturn = !isNtoReturnSupported;
-		}
-		else if (StringViewEqualsCString(&keyView, "let"))
-		{
-			EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
-			let = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "hint") ||
-				 StringViewEqualsCString(&keyView, "min") ||
-				 StringViewEqualsCString(&keyView, "max") ||
-				 StringViewEqualsCString(&keyView, "allowPartialResults") ||
-				 StringViewEqualsCString(&keyView, "allowDiskUse") ||
-				 StringViewEqualsCString(&keyView, "noCursorTimeout"))
-		{
-			/* We ignore this for now (TODO Support this?) */
-		}
-		else if (StringViewEqualsCString(&keyView, "$db") ||
-				 StringViewEqualsCString(&keyView, "lsid"))
-		{
-			/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
-		}
-		else if ((StringViewEqualsCString(&keyView, "returnKey") ||
-				  StringViewEqualsCString(&keyView, "showRecordId")) &&
-				 BsonValueAsBool(value))
-		{
-			/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("key %.*s is not supported yet",
-								   keyView.length, keyView.string),
-							errdetail_log("key %.*s is not supported yet",
-										  keyView.length, keyView.string)));
-		}
-		else if (setStatementTimeout &&
-				 StringViewEqualsCString(&keyView, "maxTimeMS"))
-		{
-			EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
-			SetExplicitStatementTimeout(BsonValueAsInt32(value));
-		}
-		else if (!IsCommonSpecIgnoredField(keyView.string))
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("%.*s is an unknown field",
-								   keyView.length, keyView.string),
-							errdetail_log("%.*s is an unknown field",
-										  keyView.length, keyView.string)));
+
+			case 'c':
+			{
+				if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
+				{
+					EnsureTopLevelFieldType("collation", &findIterator,
+											BSON_TYPE_DOCUMENT);
+					ReportFeatureUsage(FEATURE_COLLATION);
+					ParseAndGetCollationString(value, context.collationString);
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'f':
+			{
+				if (StringViewEqualsCString(&keyView, "find"))
+				{
+					hasFind = true;
+					EnsureTopLevelFieldType("find", &findIterator, BSON_TYPE_UTF8);
+					collectionName.string = bson_iter_utf8(&findIterator,
+														   &collectionName.length);
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "filter"))
+				{
+					EnsureTopLevelFieldType("filter", &findIterator, BSON_TYPE_DOCUMENT);
+					filter = *value;
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'h':
+			{
+				if (StringViewEqualsCString(&keyView, "hint"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'l':
+			{
+				if (StringViewEqualsCString(&keyView, "limit"))
+				{
+					/* In case ntoreturn is present and has been parsed already we throw this error */
+					if (!isNtoReturnSupported && hasNtoreturn)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+
+					/* Validation handled in the stage processing */
+					limit = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "let"))
+				{
+					EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
+					let = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "lsid"))
+				{
+					/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'm':
+			{
+				if (StringViewEqualsCString(&keyView, "min") ||
+					StringViewEqualsCString(&keyView, "max"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+				else if (setStatementTimeout &&
+						 StringViewEqualsCString(&keyView, "maxTimeMS"))
+				{
+					EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
+					SetExplicitStatementTimeout(BsonValueAsInt32(value));
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'n':
+			{
+				if (StringViewEqualsCString(&keyView, "ntoreturn"))
+				{
+					/* In case of versions <6.0 we support ntoreturn */
+					if (isNtoReturnSupported)
+					{
+						SetBatchSize("ntoreturn", value, queryData);
+					}
+
+					/* In case ntoreturn is the last option in the find command we first check if batchSize or limit is present */
+					if (limit.value_type != BSON_TYPE_EOD || hasBatchSize)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+					hasNtoreturn = !isNtoReturnSupported;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "noCursorTimeout"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'p':
+			{
+				if (StringViewEqualsCString(&keyView, "projection"))
+				{
+					/* Validation handled in the stage processing */
+					/* TODO - Mongo validates projection even if collection is not present */
+					/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
+					projection = *value;
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'r':
+			{
+				if (StringViewEqualsCString(&keyView, "returnKey"))
+				{
+					if (BsonValueAsBool(value))
+					{
+						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+										errmsg("key %.*s is not supported yet",
+											   keyView.length, keyView.string),
+										errdetail_log("key %.*s is not supported yet",
+													  keyView.length, keyView.string)));
+					}
+
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 's':
+			{
+				if (StringViewEqualsCString(&keyView, "skip"))
+				{
+					/* Validation handled in the stage processing */
+					skip = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "sort"))
+				{
+					EnsureTopLevelFieldType("sort", &findIterator, BSON_TYPE_DOCUMENT);
+					sort = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "singleBatch"))
+				{
+					EnsureTopLevelFieldType("singleBatch", &findIterator, BSON_TYPE_BOOL);
+					if (value->value.v_bool)
+					{
+						queryData->cursorKind = QueryCursorType_SingleBatch;
+					}
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "showRecordId"))
+				{
+					if (BsonValueAsBool(value))
+					{
+						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+										errmsg("key %.*s is not supported yet",
+											   keyView.length, keyView.string),
+										errdetail_log("key %.*s is not supported yet",
+													  keyView.length, keyView.string)));
+					}
+
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+default_find_case:
+			default:
+			{
+				if (!IsCommonSpecIgnoredField(keyView.string))
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg("%.*s is an unknown field",
+										   keyView.length, keyView.string),
+									errdetail_log("%.*s is an unknown field",
+												  keyView.length, keyView.string)));
+				}
+			}
 		}
 	}
 

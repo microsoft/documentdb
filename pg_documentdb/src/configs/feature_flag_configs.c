@@ -101,6 +101,8 @@ bool EnableMatchWithLetInLookup =
 #define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
 bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
+#define DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN true
+bool UseRawExecutorForQueryPlan = DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN;
 
 /*
  * SECTION: Top level feature flags
@@ -417,6 +419,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable primary key cursor scan for streaming cursors."),
 		NULL, &EnablePrimaryKeyCursorScan,
 		DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useRawExecutorForQueryPlan", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable using the raw executor for query plans."),
+		NULL, &UseRawExecutorForQueryPlan,
+		DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
