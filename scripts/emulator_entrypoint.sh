@@ -140,7 +140,7 @@ do
         shift
         export ALLOW_EXTERNAL_CONNECTIONS=$1
         shift;;
-        
+
     -*)
         echo "Unknown option $1"
         exit 1;; 
@@ -150,7 +150,6 @@ done
 # Set default values if not provided
 export OWNER=${OWNER:-$(whoami)}
 echo "Using username: $CUSTOM_USERNAME"
-echo "Using password: $CUSTOM_PASSWORD"
 echo "Using owner: $OWNER"
 
 if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
