@@ -40,23 +40,26 @@ FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-0.
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
     jq && \
+    sudo apt-get upgrade -y && \
     sudo rm -rf /var/lib/apt/lists/*
 
 ENV LANGUAGE=en_US.UTF-8 \
-    TERM=xterm-256color \
-    ENFORCE_SSL=true \
-    GATEWAY_PUBLIC_ENDPOINT="" \
-    DOCUMENTDB_PORT=10260 \
-    ENABLE_TELEMETRY=false \
-    LOG_LEVEL=info \
+    TERM=xterm-256color
+
+ENV ENFORCE_SSL="true" \
+    CERT_PATH="" \
+    KEY_FILE="" \
     DATA_PATH="/home/documentdb/postgresql/data" \
-    SCRIPT_DIR=/home/documentdb/code/scripts \
-    ORIGINAL_USER="" \
-    INSTALL_DEPENDENCIES_ROOT=/root/ \
-    WORKSPACE_ROOT=/home/documentdb/code \
-    CERTS_ROOT=/home/documentdb/code/scripts/certs \
-    CERT_SECRET=secret \
-    CUSTOM_USERNAME="default_user"
+    DOCUMENTDB_PORT="10260" \
+    ENABLE_TELEMETRY="false" \
+    LOG_LEVEL="info" \
+    CUSTOM_USERNAME="default_user" \
+    CUSTOM_PASSWORD="Admin100" \
+    CREATE_USER="true" \
+    START_POSTGRESQL="true" \
+    POSTGRESQL_PORT="9712" \
+    OWNER="documentdb" \
+    ALLOW_EXTERNAL_CONNECTIONS="false"
 
 RUN sudo mkdir /home/documentdb/gateway
 

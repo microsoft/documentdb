@@ -62,12 +62,6 @@ if [[ -f "/version.txt" ]]; then
   echo "Release Version: $DocumentDB_EMULATOR_RELEASE_VERSION"
 fi
 
-# Default values for arguments
-createUser="true"
-startPg="true"
-pgPort="9712"
-owner=$(whoami)
-
 # Handle arguments
 
 while [[ $# -gt 0 ]];
@@ -114,37 +108,39 @@ do
 
     --username)
         shift
-        CUSTOM_USERNAME=$1
+        export CUSTOM_USERNAME=$1
         shift;;
 
     --password)
         shift
-        CUSTOM_PASSWORD=$1
+        export CUSTOM_PASSWORD=$1
         shift;;
 
     --create-user)
         shift
-        createUser=$1
+        export CREATE_USER=$1
         shift;;
 
     --start-pg)
         shift
-        startPg=$1
+        export START_POSTGRESQL=$1
         shift;;
 
     --pg-port)
         shift
-        pgPort=$1
+        export POSTGRESQL_PORT=$1
         shift;;
 
     --owner)
         shift
-        owner=$1
+        export OWNER=$1
         shift;;
+
     --allow-external-connections)
         shift
         export ALLOW_EXTERNAL_CONNECTIONS=$1
         shift;;
+        
     -*)
         echo "Unknown option $1"
         exit 1;; 
@@ -152,10 +148,9 @@ do
 done
 
 # Set default values if not provided
-export USERNAME=${CUSTOM_USERNAME:-default_user}
-CUSTOM_PASSWORD=${CUSTOM_PASSWORD:-Admin100}
-export OWNER=${owner:-$(whoami)}
-echo "Using username: $USERNAME"
+export OWNER=${OWNER:-$(whoami)}
+echo "Using username: $CUSTOM_USERNAME"
+echo "Using password: $CUSTOM_PASSWORD"
 echo "Using owner: $OWNER"
 
 if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
@@ -170,8 +165,8 @@ if ! [[ "$DOCUMENTDB_PORT" =~ $num ]]; then
     exit 1
 fi
 
-if ! [[ "$pgPort" =~ $num ]]; then
-    echo "Invalid PostgreSQL port value $pgPort, must be a number"
+if ! [[ "$POSTGRESQL_PORT" =~ $num ]]; then
+    echo "Invalid PostgreSQL port value $POSTGRESQL_PORT, must be a number"
     exit 1
 fi
 
@@ -193,15 +188,15 @@ if [ -n "$LOG_LEVEL" ] && \
     exit 1
 fi
 
-if [ "$startPg" = "true" ]; then
-    echo "Starting PostgreSQL server on port $pgPort..."
+if [ "$START_POSTGRESQL" = "true" ]; then
+    echo "Starting PostgreSQL server on port $POSTGRESQL_PORT..."
     exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
     if ALLOW_EXTERNAL_CONNECTIONS="true"; then
         echo "Allowing external connections to PostgreSQL..."
         export PGOPTIONS="-e"
     fi
     echo "Starting OSS server..."
-    /home/documentdb/gateway/scripts/start_oss_server.sh $PGOPTIONS -c -d $DATA_PATH -p $pgPort | tee -a /home/documentdb/oss_server.log
+    /home/documentdb/gateway/scripts/start_oss_server.sh $PGOPTIONS -c -d $DATA_PATH -p $POSTGRESQL_PORT | tee -a /home/documentdb/oss_server.log
 
     echo "OSS server started."
 
@@ -230,9 +225,9 @@ if [ -n "${DOCUMENTDB_PORT:-}" ]; then
     mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
-if [ -n "${pgPort:-}" ]; then
+if [ -n "${POSTGRESQL_PORT:-}" ]; then
     echo "Updating PostgresPort in the configuration file..."
-    jq ".PostgresPort = $pgPort" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    jq ".PostgresPort = $POSTGRESQL_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
     mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
@@ -256,11 +251,11 @@ sudo chmod 755 /home/documentdb/gateway/SetupConfiguration_temp.json
 configFile="/home/documentdb/gateway/SetupConfiguration_temp.json"
 
 echo "Starting gateway in the background..."
-if [ "$createUser" = "false" ]; then
+if [ "$CREATE_USER" = "false" ]; then
     echo "Skipping user creation and starting the gateway..."
-    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -s -d $configFile -P $pgPort -o $OWNER | tee -a /home/documentdb/gateway.log &
+    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -s -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
 else
-    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $USERNAME -p $CUSTOM_PASSWORD -d $configFile -P $pgPort -o $OWNER | tee -a /home/documentdb/gateway.log &
+    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $CUSTOM_USERNAME -p $CUSTOM_PASSWORD -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
 fi
 
 gateway_pid=$! # Capture the PID of the gateway process
