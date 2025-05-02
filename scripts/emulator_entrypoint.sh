@@ -108,12 +108,12 @@ do
 
     --username)
         shift
-        export CUSTOM_USERNAME=$1
+        export USERNAME=$1
         shift;;
 
     --password)
         shift
-        export CUSTOM_PASSWORD=$1
+        export PASSWORD=$1
         shift;;
 
     --create-user)
@@ -149,7 +149,7 @@ done
 
 # Set default values if not provided
 export OWNER=${OWNER:-$(whoami)}
-echo "Using username: $CUSTOM_USERNAME"
+echo "Using username: $USERNAME"
 echo "Using owner: $OWNER"
 
 if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
@@ -254,7 +254,7 @@ if [ "$CREATE_USER" = "false" ]; then
     echo "Skipping user creation and starting the gateway..."
     /home/documentdb/gateway/scripts/build_and_start_gateway.sh -s -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
 else
-    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $CUSTOM_USERNAME -p $CUSTOM_PASSWORD -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
+    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $USERNAME -p $PASSWORD -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
 fi
 
 gateway_pid=$! # Capture the PID of the gateway process
