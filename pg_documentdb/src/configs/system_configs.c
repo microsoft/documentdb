@@ -119,6 +119,9 @@ int MaxAggregationStagesAllowed = DEFAULT_AGGREGATION_STAGES_LIMIT;
 #define DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD INT_MAX
 int IndexTermCompressionThreshold = DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD;
 
+#define DEFAULT_ENABLE_USER_CRUD true
+bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
+
 #define DEFAULT_VECTOR_ITERATIVE_SCAN_MODE VectorIterativeScan_RELAXED_ORDER
 int VectorPreFilterIterativeScanMode = DEFAULT_VECTOR_ITERATIVE_SCAN_MODE;
 
@@ -329,6 +332,13 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		&IndexTermCompressionThreshold,
 		DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD, 256,
 		INT_MAX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableUserCrud", newGucPrefix),
+		gettext_noop(
+			"Enables user crud through the data plane."),
+		NULL, &EnableUserCrud, DEFAULT_ENABLE_USER_CRUD,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomEnumVariable(

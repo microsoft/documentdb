@@ -118,8 +118,6 @@ bool EnableBypassDocumentValidation =
 #define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
 bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 
-#define DEFAULT_ENABLE_USER_CRUD false
-bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
 
 /*
  * SECTION: Collation feature flags
@@ -349,13 +347,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Determines whether we can perform _id join opetimization on collation. It would be a customer input confiriming that _id does not contain collation aware data types (i.e., UTF8 and DOCUMENT)."),
 		NULL, &EnableLookupIdJoinOptimizationOnCollation,
 		DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableUserCrud", newGucPrefix),
-		gettext_noop(
-			"Enables user crud through the data plane."),
-		NULL, &EnableUserCrud, DEFAULT_ENABLE_USER_CRUD,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
