@@ -23,6 +23,7 @@
 #include <commands/cursor_private.h>
 #include "commands/parse_error.h"
 #include <aggregation/bson_aggregation_pipeline.h>
+#include "aggregation/aggregation_commands.h"
 
 
 extern bool EnableNowSystemVariable;
@@ -123,7 +124,7 @@ typedef struct
 /* Forward declaration */
 /* --------------------------------------------------------- */
 
-static void ParseGetMoreSpec(text *databaseName, pgbson *getMoreSpec, pgbson *cursorSpec,
+static void ParseGetMoreSpec(text **database, pgbson *getMoreSpec, pgbson *cursorSpec,
 							 QueryGetMoreInfo *getMoreInfo);
 
 static pgbson * BuildStreamingContinuationDocument(HTAB *cursorMap, pgbson *querySpec,
@@ -174,10 +175,20 @@ PG_FUNCTION_INFO_V1(command_list_indexes_cursor_first_page);
 Datum
 command_aggregate_cursor_first_page(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *aggregationSpec = PG_GETARG_PGBSON(1);
 	int64_t cursorId = PG_ARGISNULL(2) ? 0 : PG_GETARG_INT64(2);
 
+	Datum response = aggregate_cursor_first_page(database, aggregationSpec, cursorId);
+
+	PG_RETURN_DATUM(response);
+}
+
+
+Datum
+aggregate_cursor_first_page(text *database, pgbson *aggregationSpec,
+							int64_t cursorId)
+{
 	bool generateCursorParams = true;
 	bool setStatementTimeout = true;
 	QueryData queryData = GenerateFirstPageQueryData();
@@ -186,8 +197,7 @@ command_aggregate_cursor_first_page(PG_FUNCTION_ARGS)
 
 	Datum response = HandleFirstPageRequest(aggregationSpec, cursorId, &queryData,
 											QueryKind_Aggregate, query);
-
-	PG_RETURN_DATUM(response);
+	return response;
 }
 
 
@@ -198,10 +208,18 @@ command_aggregate_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 command_find_cursor_first_page(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *findSpec = PG_GETARG_PGBSON(1);
 	int64_t cursorId = PG_ARGISNULL(2) ? 0 : PG_GETARG_INT64(2);
 
+	Datum response = find_cursor_first_page(database, findSpec, cursorId);
+	PG_RETURN_DATUM(response);
+}
+
+
+Datum
+find_cursor_first_page(text *database, pgbson *findSpec, int64_t cursorId)
+{
 	/* Parse the find spec for the purposes of query execution */
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = true;
@@ -213,7 +231,7 @@ command_find_cursor_first_page(PG_FUNCTION_ARGS)
 	Datum response = HandleFirstPageRequest(
 		findSpec, cursorId, &queryData,
 		QueryKind_Find, query);
-	PG_RETURN_DATUM(response);
+	return response;
 }
 
 
@@ -224,8 +242,17 @@ command_find_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 command_list_collections_cursor_first_page(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *listCollectionsSpec = PG_GETARG_PGBSON(1);
+
+	Datum response = list_collections_first_page(database, listCollectionsSpec);
+	PG_RETURN_DATUM(response);
+}
+
+
+Datum
+list_collections_first_page(text *database, pgbson *listCollectionsSpec)
+{
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = false;
 	bool setStatementTimeout = true;
@@ -241,8 +268,7 @@ command_list_collections_cursor_first_page(PG_FUNCTION_ARGS)
 	Datum response = HandleFirstPageRequest(
 		listCollectionsSpec, cursorId, &queryData,
 		QueryKind_ListCollections, query);
-
-	PG_RETURN_DATUM(response);
+	return response;
 }
 
 
@@ -253,8 +279,17 @@ command_list_collections_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 command_list_indexes_cursor_first_page(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *listIndexesSpec = PG_GETARG_PGBSON(1);
+
+	Datum response = list_indexes_first_page(database, listIndexesSpec);
+	PG_RETURN_DATUM(response);
+}
+
+
+Datum
+list_indexes_first_page(text *database, pgbson *listIndexesSpec)
+{
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = false;
 	bool setStatementTimeout = true;
@@ -269,8 +304,7 @@ command_list_indexes_cursor_first_page(PG_FUNCTION_ARGS)
 	Datum response = HandleFirstPageRequest(
 		listIndexesSpec, cursorId, &queryData,
 		QueryKind_ListIndexes, query);
-
-	PG_RETURN_DATUM(response);
+	return response;
 }
 
 
@@ -286,8 +320,22 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 	pgbson *getMoreSpec = PG_GETARG_PGBSON(1);
 	pgbson *cursorSpec = PG_GETARG_PGBSON(2);
 
+	/* See sql/udfs/commands_crud/query_cursors_aggregate--latest.sql */
+	AttrNumber maxOutAttrNum = 2;
+	Datum responseDatum = aggregation_cursor_get_more(database, getMoreSpec,
+													  cursorSpec, maxOutAttrNum);
+	PG_RETURN_DATUM(responseDatum);
+}
+
+
+Datum
+aggregation_cursor_get_more(text *database, pgbson *getMoreSpec,
+							pgbson *cursorSpec, AttrNumber maxResponseAttributeNumber)
+{
+	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxResponseAttributeNumber);
+
 	QueryGetMoreInfo getMoreInfo = { 0 };
-	ParseGetMoreSpec(database, getMoreSpec, cursorSpec, &getMoreInfo);
+	ParseGetMoreSpec(&database, getMoreSpec, cursorSpec, &getMoreInfo);
 
 	pgbson_writer writer;
 	pgbson_writer cursorDoc;
@@ -340,7 +388,7 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 						getMoreInfo.queryData.timeSystemVariables;
 
 					bool setStatementTimeout = false;
-					query = GenerateFindQuery(PointerGetDatum(database),
+					query = GenerateFindQuery(database,
 											  getMoreInfo.querySpec, &queryData,
 											  generateCursorParams,
 											  setStatementTimeout);
@@ -353,7 +401,7 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 						getMoreInfo.queryData.timeSystemVariables;
 
 					bool setStatementTimeout = false;
-					query = GenerateAggregationQuery(PointerGetDatum(database),
+					query = GenerateAggregationQuery(database,
 													 getMoreInfo.querySpec, &queryData,
 													 generateCursorParams,
 													 setStatementTimeout);
@@ -396,7 +444,7 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 			queryData.timeSystemVariables = getMoreInfo.queryData.timeSystemVariables;
 
 			bool setStatementTimeout = false;
-			query = GenerateAggregationQuery(PointerGetDatum(database),
+			query = GenerateAggregationQuery(database,
 											 getMoreInfo.querySpec, &queryData,
 											 generateCursorParams, setStatementTimeout);
 			HTAB *cursorMap = CreateTailableCursorHashSet();
@@ -425,16 +473,11 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 	}
 
 	bool persistConnection = false;
-
-	/* See sql/udfs/commands_crud/query_cursors_aggregate--latest.sql */
-	AttrNumber maxOutAttrNum = 2;
-	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxOutAttrNum);
-
 	Datum responseDatum = PostProcessCursorPage(&cursorDoc, &arrayWriter, &writer,
 												getMoreInfo.cursorId, continuationDoc,
 												persistConnection, postBatchResumeToken,
 												tupleDesc);
-	PG_RETURN_DATUM(responseDatum);
+	return responseDatum;
 }
 
 
@@ -445,7 +488,7 @@ command_cursor_get_more(PG_FUNCTION_ARGS)
 Datum
 command_distinct_query(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *distinctSpec = PG_GETARG_PGBSON(1);
 
 	bool setStatementTimeout = true;
@@ -473,7 +516,7 @@ command_distinct_query(PG_FUNCTION_ARGS)
 Datum
 command_count_query(PG_FUNCTION_ARGS)
 {
-	Datum database = PG_GETARG_DATUM(0);
+	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *countSpec = PG_GETARG_PGBSON(1);
 
 	bool setStatementTimeout = true;
@@ -842,7 +885,7 @@ ParseCursorInputSpec(pgbson *cursorSpec, QueryGetMoreInfo *getMoreInfo)
  * Parses the getMore spec and builds the necessary pipeline/query information from a cursor standpoint.
  */
 static void
-ParseGetMoreSpec(text *databaseName, pgbson *getMoreSpec, pgbson *cursorSpec,
+ParseGetMoreSpec(text **databaseName, pgbson *getMoreSpec, pgbson *cursorSpec,
 				 QueryGetMoreInfo *getMoreInfo)
 {
 	/* Default batchSize for getMore */

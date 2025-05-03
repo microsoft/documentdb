@@ -796,7 +796,7 @@ CreateInverseMatchFromCollectionQuery(InverseMatchArgs *inverseMatchArgs,
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
 						errmsg(
 							"'from' collection: '%s.%s' doesn't exist.",
-							TextDatumGetCString(context->databaseNameDatum),
+							text_to_cstring(context->databaseNameDatum),
 							inverseMatchArgs->fromCollection.string)));
 	}
 

@@ -127,7 +127,7 @@ typedef struct
 	int numNestedLevels;
 
 	/* The database associated with this request */
-	Datum databaseNameDatum;
+	text *databaseNameDatum;
 
 	/* The collection name associated with this request (if applicable) */
 	StringView collectionNameView;
@@ -197,10 +197,10 @@ Aggref * CreateMultiArgAggregate(Oid aggregateFunctionId, List *args, List *argT
 								 ParseState *parseState);
 List * ExtractAggregationStages(const bson_value_t *pipelineValue,
 								AggregationPipelineBuildContext *context);
-Query * GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView,
+Query * GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView,
 							   pg_uuid_t *collectionUuid,
 							   AggregationPipelineBuildContext *context);
-Query * GenerateBaseAgnosticQuery(Datum databaseDatum,
+Query * GenerateBaseAgnosticQuery(text *databaseDatum,
 								  AggregationPipelineBuildContext *context);
 RangeTblEntry * MakeSubQueryRte(Query *subQuery, int stageNum, int pipelineDepth,
 								const char *prefix, bool includeAllColumns);

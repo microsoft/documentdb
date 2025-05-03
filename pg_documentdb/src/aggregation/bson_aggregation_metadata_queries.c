@@ -58,7 +58,7 @@ static Query * GenerateBaseListCollectionsQuery(Datum databaseDatum, bool nameOn
 static Query * HandleListCollectionsProjector(Query *query,
 											  AggregationPipelineBuildContext *context,
 											  bool nameOnly, bool addDistributedMetadata);
-static Query * GenerateBaseListIndexesQuery(Datum databaseDatum, const
+static Query * GenerateBaseListIndexesQuery(text *databaseDatum, const
 											StringView *collectionName,
 											AggregationPipelineBuildContext *context);
 
@@ -74,7 +74,7 @@ static Query * BuildSingleFunctionQuery(Oid queryFunctionOid, List *queryArgs, b
  * This is because any agnostic stage will overwrite this anyway.
  */
 Query *
-GenerateBaseAgnosticQuery(Datum databaseDatum, AggregationPipelineBuildContext *context)
+GenerateBaseAgnosticQuery(text *databaseDatum, AggregationPipelineBuildContext *context)
 {
 	StringView agnosticCollection = CreateStringViewFromString("$cmd.aggregate");
 	Query *query = makeNode(Query);
@@ -82,7 +82,7 @@ GenerateBaseAgnosticQuery(Datum databaseDatum, AggregationPipelineBuildContext *
 	query->querySource = QSRC_ORIGINAL;
 	query->canSetTag = true;
 	context->collectionNameView = agnosticCollection;
-	context->namespaceName = CreateNamespaceName(DatumGetTextP(databaseDatum),
+	context->namespaceName = CreateNamespaceName(databaseDatum,
 												 &agnosticCollection);
 	context->mongoCollection = NULL;
 
@@ -105,7 +105,7 @@ GenerateBaseAgnosticQuery(Datum databaseDatum, AggregationPipelineBuildContext *
  * Generates a query that is akin to the MongoDB $listCollections query command
  */
 Query *
-GenerateListCollectionsQuery(Datum databaseDatum, pgbson *listCollectionsSpec,
+GenerateListCollectionsQuery(text *databaseDatum, pgbson *listCollectionsSpec,
 							 QueryData *queryData, bool addCursorParams,
 							 bool setStatementTimeout)
 {
@@ -158,6 +158,21 @@ GenerateListCollectionsQuery(Datum databaseDatum, pgbson *listCollectionsSpec,
 			EnsureTopLevelFieldIsNumberLike("listCollections.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
 		}
+		else if (StringViewEqualsCString(&keyView, "$db"))
+		{
+			if (context.databaseNameDatum == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &listCollectionsIter, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseName = bson_iter_utf8(&listCollectionsIter,
+														  &databaseLength);
+				context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																	 databaseLength);
+				databaseDatum = context.databaseNameDatum;
+			}
+		}
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
@@ -169,7 +184,14 @@ GenerateListCollectionsQuery(Datum databaseDatum, pgbson *listCollectionsSpec,
 		}
 	}
 
-	Query *query = GenerateBaseListCollectionsQuery(databaseDatum, nameOnly,
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
+	}
+
+	Query *query = GenerateBaseListCollectionsQuery(PointerGetDatum(databaseDatum),
+													nameOnly,
 													distributedMetadata, &context);
 	queryData->namespaceName = context.namespaceName;
 
@@ -191,7 +213,7 @@ GenerateListCollectionsQuery(Datum databaseDatum, pgbson *listCollectionsSpec,
  * Generates a query that is akin to the MongoDB $listIndexes query command
  */
 Query *
-GenerateListIndexesQuery(Datum databaseDatum, pgbson *listIndexesSpec,
+GenerateListIndexesQuery(text *databaseDatum, pgbson *listIndexesSpec,
 						 QueryData *queryData,
 						 bool addCursorParams, bool setStatementTimeout)
 {
@@ -222,6 +244,21 @@ GenerateListIndexesQuery(Datum databaseDatum, pgbson *listIndexesSpec,
 			EnsureTopLevelFieldIsNumberLike("listIndexes.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
 		}
+		else if (StringViewEqualsCString(&keyView, "$db"))
+		{
+			if (context.databaseNameDatum == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &listIndexesIter, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseName = bson_iter_utf8(&listIndexesIter,
+														  &databaseLength);
+				context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																	 databaseLength);
+				databaseDatum = context.databaseNameDatum;
+			}
+		}
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
@@ -231,6 +268,12 @@ GenerateListIndexesQuery(Datum databaseDatum, pgbson *listIndexesSpec,
 								"BSON field listIndexes.%.*s is an unknown field",
 								keyView.length, keyView.string)));
 		}
+	}
+
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
 	}
 
 	Query *query = GenerateBaseListIndexesQuery(databaseDatum, &collectionName, &context);
@@ -262,7 +305,7 @@ HandleCurrentOp(const bson_value_t *existingValue, Query *query,
 							"$currentOp is only valid as the first stage in the pipeline.")));
 	}
 
-	const char *databaseStr = TextDatumGetCString(context->databaseNameDatum);
+	const char *databaseStr = text_to_cstring(context->databaseNameDatum);
 	if (strcmp(databaseStr, "admin") != 0 ||
 		query->jointree->fromlist != NULL)
 	{
@@ -333,18 +376,19 @@ HandleCurrentOp(const bson_value_t *existingValue, Query *query,
  * for a listIndexes scenario.
  */
 static Query *
-GenerateBaseListIndexesQuery(Datum databaseDatum, const StringView *collectionName,
+GenerateBaseListIndexesQuery(text *databaseDatum, const StringView *collectionName,
 							 AggregationPipelineBuildContext *context)
 {
 	Query *query = makeNode(Query);
 	query->commandType = CMD_SELECT;
 	query->querySource = QSRC_ORIGINAL;
 	query->canSetTag = true;
-	context->namespaceName = CreateNamespaceName(DatumGetTextP(databaseDatum),
+	context->namespaceName = CreateNamespaceName(databaseDatum,
 												 collectionName);
 	context->collectionNameView = *collectionName;
 
-	MongoCollection *collection = GetMongoCollectionByNameDatum(databaseDatum,
+	MongoCollection *collection = GetMongoCollectionByNameDatum(PointerGetDatum(
+																	databaseDatum),
 																CStringGetTextDatum(
 																	collectionName->string),
 																NoLock);
@@ -578,7 +622,8 @@ HandleCollStats(const bson_value_t *existingValue, Query *query,
 	/* Skip validate the collStats document: done in the function */
 	/* Now create the rtfunc*/
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,
-									 context->databaseNameDatum, false, false);
+									 PointerGetDatum(context->databaseNameDatum), false,
+									 false);
 	Const *collectionConst = MakeTextConst(context->collectionNameView.string,
 										   context->collectionNameView.length);
 	pgbson *bson = PgbsonInitFromDocumentBsonValue(existingValue);
@@ -624,7 +669,8 @@ HandleIndexStats(const bson_value_t *existingValue, Query *query,
 	}
 
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,
-									 context->databaseNameDatum, false, false);
+									 PointerGetDatum(context->databaseNameDatum), false,
+									 false);
 	Const *collectionConst = MakeTextConst(context->collectionNameView.string,
 										   context->collectionNameView.length);
 	List *indexStatsArgs = list_make2(databaseConst, collectionConst);

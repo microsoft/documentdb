@@ -1039,7 +1039,7 @@ CreateNamespaceName(text *databaseName, const StringView *collectionName)
  * For this we simply create the query from it and let the validation take place.
  */
 void
-ValidateAggregationPipeline(Datum databaseDatum, const StringView *baseCollection,
+ValidateAggregationPipeline(text *databaseDatum, const StringView *baseCollection,
 							const bson_value_t *pipelineValue)
 {
 	AggregationPipelineBuildContext validationContext = { 0 };
@@ -1147,7 +1147,7 @@ MutateQueryWithPipeline(Query *query, List *aggregationStages,
  * to match the contents of the provided aggregation pipeline.
  */
 Query *
-GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *queryData,
+GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *queryData,
 						 bool addCursorParams, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
@@ -1249,12 +1249,34 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
 			EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
 		}
+		else if (StringViewEqualsCString(&keyView, "$db"))
+		{
+			/* BackCompat: Ignore if provided top level */
+			if (context.databaseNameDatum == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &aggregationIterator, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseName = bson_iter_utf8(&aggregationIterator,
+														  &databaseLength);
+				context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																	 databaseLength);
+				database = context.databaseNameDatum;
+			}
+		}
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg("%*s is an unknown field",
 								   keyView.length, keyView.string)));
 		}
+	}
+
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
 	}
 
 	if (pipelineValue.value_type != BSON_TYPE_ARRAY)
@@ -1284,11 +1306,12 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
 	Query *query;
 	if (isCollectionAgnosticQuery)
 	{
-		query = GenerateBaseAgnosticQuery(database, &context);
+		query = GenerateBaseAgnosticQuery(context.databaseNameDatum, &context);
 	}
 	else
 	{
-		query = GenerateBaseTableQuery(database, &collectionName, collectionUuid,
+		query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
+									   collectionUuid,
 									   &context);
 	}
 
@@ -1356,7 +1379,7 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
  * Applies a find spec against a query and expands it into the underlying SQL AST.
  */
 Query *
-GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, bool
+GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, bool
 				  addCursorParams, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
@@ -1399,7 +1422,20 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 			{
 				if (StringViewEqualsCString(&keyView, "$db"))
 				{
-					/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
+					/* BackCompat: Ignore if provided top level */
+					if (context.databaseNameDatum == NULL)
+					{
+						/* Extract the database out of $db */
+						EnsureTopLevelFieldType("$db", &findIterator, BSON_TYPE_UTF8);
+
+						uint32_t databaseLength = 0;
+						const char *databaseName = bson_iter_utf8(&findIterator,
+																  &databaseLength);
+						context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																			 databaseLength);
+						databaseDatum = context.databaseNameDatum;
+					}
+
 					continue;
 				}
 
@@ -1651,6 +1687,12 @@ default_find_case:
 		}
 	}
 
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
+	}
+
 	if (!hasFind)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
@@ -1708,7 +1750,8 @@ default_find_case:
 		context.requiresPersistentCursor = true;
 	}
 
-	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
+	Query *query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
+										  collectionUuid,
 										  &context);
 	Query *baseQuery = query;
 
@@ -1794,7 +1837,7 @@ default_find_case:
  * Generates a query that is akin to the MongoDB $count query command
  */
 Query *
-GenerateCountQuery(Datum databaseDatum, pgbson *countSpec, bool setStatementTimeout)
+GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
 	context.databaseNameDatum = databaseDatum;
@@ -1984,7 +2027,7 @@ GenerateCountQuery(Datum databaseDatum, pgbson *countSpec, bool setStatementTime
  * Generates a query that is akin to the MongoDB $distinct query command
  */
 Query *
-GenerateDistinctQuery(Datum databaseDatum, pgbson *distinctSpec, bool setStatementTimeout)
+GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
 	context.databaseNameDatum = databaseDatum;
@@ -2080,12 +2123,13 @@ GenerateDistinctQuery(Datum databaseDatum, pgbson *distinctSpec, bool setStateme
  * with it. Also updates the queryData with cursor related information.
  */
 int64_t
-ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
+ParseGetMore(text **databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 			 setStatementTimeout)
 {
 	bson_iter_t cursorSpecIter;
 	PgbsonInitIterator(getMoreSpec, &cursorSpecIter);
 	int64_t cursorId = 0;
+	StringView nameView = { 0 };
 	while (bson_iter_next(&cursorSpecIter))
 	{
 		const char *pathKey = bson_iter_key(&cursorSpecIter);
@@ -2105,18 +2149,31 @@ ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 		{
 			const bson_value_t *value = bson_iter_value(&cursorSpecIter);
 			EnsureTopLevelFieldValueType("collection", value, BSON_TYPE_UTF8);
-			StringView nameView = {
+			nameView = (StringView) {
 				.string = value->value.v_utf8.str,
 				.length = value->value.v_utf8.len
 			};
-			queryData->namespaceName = CreateNamespaceName(databaseName,
-														   &nameView);
 		}
 		else if (setStatementTimeout && strcmp(pathKey, "maxTimeMS") == 0)
 		{
 			const bson_value_t *value = bson_iter_value(&cursorSpecIter);
 			EnsureTopLevelFieldIsNumberLike("getMore.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
+		}
+		else if (strcmp(pathKey, "$db") == 0)
+		{
+			/* BackCompat: Ignore if provided top level */
+			if (*databaseName == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &cursorSpecIter, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseStr = bson_iter_utf8(&cursorSpecIter,
+														 &databaseLength);
+				*databaseName = cstring_to_text_with_len(databaseStr,
+														 databaseLength);
+			}
 		}
 		else if (!IsCommonSpecIgnoredField(pathKey))
 		{
@@ -2126,11 +2183,20 @@ ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 		}
 	}
 
-	if (queryData->namespaceName == NULL)
+	if (nameView.length == 0)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
+						errmsg("Collection name can't be empty.")));
+	}
+
+	if (*databaseName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Required element \"collection\" missing.")));
+						errmsg("Required element \"$db\" missing.")));
 	}
+
+	queryData->namespaceName = CreateNamespaceName(*databaseName,
+												   &nameView);
 
 	if (cursorId == 0)
 	{
@@ -3703,7 +3769,8 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
 	}
 
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,
-									 context->databaseNameDatum, false, false);
+									 PointerGetDatum(context->databaseNameDatum), false,
+									 false);
 	Const *collectionConst = MakeTextConst(context->collectionNameView.string,
 										   context->collectionNameView.length);
 
@@ -6351,7 +6418,7 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
  * Updates the base table
  */
 Query *
-GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView,
+GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView,
 					   pg_uuid_t *collectionUuid,
 					   AggregationPipelineBuildContext *context)
 {
@@ -6360,12 +6427,13 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 	query->querySource = QSRC_ORIGINAL;
 	query->canSetTag = true;
 	context->collectionNameView = *collectionNameView;
-	context->namespaceName = CreateNamespaceName(DatumGetTextPP(databaseDatum),
+	context->namespaceName = CreateNamespaceName(databaseDatum,
 												 collectionNameView);
 	Datum collectionNameDatum = PointerGetDatum(
 		cstring_to_text_with_len(collectionNameView->string, collectionNameView->length));
 
-	MongoCollection *collection = GetMongoCollectionOrViewByNameDatum(databaseDatum,
+	MongoCollection *collection = GetMongoCollectionOrViewByNameDatum(PointerGetDatum(
+																		  databaseDatum),
 																	  collectionNameDatum,
 																	  AccessShareLock);
 
@@ -6391,7 +6459,7 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 	List *pipelineStages = NIL;
 	if (collection != NULL && collection->viewDefinition != NULL)
 	{
-		collection = ExtractViewDefinitionAndPipeline(databaseDatum,
+		collection = ExtractViewDefinitionAndPipeline(PointerGetDatum(databaseDatum),
 													  collection->viewDefinition,
 													  &pipelineStages,
 													  context);
@@ -6423,7 +6491,7 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 		/* Here: Special case, if the database is config, try to see if we can create a base
 		 * table out of the system metadata.
 		 */
-		StringView databaseView = CreateStringViewFromText(DatumGetTextPP(databaseDatum));
+		StringView databaseView = CreateStringViewFromText(databaseDatum);
 		if (StringViewEqualsCString(&databaseView, "config"))
 		{
 			Query *returnedQuery = GenerateConfigDatabaseQuery(context);
