@@ -39,7 +39,7 @@ FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-0.
 
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
-    jq && \
+    jq openssl && \
     sudo apt-get upgrade -y && \
     sudo rm -rf /var/lib/apt/lists/*
 

@@ -3,6 +3,7 @@ SET documentdb.next_collection_index_id TO 1972800;
 
 --set Feature flag for user crud
 SET documentdb.enableUserCrud TO ON;
+SET documentdb.maxUserLimit TO 10;
 \set VERBOSITY TERSE
 
 show documentdb.blockedRolePrefixList;
@@ -54,6 +55,17 @@ SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_passw
 
 --Create a user with no DB
 SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase"}, {"role":"clusterAdmin"}]}');
+
+-- Create a user with an empty password should fail
+SELECT documentdb_api.create_user('{"createUser":"test_user_empty_pwd", "pwd":"", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+
+-- Create a user with password less than 8 characters and drop it
+SELECT documentdb_api.create_user('{"createUser":"test_user_short_pwd", "pwd":"Short1!", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+SELECT documentdb_api.drop_user('{"dropUser":"test_user_short_pwd"}');
+
+-- Create a user with password more than 256 characters and drop it
+SELECT documentdb_api.create_user('{"createUser":"test_user_long_pwd", "pwd":"ThisIsAVeryLongPasswordThatExceedsTheTwoHundredFiftySixCharacterLimitAndThereforeShouldFailValidation1!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+SELECT documentdb_api.drop_user('{"dropUser":"test_user_long_pwd"}');
 
 --Verify that the user is created
 SELECT documentdb_api.users_info('{"usersInfo":"test_user4"}');
@@ -200,5 +212,5 @@ SELECT documentdb_api.drop_user('{"dropUser":"test_user_injection_attack"}');
 SELECT documentdb_api.drop_user('{"dropUser":"readOnlyUser"}');
 SELECT documentdb_api.drop_user('{"dropUser":"adminUser"}');
 
--- Reset the max user limit to 10
-SET documentdb.maxUserLimit TO 10;
+-- Reset the max user limit to 500
+SET documentdb.maxUserLimit TO 500;

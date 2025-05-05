@@ -158,6 +158,24 @@ if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
     exit 1
 fi
 
+if { [ -z "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; }; then
+    echo "CERT_PATH and KEY_FILE not provided. Generating self-signed certificate and key..."
+    CERT_PATH="$HOME/self_signed_cert.pem"
+    KEY_FILE="$HOME/self_signed_key.pem"
+    openssl req -x509 -newkey rsa:4096 -keyout "$KEY_FILE" -out "$CERT_PATH" -days 365 -nodes -subj "/CN=localhost"
+    
+    echo "Generated certificate at $CERT_PATH and key at $KEY_FILE."
+
+    # Combine the key and certificate into a single PEM file
+    COMBINED_PEM="$HOME/self_signed_combined.pem"
+    cat "$CERT_PATH" "$KEY_FILE" > "$COMBINED_PEM"
+    echo "Combined certificate and key into $COMBINED_PEM."
+
+    # Export docker cp command for copying the PEM file to the local machine
+    echo "To copy the combined PEM file to your local machine, use the following command:"
+    echo "docker cp <container_id>:$COMBINED_PEM ./self_signed_combined.pem"
+fi
+
 num='^[0-9]+$'
 if ! [[ "$DOCUMENTDB_PORT" =~ $num ]]; then
     echo "Invalid port value $DOCUMENTDB_PORT, must be a number"

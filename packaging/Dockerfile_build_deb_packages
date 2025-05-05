@@ -52,10 +52,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY scripts /tmp/install_setup
 
-RUN CLEAN_SETUP=1 INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup /tmp/install_setup/install_setup_pcre2.sh
-RUN CLEAN_SETUP=1 INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup /tmp/install_setup/install_setup_intel_decimal_math_lib.sh
-RUN CLEAN_SETUP=1 INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup /tmp/install_setup/install_citus_indent.sh
-
 RUN export CLEAN_SETUP=1 && \
     export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
     MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \

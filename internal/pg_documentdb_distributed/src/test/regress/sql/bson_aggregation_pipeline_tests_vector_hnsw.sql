@@ -896,7 +896,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 
 SET documentdb.enableVectorCompressionHalf = on;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "binary" } } ] }', true);
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "pq" } } ] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": "scalar" } } ] }', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": 123 } } ] }', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": {} } } ] }', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": ["half"] } } ] }', true);
@@ -1063,5 +1063,22 @@ END;
 $$;
 
 SELECT documentdb_api.drop_collection('db','aggregation_pipeline_hnsw_halfvec');
+
+
+----------------------------------------------------------------------------------------------------
+-- PQ vector
+-- hnsw
+SELECT documentdb_api.create_collection('db', 'aggregation_pipeline_hnsw_pq');
+
+-- error cases, create index
+SET documentdb.enableVectorCompressionPQ = off;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 3, "compression": "pq" } } ] }', true);
+
+SET documentdb.enableVectorCompressionPQ = on;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4000, "compression": "pq" } } ] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_pq", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2000, "compression": "pq" } } ] }', true);
+
+SET documentdb.enableVectorCompressionPQ = off;
+SELECT documentdb_api.drop_collection('db', 'aggregation_pipeline_hnsw_pq');
 
 DROP FUNCTION IF EXISTS batch_insert_testing_vector_documents;

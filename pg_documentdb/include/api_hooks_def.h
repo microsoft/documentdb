@@ -118,6 +118,17 @@ typedef const pgbson *(*GetUserInfoFromExternalIdentityProvider_HookType)();
 extern GetUserInfoFromExternalIdentityProvider_HookType
 	get_user_info_from_external_identity_provider_hook;
 
+
+/* Method for username validation */
+typedef bool (*UserNameValidation_HookType)(const char *username);
+extern UserNameValidation_HookType username_validation_hook;
+
+
+/* Method for password validation */
+typedef bool (*PasswordValidation_HookType)(const char *username, const char *password);
+extern PasswordValidation_HookType password_validation_hook;
+
+
 /*
  * Hook for enabling running a query with nested distribution enabled.
  */
@@ -131,6 +142,10 @@ typedef void (*RunQueryWithNestedDistribution_HookType)(const char *query,
 														bool *isNull,
 														int numValues);
 extern RunQueryWithNestedDistribution_HookType run_query_with_nested_distribution_hook;
+
+typedef void (*AllowNestedDistributionInCurrentTransaction_HookType)(void);
+extern AllowNestedDistributionInCurrentTransaction_HookType
+	allow_nested_distribution_in_current_transaction_hook;
 
 typedef bool (*IsShardTableForMongoTable_HookType)(const char *relName, const
 												   char *numEndPointer);

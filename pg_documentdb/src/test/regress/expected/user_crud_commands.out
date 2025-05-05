@@ -2,6 +2,7 @@ SET documentdb.next_collection_id TO 1972800;
 SET documentdb.next_collection_index_id TO 1972800;
 --set Feature flag for user crud
 SET documentdb.enableUserCrud TO ON;
+SET documentdb.maxUserLimit TO 10;
 \set VERBOSITY TERSE
 show documentdb.blockedRolePrefixList;
  documentdb.blockedRolePrefixList 
@@ -83,6 +84,35 @@ ERROR:  Invalid value specified for role: 'read'.
 --Create a user with no DB
 SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase"}, {"role":"clusterAdmin"}]}');
             create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Create a user with an empty password should fail
+SELECT documentdb_api.create_user('{"createUser":"test_user_empty_pwd", "pwd":"", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+ERROR:  Password cannot be empty.
+-- Create a user with password less than 8 characters and drop it
+SELECT documentdb_api.create_user('{"createUser":"test_user_short_pwd", "pwd":"Short1!", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user_short_pwd"}');
+             drop_user             
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Create a user with password more than 256 characters and drop it
+SELECT documentdb_api.create_user('{"createUser":"test_user_long_pwd", "pwd":"ThisIsAVeryLongPasswordThatExceedsTheTwoHundredFiftySixCharacterLimitAndThereforeShouldFailValidation1!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
+            create_user            
+-----------------------------------
+ { "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.drop_user('{"dropUser":"test_user_long_pwd"}');
+             drop_user             
 -----------------------------------
  { "ok" : { "$numberInt" : "1" } }
 (1 row)
@@ -382,5 +412,5 @@ SELECT documentdb_api.drop_user('{"dropUser":"adminUser"}');
  { "ok" : { "$numberInt" : "1" } }
 (1 row)
 
--- Reset the max user limit to 10
-SET documentdb.maxUserLimit TO 10;
+-- Reset the max user limit to 500
+SET documentdb.maxUserLimit TO 500;

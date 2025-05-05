@@ -83,4 +83,7 @@ pgbson * RewriteDocumentWithCustomObjectId(pgbson *document,
 void ValidateIdField(const bson_value_t *idValue);
 void SetExplicitStatementTimeout(int timeoutMilliseconds);
 
+void CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
+													bool setSnapshot);
+
 #endif

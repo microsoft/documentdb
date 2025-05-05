@@ -174,6 +174,11 @@ typedef pgbson *(*GetDefaultSearchParamBsonFunc)(void);
 typedef pgbson *(*CalculateSearchParamBsonFunc)(bytea *indexOptions, Cardinality
 												indexRows);
 
+/*
+ * Extract the index compression type from the index options.
+ */
+typedef VectorIndexCompressionType (*ExtractIndexCompressionTypeFunc)(
+	bytea *indexOptions);
 
 /*
  * Definition of an extensible vector index.
@@ -211,6 +216,8 @@ typedef struct VectorIndexDefinition
 	GetDefaultSearchParamBsonFunc getDefaultSearchParamBsonFunc;
 
 	CalculateSearchParamBsonFunc calculateSearchParamBsonFunc;
+
+	ExtractIndexCompressionTypeFunc extractIndexCompressionTypeFunc;
 } VectorIndexDefinition;
 
 const VectorIndexDefinition * GetVectorIndexDefinitionByIndexAmOid(Oid indexAmOid);
