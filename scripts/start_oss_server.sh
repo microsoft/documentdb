@@ -13,7 +13,7 @@ help="false"
 stop="false"
 distributed="false"
 allowExternalAccess="false"
-while getopts "d:hcsxe" opt; do
+while getopts "d:p:hcsxe" opt; do
   case $opt in
     d) postgresDirectory="$OPTARG"
     ;;
@@ -24,8 +24,10 @@ while getopts "d:hcsxe" opt; do
     s) stop="true"
     ;;
     x) distributed="true"
-    ;;
+    ;;    
     e) allowExternalAccess="true"
+    ;;
+    p) coordinatorPort="$OPTARG"
     ;;
   esac
 
@@ -44,14 +46,20 @@ reset=`tput sgr0`
 
 if [ "$help" == "true" ]; then
     echo "${green}sets up and launches a postgres server with extension installed on port $coordinatorPort."
-    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x] [-e]"
+    echo "${green}start_oss_server -d <postgresDir> [-c] [-s] [-x] [-e] [-p <port>]"
     echo "${green}<postgresDir> is the data directory for your postgres instance with extension"
     echo "${green}[-c] - optional argument. removes all existing data if it exists"
     echo "${green}[-s] - optional argument. Stops all servers and exits"
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
     echo "${green}[-e] - optional argument. Allows PostgreSQL access from any IP address"
-    echo "${green}if postgresDir not specified assumed to be ~/documentdb_test"
+    echo "${green}[-p <port>] - optional argument. specifies the port for the coordinator"
+    echo "${green}if postgresDir not specified assumed to be /home/documentdb/postgresql/data"
     exit 1;
+fi
+
+if ! [[ "$coordinatorPort" =~ ^[0-9]+$ ]]; then
+    echo "${red}Invalid port value $coordinatorPort, must be a number.${reset}"
+    exit 1
 fi
 
 if [ "$distributed" == "true" ]; then
@@ -63,7 +71,7 @@ fi
 preloadLibraries="pg_documentdb_core, pg_documentdb"
 
 if [ "$distributed" == "true" ]; then
-  preloadLibraries="citus, $preloadLibraries, pg_documentdb_distributed"
+  preloadLibraries="$preloadLibraries, pg_documentdb_distributed"
 fi
 
 source="${BASH_SOURCE[0]}"
@@ -102,6 +110,7 @@ if [ "$initSetup" == "true" ]; then
     InitDatabaseExtended $postgresDirectory "$preloadLibraries"
 fi
 
+# Update PostgreSQL configuration to allow access from any IP
 if [ "$allowExternalAccess" == "true" ]; then
   postgresConfigFile="$postgresDirectory/postgresql.conf"
   hbaConfigFile="$postgresDirectory/pg_hba.conf"

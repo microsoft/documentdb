@@ -39,6 +39,21 @@ Optional arguments:
   --password            Specify the password for the DocumentDB emulator.
                         Defaults to Admin100
                         Overrides PASSWORD environment variable.
+  --create-user         Specify whether to create a user. 
+                        Defaults to true.
+  --start-pg            Specify whether to start the PostgreSQL server.
+                        Defaults to true.
+  --pg-port             Specify the port for the PostgreSQL server.
+                        Defaults to 9712.
+                        Overrides PG_PORT environment variable.
+  --owner               Specify the owner of the DocumentDB emulator.
+                        Overrides OWNER environment variable.
+                        defaults to documentdb.
+  --allow-external-connections
+                        Allow external connections to PostgreSQL.
+                        Defaults to false.
+                        Overrides ALLOW_EXTERNAL_CONNECTIONS environment variable.
+                        
 EOF
 }
 
@@ -93,12 +108,37 @@ do
 
     --username)
         shift
-        CUSTOM_USERNAME=$1
+        export USERNAME=$1
         shift;;
 
     --password)
         shift
-        CUSTOM_PASSWORD=$1
+        export PASSWORD=$1
+        shift;;
+
+    --create-user)
+        shift
+        export CREATE_USER=$1
+        shift;;
+
+    --start-pg)
+        shift
+        export START_POSTGRESQL=$1
+        shift;;
+
+    --pg-port)
+        shift
+        export POSTGRESQL_PORT=$1
+        shift;;
+
+    --owner)
+        shift
+        export OWNER=$1
+        shift;;
+
+    --allow-external-connections)
+        shift
+        export ALLOW_EXTERNAL_CONNECTIONS=$1
         shift;;
 
     -*)
@@ -108,9 +148,9 @@ do
 done
 
 # Set default values if not provided
-export USERNAME=${CUSTOM_USERNAME:-default_user}
-CUSTOM_PASSWORD=${CUSTOM_PASSWORD:-Admin100}
+export OWNER=${OWNER:-$(whoami)}
 echo "Using username: $USERNAME"
+echo "Using owner: $OWNER"
 
 if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
    { [ -z "${CERT_PATH:-}" ] && [ -n "${KEY_FILE:-}" ]; }; then
@@ -142,6 +182,11 @@ if ! [[ "$DOCUMENTDB_PORT" =~ $num ]]; then
     exit 1
 fi
 
+if ! [[ "$POSTGRESQL_PORT" =~ $num ]]; then
+    echo "Invalid PostgreSQL port value $POSTGRESQL_PORT, must be a number"
+    exit 1
+fi
+
 if [ -n "$ENABLE_TELEMETRY" ] && \
    [ "$ENABLE_TELEMETRY" != "true" ] && \
    [ "$ENABLE_TELEMETRY" != "false" ]; then
@@ -160,27 +205,33 @@ if [ -n "$LOG_LEVEL" ] && \
     exit 1
 fi
 
-# Start Postgres
-exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
-
-echo "Starting OSS server..."
-/home/documentdb/gateway/scripts/start_oss_server.sh -c -d $DATA_PATH | tee -a /home/documentdb/oss_server.log
-
-echo "OSS server started."
-
-# Ensure PostgreSQL is running
-echo "Checking if PostgreSQL is running..."
-i=0
-while [ ! -f "$DATA_PATH/postmaster.pid" ]; do
-    sleep 1
-    if [ $i -ge 60 ]; then
-        echo "PostgreSQL failed to start within 60 seconds."
-        cat /home/documentdb/oss_server.log
-        exit 1
+if [ "$START_POSTGRESQL" = "true" ]; then
+    echo "Starting PostgreSQL server on port $POSTGRESQL_PORT..."
+    exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
+    if ALLOW_EXTERNAL_CONNECTIONS="true"; then
+        echo "Allowing external connections to PostgreSQL..."
+        export PGOPTIONS="-e"
     fi
-    i=$((i + 1))
-done
-echo "PostgreSQL is running."
+    echo "Starting OSS server..."
+    /home/documentdb/gateway/scripts/start_oss_server.sh $PGOPTIONS -c -d $DATA_PATH -p $POSTGRESQL_PORT | tee -a /home/documentdb/oss_server.log
+
+    echo "OSS server started."
+
+    echo "Checking if PostgreSQL is running..."
+    i=0
+    while [ ! -f "$DATA_PATH/postmaster.pid" ]; do
+        sleep 1
+        if [ $i -ge 60 ]; then
+            echo "PostgreSQL failed to start within 60 seconds."
+            cat /home/documentdb/oss_server.log
+            exit 1
+        fi
+        i=$((i + 1))
+    done
+    echo "PostgreSQL is running."
+else
+    echo "Skipping PostgreSQL server start."
+fi
 
 # Setting up the configuration file
 cp /home/documentdb/gateway/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration_temp.json
@@ -188,6 +239,12 @@ cp /home/documentdb/gateway/SetupConfiguration.json /home/documentdb/gateway/Set
 if [ -n "${DOCUMENTDB_PORT:-}" ]; then
     echo "Updating MongoListenPort in the configuration file..."
     jq ".MongoListenPort = $DOCUMENTDB_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
+fi
+
+if [ -n "${POSTGRESQL_PORT:-}" ]; then
+    echo "Updating PostgresPort in the configuration file..."
+    jq ".PostgresPort = $POSTGRESQL_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
     mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
@@ -211,7 +268,13 @@ sudo chmod 755 /home/documentdb/gateway/SetupConfiguration_temp.json
 configFile="/home/documentdb/gateway/SetupConfiguration_temp.json"
 
 echo "Starting gateway in the background..."
-/home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $USERNAME -p $CUSTOM_PASSWORD -d $configFile | tee -a /home/documentdb/gateway.log &
+if [ "$CREATE_USER" = "false" ]; then
+    echo "Skipping user creation and starting the gateway..."
+    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -s -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
+else
+    /home/documentdb/gateway/scripts/build_and_start_gateway.sh -u $USERNAME -p $PASSWORD -d $configFile -P $POSTGRESQL_PORT -o $OWNER | tee -a /home/documentdb/gateway.log &
+fi
+
 gateway_pid=$! # Capture the PID of the gateway process
 
 # Wait for the gateway process to keep the container alive
