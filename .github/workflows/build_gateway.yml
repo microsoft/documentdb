@@ -2,6 +2,12 @@ name: Gateway Image - Build and Push to GHCR (Native AMD64 and ARM64)
 
 on:
   workflow_dispatch:
+    inputs:
+      manifest_tag:
+        description: 'Tag for the Docker manifest'
+        required: true
+        default: 'test'
+
   push:
     branches:
       - 'main'
@@ -11,6 +17,10 @@ on:
 permissions:
   packages: write
   contents: read
+
+env:
+  IMAGE_NAME: preview
+  IMAGE_TAG: ${{ github.run_id }}-$(date +'%Y-%m-%d')
 
 jobs:
   build-amd64:
@@ -25,12 +35,12 @@ jobs:
 
     - name: Build and Push AMD64 Image
       run: |
-        IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-amd64
+        TAG=${{ env.IMAGE_TAG }}-amd64
         docker build \
           --build-arg BASE_ARCH=AMD64 \
-          -t ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
 
   build-arm64:
     name: Build and Push ARM64
@@ -44,12 +54,12 @@ jobs:
 
     - name: Build and Push ARM64 Image
       run: |
-        IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-arm64
+        TAG=${{ env.IMAGE_TAG }}-arm64
         docker build \
           --build-arg BASE_ARCH=ARM64 \
-          -t ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
 
   create-manifest:
     name: Create and Push Manifest
@@ -63,11 +73,10 @@ jobs:
 
     - name: Create and Push Manifest
       run: |
-        IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}
-        MANIFEST_TAG=test
-        docker manifest create ghcr.io/${{ github.repository }}/private-preview:$MANIFEST_TAG \
-          --amend ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG-amd64 \
-          --amend ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG-arm64
-        docker manifest push ghcr.io/${{ github.repository }}/private-preview:$MANIFEST_TAG
+        MANIFEST_TAG=${{ github.event.inputs.manifest_tag }}
+        docker manifest create ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$MANIFEST_TAG \
+          --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 \
+          --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
+        docker manifest push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$MANIFEST_TAG
 
 
