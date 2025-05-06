@@ -1,10 +1,12 @@
 name: Gateway Image - Build and Push to ACR (Native AMD64 and ARM64)
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main
-      - arm64
+      - 'main'
+    paths-ignore:
+      - '*.md'
 
 permissions:
   id-token: write
