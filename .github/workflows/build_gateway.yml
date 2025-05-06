@@ -50,3 +50,24 @@ jobs:
           -t ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
         docker push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG
+
+  create-manifest:
+    name: Create and Push Manifest
+    runs-on: ubuntu-22.04
+    needs: 
+      - build-amd64
+      - build-arm64
+    steps:
+    - name: Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Create and Push Manifest
+      run: |
+        IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}
+        MANIFEST_TAG=preview-test
+        docker manifest create ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$MANIFEST_TAG \
+          --amend ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG-amd64 \
+          --amend ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG-arm64
+        docker manifest push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$MANIFEST_TAG
+
+
