@@ -1,5 +1,6 @@
 ### documentdb v0.104-0 (Unreleased) ###
 * Add string case support for `$toDate` operator
+* Support collation with `$indexOfArray` aggregation operator. *[Feature]*
 * Support collation with arrays and objects comparisons *[Feature]*
 
 ### documentdb v0.103-0 (Unreleased) ###

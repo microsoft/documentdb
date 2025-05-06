@@ -50,7 +50,7 @@ typedef struct DollarInArguments
 {
 	AggregationExpressionData *targetValue;
 	AggregationExpressionData *searchArray;
-	char *collationString;
+	const char *collationString;
 } DollarInArguments;
 
 /* State for a $arrayElemAt, $first or $last operator. */
@@ -181,6 +181,14 @@ typedef struct ZipParseInputsResult
 	int outputSubArrayLength;
 } ZipParseInputsResult;
 
+
+/* Struct that represents parsed arguments of $indexOfArray and collation string. */
+typedef struct IndexOfArrayArguments
+{
+	List *argumentsList;
+	const char *collationString;
+} IndexOfArrayArguments;
+
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
@@ -246,7 +254,8 @@ static void ValidateArraySizeLimit(int32_t startValue, int32_t endValue,
 								   int32_t stepValue);
 static int32 GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex);
 static int32 FindIndexInArrayFor(bson_value_t *array, bson_value_t *element,
-								 int32 startIndex, int32 endIndex);
+								 int32 startIndex, int32 endIndex,
+								 const char *collationString);
 static void SetResultArrayForDollarReverse(bson_value_t *array, bson_value_t *result);
 static void SetResultValueForDollarMaxMin(const bson_value_t *inputArgument,
 										  bson_value_t *result, bool isFindMax);
@@ -1504,7 +1513,8 @@ ParseDollarIndexOfArray(const bson_value_t *argument, AggregationExpressionData 
 		result.value.v_int32 = FindIndexInArrayFor(&arrExpressionData->value,
 												   &searchExpressionData->value,
 												   startIndex,
-												   endIndex);
+												   endIndex,
+												   context->collationString);
 
 		data->value = result;
 		data->kind = AggregationExpressionKind_Constant;
@@ -1514,7 +1524,18 @@ ParseDollarIndexOfArray(const bson_value_t *argument, AggregationExpressionData 
 
 		return;
 	}
-	data->operator.arguments = argsList;
+
+	IndexOfArrayArguments *parsedArguments = palloc0(
+		sizeof(IndexOfArrayArguments));
+
+	if (IsCollationApplicable(context->collationString))
+	{
+		parsedArguments->collationString = pstrdup(context->collationString);
+	}
+
+	parsedArguments->argumentsList = argsList;
+	data->operator.arguments = parsedArguments;
+	data->operator.argumentsKind = AggregationExpressionArgumentsKind_Palloc;
 }
 
 
@@ -1527,7 +1548,9 @@ void
 HandlePreParsedDollarIndexOfArray(pgbson *doc, void *arguments,
 								  ExpressionResult *expressionResult)
 {
-	List *argsList = (List *) arguments;
+	IndexOfArrayArguments *parsedArguments = arguments;
+	List *argsList = parsedArguments->argumentsList;
+	const char *collationString = parsedArguments->collationString;
 
 	/* evaluating the array argument expression */
 	AggregationExpressionData *arrExpressionData = list_nth(argsList, 0);
@@ -1595,7 +1618,7 @@ HandlePreParsedDollarIndexOfArray(pgbson *doc, void *arguments,
 	bson_value_t result = { .value_type = BSON_TYPE_INT32 };
 	result.value.v_int32 = FindIndexInArrayFor(&arrayExpression, &element,
 											   startIndex,
-											   endIndex);
+											   endIndex, collationString);
 	ExpressionResultSetValue(expressionResult, &result);
 }
 
@@ -4028,7 +4051,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
  */
 static int32
 FindIndexInArrayFor(bson_value_t *array, bson_value_t *element, int32 startIndex,
-					int32 endIndex)
+					int32 endIndex, const char *collationString)
 {
 	if (startIndex >= endIndex)
 	{
@@ -4047,7 +4070,8 @@ FindIndexInArrayFor(bson_value_t *array, bson_value_t *element, int32 startIndex
 
 	while (bson_iter_next(&arrayIterator) && currentIndex < endIndex)
 	{
-		if (BsonValueEquals(bson_iter_value(&arrayIterator), element))
+		if (BsonValueEqualsWithCollation(bson_iter_value(&arrayIterator), element,
+										 collationString))
 		{
 			return currentIndex;
 		}

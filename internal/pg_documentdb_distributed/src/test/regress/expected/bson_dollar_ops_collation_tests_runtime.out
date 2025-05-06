@@ -2185,6 +2185,102 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "fi
 ---------------------------------------------------------------------
 (0 rows)
 
+-- support for $indexOfArray
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfArray": [ ["CAT", "DOG"], "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfArray": [ ["CAT", "DOG"], "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 3 } }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+-- support for $indexOfBytes (doesn't respect collation)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfBytes": [ "cAtALoNa", "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfBytes": [ "cAtALoNa", "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 3 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfBytes": [ "$a", "aT" ] }, 1]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 2 } }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfBytes": [ "$a", "AT" ] }, -1]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 2 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "dog" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+ { "_id" : { "$numberInt" : "4" }, "a" : "dOg" }
+ { "_id" : "bat", "a" : "bat" }
+ { "_id" : "hen", "a" : "hen" }
+(6 rows)
+
+-- support for $indexOfCP (doesn't respect collation)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfCP": [ "cAtALoNa", "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfCP": [ "cAtALoNa", "$a" ] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 3 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfCP": [ "$a", "at" ] }, 1]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 2 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : "bat", "a" : "bat" }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$indexOfCP": [ "$a", "AT" ] }, 1]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 2 } }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+-- support for $strcasecmp (doesn't respect collation)
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$strcasecmp": ["$a", "CAT"] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 1 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$strcasecmp": ["$a", "CAT"] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 3 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$strcasecmp": ["$a", "CAT"] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 2 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_agg_proj", "filter": { "$expr": {"$eq": [{ "$strcasecmp": ["$a", "CAT"] }, 0]} }, "sort": { "_id": 1 }, "skip": 0, "collation": { "locale": "en", "strength" : 3 } }');
+                    document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt" }
+(2 rows)
+
 -- $addFields
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$addFields": { "newField": { "$ne": ["$a", "CAT"] } } } ], "cursor": {}, "collation": { "locale": "fr", "strength" : 1} }');
                               document                               
@@ -2890,6 +2986,52 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_p
  { "_id" : { "$numberInt" : "4" }, "a" : "dOg", "newField" : false }
  { "_id" : "hen", "a" : "hen", "newField" : false }
  { "_id" : "bat", "a" : "bat", "newField" : false }
+(6 rows)
+
+-- support in $let
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$project": { "a": 1, "newField": { "$let": { "vars": { "var1": "$a" }, "in": { "$cond": { "if": { "$eq": ["$$var1", "CAT"] }, "then": 1, "else": 0 } } } } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                       document                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat", "newField" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "dog", "newField" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt", "newField" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "dOg", "newField" : { "$numberInt" : "0" } }
+ { "_id" : "hen", "a" : "hen", "newField" : { "$numberInt" : "0" } }
+ { "_id" : "bat", "a" : "bat", "newField" : { "$numberInt" : "0" } }
+(6 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$project": { "a": 1, "newField": { "$let": { "vars": { "var1": "$a" }, "in": { "$cond": { "if": { "$eq": ["$$var1", "CAT"] }, "then": 1, "else": 0 } } } } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 3} }');
+                                       document                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat", "newField" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "dog", "newField" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt", "newField" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "dOg", "newField" : { "$numberInt" : "0" } }
+ { "_id" : "hen", "a" : "hen", "newField" : { "$numberInt" : "0" } }
+ { "_id" : "bat", "a" : "bat", "newField" : { "$numberInt" : "0" } }
+(6 rows)
+
+-- support for $zip
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$project": { "a": 1, "newField": { "$zip": { "inputs": [ {"$cond": [{"$eq": ["CAT", "$a"]}, ["$a"], ["null"]]}, ["$a"]] } } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 1} }');
+                                      document                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat", "newField" : [ [ "cat", "cat" ] ] }
+ { "_id" : { "$numberInt" : "2" }, "a" : "dog", "newField" : [ [ "null", "dog" ] ] }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt", "newField" : [ [ "cAt", "cAt" ] ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : "dOg", "newField" : [ [ "null", "dOg" ] ] }
+ { "_id" : "hen", "a" : "hen", "newField" : [ [ "null", "hen" ] ] }
+ { "_id" : "bat", "a" : "bat", "newField" : [ [ "null", "bat" ] ] }
+(6 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$project": { "a": 1, "newField": { "$zip": { "inputs": [ {"$cond": [{"$eq": ["CAT", "$a"]}, ["$a"], ["null"]]}, ["$a"]] } } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 3} }');
+                                      document                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "cat", "newField" : [ [ "null", "cat" ] ] }
+ { "_id" : { "$numberInt" : "2" }, "a" : "dog", "newField" : [ [ "null", "dog" ] ] }
+ { "_id" : { "$numberInt" : "3" }, "a" : "cAt", "newField" : [ [ "null", "cAt" ] ] }
+ { "_id" : { "$numberInt" : "4" }, "a" : "dOg", "newField" : [ [ "null", "dOg" ] ] }
+ { "_id" : "hen", "a" : "hen", "newField" : [ [ "null", "hen" ] ] }
+ { "_id" : "bat", "a" : "bat", "newField" : [ [ "null", "bat" ] ] }
 (6 rows)
 
 -- query match
