@@ -1,4 +1,4 @@
-name: Gateway Image - Build and Push to ACR (Native AMD64 and ARM64)
+name: Gateway Image - Build and Push to GHCR (Native AMD64 and ARM64)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
       - '*.md'
 
 permissions:
-  id-token: write
+  packages: write
   contents: read
 
 jobs:
@@ -20,24 +20,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Login to Azure
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-    - name: Login to ACR
-      run: az acr login --name documentdboss
+    - name: Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build and Push AMD64 Image
       run: |
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-amd64
         docker build \
           --build-arg BASE_ARCH=AMD64 \
-          -t documentdboss.azurecr.io/documentdb-gateway-preview:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push documentdboss.azurecr.io/documentdb-gateway-preview:$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG
 
   build-arm64:
     name: Build and Push ARM64
@@ -46,21 +39,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Login to Azure
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-    - name: Login to ACR
-      run: az acr login --name documentdboss
+    - name: Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build and Push ARM64 Image
       run: |
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-arm64
         docker build \
           --build-arg BASE_ARCH=ARM64 \
-          -t documentdboss.azurecr.io/documentdb-gateway-preview:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push documentdboss.azurecr.io/documentdb-gateway-preview:$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG
