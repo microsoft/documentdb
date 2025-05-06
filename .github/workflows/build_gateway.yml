@@ -64,7 +64,7 @@ jobs:
     - name: Create and Push Manifest
       run: |
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}
-        MANIFEST_TAG=preview-test
+        MANIFEST_TAG=test
         docker manifest create ghcr.io/${{ github.repository }}/private-preview:$MANIFEST_TAG \
           --amend ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG-amd64 \
           --amend ghcr.io/${{ github.repository }}/private-preview:$IMAGE_TAG-arm64
