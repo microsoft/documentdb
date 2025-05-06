@@ -19,8 +19,8 @@ function ValidateNoCitusReferences()
     local _dir_to_check=$1
 
     # TODO: Clean these up
-    validationExceptions="documentdb--0.24-0.sql create_index_background--0.23-0.sql create_index_background--latest.sql drop_indexes.c create_indexes_background.c"
-    validationExceptions="$validationExceptions current_op.c index.c ttl_support_functions--0.24-0.sql"
+    validationExceptions="documentdb--0.24-0.sql create_index_background--0.23-0.sql"
+    validationExceptions="$validationExceptions current_op.c ttl_support_functions--0.24-0.sql"
     validationExceptions="$validationExceptions diagnostic_commands_common.c"
 
     foundInvalid="";

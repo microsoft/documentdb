@@ -34,6 +34,7 @@
 #include "catalog/pg_authid.h"
 
 #include "api_hooks.h"
+#include "api_hooks_def.h"
 #include "io/bson_core.h"
 #include "aggregation/bson_projection_tree.h"
 #include "commands/commands_common.h"
@@ -112,6 +113,7 @@ PG_FUNCTION_INFO_V1(command_create_indexes_background);
 PG_FUNCTION_INFO_V1(command_create_indexes_background_internal);
 PG_FUNCTION_INFO_V1(command_check_build_index_status);
 PG_FUNCTION_INFO_V1(command_check_build_index_status_internal);
+PG_FUNCTION_INFO_V1(schedule_background_index_build_jobs);
 
 static pgbson * RunIndexCommandOnMetadataCoordinator(const char *query, int
 													 expectedSpiOk);
@@ -147,6 +149,11 @@ static bool PruneSkippableIndexes(void);
 Datum
 command_build_index_concurrently(PG_FUNCTION_ARGS)
 {
+	if (!IsMetadataCoordinator())
+	{
+		PG_RETURN_VOID();
+	}
+
 	/* Before starting, ensure that tables are replicated
 	 * If this action did replicate tables, try again in the
 	 * next loop to ensure the transaction is committed.
@@ -812,6 +819,24 @@ command_check_build_index_status_internal(PG_FUNCTION_ARGS)
 }
 
 
+/* Schedule background index build jobs. */
+Datum
+schedule_background_index_build_jobs(PG_FUNCTION_ARGS)
+{
+	bool forceOverride = PG_GETARG_BOOL(0);
+
+	if (!forceOverride && !ShouldScheduleIndexBuildJobs())
+	{
+		PG_RETURN_VOID();
+	}
+
+	UnscheduleIndexBuildTasks(ExtensionObjectPrefixV2);
+	ScheduleIndexBuildTasks(ExtensionObjectPrefixV2);
+
+	PG_RETURN_VOID();
+}
+
+
 /*
  * SubmitCreateIndexesRequest is the function that submits the create index request to local table
  * and submits indexes into metadata as invalid.
@@ -968,16 +993,22 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 static IndexJobOpId *
 GetIndexBuildJobOpId()
 {
-	StringInfo cmdStr = makeStringInfo();
-	appendStringInfo(cmdStr,
-					 "SELECT citus_backend_gpid(), query_start"
-					 " FROM pg_stat_activity where pid = pg_backend_pid();");
+	const char *indexBuildJobIdQueryStr = TryGetIndexBuildJobOpIdQuery();
+	if (indexBuildJobIdQueryStr == NULL)
+	{
+		StringInfo cmdStr = makeStringInfo();
+		appendStringInfo(cmdStr,
+						 "SELECT pid, query_start"
+						 " FROM pg_stat_activity where pid = pg_backend_pid();");
+		indexBuildJobIdQueryStr = cmdStr->data;
+	}
 
 	bool readOnly = false;
 	int numValues = 2;
 	bool isNull[2];
 	Datum results[2];
-	ExtensionExecuteMultiValueQueryViaSPI(cmdStr->data, readOnly, SPI_OK_SELECT, results,
+	ExtensionExecuteMultiValueQueryViaSPI(indexBuildJobIdQueryStr, readOnly,
+										  SPI_OK_SELECT, results,
 										  isNull, numValues);
 	if (isNull[0] || isNull[1])
 	{

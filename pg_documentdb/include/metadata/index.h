@@ -181,6 +181,11 @@ typedef struct
 } IndexJobOpId;
 
 
+/* index build tasks */
+void UnscheduleIndexBuildTasks(char *extensionPrefix);
+void ScheduleIndexBuildTasks(char *extensionPrefix);
+
+
 /* query index metadata */
 IndexDetails * FindIndexWithSpecOptions(uint64 collectionId,
 										const IndexSpec *targetIndexSpec);

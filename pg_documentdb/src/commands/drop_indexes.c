@@ -493,7 +493,7 @@ DropIndexesConcurrentlyInternal(char *dbName, pgbson *arg)
 	}
 	PG_CATCH();
 	{
-		/* Since run_command_on_coordinator does not return error code in case of failure inside the called function
+		/* Since the distributed caller does not return error code in case of failure inside the called function
 		 * i.e. ApiInternalSchema.drop_indexes_concurrently_internal in this case.
 		 * The way we are solving it by adding 'errmsg' and 'code' in the DropIndexesResult and
 		 * setting them (with ok->false) when there is any exception in here.
@@ -899,27 +899,37 @@ HandleDropIndexConcurrently(uint64 collectionId, int indexId, bool unique, bool
 static void
 CancelIndexBuildRequest(int indexId)
 {
-	StringInfo cmdStr = makeStringInfo();
-	appendStringInfo(cmdStr,
-					 "SELECT citus_pid_for_gpid(iq.global_pid) AS pid, iq.start_time AS timestamp");
-	appendStringInfo(cmdStr,
-					 " FROM %s iq WHERE index_id = %d AND cmd_type = '%c'",
-					 GetIndexQueueName(), indexId, CREATE_INDEX_COMMAND_TYPE);
+	char *cancelIndexBuildRequestQueryStr = NULL;
+	cancelIndexBuildRequestQueryStr = TryGetCancelIndexBuildQuery(indexId,
+																  CREATE_INDEX_COMMAND_TYPE);
+	if (cancelIndexBuildRequestQueryStr == NULL)
+	{
+		StringInfo cmdStr = makeStringInfo();
+		appendStringInfo(cmdStr,
+						 "SELECT iq.global_pid AS pid, iq.start_time AS timestamp");
+		appendStringInfo(cmdStr,
+						 " FROM %s iq WHERE index_id = %d AND cmd_type = '%c'",
+						 GetIndexQueueName(), indexId, CREATE_INDEX_COMMAND_TYPE);
+
+		cancelIndexBuildRequestQueryStr = cmdStr->data;
+	}
 
 	bool readOnly = true;
 	int numValues = 2;
 	bool isNull[2];
 	Datum results[2];
-	ExtensionExecuteMultiValueQueryViaSPI(cmdStr->data, readOnly, SPI_OK_SELECT, results,
+	ExtensionExecuteMultiValueQueryViaSPI(cancelIndexBuildRequestQueryStr, readOnly,
+										  SPI_OK_SELECT, results,
 										  isNull, numValues);
 
 	if (!isNull[0])
 	{
-		resetStringInfo(cmdStr);
+		StringInfo cancelCmdStr = makeStringInfo();
 		Datum pid = results[0];
 		Datum startTime = results[1];
-		appendStringInfo(cmdStr, " SELECT pg_cancel_backend(pid) FROM pg_stat_activity ");
-		appendStringInfo(cmdStr, " WHERE pid = $1 AND query_start = $2");
+		appendStringInfo(cancelCmdStr,
+						 " SELECT pg_cancel_backend(pid) FROM pg_stat_activity ");
+		appendStringInfo(cancelCmdStr, " WHERE pid = $1 AND query_start = $2");
 
 		int nargs = 2;
 		Oid argTypes[2] = { INT4OID, TIMESTAMPTZOID };
@@ -939,7 +949,7 @@ CancelIndexBuildRequest(int indexId)
 		}
 
 		/* Run pg_cancel_backend as super user via libpq otherwise we will not be able to cancel cron-job (launched as super user) */
-		ExtensionExecuteQueryWithArgsAsUserOnLocalhostViaLibPQ(cmdStr->data,
+		ExtensionExecuteQueryWithArgsAsUserOnLocalhostViaLibPQ(cancelCmdStr->data,
 															   DocumentDBApiExtensionOwner(),
 															   nargs, argTypes,
 															   parameterValues);

@@ -837,8 +837,8 @@ SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" 
 (1 row)
 
 BEGIN;
--- test config update, documentdb_api_internal.schedule_background_index_build_workers reads default guc values
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers();
+-- test config update, documentdb_api_internal.schedule_background_index_build_jobs reads default guc values
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 --
 (1 row)
 
@@ -849,7 +849,10 @@ SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_buil
  2 seconds | documentdb_index_build_task_2
 (2 rows)
 
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers(1);
+-- now set guc values and verify that they take effect
+SET LOCAL documentdb.maxNumActiveUsersIndexBuilds TO 1;
+-- default value for the indexBuildScheduleInSec
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 --
 (1 row)
 
@@ -859,7 +862,9 @@ SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_buil
  2 seconds | documentdb_index_build_task_1
 (1 row)
 
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers(1, 3);
+SET LOCAL documentdb.maxNumActiveUsersIndexBuilds TO 1;
+SET LOCAL documentdb.indexBuildScheduleInSec TO 3;
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 --
 (1 row)
 

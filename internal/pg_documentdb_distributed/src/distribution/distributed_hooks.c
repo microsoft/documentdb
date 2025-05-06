@@ -14,6 +14,7 @@
 #include <catalog/namespace.h>
 #include <utils/lsyscache.h>
 #include <utils/memutils.h>
+#include <metadata/index.h>
 
 #include "io/bson_core.h"
 #include "utils/query_utils.h"
@@ -584,6 +585,49 @@ GetShardIdsAndNamesForCollectionCore(Oid relationOid, const char *tableName,
 
 
 /*
+ * Get an index build request from the Index queue.
+ */
+static const char *
+GetPidForIndexBuildCore(void)
+{
+	const char *queryStrDistributed = " citus_pid_for_gpid(iq.global_pid)";
+
+	return queryStrDistributed;
+}
+
+
+static const char *
+TryGetIndexBuildJobOpIdQueryCore(void)
+{
+	const char *queryStrDistributed =
+		"SELECT citus_backend_gpid(), query_start FROM pg_stat_activity where pid = pg_backend_pid();";
+
+	return queryStrDistributed;
+}
+
+
+static char *
+TryGetCancelIndexBuildQueryCore(int32_t indexId, char cmdType)
+{
+	StringInfo cmdStr = makeStringInfo();
+	appendStringInfo(cmdStr,
+					 "SELECT citus_pid_for_gpid(iq.global_pid) AS pid, iq.start_time AS timestamp");
+	appendStringInfo(cmdStr,
+					 " FROM %s iq WHERE index_id = %d AND cmd_type = '%c'",
+					 GetIndexQueueName(), indexId, CREATE_INDEX_COMMAND_TYPE);
+
+	return cmdStr->data;
+}
+
+
+static bool
+ShouldScheduleIndexBuildsCore()
+{
+	return false;
+}
+
+
+/*
  * Register hook overrides for DocumentDB.
  */
 void
@@ -606,10 +650,17 @@ InitializeDocumentDBDistributedHooks(void)
 	ensure_metadata_table_replicated_hook = EnsureMetadataTableReplicatedCore;
 	DefaultInlineWriteOperations = false;
 	ShouldUpgradeDataTables = false;
+
 	UpdateColocationHooks();
 
 	try_get_extended_version_refresh_query_hook = TryGetExtendedVersionRefreshQueryCore;
 	get_shard_ids_and_names_for_collection_hook = GetShardIdsAndNamesForCollectionCore;
+
+	get_pid_for_index_build_hook = GetPidForIndexBuildCore;
+	try_get_index_build_job_op_id_query_hook = TryGetIndexBuildJobOpIdQueryCore;
+	try_get_cancel_index_build_query_hook = TryGetCancelIndexBuildQueryCore;
+
+	should_schedule_index_builds_hook = ShouldScheduleIndexBuildsCore;
 
 	DistributedOperationsQuery =
 		"SELECT * FROM pg_stat_activity LEFT JOIN pg_catalog.get_all_active_transactions() ON process_id = pid";

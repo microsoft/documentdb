@@ -326,12 +326,19 @@ DELETE FROM documentdb_api_catalog.documentdb_index_queue;
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101]}}');
 
 BEGIN;
--- test config update, documentdb_api_internal.schedule_background_index_build_workers reads default guc values
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers();
+-- test config update, documentdb_api_internal.schedule_background_index_build_jobs reads default guc values
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers(1);
+
+-- now set guc values and verify that they take effect
+SET LOCAL documentdb.maxNumActiveUsersIndexBuilds TO 1;
+-- default value for the indexBuildScheduleInSec
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
-SELECT FROM documentdb_api_internal.schedule_background_index_build_workers(1, 3);
+
+SET LOCAL documentdb.maxNumActiveUsersIndexBuilds TO 1;
+SET LOCAL documentdb.indexBuildScheduleInSec TO 3;
+SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
 
 ROLLBACK;

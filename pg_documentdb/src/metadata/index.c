@@ -37,6 +37,9 @@
 #include "utils/version_utils.h"
 #include "metadata/metadata_cache.h"
 
+extern int MaxNumActiveUsersIndexBuilds;
+extern int IndexBuildScheduleInSec;
+
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
@@ -1455,6 +1458,12 @@ GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
 {
 	Assert(cmdType == CREATE_INDEX_COMMAND_TYPE || cmdType == REINDEX_COMMAND_TYPE);
 
+	bool readOnly = false;
+	int numValues = 7;
+	bool isNull[7] = { 0 };
+	Datum results[7] = { 0 };
+	Oid userOid = InvalidOid;
+
 	/**
 	 * If because of failure scenario, we end up with a index request in "Inprogress"
 	 * but there is no backend job really executing the request due to failure.
@@ -1470,35 +1479,41 @@ GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
 	 *       AND (index_cmd_status != IndexCmdStatus_Inprogress
 	 *            OR (index_cmd_status = IndexCmdStatus_Inprogress
 	 *                AND iq.global_pid IS NOT NULL
-	 *                AND citus_pid_for_gpid(iq.global_pid) NOT IN (SELECT distinct pid FROM pg_stat_activity WHERE pid IS NOT NULL)
+	 *                AND <distributed_hook_for_pid> NOT IN (SELECT distinct pid FROM pg_stat_activity WHERE pid IS NOT NULL)
 	 *               )
 	 *           )
 	 *	ORDER BY index_cmd_status ASC LIMIT 1
 	 */
 	StringInfo cmdStr = makeStringInfo();
-	bool readOnly = false;
-	int numValues = 7;
-	bool isNull[7] = { 0 };
-	Datum results[7] = { 0 };
-	Oid userOid = InvalidOid;
-
 	appendStringInfo(cmdStr,
 					 "SELECT index_cmd, index_id, index_cmd_status, COALESCE(attempt, 0) AS attempt, comment, update_time, user_oid");
 	appendStringInfo(cmdStr,
 					 " FROM %s iq WHERE cmd_type = '%c'",
 					 GetIndexQueueName(), cmdType);
 	appendStringInfo(cmdStr, " AND iq.collection_id = " UINT64_FORMAT, collectionId);
-	appendStringInfo(cmdStr, " AND (index_cmd_status != %d", IndexCmdStatus_Inprogress);
+	appendStringInfo(cmdStr, " AND (index_cmd_status != %d",
+					 IndexCmdStatus_Inprogress);
 	appendStringInfo(cmdStr, " OR (index_cmd_status = %d", IndexCmdStatus_Inprogress);
 	appendStringInfo(cmdStr,
-					 " AND iq.global_pid IS NOT NULL AND citus_pid_for_gpid(iq.global_pid)");
+					 " AND iq.global_pid IS NOT NULL AND");
+
+	const char *queryQualForInProgressBuilds = GetPidForIndexBuild();
+	if (queryQualForInProgressBuilds == NULL)
+	{
+		appendStringInfo(cmdStr, " iq.global_pid");
+	}
+	else
+	{
+		appendStringInfo(cmdStr, "%s", queryQualForInProgressBuilds);
+	}
 	appendStringInfo(cmdStr,
 					 " NOT IN (SELECT distinct pid FROM pg_stat_activity WHERE pid IS NOT NULL)");
 	appendStringInfo(cmdStr, " )) ");
 	appendStringInfo(cmdStr,
 					 " ORDER BY index_cmd_status ASC LIMIT 1");
 
-	ExtensionExecuteMultiValueQueryViaSPI(cmdStr->data, readOnly, SPI_OK_SELECT, results,
+	ExtensionExecuteMultiValueQueryViaSPI(cmdStr->data, readOnly, SPI_OK_SELECT,
+										  results,
 										  isNull, numValues);
 	if (isNull[0])
 	{
@@ -1854,6 +1869,64 @@ MergeTextIndexWeights(List *textIndexes, const bson_value_t *weights, bool *isWi
 	}
 
 	return textIndexes;
+}
+
+
+/*
+ * Unschedule background jobs for index creation.
+ */
+void
+UnscheduleIndexBuildTasks(char *extensionPrefix)
+{
+	bool isNull = false;
+	bool readOnly = false;
+
+	/*
+	 * These schedule the index build tasks at the coordinator.
+	 * Since we leave behind the jobs when dropping the extension (during development), it would be nice to unschedule
+	 * existing ones first in case something changed.
+	 * PS: We need to run this with array_agg because otherwise the SPI API would only execute unschedule for the first job.
+	 */
+	StringInfo unscheduleStr = makeStringInfo();
+	appendStringInfo(unscheduleStr,
+					 "SELECT array_agg(cron.unschedule(jobid)) FROM cron.job WHERE jobname LIKE"
+					 "'%s_index_build_task%%';", extensionPrefix);
+	ExtensionExecuteQueryViaSPI(unscheduleStr->data, readOnly, SPI_OK_SELECT,
+								&isNull);
+}
+
+
+/*
+ * Schedule background jobs that will later be used to create indexes in the cluster.
+ */
+void
+ScheduleIndexBuildTasks(char *extensionPrefix)
+{
+	char scheduleInterval[50];
+	if (IndexBuildScheduleInSec < 60)
+	{
+		sprintf(scheduleInterval, "%d seconds", IndexBuildScheduleInSec);
+	}
+	else
+	{
+		sprintf(scheduleInterval, "* * * * *");
+	}
+
+	bool isNull = false;
+	bool readOnly = false;
+
+	for (int i = 1; i <= MaxNumActiveUsersIndexBuilds; i++)
+	{
+		StringInfo scheduleStr = makeStringInfo();
+		appendStringInfo(scheduleStr,
+						 "SELECT cron.schedule('%s_index_build_task_'"
+						 " || %d, '%s',"
+						 "'CALL %s.build_index_concurrently(%d);');",
+						 extensionPrefix, i, scheduleInterval,
+						 ApiInternalSchemaName, i);
+		ExtensionExecuteQueryViaSPI(scheduleStr->data, readOnly, SPI_OK_SELECT,
+									&isNull);
+	}
 }
 
 
