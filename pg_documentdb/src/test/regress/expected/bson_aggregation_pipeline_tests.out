@@ -1091,8 +1091,8 @@ SELECT document FROM bson_aggregation_pipeline('db',
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } }, { "$sample": { "size": 3 } } ], "cursor": {} }');
-                                                                                                                                    QUERY PLAN                                                                                                                                     
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                       QUERY PLAN                                                                                                                                        
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Limit
    Output: agg_stage_1.document, (random())
    ->  Sort
@@ -1101,7 +1101,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
          ->  Subquery Scan on agg_stage_1
                Output: agg_stage_1.document, random()
                ->  Nested Loop Left Join
-                     Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)))
+                     Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)), true)
                      ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection
                            Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
                            Recheck Cond: (collection.shard_key_value = '3502'::bigint)
@@ -1124,7 +1124,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                                                                                                    QUERY PLAN                                                                                                                    
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Subquery Scan on lookup_non_inlined_stage_1
-   Output: documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SubPlan 1))
+   Output: documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SubPlan 1), true)
    ->  Nested Loop Left Join
          Output: collection.document, (COALESCE(bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson))
          ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection

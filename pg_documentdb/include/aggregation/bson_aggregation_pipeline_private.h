@@ -288,7 +288,8 @@ Query * GenerateConfigDatabaseQuery(AggregationPipelineBuildContext *context);
 bool IsPartitionByFieldsOnShardKey(const pgbson *partitionByFields,
 								   const MongoCollection *collection);
 
-Expr * GenerateMultiExpressionRepathExpression(List *repathArgs);
+Expr * GenerateMultiExpressionRepathExpression(List *repathArgs,
+											   bool overrideArrayInProjection);
 Stage GetAggregationStageAtPosition(const List *aggregationStages, int position);
 
 /* Helper methods */

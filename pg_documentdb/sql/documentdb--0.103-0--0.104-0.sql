@@ -1,3 +1,4 @@
+#include "udfs/projection/bson_projection--0.104-0.sql"
 #include "udfs/index_mgmt/create_index_background--0.104-0.sql"
 
 -- Schedule the index build task

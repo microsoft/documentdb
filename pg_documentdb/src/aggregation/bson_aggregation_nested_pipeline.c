@@ -832,7 +832,10 @@ CreateInverseMatchFromCollectionQuery(InverseMatchArgs *inverseMatchArgs,
 
 	pgbson *specBson = PgbsonWriterGetPgbson(&writer);
 
-	List *addFieldsArgs = list_make2(MakeBsonConst(specBson), subLink);
+	/* Since no dotted path, no need to override array */
+	bool overrideArray = false;
+	List *addFieldsArgs = list_make3(MakeBsonConst(specBson), subLink,
+									 MakeBoolValueConst(overrideArray));
 	FuncExpr *projectorFunc = makeFuncExpr(
 		BsonDollaMergeDocumentsFunctionOid(), BsonTypeId(),
 		addFieldsArgs,
@@ -2774,6 +2777,12 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 												   lookupArgs->lookupAs.length));
 		mergeDocumentsOid = BsonDollarMergeDocumentAtPathFunctionOid();
 	}
+	else
+	{
+		bool overrideArrayInMerge = true;
+		mergeDocumentsArgs = lappend(mergeDocumentsArgs,
+									 MakeBoolValueConst(overrideArrayInMerge));
+	}
 	FuncExpr *addFields = makeFuncExpr(mergeDocumentsOid, BsonTypeId(),
 									   mergeDocumentsArgs, InvalidOid, InvalidOid,
 									   COERCE_EXPLICIT_CALL);
@@ -3367,9 +3376,12 @@ ProcessGraphLookupCore(Query *query, AggregationPipelineBuildContext *context,
 	Var *addFieldsVar = makeVar(graphLookupRef->rtindex, 2, BsonTypeId(), -1, InvalidOid,
 								0);
 
+	/* $graphlookup override nested array in merge projections */
+	bool overrideArrayInProjection = true;
 	FuncExpr *addFieldsExpr = makeFuncExpr(
 		BsonDollaMergeDocumentsFunctionOid(), BsonTypeId(),
-		list_make2(documentVar, addFieldsVar),
+		list_make3(documentVar, addFieldsVar,
+				   MakeBoolValueConst(overrideArrayInProjection)),
 		InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 	TargetEntry *finalTargetEntry = makeTargetEntry((Expr *) addFieldsExpr, 1, "document",
 													false);
@@ -3904,11 +3916,13 @@ BuildRecursiveGraphLookupQuery(QuerySource parentSource, GraphLookupArgs *args,
 	/* If there is a depth-field, add it into the original doc */
 	if (args->depthField.length > 0)
 	{
+		bool overrideArray = true;
 		simpleTargetEntry->expr = (Expr *) makeFuncExpr(
 			BsonDollaMergeDocumentsFunctionOid(),
 			BsonTypeId(),
-			list_make2(simpleVar,
-					   finalDepthVar),
+			list_make3(simpleVar,
+					   finalDepthVar,
+					   MakeBoolValueConst(overrideArray)),
 			InvalidOid,
 			InvalidOid, COERCE_EXPLICIT_CALL);
 	}

@@ -478,11 +478,13 @@ RewriteListCollectionsQueryForDistribution(Query *source)
 											repathArgs, InvalidOid, InvalidOid,
 											COERCE_EXPLICIT_CALL);
 
-
+	/* Since no dotted paths in projection no need to override */
+	bool overrideArray = false;
 	Oid addFieldsOid = BsonDollaMergeDocumentsFunctionOid();
 	TargetEntry *firstEntry = linitial(source->targetList);
 	FuncExpr *addFields = makeFuncExpr(addFieldsOid, BsonTypeId(),
-									   list_make2(firstEntry->expr, colocationArgs),
+									   list_make3(firstEntry->expr, colocationArgs,
+												  MakeBoolValueConst(overrideArray)),
 									   InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 	firstEntry->expr = (Expr *) addFields;
 

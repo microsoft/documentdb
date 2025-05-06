@@ -3306,11 +3306,13 @@ Oid
 BsonDollaMergeDocumentsFunctionOid(void)
 {
 	bool missingOk = false;
-	return GetDocumentDBInternalBinaryOperatorFunctionId(
+	int nargs = 3;
+	Oid argTypes[3] = { BsonTypeId(), BsonTypeId(), BOOLOID };
+	return GetSchemaFunctionIdWithNargs(
 		&Cache.ApiInternalSchemaBsonDollarMergeDocumentsFunctionOid,
+		DocumentDBApiInternalSchemaName,
 		"bson_dollar_merge_documents",
-		BsonTypeId(),
-		BsonTypeId(), missingOk);
+		nargs, argTypes, missingOk);
 }
 
 

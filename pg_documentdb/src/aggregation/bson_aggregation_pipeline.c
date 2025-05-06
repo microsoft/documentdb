@@ -2377,6 +2377,11 @@ HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 	else
 	{
 		args = list_make2(currentProjection, addFieldsProcessed);
+		if (functionOid == BsonDollaMergeDocumentsFunctionOid())
+		{
+			bool overrideArrays = false;
+			args = lappend(args, MakeBoolValueConst(overrideArrays));
+		}
 	}
 
 	FuncExpr *resultExpr = makeFuncExpr(
@@ -3793,7 +3798,7 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
  * where the maximum number of arguments can be larger than MaxEvenFunctionArguments.
  */
 Expr *
-GenerateMultiExpressionRepathExpression(List *repathArgs)
+GenerateMultiExpressionRepathExpression(List *repathArgs, bool overrideArrayInProjection)
 {
 	Assert(repathArgs != NIL && list_length(repathArgs) % 2 == 0);
 
@@ -3827,11 +3832,14 @@ GenerateMultiExpressionRepathExpression(List *repathArgs)
 	Expr *argsRepathExpression = (Expr *) makeFuncExpr(BsonRepathAndBuildFunctionOid(),
 													   BsonTypeId(), args, InvalidOid,
 													   InvalidOid, COERCE_EXPLICIT_CALL);
-	Expr *remainingArgsExprs = GenerateMultiExpressionRepathExpression(remainingArgs);
+	Expr *remainingArgsExprs = GenerateMultiExpressionRepathExpression(remainingArgs,
+																	   overrideArrayInProjection);
 
 	return (Expr *) makeFuncExpr(BsonDollaMergeDocumentsFunctionOid(),
 								 BsonTypeId(),
-								 list_make2(argsRepathExpression, remainingArgsExprs),
+								 list_make3(argsRepathExpression, remainingArgsExprs,
+											MakeBoolValueConst(
+												overrideArrayInProjection)),
 								 InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 }
 
@@ -6037,7 +6045,11 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 
 	/* Take the output and replace it with the repath_and_build */
 	TargetEntry *entry = linitial(query->targetList);
-	Expr *repathExpression = GenerateMultiExpressionRepathExpression(repathArgs);
+
+	/* $group doesn't allow dotted path so no need to override */
+	bool overrideArrayInProjection = false;
+	Expr *repathExpression = GenerateMultiExpressionRepathExpression(repathArgs,
+																	 overrideArrayInProjection);
 
 	entry->expr = repathExpression;
 	entry->resname = origEntry->resname;
