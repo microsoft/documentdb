@@ -28,9 +28,9 @@ jobs:
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-amd64
         docker build \
           --build-arg BASE_ARCH=AMD64 \
-          -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG
 
   build-arm64:
     name: Build and Push ARM64
@@ -47,9 +47,9 @@ jobs:
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}-arm64
         docker build \
           --build-arg BASE_ARCH=ARM64 \
-          -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+          -t ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push ghcr.io/${{ github.repository }}$IMAGE_TAG
+        docker push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG
 
   create-manifest:
     name: Create and Push Manifest
@@ -65,9 +65,9 @@ jobs:
       run: |
         IMAGE_TAG=$(date +'%Y-%m-%d')-${{ github.run_id }}
         MANIFEST_TAG=preview-test
-        docker manifest create ghcr.io/${{ github.repository }}:$MANIFEST_TAG \
-          --amend ghcr.io/${{ github.repository }}:$IMAGE_TAG-amd64 \
-          --amend ghcr.io/${{ github.repository }}:$IMAGE_TAG-arm64
-        docker manifest push ghcr.io/${{ github.repository }}:$MANIFEST_TAG
+        docker manifest create ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$MANIFEST_TAG \
+          --amend ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG-amd64 \
+          --amend ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$IMAGE_TAG-arm64
+        docker manifest push ghcr.io/${{ github.repository }}/documentdb-gateway-preview:$MANIFEST_TAG
 
 
