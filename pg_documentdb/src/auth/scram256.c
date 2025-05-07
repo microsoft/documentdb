@@ -396,6 +396,8 @@ command_generate_auth_message_client_proof_for_test(PG_FUNCTION_ARGS)
 	ScramState scramState;
 	ClientProofGeneratorResult result;
 
+	memset(&scramState, 0, sizeof(ScramState));
+
 	memset(&result, 0, sizeof(result));
 	result.authMessage = "";
 	result.encodedClientProof = "";
@@ -503,13 +505,9 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	ScramState scramState;
 	ScramAuthResult result;
 
+	memset(&scramState, 0, sizeof(ScramState));
 	memset(&result, 0, sizeof(result));
 	result.serverSignature = "";
-
-	ereport(NOTICE, (errmsg(
-						 "PG_ARGISNULL(0): %d, PG_ARGISNULL(1): %d, PG_ARGISNULL(2): %d",
-						 PG_ARGISNULL(0),
-						 PG_ARGISNULL(1), PG_ARGISNULL(2))));
 
 	/* User Name */
 	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
@@ -521,27 +519,21 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	scramState.userName = text_to_cstring(PG_GETARG_TEXT_P(0));
 	char *password = text_to_cstring(PG_GETARG_TEXT_P(1));
 	scramState.authMessage = text_to_cstring(PG_GETARG_TEXT_P(2));
-
-	ereport(LOG, (errmsg("Auth Message received is [%s].",
-						 scramState.authMessage)));
+	scramState.keyLength = SCRAM_SHA_256_KEY_LEN;
+	scramState.hashType = PG_SHA256;
 
 	if (GenerateSaltedPasswordForTest(&scramState, password, saltedPassword) < 0)
 	{
-		ereport(LOG, (errmsg("Salted password generation failed.")));
 		PG_RETURN_POINTER(BuildResponseMsgForAuthRequest(&result));
 	}
 
 	/* ServerKey = HMAC(SaltedPassword, "Server Key") */
 	if (!ScramServerKey(&scramState, saltedPassword, scramState.serverKey))
 	{
-		ereport(LOG, (errmsg("Server Key derivation failed.")));
 		PG_RETURN_POINTER(BuildResponseMsgForAuthRequest(&result));
 	}
-
 	result.serverSignature = BuildServerFinalMessage(&scramState);
 
-	ereport(LOG, (errmsg("Server Signature generated is [%s].",
-						 result.serverSignature)));
 	PG_RETURN_POINTER(BuildResponseMsgForAuthRequest(&result));
 }
 

@@ -74,17 +74,12 @@ BEGIN
         --     ServerSignature = HMAC(ServerKey, AuthMessage)
         --   This ServerSignature has to be compared against serv_sign (which is received from extension).
         --       If matched, then authentication is success.
-        RAISE NOTICE 'username: %', p_user_name;
-        RAISE NOTICE 'password: %', p_password;
         SELECT generate_server_signature(p_user_name, p_password, auth_message) into serv_sign_gen;
         SELECT substring(serv_sign_gen similar '%"ServerSignature" : "#"_+#""%' escape '#') into serv_sign_gen;
-        -- print length of serv_sign_gen and serv_sign
-        RAISE NOTICE 'Length of serv_sign: %', length(serv_sign);
-        RAISE NOTICE 'Length of serv_sign_gen: %', length(serv_sign_gen);
               
-        IF serv_sign <> serv_sign_gen THEN
-            RAISE NOTICE 'Server Signature mismatch, change result to false';
-            return 'false';
+        IF serv_sign IS DISTINCT FROM serv_sign_gen THEN
+            RAISE NOTICE 'Server Signature mismatch or NULL, change result to false';
+            RETURN 'false';
         END IF;
         
     END IF;
@@ -139,7 +134,7 @@ SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations('myuser6');
 -- 10. FAIL CASE because username is given in upper case but was created with mixed case using double quotes.
 SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations('MYUSER6');
 
-SET client_min_messages = NOTICE;
+SET client_min_messages = LOG;
 
 -- 10.1
 SELECT test_documentdb_scram_sha256_dual_api('Fi"roz', '<password_placeholder3>');
@@ -149,13 +144,6 @@ SELECT test_documentdb_scram_sha256_dual_api('fi"r"oZ', '<password_placeholder4>
 
 -- 10.3
 SELECT test_documentdb_scram_sha256_dual_api('fi"r".', '<password_placeholder5>');
-
-SELECT rolname, length(rolpassword) FROM pg_authid WHERE rolname LIKE 'f%' ORDER BY rolname;
-
-SHOW server_encoding;
-
-SELECT rolname FROM pg_authid WHERE rolname = 'fir"';
-SELECT rolname FROM pg_authid WHERE rolname = '"fir"""';
 
 -- 10.4
 SELECT test_documentdb_scram_sha256_dual_api('fir"', '<password_placeholder6>');
@@ -175,6 +163,7 @@ SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder10
 -- 10.9 Test for incorrect password
 SELECT test_documentdb_scram_sha256_dual_api('Fi\troz', '<password_placeholder111>');
 
+SET client_min_messages = NOTICE;
 
 -- 11. Checking for case sensitiveness. FULL Lowercase. Real username is mYuSeR5. Expect true
 SELECT test_documentdb_scram_sha256_dual_api('myuser5', '<password_placeholder1>');
@@ -205,8 +194,6 @@ SELECT documentdb_api_internal.authenticate_with_scram_sha256('abcdefghijklmnopq
 
 -- 7. Incorrect auth message for a valid user
 select documentdb_api_internal.authenticate_with_scram_sha256('myuser4', 'authMsg1', 'clientProof123');
-
-RESET client_min_messages;
 
 -- DROP THE USERS CREATED FOR THE TEST
 DROP ROLE myuser4;
