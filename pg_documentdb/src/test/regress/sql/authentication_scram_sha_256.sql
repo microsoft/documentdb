@@ -77,8 +77,9 @@ BEGIN
         SELECT generate_server_signature(p_user_name, p_password, auth_message) into serv_sign_gen;
         SELECT substring(serv_sign_gen similar '%"ServerSignature" : "#"_+#""%' escape '#') into serv_sign_gen;
               
-        IF serv_sign <> serv_sign_gen THEN
-            return 'false';
+        IF serv_sign IS DISTINCT FROM serv_sign_gen THEN
+            RAISE NOTICE 'Server Signature mismatch or NULL, change result to false';
+            RETURN 'false';
         END IF;
         
     END IF;
