@@ -57,8 +57,14 @@ if [ "$help" == "true" ]; then
     exit 1;
 fi
 
-if ! [[ "$coordinatorPort" =~ ^[0-9]+$ ]]; then
-    echo "${red}Invalid port value $coordinatorPort, must be a number.${reset}"
+if ! [[ "$coordinatorPort" =~ ^[0-9]+$ ]] || [ "$coordinatorPort" -lt 0 ] || [ "$coordinatorPort" -gt 65535 ]; then
+    echo "${red}Invalid port value $coordinatorPort, must be a number between 0 and 65535.${reset}"
+    exit 1
+fi
+
+# Check if the port is already in use
+if lsof -i:"$coordinatorPort" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "${red}Port $coordinatorPort is already in use. Please specify a different port.${reset}"
     exit 1
 fi
 
