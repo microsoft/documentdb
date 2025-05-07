@@ -7,6 +7,10 @@ on:
         description: 'Tag for the Docker manifest'
         required: true
         default: 'test'
+      base_version:
+        description: 'Base version for the Docker image'
+        required: true
+        default: '0.103.0'
 
   push:
     branches:
@@ -38,6 +42,7 @@ jobs:
         TAG=${{ env.IMAGE_TAG }}-amd64
         docker build \
           --build-arg BASE_ARCH=AMD64 \
+          --build-arg BASE_VERSION=${{ github.event.inputs.base_version }} \
           -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
         docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
@@ -57,6 +62,7 @@ jobs:
         TAG=${{ env.IMAGE_TAG }}-arm64
         docker build \
           --build-arg BASE_ARCH=ARM64 \
+          --build-arg BASE_VERSION=${{ github.event.inputs.base_version }} \
           -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
         docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
