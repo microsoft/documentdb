@@ -27,9 +27,19 @@ env:
   IMAGE_TAG: ${{ github.run_id }}-$(date +'%Y-%m-%d')
 
 jobs:
-  build-amd64:
-    name: Build and Push AMD64
-    runs-on: ubuntu-22.04  # Native AMD64 runner
+  build-and-push:
+    name: Build and Push Images
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            base_arch: AMD64
+            runner: ubuntu-22.04
+          - arch: arm64
+            base_arch: ARM64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -37,31 +47,11 @@ jobs:
     - name: Login to GHCR
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-    - name: Build and Push AMD64 Image
+    - name: Build and Push ${{ matrix.arch }} Image
       run: |
-        TAG=${{ env.IMAGE_TAG }}-amd64
+        TAG=${{ env.IMAGE_TAG }}-${{ matrix.arch }}
         docker build \
-          --build-arg BASE_ARCH=AMD64 \
-          --build-arg BASE_VERSION=${{ github.event.inputs.base_version }} \
-          -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
-          -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
-        docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
-
-  build-arm64:
-    name: Build and Push ARM64
-    runs-on: ubuntu-22.04-arm  # Native ARM64 runner
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Login to GHCR
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-    - name: Build and Push ARM64 Image
-      run: |
-        TAG=${{ env.IMAGE_TAG }}-arm64
-        docker build \
-          --build-arg BASE_ARCH=ARM64 \
+          --build-arg BASE_ARCH=${{ matrix.base_arch }} \
           --build-arg BASE_VERSION=${{ github.event.inputs.base_version }} \
           -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
           -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
@@ -70,9 +60,7 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     runs-on: ubuntu-22.04
-    needs: 
-      - build-amd64
-      - build-arm64
+    needs: build-and-push
     steps:
     - name: Login to GHCR
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
