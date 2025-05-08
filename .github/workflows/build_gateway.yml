@@ -46,7 +46,6 @@ jobs:
     - name: Set Default Values
       run: |
         echo "BASE_VERSION=${{ github.event.inputs.base_version || env.DEFAULT_BASE_VERSION }}" >> $GITHUB_ENV
-        echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || env.DEFAULT_MANIFEST_TAG }}" >> $GITHUB_ENV
     - name: Show Env Variables
       run: |
         echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
@@ -55,7 +54,6 @@ jobs:
         echo "BASE_ARCH=${{ matrix.base_arch }}"
         echo "RUNNER=${{ matrix.runner }}"
         echo "BASE_VERSION=${{ env.BASE_VERSION }}"
-        echo "MANIFEST_TAG=${{ env.MANIFEST_TAG }}"
     - name: Login to GHCR
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     - name: Build and Push ${{ matrix.arch }} Image
@@ -75,6 +73,9 @@ jobs:
     steps:
     - name: Login to GHCR
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Set Default Values
+      run: |
+        echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || env.DEFAULT_MANIFEST_TAG }}" >> $GITHUB_ENV
     - name: Create and Push Manifest
       run: |
         docker manifest create ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }} \
