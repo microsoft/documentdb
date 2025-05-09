@@ -1,0 +1,86 @@
+name: Gateway Image - Build and Push to GHCR (Native AMD64 and ARM64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_tag:
+        description: 'Tag for the Docker manifest'
+        required: false
+      base_version:
+        description: 'Base version for the Docker image'
+        required: false
+
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - '*.md'
+
+permissions:
+  packages: write
+  contents: read
+
+env:
+  DEFAULT_BASE_VERSION: '0.103.0'
+  DEFAULT_MANIFEST_TAG: 'test'
+  IMAGE_NAME: preview
+  IMAGE_TAG: ${{ github.run_id }}-$(date +'%Y-%m-%d')
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            base_arch: AMD64
+            runner: ubuntu-22.04
+          - arch: arm64
+            base_arch: ARM64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set Default Values
+      run: |
+        echo "BASE_VERSION=${{ github.event.inputs.base_version || env.DEFAULT_BASE_VERSION }}" >> $GITHUB_ENV
+    - name: Show Env Variables
+      run: |
+        echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
+        echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
+        echo "ARCH=${{ matrix.arch }}"
+        echo "BASE_ARCH=${{ matrix.base_arch }}"
+        echo "RUNNER=${{ matrix.runner }}"
+        echo "BASE_VERSION=${{ env.BASE_VERSION }}"
+    - name: Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Build and Push ${{ matrix.arch }} Image
+      run: |
+        TAG=${{ env.IMAGE_TAG }}-${{ matrix.arch }}
+        docker build \
+          --build-arg BASE_ARCH=${{ matrix.base_arch }} \
+          --build-arg BASE_VERSION=${{ env.BASE_VERSION }} \
+          -t ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG \
+          -f .github/containers/Build-Ubuntu/Dockerfile_gateway .
+        docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
+
+  create-manifest:
+    name: Create and Push Manifest
+    runs-on: ubuntu-22.04
+    needs: build-and-push
+    steps:
+    - name: Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Set Default Values
+      run: |
+        echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || env.DEFAULT_MANIFEST_TAG }}" >> $GITHUB_ENV
+    - name: Create and Push Manifest
+      run: |
+        docker manifest create ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }} \
+          --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 \
+          --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
+        docker manifest push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }}
+
+
