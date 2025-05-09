@@ -32,6 +32,7 @@ extern int MaxTTLDeleteBatchSize;
 extern int TTLPurgerLockTimeout;
 extern char *ApiGucPrefix;
 extern int SingleTTLTaskTimeBudget;
+extern bool EnableTtlJobsOnReadOnly;
 
 bool UseV2TTLIndexPurger = true;
 
@@ -370,6 +371,35 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 			continue;
 		}
 
+		/*
+		 * Before we begin the actual deletions, check if we need
+		 * to handle if the transaction is read-only.
+		 */
+		if (XactReadOnly)
+		{
+			if (EnableTtlJobsOnReadOnly)
+			{
+				/* To enable read-write we need to be the first query
+				 * in the transaction. Process_utility will have already
+				 * set a snapshot on this transaction so we can't reset
+				 * the transaction read-only flag.
+				 * Consequently, commit this transaction that's read-only
+				 * and start a new one so we can mark the read-only flag
+				 * as false.
+				 */
+				PopAllActiveSnapshots();
+				CommitTransactionCommand();
+				StartTransactionCommand();
+				SetGUCLocally("transaction_read_only", "false");
+			}
+			else
+			{
+				ereport(INFO, errmsg(
+							"TTL job skipping because transaction is read-only."));
+				continue;
+			}
+		}
+
 		volatile bool shouldStop = false;
 
 		/* Delete records on all tables for this collection */
@@ -425,6 +455,12 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 			if (shouldStop)
 			{
 				goto end;
+			}
+
+			/* Before starting the next loop, set the transaction characteristics */
+			if (XactReadOnly && EnableTtlJobsOnReadOnly)
+			{
+				SetGUCLocally("transaction_read_only", "false");
 			}
 		}
 

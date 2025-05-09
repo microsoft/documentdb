@@ -184,6 +184,8 @@ command_delete(PG_FUNCTION_ARGS)
 		ereport(ERROR, (errmsg("return type must be a row type")));
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
+
 	bson_iter_t deleteCommandIter;
 	PgbsonInitIterator(deleteSpec, &deleteCommandIter);
 
@@ -995,6 +997,7 @@ command_delete_worker(PG_FUNCTION_ARGS)
 	pgbsonsequence *specDocuments = PG_GETARG_MAYBE_NULL_PGBSON_SEQUENCE(4);
 	text *transactionId = PG_ARGISNULL(5) ? NULL : PG_GETARG_TEXT_PP(5);
 
+	ThrowIfServerOrTransactionReadOnly();
 	AllowNestedDistributionInCurrentTransaction();
 	pgbsonelement commandElement;
 	PgbsonToSinglePgbsonElement(deleteInternalSpec, &commandElement);

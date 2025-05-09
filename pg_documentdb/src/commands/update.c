@@ -499,6 +499,7 @@ PerformUpdateCore(Datum databaseNameDatum, pgbson *updateSpec,
 				  TupleDesc resultTupDesc, bool isTransactional,
 				  MemoryContext allocContext)
 {
+	ThrowIfServerOrTransactionReadOnly();
 	bson_iter_t updateCommandIter;
 	PgbsonInitIterator(updateSpec, &updateCommandIter);
 
@@ -2118,6 +2119,8 @@ command_update_worker(PG_FUNCTION_ARGS)
 						errmsg(
 							"update spec or update documents argument must be not null.")));
 	}
+
+	ThrowIfServerOrTransactionReadOnly();
 
 	WorkerUpdateParam params;
 	memset(&params, 0, sizeof(WorkerUpdateParam));

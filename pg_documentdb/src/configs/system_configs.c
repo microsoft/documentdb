@@ -125,6 +125,15 @@ bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
 #define DEFAULT_VECTOR_ITERATIVE_SCAN_MODE VectorIterativeScan_RELAXED_ORDER
 int VectorPreFilterIterativeScanMode = DEFAULT_VECTOR_ITERATIVE_SCAN_MODE;
 
+/* Note that this is explicitly left disabled
+ * This is primarily because the operator that sets default_transaction_readonly
+ * would want to avoid new writes (perhaps due to high disk usage) and a background
+ * job that can go and delete documents can produce WAL files and can exacerbate
+ * the issue by putting disk load. Make this explicitly opt-in.
+ */
+#define DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY false
+bool EnableTtlJobsOnReadOnly = DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY;
+
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -339,6 +348,14 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Enables user crud through the data plane."),
 		NULL, &EnableUserCrud, DEFAULT_ENABLE_USER_CRUD,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableTTLJobsOnReadOnly", newGucPrefix),
+		gettext_noop(
+			"Enables TTL jobs on read-only nodes. This will override"
+			" the default_transaction_readonly on the TTL job only."),
+		NULL, &EnableTtlJobsOnReadOnly, DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomEnumVariable(

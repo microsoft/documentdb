@@ -580,6 +580,8 @@ command_create_indexes_background(PG_FUNCTION_ARGS)
 	text *databaseDatum = PG_GETARG_TEXT_P(0);
 	pgbson *indexSpec = PG_GETARG_PGBSON(1);
 
+	ThrowIfServerOrTransactionReadOnly();
+
 	StringInfo submitIndexBuildRequestQuery = makeStringInfo();
 	appendStringInfo(submitIndexBuildRequestQuery,
 					 "SELECT %s.create_indexes_background_internal(%s,%s)",

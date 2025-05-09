@@ -14,6 +14,9 @@
 #include <utils/elog.h>
 #include <metadata/collection.h>
 #include <io/bson_core.h>
+#include <utils/documentdb_errors.h>
+#include <access/xact.h>
+#include <access/xlog.h>
 
 /*
  * Maximum size of a output bson document is 16MB.
@@ -85,5 +88,56 @@ void SetExplicitStatementTimeout(int timeoutMilliseconds);
 
 void CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
 													bool setSnapshot);
+
+extern bool SkipEnforceTransactionReadOnly;
+extern bool SimulateRecoveryState;
+extern bool DocumentDBPGReadOnlyForDiskFull;
+
+inline static void
+ThrowIfServerOrTransactionReadOnly(void)
+{
+	if (!XactReadOnly)
+	{
+		return;
+	}
+
+	if (SkipEnforceTransactionReadOnly)
+	{
+		return;
+	}
+
+	if (RecoveryInProgress() || SimulateRecoveryState)
+	{
+		/*
+		 * Skip these checks in recovery mode - let the system throw the appropriate
+		 * error.
+		 */
+		return;
+	}
+
+	if (DocumentDBPGReadOnlyForDiskFull)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DISK_FULL), errmsg(
+							"Can't execute write operation, The database disk is full")));
+	}
+
+	/* Error is coming because the server has been put in a read-only state, but we're a writable node (primary) */
+	if (DefaultXactReadOnly)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTWRITABLEPRIMARY),
+						errmsg(
+							"cannot execute write operations when the server is in a read-only state."),
+						errdetail("the default transaction is read-only"),
+						errdetail_log(
+							"cannot execute write operations when default_transaction_read_only is set to true")));
+	}
+
+	/* Error is coming because the transaction has been in a readonly state */
+	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OPERATIONNOTSUPPORTEDINTRANSACTION),
+					errmsg(
+						"cannot execute write operation when the transaction is in a read-only state."),
+					errdetail("the current transaction is read-only")));
+}
+
 
 #endif

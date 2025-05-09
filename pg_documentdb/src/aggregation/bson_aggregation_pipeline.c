@@ -1334,6 +1334,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 	else if (query->commandType == CMD_MERGE)
 	{
 		/* CMD_MERGE is case when pipeline has output stage ($merge or $out) result will be always single batch. */
+		ThrowIfServerOrTransactionReadOnly();
 		queryData->cursorKind = QueryCursorType_SingleBatch;
 	}
 	else if (queryData->cursorKind == QueryCursorType_Unspecified)

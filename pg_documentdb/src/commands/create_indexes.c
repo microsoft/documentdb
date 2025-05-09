@@ -441,6 +441,7 @@ command_create_indexes_non_concurrently(PG_FUNCTION_ARGS)
 		skip_check_collection_create = PG_GETARG_BOOL(2);
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
 	pgbson *arg = PgbsonDeduplicateFields(PG_GETARG_PGBSON(1));
 	CreateIndexesArg createIndexesArg = ParseCreateIndexesArg(dbNameDatum,
 															  arg);

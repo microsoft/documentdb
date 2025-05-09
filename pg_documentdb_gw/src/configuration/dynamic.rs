@@ -48,7 +48,6 @@ pub trait DynamicConfiguration: Send + Sync + Debug {
 
     async fn is_read_only_for_disk_full(&self) -> bool {
         self.get_bool("default_transaction_read_only", false).await
-            && self.get_bool("IsPgReadOnlyForDiskFull", false).await
     }
 
     async fn read_only(&self) -> bool {

@@ -511,3 +511,4 @@ Location7555702,M00E4,509
 Location3041704,M00E5,510
 Location4341107,M00E6,511
 InsufficientPrivilege,M00E7,512
+NotWritablePrimary,M00E8,513

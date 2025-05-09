@@ -907,6 +907,8 @@ CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocCon
 		ereport(ERROR, (errmsg("insert document cannot be NULL")));
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
+
 	Datum databaseNameDatum = PG_GETARG_DATUM(0);
 	pgbson *insertSpec = PG_GETARG_PGBSON(1);
 
@@ -1098,6 +1100,7 @@ command_insert_worker(PG_FUNCTION_ARGS)
 							"Explicit shardOid must be set - this is a server bug")));
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
 	AllowNestedDistributionInCurrentTransaction();
 	pgbsonelement element = { 0 };
 	PgbsonToSinglePgbsonElement(insertInternalSpec, &element);

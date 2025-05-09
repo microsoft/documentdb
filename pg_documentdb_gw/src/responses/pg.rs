@@ -183,6 +183,11 @@ impl PgResponse {
         msg: &str,
     ) -> Option<(i32, Option<String>, Option<String>)> {
         if let Some(known) = PgResponse::known_error_code(state) {
+            if known == ErrorCode::NotWritablePrimary as i32 {
+                let updated_error = format!("{}: This may be due to the database disk being full", msg);
+                return Some((known, Some(updated_error), None));
+            }
+
             return Some((known, None, None));
         }
 

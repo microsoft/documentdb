@@ -160,6 +160,7 @@ command_find_and_modify(PG_FUNCTION_ARGS)
 		ereport(ERROR, (errmsg("return type must be a row type")));
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
 	FindAndModifySpec spec = ParseFindAndModifyMessage(message);
 
 	Datum collectionNameDatum = CStringGetTextDatum(spec.collectionName);
