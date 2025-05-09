@@ -274,9 +274,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorCollNonExistent", "pipeline": [{ "$vectorSearch": { "queryVector": [8.0, 1.0, 8.0, 7], "limit": 1, "path": "myvector4", "numCandidates": 10 } }, { "$project": { "myvector4": 1, "_id": 0 }} ]}');
 ERROR:  $vectorSearch must be the first stage in the pipeline
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                                                                                                   get_feature_counter_pretty                                                                                                                   
+                                                                                                                                      get_feature_counter_pretty                                                                                                                                       
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 2}, {"create_index_vector_ip" : 1}, {"create_index_vector_l2" : 1}, {"create_index_vector_type_ivfflat" : 2}, {"project" : 2}, {"search_vector_ivfflat" : 2}, {"vector_search_mongo" : 2}]}
+ {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 2}, {"create_index_vector_ip" : 1}, {"create_index_vector_l2" : 1}, {"create_index_vector_type_ivfflat" : 2}, {"project" : 2}, {"search_vector_default_nprobes" : 2}, {"search_vector_ivfflat" : 2}, {"vector_search_mongo" : 2}]}
 (1 row)
 
 -- check vector indexes
@@ -337,12 +337,12 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
  { "_id" : { "$numberInt" : "2" }, "elem" : "some sentence hnsw", "vector_hnsw" : [ { "$numberDouble" : "8.0" }, { "$numberDouble" : "1.0" }, { "$numberDouble" : "8.0" }, { "$numberInt" : "8" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "0.54622507455841007307" } } }
 (1 row)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "vector_ivf_half", "nProbes": 10}  } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "vector_ivf_half" }  } } ], "cursor": {} }');
  document 
 ---------------------------------------------------------------------
 (0 rows)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0, 1.0 ], "k": 2, "path": "vector_hnsw_half", "efSearch": 5 }  } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorIndexCollFC", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0, 1.0 ], "k": 2, "path": "vector_hnsw_half" }  } } ], "cursor": {} }');
  document 
 ---------------------------------------------------------------------
 (0 rows)
@@ -368,9 +368,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
 
 ROLLBACK;
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                                                                                                                                                                                                         get_feature_counter_pretty                                                                                                                                                                                                                         
+                                                                                                                                                                                                                                                                get_feature_counter_pretty                                                                                                                                                                                                                                                                 
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 4}, {"create_index_vector_cos" : 2}, {"create_index_vector_compression_half" : 2}, {"create_index_vector_l2" : 2}, {"create_index_vector_type_hnsw" : 2}, {"create_index_vector_type_ivfflat" : 2}, {"match" : 2}, {"search" : 6}, {"search_vector_compression_half" : 2}, {"search_vector_hnsw" : 3}, {"search_vector_ivfflat" : 3}, {"search_vector_pre_filter" : 2}, {"index_scan_with_limit" : 2}]}
+ {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 4}, {"create_index_vector_cos" : 2}, {"create_index_vector_compression_half" : 2}, {"create_index_vector_l2" : 2}, {"create_index_vector_type_hnsw" : 2}, {"create_index_vector_type_ivfflat" : 2}, {"match" : 2}, {"search" : 6}, {"search_vector_compression_half" : 2}, {"search_vector_default_nprobes" : 1}, {"search_vector_default_efsearch" : 1}, {"search_vector_hnsw" : 3}, {"search_vector_ivfflat" : 3}, {"search_vector_pre_filter" : 2}, {"index_scan_with_limit" : 2}]}
 (1 row)
 
 -- aggregation operators counters

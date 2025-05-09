@@ -227,6 +227,14 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
 ROLLBACK;
 
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+ROLLBACK;
+
 -- more than 10000 and less than 1M documents, use default efSearch 40
 -- generate 9000 documents and insert into collection
 select batch_insert_testing_vector_documents('aggregation_pipeline_hnsw_efsearch', 1151, 9000, 2000);
@@ -235,6 +243,14 @@ ANALYZE;
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+ROLLBACK;
+
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
 ROLLBACK;

@@ -512,7 +512,40 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 (17 rows)
 
 ROLLBACK;
--- more than 10000 and less than 1M documents, use documents / 1000 as nProbes
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                       document                                                                                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "some sentence", "v" : [ { "$numberInt" : "11" }, { "$numberInt" : "16" }, { "$numberDouble" : "2.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "13.726616969513441902" } } }
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, (public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT collection.document FROM documentdb_data.documents_8101_8100018 collection WHERE ((collection.shard_key_value OPERATOR(pg_catalog.=) '8101'::bigint) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)) ORDER BY (public.vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true)) LIMIT '5'::bigint) agg_stage_0
+         Node: host=localhost port=58070 dbname=regression
+         ->  Subquery Scan on agg_stage_0
+               Output: documentdb_api_internal.bson_document_add_score_field(agg_stage_0.document, (vector(documentdb_api_internal.bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+               ->  Limit
+                     Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+                     ->  Custom Scan (DocumentDBApiQueryScan)
+                           Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           ->  Index Scan using foo_1 on documentdb_data.documents_8101_8100018 collection
+                                 Output: collection.document
+                                 Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+(17 rows)
+
+ROLLBACK;
+-- more than 10000 and less than 1M documents, nProbes = 10000/(numOfRows/numlist) = 10000/(10150/150) = 148
 -- generate 9000 documents and insert into collection
 select batch_insert_testing_vector_documents('aggregation_pipeline_ivf_nprobes', 1151, 9000, 2000);
 NOTICE:  Inserting 9000 documents into aggregation_pipeline_ivf_nprobes
@@ -552,23 +585,110 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
                      ->  Custom Scan (DocumentDBApiQueryScan)
                            Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
-                           CosmosSearch Custom Params: { "nProbes" : 10 }
+                           CosmosSearch Custom Params: { "nProbes" : 148 }
                            ->  Index Scan using foo_1 on documentdb_data.documents_8101_8100018 collection
                                  Output: collection.document
                                  Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
 (17 rows)
 
 ROLLBACK;
--- more than 1M documents, use sqrt(documents) as nProbes
--- generate 1000000 documents and insert into collection
--- select batch_insert_testing_vector_documents('aggregation_pipeline_ivf_nprobes', 10151, 990000, 5000);
--- ANALYZE;
--- BEGIN;
--- SET LOCAL enable_seqscan to off;
--- SET LOCAL documentdb.enableVectorPreFilter = on;
--- SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
--- EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
--- ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                       document                                                                                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "some sentence", "v" : [ { "$numberInt" : "11" }, { "$numberInt" : "16" }, { "$numberDouble" : "2.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "13.726616969513441902" } } }
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, (public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT collection.document FROM documentdb_data.documents_8101_8100018 collection WHERE ((collection.shard_key_value OPERATOR(pg_catalog.=) '8101'::bigint) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)) ORDER BY (public.vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true)) LIMIT '5'::bigint) agg_stage_0
+         Node: host=localhost port=58070 dbname=regression
+         ->  Subquery Scan on agg_stage_0
+               Output: documentdb_api_internal.bson_document_add_score_field(agg_stage_0.document, (vector(documentdb_api_internal.bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+               ->  Limit
+                     Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+                     ->  Custom Scan (DocumentDBApiQueryScan)
+                           Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           ->  Index Scan using foo_1 on documentdb_data.documents_8101_8100018 collection
+                                 Output: collection.document
+                                 Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+(17 rows)
+
+ROLLBACK;
+-- nProbes = 10000/(numOfRows/numlist) = 10000/(10150/1) = 1
+CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_ivf_nprobes", "index": "foo_1"}');
+                          retval                          
+---------------------------------------------------------------------
+ { "ok" : true, "nIndexesWas" : { "$numberLong" : "1" } }
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_nprobes", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 1, "similarity": "L2", "dimensions": 3 } } ] }', true);
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+NOTICE:  ivfflat index created with little data
+DETAIL:  This will cause low recall.
+HINT:  Drop the index until the table has more data.
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "0" }, "numIndexesAfter" : { "$numberInt" : "1" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+ANALYZE;
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, (public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT collection.document FROM documentdb_data.documents_8101_8100018 collection WHERE ((collection.shard_key_value OPERATOR(pg_catalog.=) '8101'::bigint) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)) ORDER BY (public.vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true)) LIMIT '5'::bigint) agg_stage_0
+         Node: host=localhost port=58070 dbname=regression
+         ->  Subquery Scan on agg_stage_0
+               Output: documentdb_api_internal.bson_document_add_score_field(agg_stage_0.document, (vector(documentdb_api_internal.bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+               ->  Limit
+                     Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+                     ->  Custom Scan (DocumentDBApiQueryScan)
+                           Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+                           CosmosSearch Custom Params: { "nProbes" : 1 }
+                           ->  Index Scan using foo_1 on documentdb_data.documents_8101_8100018 collection
+                                 Output: collection.document
+                                 Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+(17 rows)
+
+ROLLBACK;
 ---------------------------------------------------------------------
 -- ivf search with filter
 SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_ivf_filter', '{ "_id": 6, "meta":{ "a": "some sentence", "b": 1 }, "c": true , "v": [3.0, 5.0, 1.1 ] }');
@@ -1066,7 +1186,7 @@ SELECT set_config('documentdb' || '.next_collection_id', '' || :vector__next_col
 SELECT set_config('documentdb' || '.next_collection_index_id', '' || :vector__next_collection_index_id, FALSE);
  set_config 
 ---------------------------------------------------------------------
- 8114
+ 8115
 (1 row)
 
 ---------------------------------------------------------------------
@@ -3490,10 +3610,10 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-ivf", "numLists" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : [ "half" ] } } :: caused by :: compression must be a string not array
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
 ERROR:  column cannot have more than 2000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8143 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8144 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
 ERROR:  column cannot have more than 2000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8144 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8145 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2000 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -3514,7 +3634,7 @@ CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_i
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 4001, "compression": "half" } } ] }', true);
 ERROR:  column cannot have more than 4000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8146 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.halfvec(4001)) public.halfvec_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8147 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.halfvec(4001)) public.halfvec_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 4000, "compression": "half" } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -4047,7 +4167,7 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_ivf_halfvec', '{ "_
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": 3, "compression": "half" } } ] }', true);
 ERROR:  "2.2222222e+13" is out of range for type halfvec
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8156 ON documentdb_data.documents_8107 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (lists = 100) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8157 ON documentdb_data.documents_8107 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (lists = 100) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": 3 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------

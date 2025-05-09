@@ -189,7 +189,15 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- more than 10000 and less than 1M documents, use documents / 1000 as nProbes
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+ROLLBACK;
+
+-- more than 10000 and less than 1M documents, nProbes = 10000/(numOfRows/numlist) = 10000/(10150/150) = 148
 -- generate 9000 documents and insert into collection
 select batch_insert_testing_vector_documents('aggregation_pipeline_ivf_nprobes', 1151, 9000, 2000);
 ANALYZE;
@@ -201,17 +209,24 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
 ROLLBACK;
 
--- more than 1M documents, use sqrt(documents) as nProbes
--- generate 1000000 documents and insert into collection
--- select batch_insert_testing_vector_documents('aggregation_pipeline_ivf_nprobes', 10151, 990000, 5000);
--- ANALYZE;
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+ROLLBACK;
 
--- BEGIN;
--- SET LOCAL enable_seqscan to off;
--- SET LOCAL documentdb.enableVectorPreFilter = on;
--- SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
--- EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
--- ROLLBACK;
+-- nProbes = 10000/(numOfRows/numlist) = 10000/(10150/1) = 1
+CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_ivf_nprobes", "index": "foo_1"}');
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_nprobes", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 1, "similarity": "L2", "dimensions": 3 } } ] }', true);
+ANALYZE;
+
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_nprobes", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+ROLLBACK;
 
 ----------------------------------------------------------------------------------------------------
 -- ivf search with filter

@@ -39,6 +39,10 @@ bool EnableVectorCompressionHalf = DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF;
 #define DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ true
 bool EnableVectorCompressionPQ = DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ;
 
+#define DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM true
+bool EnableVectorCalculateDefaultSearchParameter =
+	DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM;
+
 /*
  * SECTION: Indexing feature flags
  */
@@ -198,12 +202,19 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &EnableVectorCompressionHalf, DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
-	DefineCustomBoolVariable
-	(
+	DefineCustomBoolVariable(
 		psprintf("%s.enableVectorCompressionPQ", newGucPrefix),
 		gettext_noop(
 			"Enables support for vector index compression product quantization"),
 		NULL, &EnableVectorCompressionPQ, DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableVectorCalculateDefaultSearchParam", newGucPrefix),
+		gettext_noop(
+			"Enables support for vector index default search parameter calculation"),
+		NULL, &EnableVectorCalculateDefaultSearchParameter,
+		DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
