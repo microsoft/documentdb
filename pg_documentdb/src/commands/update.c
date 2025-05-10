@@ -1635,8 +1635,7 @@ UpdateAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	 * value if no update is needed is with the multi CTE approach mentioned above, which is a lot slower.
 	 *
 	 */
-	if (EnableSchemaValidation && schemaValidationExprEvalState != NULL &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (EnableSchemaValidation && schemaValidationExprEvalState != NULL)
 	{
 		/*
 		 * If schemaValidationExprEvalState is not NULL, we need to validate the document against the schema.

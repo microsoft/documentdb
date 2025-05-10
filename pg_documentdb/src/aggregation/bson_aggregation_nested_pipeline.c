@@ -2006,7 +2006,7 @@ OptimizeLookup(LookupArgs *lookupArgs,
 
 			ParseVariableSpec(&varsValue, nullContext, &parseContext);
 		}
-		else if (EnableNowSystemVariable && IsClusterVersionAtleast(DocDB_V0, 24, 0) &&
+		else if (EnableNowSystemVariable &&
 				 IsA(leftQueryContext->variableSpec, Const))
 		{
 			Node *specNode = (Node *) leftQueryContext->variableSpec;

@@ -46,22 +46,25 @@ bool EnableVectorCalculateDefaultSearchParameter =
 /*
  * SECTION: Indexing feature flags
  */
+
+/* Remove after v104 */
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
-#define DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS true
-bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS;
-
+/* Remove after v105 */
 #define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
 bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
 
+/* Remove after v104 */
 #define DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS true
 bool EnableIndexTermTruncationOnNestedObjects =
 	DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS;
 
+/* Remove after v104 */
 #define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
 bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 
+/* Remove after v105 */
 #define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
 bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
 
@@ -77,10 +80,6 @@ bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 #define DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN false
 bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
 
-#define DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES true
-bool AllowNestedAggregationFunctionInQueries =
-	DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES;
-
 #define DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY false
 bool EnableSortbyIdPushDownToPrimaryKey =
 	DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY;
@@ -89,15 +88,10 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 /*
  * SECTION: Aggregation & Query feature flags
  */
-#define DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION true
-bool EnableLookupUnwindSupport = DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION;
-
 #define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
 bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
 
-#define DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS true
-bool EnableSimplifyGroupAccumulators = DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS;
-
+/* Remove after v104 */
 #define DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP true
 bool EnableMatchWithLetInLookup =
 	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
@@ -150,6 +144,7 @@ bool EnableMergeTargetCreation = DEFAULT_ENABLE_MERGE_TARGET_CREATION;
 #define DEFAULT_ENABLE_MERGE_ACROSS_DB true
 bool EnableMergeAcrossDB = DEFAULT_ENABLE_MERGE_ACROSS_DB;
 
+/* Move to system configs after v104 */
 #define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
 bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 
@@ -159,6 +154,7 @@ bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRAD
 #define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
 bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
 
+/* Remove after v105 */
 #define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
 bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
 
@@ -221,14 +217,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		psprintf("%s.enable_large_unique_index_keys", newGucPrefix),
 		gettext_noop("Whether or not to enable large index keys on unique indexes."),
 		NULL, &DefaultEnableLargeUniqueIndexKeys, DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.disable_statistics_for_unique_columns", newGucPrefix),
-		gettext_noop(
-			"Whether or not to disable statistics for unique columns in analyze"),
-		NULL, &DisableStatisticsForUniqueColumns,
-		DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -309,17 +297,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.allowNestedAggregationFunctionInQueries", newGucPrefix),
-		gettext_noop(
-			"Whether or not to support having aggregation queries as nested subqueries or in CTEs"),
-		NULL,
-		&AllowNestedAggregationFunctionInQueries,
-		DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES,
-		PGC_USERSET,
-		0,
-		NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.recreate_retry_table_on_shard", prefix),
 		gettext_noop(
 			"Gets whether or not to recreate a retry table to match the main table"),
@@ -331,13 +308,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Determines whether to turn on colocation of tables across all tables (requires enableNativeColocation to be on)"),
 		NULL, &EnableNativeTableColocation, DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableLookupUnwindOptimization", newGucPrefix),
-		gettext_noop(
-			"Determines whether to enable support for the optimizing $unwind with $lookup prefix"),
-		NULL, &EnableLookupUnwindSupport, DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -376,14 +346,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Whether to enable per statement backend timeout override in the backend."),
 		NULL, &EnableBackendStatementTimeout, DEFAULT_ENABLE_STATEMENT_TIMEOUT,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableSimplifyGroupAccumulators", newGucPrefix),
-		gettext_noop(
-			"Whether to enable parse time simplification of group accumulators."),
-		NULL, &EnableSimplifyGroupAccumulators,
-		DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

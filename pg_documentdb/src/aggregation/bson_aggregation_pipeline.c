@@ -71,10 +71,8 @@
 #include "api_hooks.h"
 
 extern bool EnableCursorsOnAggregationQueryRewrite;
-extern bool EnableLookupUnwindSupport;
 extern bool EnableCollation;
 extern bool DefaultInlineWriteOperations;
-extern bool EnableSimplifyGroupAccumulators;
 extern bool EnableSortbyIdPushDownToPrimaryKey;
 extern int MaxAggregationStagesAllowed;
 
@@ -3206,16 +3204,6 @@ HandleRedact(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_REDACT);
 
-	/* Check if redact feature is available according to version. */
-	if (!IsClusterVersionAtleast(DocDB_V0, 24, 0))
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg(
-							"Stage $redact is not supported yet in native pipeline"),
-						errdetail_log(
-							"Stage $redact is not supported yet in native pipeline")));
-	}
-
 	Const *redactSpec;
 	Const *redactSpecText;
 
@@ -3332,8 +3320,8 @@ HandleProjectFind(const bson_value_t *existingValue, const bson_value_t *queryVa
 
 	List *args;
 	Oid funcOid = BsonDollarProjectFindFunctionOid();
-	if (IsCollationApplicable(context->collationString) && IsClusterVersionAtleast(
-			DocDB_V0, 102, 0))
+	if (IsCollationApplicable(context->collationString) &&
+		IsClusterVersionAtleast(DocDB_V0, 102, 0))
 	{
 		pgbson *queryDoc = queryValue->value_type == BSON_TYPE_EOD ? PgbsonInitEmpty() :
 						   PgbsonInitFromDocumentBsonValue(queryValue);
@@ -4887,11 +4875,6 @@ static Expr *
 GetDocumentExprForGroupAccumulatorValue(const bson_value_t *accumulatorValue,
 										Expr *docExpr)
 {
-	if (!EnableSimplifyGroupAccumulators)
-	{
-		return docExpr;
-	}
-
 	ParseAggregationExpressionContext parseContext = { 0 };
 	AggregationExpressionData expressionData;
 	memset(&expressionData, 0, sizeof(AggregationExpressionData));
@@ -4944,8 +4927,7 @@ AddSimpleGroupAccumulator(Query *query, const bson_value_t *accumulatorValue,
 		functionId, BsonTypeId(), groupArgs, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		accumFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(accumFunc),
@@ -5408,8 +5390,7 @@ AddPercentileMedianGroupAccumulator(Query *query, const bson_value_t *accumulato
 										pFuncArgs, InvalidOid,
 										InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		inputAccumFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(
@@ -5535,8 +5516,7 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		bsonExpressionGetFunction, BsonTypeId(), groupArgs, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		groupFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(groupFunc),
@@ -5987,11 +5967,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$median"))
 		{
-			if (!(IsClusterVersionAtleast(DocDB_V0, 24, 0)))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg("Accumulator $median is not supported yet")));
-			}
 			repathArgs = AddPercentileMedianGroupAccumulator(query,
 															 &accumulatorElement.bsonValue,
 															 repathArgs,
@@ -6003,12 +5978,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$percentile"))
 		{
-			if (!(IsClusterVersionAtleast(DocDB_V0, 24, 0)))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg(
-									"Accumulator $percentile is not supported yet")));
-			}
 			repathArgs = AddPercentileMedianGroupAccumulator(query,
 															 &accumulatorElement.bsonValue,
 															 repathArgs,
@@ -7310,8 +7279,7 @@ TryOptimizeAggregationPipelines(List **aggregationStages,
 			allowShardBaseTable = false;
 		}
 
-		if (definition->stageEnum == Stage_Lookup &&
-			EnableLookupUnwindSupport && IsClusterVersionAtleast(DocDB_V0, 24, 0))
+		if (definition->stageEnum == Stage_Lookup)
 		{
 			/* Optimization for $lookup stage
 			 */

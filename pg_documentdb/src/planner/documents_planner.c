@@ -104,7 +104,6 @@ static Query * ExpandAggregationFunction(Query *node, ParamListInfo boundParams,
 static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundParams);
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
-extern bool AllowNestedAggregationFunctionInQueries;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableIndexOrderbyPushdown;
 
@@ -146,8 +145,7 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 			}
 		}
 
-		if (AllowNestedAggregationFunctionInQueries &&
-			queryFlags & HAS_NESTED_AGGREGATION_FUNCTION)
+		if (queryFlags & HAS_NESTED_AGGREGATION_FUNCTION)
 		{
 			parse = (Query *) ExpandNestedAggregationFunction(parse, boundParams);
 		}
@@ -831,7 +829,7 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 
 			if (IsAggregationFunction(funcExpr->funcid))
 			{
-				if (queryFlags->queryDepth > 1 && AllowNestedAggregationFunctionInQueries)
+				if (queryFlags->queryDepth > 1)
 				{
 					queryFlags->mongoQueryFlags |= HAS_NESTED_AGGREGATION_FUNCTION;
 				}

@@ -3020,7 +3020,7 @@ ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
 	PgbsonWriterInit(&resultWriter);
 
 	/* Write the time system variables */
-	if (EnableNowSystemVariable && IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (EnableNowSystemVariable)
 	{
 		bson_value_t nowVariableValue = GetTimeSystemVariables(timeSystemVariables);
 		PgbsonWriterAppendValue(&resultWriter, "now", 3, &nowVariableValue);

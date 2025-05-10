@@ -735,7 +735,7 @@ BuildStreamingContinuationDocument(HTAB *cursorMap, pgbson *querySpec, int64_t c
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
 
 	/* Add the time system variables */
-	if (EnableNowSystemVariable && IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (EnableNowSystemVariable)
 	{
 		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
 			BSON_TYPE_EOD)
@@ -770,7 +770,7 @@ BuildPersistedContinuationDocument(const char *cursorName, int64_t cursorId, Que
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
 
 	/* Add the time system variables */
-	if (EnableNowSystemVariable && IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (EnableNowSystemVariable)
 	{
 		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
 			BSON_TYPE_EOD)

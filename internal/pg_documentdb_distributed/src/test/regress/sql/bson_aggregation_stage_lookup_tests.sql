@@ -655,9 +655,6 @@ SELECT documentdb_api_internal.bson_dollar_merge_documents('{"a": { "b": "text",
 SELECT documentdb_api_internal.bson_dollar_merge_documents('{"a": [{ "b": "text", "c": true }, { "b": "text2", "c": false }]}', '{ "a.b.random" : false }', true);
 
 
-BEGIN;
--- Disable optimization and test as this enabled by default now
-set local documentdb.enableLookupUnwindOptimization to off;
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
 
@@ -684,5 +681,3 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 	
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "preserveNullAndEmptyArrays" : true } } ], "cursor": {} }'); -- should inline and use LEFT JOIN
-
-ROLLBACK;

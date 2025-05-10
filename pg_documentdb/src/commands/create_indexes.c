@@ -184,7 +184,6 @@ extern int IndexTruncationLimitOverride;
 extern int MaxWildcardIndexKeySize;
 extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
-extern bool DisableStatisticsForUniqueColumns;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
 extern bool DefaultUseCompositeOpClass;
@@ -5065,8 +5064,7 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 	char indexTermSizeLimitArg[22] = { 0 };
 	bool enableTruncation = enableLargeIndexKeys || ForceIndexTermTruncation;
 
-	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys &&
-									  IsClusterVersionAtleast(DocDB_V0, 24, 0);
+	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys;
 
 	/* For unique with truncation, instead of creating a unique hash for every column, we simply create a single
 	 * value with a new operator that handles unique constraints. That way for a composite unique index, we support
@@ -6086,11 +6084,6 @@ GenerateUniqueProjectionSpec(IndexDefKey *indexDefKey)
 void
 UpdateIndexStatsForPostgresIndex(uint64 collectionId, List *indexIdList)
 {
-	if (!DisableStatisticsForUniqueColumns)
-	{
-		return;
-	}
-
 	StringInfo indexExprStringInfo = makeStringInfo();
 	ListCell *cell;
 	foreach(cell, indexIdList)
