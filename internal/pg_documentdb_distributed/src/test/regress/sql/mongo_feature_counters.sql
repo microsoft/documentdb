@@ -223,3 +223,10 @@ CALL documentdb_api_internal.delete_expired_rows(3);
 CALL documentdb_api_internal.delete_expired_rows(3);
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
+
+-- Feature counter for _internalInhibitOptimization
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$addFields": { "e": {  "f": "$a.b" } } }, { "$_internalInhibitOptimization": 1 }, { "$replaceWith": "$e" } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$sort": { "_id": 1 } }, { "$_internalInhibitOptimization": 1 }, { "$match": { "_id": { "$gt": "1" } } } ], "cursor": {} }');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } }, { "$_internalInhibitOptimization": 1 }, { "$addFields": { "newField2": "someOtherField" } } ], "cursor": {} }');
+
+SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);

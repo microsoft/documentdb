@@ -648,3 +648,25 @@ SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
  {"Feature_usage":[{"command_insert" : 10}, {"create_index_ttl" : 1}, {"ttl_purger_calls" : 3}]}
 (1 row)
 
+-- Feature counter for _internalInhibitOptimization
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$addFields": { "e": {  "f": "$a.b" } } }, { "$_internalInhibitOptimization": 1 }, { "$replaceWith": "$e" } ], "cursor": {} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$sort": { "_id": 1 } }, { "$_internalInhibitOptimization": 1 }, { "$match": { "_id": { "$gt": "1" } } } ], "cursor": {} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } }, { "$_internalInhibitOptimization": 1 }, { "$addFields": { "newField2": "someOtherField" } } ], "cursor": {} }');
+ document 
+---------------------------------------------------------------------
+(0 rows)
+
+SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
+                                                                        get_feature_counter_pretty                                                                         
+---------------------------------------------------------------------
+ {"Feature_usage":[{"add_fields" : 3}, {"_internalInhibitOptimization" : 3}, {"match" : 1}, {"replace_root" : 1}, {"replace_with" : 1}, {"sort" : 1}, {"sort_by_id" : 1}]}
+(1 row)
+

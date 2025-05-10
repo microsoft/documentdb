@@ -329,6 +329,8 @@ Query *
 HandleInternalInhibitOptimization(const bson_value_t *existingValue, Query *query,
 								  AggregationPipelineBuildContext *context)
 {
+	ReportFeatureUsage(FEATURE_STAGE_INTERNAL_INHIBIT_OPTIMIZATION);
+
 	/* First step, move the current query into a CTE */
 	CommonTableExpr *baseCte = makeNode(CommonTableExpr);
 	baseCte->ctename = "internalinhibitoptimization";
