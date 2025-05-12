@@ -20,6 +20,7 @@
 
 #include "utils/documentdb_errors.h"
 #include "metadata/collection.h"
+#include "metadata/index.h"
 #include "metadata/metadata_cache.h"
 #include "utils/guc_utils.h"
 #include "utils/query_utils.h"
@@ -29,8 +30,6 @@
 #include "utils/data_table_utils.h"
 #include "api_hooks.h"
 
-extern int MaxNumActiveUsersIndexBuilds;
-extern int IndexBuildScheduleInSec;
 extern char *ApiExtensionName;
 extern char *ApiGucPrefix;
 extern char *ClusterAdminRole;
@@ -51,8 +50,6 @@ extern char * GetIndexQueueName(void);
 
 static char * GetClusterInitializedVersion(void);
 static void DistributeCrudFunctions(void);
-static void ScheduleIndexBuildTasks(char *extensionPrefix);
-static void UnscheduleIndexBuildTasks(char *extensionPrefix);
 static void CreateIndexBuildsTable(void);
 static void CreateValidateDbNameTrigger(void);
 static void AlterDefaultDatabaseObjects(void);
@@ -429,65 +426,6 @@ DistributeCrudFunctions()
 		changesRelation,
 		forceDelegation
 		);
-}
-
-
-/*
- * Schedule background jobs that will later be used to create indexes in the cluster.
- */
-static void
-ScheduleIndexBuildTasks(char *extensionPrefix)
-{
-	char scheduleInterval[50];
-	if (IndexBuildScheduleInSec < 60)
-	{
-		sprintf(scheduleInterval, "%d seconds", IndexBuildScheduleInSec);
-	}
-	else
-	{
-		sprintf(scheduleInterval, "* * * * *");
-	}
-
-	bool isNull = false;
-	bool readOnly = false;
-
-	const int maxActiveIndexBuilds = MaxNumActiveUsersIndexBuilds;
-	for (int i = 1; i <= maxActiveIndexBuilds; i++)
-	{
-		StringInfo scheduleStr = makeStringInfo();
-		appendStringInfo(scheduleStr,
-						 "SELECT cron.schedule('%s_index_build_task_'"
-						 " || %d, '%s',"
-						 "'CALL %s.build_index_concurrently(%d);');",
-						 extensionPrefix, i, scheduleInterval,
-						 ApiInternalSchemaName, i);
-		ExtensionExecuteQueryViaSPI(scheduleStr->data, readOnly, SPI_OK_SELECT,
-									&isNull);
-	}
-}
-
-
-/*
- * Unschedule background jobs for index creation.
- */
-static void
-UnscheduleIndexBuildTasks(char *extensionPrefix)
-{
-	bool isNull = false;
-	bool readOnly = false;
-
-	/*
-	 * These schedule the index build tasks at the coordinator.
-	 * Since we leave behind the jobs when dropping the extension (during development), it would be nice to unschedule
-	 * existing ones first in case something changed.
-	 * PS: We need to run this with array_agg because otherwise the SPI API would only execute unschedule for the first job.
-	 */
-	StringInfo unscheduleStr = makeStringInfo();
-	appendStringInfo(unscheduleStr,
-					 "SELECT array_agg(cron.unschedule(jobid)) FROM cron.job WHERE jobname LIKE"
-					 "'%s_index_build_task%%';", extensionPrefix);
-	ExtensionExecuteQueryViaSPI(unscheduleStr->data, readOnly, SPI_OK_SELECT,
-								&isNull);
 }
 
 

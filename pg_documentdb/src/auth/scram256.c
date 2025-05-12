@@ -503,6 +503,7 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	ScramState scramState;
 	ScramAuthResult result;
 
+	memset(&scramState, 0, sizeof(ScramState));
 	memset(&result, 0, sizeof(result));
 	result.serverSignature = "";
 
@@ -516,6 +517,8 @@ command_generate_server_signature_for_test(PG_FUNCTION_ARGS)
 	scramState.userName = text_to_cstring(PG_GETARG_TEXT_P(0));
 	char *password = text_to_cstring(PG_GETARG_TEXT_P(1));
 	scramState.authMessage = text_to_cstring(PG_GETARG_TEXT_P(2));
+	scramState.keyLength = SCRAM_SHA_256_KEY_LEN;
+	scramState.hashType = PG_SHA256;
 
 	ereport(DEBUG1, (errmsg("Auth Message received is [%s].",
 							scramState.authMessage)));

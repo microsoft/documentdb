@@ -83,7 +83,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
    Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, (InitPlan 2).col1)
    InitPlan 2
      ->  Result
-           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, (InitPlan 1).col1)
+           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, (InitPlan 1).col1, false)
            InitPlan 1
              ->  Limit
                    Output: (COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson))
@@ -100,15 +100,15 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
 (20 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('invmatchexp', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "user_roles", "pipeline": [{"$match": {"user_id": { "$ne": 200 }}}]}} ], "cursor": {} }'); 
-                                                                   QUERY PLAN                                                                    
--------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_12303 collection
    Output: collection.document
    Recheck Cond: (collection.shard_key_value = '12303'::bigint)
    Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, (InitPlan 2).col1)
    InitPlan 2
      ->  Result
-           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, (InitPlan 1).col1)
+           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, (InitPlan 1).col1, false)
            InitPlan 1
              ->  Aggregate
                    Output: COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson)

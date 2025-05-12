@@ -684,7 +684,7 @@ CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
 CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
 
 -- should have updated 10 times
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
 
 -- reduce batch to 8
 set documentdb.batchWriteSubTransactionCount to 8;
@@ -699,7 +699,7 @@ CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
 CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
 
 -- now reduce to 3
 set documentdb.batchWriteSubTransactionCount to 3;
@@ -714,7 +714,7 @@ CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
 CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
 
 -- disable local writes
 set documentdb.useLocalExecutionShardQueries to off;
@@ -725,4 +725,4 @@ CALL documentdb_api.update_bulk('update_bulk', :'update_query2');
 CALL documentdb_api.update_bulk('update_bulk', :'update_query3');
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;

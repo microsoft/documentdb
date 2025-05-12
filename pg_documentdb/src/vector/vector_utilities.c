@@ -25,6 +25,7 @@
 #include "metadata/metadata_cache.h"
 #include "vector/bson_extract_vector.h"
 #include "vector/vector_common.h"
+#include "vector/vector_configs.h"
 #include "vector/vector_planner.h"
 #include "vector/vector_utilities.h"
 #include "vector/vector_spec.h"
@@ -100,11 +101,10 @@ EvaluateMetaSearchScore(pgbson *document)
  *  b. If the number of rows is greater than 10K, the default efSearch is HNSW_DEFAULT_EF_SEARCH.
  */
 pgbson *
-CalculateSearchParamBsonForIndexPath(IndexPath *vectorSearchPath)
+CalculateSearchParamBsonForIndexPath(IndexPath *vectorSearchPath, pgbson *searchParamBson)
 {
 	IndexPath *indexPath = (IndexPath *) vectorSearchPath;
 	Oid indexRelam = indexPath->indexinfo->relam;
-	pgbson *searchParamBson = NULL;
 
 	/* Get rows in the index */
 	Cardinality indexRows = indexPath->indexinfo->tuples;
@@ -122,7 +122,7 @@ CalculateSearchParamBsonForIndexPath(IndexPath *vectorSearchPath)
 		if (indexRelation->rd_options != NULL)
 		{
 			searchParamBson = definition->calculateSearchParamBsonFunc(
-				indexRelation->rd_options, indexRows);
+				indexRelation->rd_options, indexRows, searchParamBson);
 		}
 
 		RelationClose(indexRelation);
@@ -418,31 +418,6 @@ SetSearchParametersToGUC(Oid vectorAccessMethodOid, pgbson *searchParamBson)
 	if (definition != NULL)
 	{
 		definition->setSearchParametersToGUCFunc(searchParamBson);
-	}
-}
-
-
-/*
- * This function set the default search parameters to inputState if the user did not specify
- */
-void
-TrySetDefaultSearchParamForCustomScan(SearchQueryEvalData *querySearchData)
-{
-	pgbson *searchInput = NULL;
-	if (querySearchData->SearchParamBson != (Datum) 0)
-	{
-		searchInput = DatumGetPgBson(querySearchData->SearchParamBson);
-	}
-
-	if (searchInput == NULL || IsPgbsonEmptyDocument(searchInput))
-	{
-		const VectorIndexDefinition *definition = GetVectorIndexDefinitionByIndexAmOid(
-			querySearchData->VectorAccessMethodOid);
-		if (definition != NULL)
-		{
-			querySearchData->SearchParamBson = PointerGetDatum(
-				definition->getDefaultSearchParamBsonFunc());
-		}
 	}
 }
 

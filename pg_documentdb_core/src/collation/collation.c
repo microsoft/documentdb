@@ -930,6 +930,11 @@ static void
 GenerateICULocaleAndExtractCollationOption(char *inputLocale, char **locale,
 										   char **collationOptionString)
 {
+	if (inputLocale == NULL)
+	{
+		return;
+	}
+
 	/* conversion type 1: if locale contains the collation option */
 	/* Example: for inputLocale = "en@collation=search", */
 	/* locale = "es" and collationOptionString = "search" */

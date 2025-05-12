@@ -1,7 +1,5 @@
 SET documentdb.next_collection_id TO 1972800;
 SET documentdb.next_collection_index_id TO 1972800;
---set Feature flag for user crud
-SET documentdb.enableUserCrud TO ON;
 SET documentdb.maxUserLimit TO 10;
 \set VERBOSITY TERSE
 show documentdb.blockedRolePrefixList;
@@ -243,8 +241,6 @@ SELECT documentdb_api.create_user('{"createUser":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbb
 SELECT current_user as original_user \gset
 -- switch to read only user
 \c regression readOnlyUser
---set Feature flag for user crud
-SET documentdb.enableUserCrud TO ON;
 --Create without privileges
 SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
 ERROR:  permission denied to create role
@@ -253,8 +249,6 @@ SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
 ERROR:  permission denied to drop role
 -- switch to admin user
 \c regression adminUser
---set Feature flag for user crud
-SET documentdb.enableUserCrud TO ON;
 --Create without privileges
 SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
 ERROR:  permission denied to create role

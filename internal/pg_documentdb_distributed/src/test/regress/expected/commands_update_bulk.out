@@ -1724,7 +1724,7 @@ DEBUG:  Commiting intermediate state and reacquiring collection lock
 (1 row)
 
 -- should have updated 10 times
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
                                             document                                             
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "11" } }
@@ -1771,7 +1771,7 @@ DEBUG:  Commiting intermediate state and reacquiring collection lock
 (1 row)
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
                                             document                                             
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "21" } }
@@ -1817,7 +1817,7 @@ DEBUG:  Commiting intermediate state and reacquiring collection lock
 (1 row)
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
                                             document                                             
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "31" } }
@@ -1864,7 +1864,7 @@ DEBUG:  executing " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4:
 (1 row)
 
 -- still increments
-SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch');
+SELECT document FROM documentdb_api.collection('update_bulk', 'test_update_batch') ORDER BY object_id;
                                             document                                             
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" }, "b" : { "$numberInt" : "41" } }

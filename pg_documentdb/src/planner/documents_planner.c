@@ -1683,23 +1683,27 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 	Query *finalQuery;
 	if (aggregationFunc->funcid == ApiCatalogAggregationPipelineFunctionId())
 	{
-		finalQuery = GenerateAggregationQuery(databaseConst->constvalue, pipeline,
+		finalQuery = GenerateAggregationQuery(DatumGetTextPP(databaseConst->constvalue),
+											  pipeline,
 											  &queryData,
 											  enableCursorParam, setStatementTimeout);
 	}
 	else if (aggregationFunc->funcid == ApiCatalogAggregationFindFunctionId())
 	{
-		finalQuery = GenerateFindQuery(databaseConst->constvalue, pipeline, &queryData,
+		finalQuery = GenerateFindQuery(DatumGetTextPP(databaseConst->constvalue),
+									   pipeline, &queryData,
 									   enableCursorParam, setStatementTimeout);
 	}
 	else if (aggregationFunc->funcid == ApiCatalogAggregationCountFunctionId())
 	{
-		finalQuery = GenerateCountQuery(databaseConst->constvalue, pipeline,
+		finalQuery = GenerateCountQuery(DatumGetTextPP(databaseConst->constvalue),
+										pipeline,
 										setStatementTimeout);
 	}
 	else if (aggregationFunc->funcid == ApiCatalogAggregationDistinctFunctionId())
 	{
-		finalQuery = GenerateDistinctQuery(databaseConst->constvalue, pipeline,
+		finalQuery = GenerateDistinctQuery(DatumGetTextPP(databaseConst->constvalue),
+										   pipeline,
 										   setStatementTimeout);
 	}
 	else

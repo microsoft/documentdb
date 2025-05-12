@@ -19,6 +19,8 @@
 #include "io/bson_core.h"
 #include "operators/bson_expression.h"
 #include "operators/bson_expression_operators.h"
+#include "operators/bson_expression_date_operators.h"
+
 #include "utils/date_utils.h"
 #include "utils/documentdb_errors.h"
 #include "utils/fmgrprotos.h"
@@ -1755,6 +1757,34 @@ HandlePreParsedDollarDateToParts(pgbson *doc, void *arguments,
 	ProcessDollarDateToParts(&dateValue, isIsoRequested, timezoneToApply,
 							 &result);
 	ExpressionResultSetValue(expressionResult, &result);
+}
+
+
+void
+StringToDateWithDefaultFormat(bson_value_t *dateString, bson_value_t *result)
+{
+	bson_value_t format = { 0 };
+	bson_value_t timezone = { 0 };
+	bson_value_t onError = { 0 };
+	bool isInputValid = true;
+
+	ExtensionTimezone timezoneToApply = {
+		.offsetInMs = 0,
+		.isUtcOffset = true
+	};
+
+	DollarDateFromPartsBsonValue *dateFromParts = palloc0(
+		sizeof(DollarDateFromPartsBsonValue));
+
+	ValidateInputForDateFromString(dateString, &format, &timezone, &onError,
+								   0, dateFromParts,
+								   &timezoneToApply, &isInputValid);
+
+	if (isInputValid)
+	{
+		SetResultValueForDateFromString(dateFromParts, timezoneToApply, result);
+	}
+	pfree(dateFromParts);
 }
 
 

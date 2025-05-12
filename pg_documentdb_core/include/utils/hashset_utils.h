@@ -35,6 +35,18 @@ typedef struct PgbsonElementHashEntryOrdered
 } PgbsonElementHashEntryOrdered;
 
 /*
+ * Struct used to store a bson value and accompanying collation string in a hash table.
+ */
+typedef struct BsonValueHashEntry
+{
+	/* key for hash entry; must be the first field */
+	bson_value_t bsonValue;
+
+	/* collation string; must be second field */
+	const char *collationString;
+} BsonValueHashEntry;
+
+/*
  * Defines the flags to be used in standard HTAB creations in the DocumentDB scenario.
  * We use the hash of the element, with a custom comparison function, and create it in
  * the current query's memory context.
@@ -69,6 +81,7 @@ HTAB * CreatePgbsonElementHashSet(void);
 HTAB * CreateStringViewHashSet(void);
 HTAB * CreateBsonValueHashSet(void);
 HTAB * CreatePgbsonElementOrderedHashSet(void);
+HTAB * CreateBsonValueWithCollationHashSet(int extraDataSize);
 
 bool InsertInToPgbsonElementOrderedHash(HTAB *hashTable,
 										PgbsonElementHashEntryOrdered *hashEntry,

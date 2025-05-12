@@ -83,7 +83,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
    Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, $1)
    InitPlan 2 (returns $1)
      ->  Result
-           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, $0)
+           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, $0, false)
            InitPlan 1 (returns $0)
              ->  Limit
                    Output: (COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson))
@@ -108,7 +108,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
    Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, $1)
    InitPlan 2 (returns $1)
      ->  Result
-           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, $0)
+           Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::bson, $0, false)
            InitPlan 1 (returns $0)
              ->  Aggregate
                    Output: COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson)

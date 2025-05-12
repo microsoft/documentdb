@@ -3006,6 +3006,12 @@ pgbson *
 ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
 								TimeSystemVariables *timeSystemVariables)
 {
+	/* Short circuit here */
+	if (varSpec->value_type == BSON_TYPE_EOD && !EnableNowSystemVariable)
+	{
+		return PgbsonInitEmpty();
+	}
+
 	ParseAggregationExpressionContext parseContext = {
 		.validateParsedExpressionFunc = &DisallowExpressionsForTopLevelLet,
 	};

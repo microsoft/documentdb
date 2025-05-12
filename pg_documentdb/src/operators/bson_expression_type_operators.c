@@ -15,6 +15,7 @@
  #include "io/bson_core.h"
  #include "operators/bson_expression.h"
  #include "operators/bson_expression_operators.h"
+ #include "operators/bson_expression_date_operators.h"
  #include "types/decimal128.h"
  #include "utils/version_utils.h"
  #include <utils/uuid.h>
@@ -1588,7 +1589,12 @@ ProcessDollarToDate(const bson_value_t *currentValue, bson_value_t *result)
 
 		case BSON_TYPE_UTF8:
 		{
-			/* TODO: from string, will add with $dateFromString operator. */
+			bson_value_t dateString = *currentValue;
+			bson_value_t dateValue = { 0 };
+
+			StringToDateWithDefaultFormat(&dateString, &dateValue);
+			result->value.v_datetime = dateValue.value.v_datetime;
+			break;
 		}
 
 		default:

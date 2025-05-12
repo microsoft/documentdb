@@ -23,6 +23,13 @@ typedef struct CompositeSingleBound
 	bool isProcessedValueTruncated;
 } CompositeSingleBound;
 
+typedef struct IndexRecheckArgs
+{
+	Pointer queryDatum;
+
+	BsonIndexStrategy queryStrategy;
+} IndexRecheckArgs;
+
 typedef struct CompositeIndexBounds
 {
 	CompositeSingleBound lowerBound;
@@ -31,6 +38,9 @@ typedef struct CompositeIndexBounds
 	bool isEqualityBound;
 
 	bool requiresRuntimeRecheck;
+
+	/* A list of IndexRecheckArgs that need recheck */
+	List *indexRecheckFunctions;
 } CompositeIndexBounds;
 
 typedef struct PathScanKeyMap
@@ -87,6 +97,10 @@ CreateCompositeIndexBoundsSet(int32_t numTerms, int32_t indexAttribute)
 	return set;
 }
 
+
+bool IsValidRecheckForIndexValue(const bson_value_t *compareValue,
+								 bool indexTermHasTruncation,
+								 IndexRecheckArgs *recheckArgs);
 
 bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 										   IndexTermCreateMetadata *metadata,

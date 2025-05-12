@@ -240,12 +240,8 @@ gin_bson_compare_partial(PG_FUNCTION_ARGS)
 	StrategyNumber strategy = PG_GETARG_UINT16(2);
 	Pointer extraData = PG_GETARG_POINTER(3);
 
-	BsonIndexTerm queryIndexTerm = {
-		false, false, { 0 }
-	};
-	BsonIndexTerm compareIndexTerm = {
-		false, false, { 0 }
-	};
+	BsonIndexTerm queryIndexTerm = { 0 };
+	BsonIndexTerm compareIndexTerm = { 0 };
 	InitializeBsonIndexTerm(queryValue, &queryIndexTerm);
 	InitializeBsonIndexTerm(compareValue, &compareIndexTerm);
 
@@ -449,9 +445,7 @@ gin_bson_get_single_path_generated_terms(PG_FUNCTION_ARGS)
 	if (context->index < context->totalTermCount)
 	{
 		Datum next = context->terms.entries[context->index++];
-		BsonIndexTerm term = {
-			false, false, { 0 }
-		};
+		BsonIndexTerm term = { 0 };
 		bytea *serializedTerm = DatumGetByteaPP(next);
 		InitializeBsonIndexTerm(serializedTerm, &term);
 		bool addMetadata = PG_GETARG_BOOL(4);
@@ -535,9 +529,7 @@ gin_bson_get_wildcard_project_generated_terms(PG_FUNCTION_ARGS)
 	if (context->index < context->totalTermCount)
 	{
 		Datum next = context->terms.entries[context->index++];
-		BsonIndexTerm term = {
-			false, false, { 0 }
-		};
+		BsonIndexTerm term = { 0 };
 		bytea *serializedTerm = DatumGetByteaPP(next);
 		InitializeBsonIndexTerm(serializedTerm, &term);
 		bool addMetadata = PG_GETARG_BOOL(4);

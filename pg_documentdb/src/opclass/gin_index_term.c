@@ -885,12 +885,8 @@ SerializeBsonIndexTermCore(pgbsonelement *indexElement,
 						   bool forceTruncated,
 						   bool isMetadataTerm)
 {
-	BsonIndexTermSerialized serializedTerm = {
-		false, false, NULL
-	};
-	BsonIndexTerm indexTerm = {
-		false, false, { 0 }
-	};
+	BsonIndexTermSerialized serializedTerm = { 0 };
+	BsonIndexTerm indexTerm = { 0 };
 
 	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
 												   forceTruncated,
@@ -923,6 +919,24 @@ SerializeBsonIndexTerm(pgbsonelement *indexElement, const
 }
 
 
+static Datum
+CompressTermIfNeeded(bytea *inputTerm)
+{
+	if (VARSIZE(inputTerm) > (Size) IndexTermCompressionThreshold)
+	{
+		Datum result = toast_compress_datum(PointerGetDatum(inputTerm),
+											default_toast_compression);
+		if (result != (Datum) NULL)
+		{
+			pfree(inputTerm);
+			return result;
+		}
+	}
+
+	return PointerGetDatum(inputTerm);
+}
+
+
 BsonCompressableIndexTermSerialized
 SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
 									  const IndexTermCreateMetadata *createMetadata)
@@ -932,28 +946,55 @@ SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
 	bool forceTruncated = false;
 	bool isMetadataTerm = false;
 
-	BsonIndexTerm indexTerm = {
-		false, false, { 0 }
-	};
-	BsonCompressableIndexTermSerialized serializedTerm = {
-		false, false, (Datum) NULL
-	};
+	BsonIndexTerm indexTerm = { 0 };
+	BsonCompressableIndexTermSerialized serializedTerm = { 0 };
 
 	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
 												   forceTruncated,
 												   isMetadataTerm, &indexTerm);
-	serializedTerm.indexTermDatum = PointerGetDatum(indexTermVal);
-	if (VARSIZE(indexTermVal) > (Size) IndexTermCompressionThreshold)
-	{
-		Datum result = toast_compress_datum(serializedTerm.indexTermDatum,
-											default_toast_compression);
-		if (result != (Datum) NULL)
-		{
-			pfree(indexTermVal);
-			serializedTerm.indexTermDatum = result;
-		}
-	}
+	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTermVal);
 
+	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
+	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
+	return serializedTerm;
+}
+
+
+BsonIndexTermSerialized
+SerializeCompositeBsonIndexTerm(pgbsonelement *indexElement,
+								const IndexTermCreateMetadata *indexMetadata, bool
+								hasTruncatedTerms)
+{
+	BsonIndexTermSerialized serializedTerm = { 0 };
+	BsonIndexTerm indexTerm = { 0 };
+
+	bool forceTruncated = hasTruncatedTerms;
+	bool isMetadataTerm = false;
+	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, indexMetadata,
+												   forceTruncated,
+												   isMetadataTerm, &indexTerm);
+
+	serializedTerm.indexTermVal = indexTermVal;
+	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
+	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
+	return serializedTerm;
+}
+
+
+BsonCompressableIndexTermSerialized
+SerializeCompositeBsonIndexTermWithCompression(pgbsonelement *indexElement,
+											   const IndexTermCreateMetadata *
+											   indexMetadata, bool hasTruncatedTerms)
+{
+	BsonCompressableIndexTermSerialized serializedTerm = { 0 };
+	BsonIndexTerm indexTerm = { 0 };
+
+	bool forceTruncated = hasTruncatedTerms;
+	bool isMetadataTerm = false;
+	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, indexMetadata,
+												   forceTruncated,
+												   isMetadataTerm, &indexTerm);
+	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTermVal);
 	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
 	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
 	return serializedTerm;

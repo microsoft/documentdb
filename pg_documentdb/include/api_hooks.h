@@ -225,4 +225,17 @@ void GetShardIdsAndNamesForCollection(Oid relationOid, const char *tableName,
 									  Datum **shardOidArray, Datum **shardNameArray,
 									  int32_t *shardCount);
 
+
+const char * GetPidForIndexBuild(void);
+
+
+const char * TryGetIndexBuildJobOpIdQuery(void);
+
+
+char * TryGetCancelIndexBuildQuery(int32_t indexId, char cmdType);
+
+
+bool ShouldScheduleIndexBuildJobs(void);
+
+
 #endif

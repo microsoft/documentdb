@@ -91,6 +91,19 @@ BsonCompressableIndexTermSerialized SerializeBsonIndexTermWithCompression(
 	IndexTermCreateMetadata
 	*indexMetadata);
 
+BsonIndexTermSerialized SerializeCompositeBsonIndexTerm(pgbsonelement *indexElement,
+														const IndexTermCreateMetadata *
+														indexMetadata, bool
+														hasTruncatedPaths);
+BsonCompressableIndexTermSerialized SerializeCompositeBsonIndexTermWithCompression(
+	pgbsonelement *indexElement,
+	const
+	IndexTermCreateMetadata
+	*
+	indexMetadata,
+	bool
+	hasTruncatedPaths);
+
 Datum GenerateRootTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootNonExistsTerm(const IndexTermCreateMetadata *);

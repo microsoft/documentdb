@@ -28,6 +28,7 @@
 #include "utils/feature_counter.h"
 #include "vector/vector_common.h"
 #include "vector/vector_spec.h"
+#include "vector/vector_utilities.h"
 
 
 /* --------------------------------------------------------- */
@@ -90,13 +91,11 @@ static void SetIVFSearchParametersToGUC(const pgbson *searchParamBson);
 
 static void SetHNSWSearchParametersToGUC(const pgbson *searchParamBson);
 
-static pgbson * GetIVFDefaultSearchParamBson(void);
+static pgbson * CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows,
+											pgbson *searchParamBson);
 
-static pgbson * GetHNSWDefaultSearchParamBson(void);
-
-static pgbson * CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows);
-
-static pgbson * CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows);
+static pgbson * CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows,
+											 pgbson *searchParamBson);
 
 static VectorIndexCompressionType ExtractIVFCompressionType(bytea *indexOptions);
 
@@ -110,26 +109,22 @@ static VectorIndexDefinition VectorIndexDefinitionArray[] = {
 	{
 		.kindName = "vector-ivf",
 		.indexAccessMethodName = "ivfflat",
-		.needsReorderAfterFilter = false,
 		.parseIndexCreationSpecFunc = &ParseIVFCreationSpec,
 		.generateIndexParamStrFunc = &GenerateIVFIndexParamStr,
 		.parseIndexSearchSpecFunc = &ParseIVFIndexSearchSpec,
 		.getIndexAccessMethodOidFunc = &PgVectorIvfFlatIndexAmId,
 		.setSearchParametersToGUCFunc = &SetIVFSearchParametersToGUC,
-		.getDefaultSearchParamBsonFunc = &GetIVFDefaultSearchParamBson,
 		.calculateSearchParamBsonFunc = &CalculateIVFSearchParamBson,
 		.extractIndexCompressionTypeFunc = &ExtractIVFCompressionType
 	},
 	{
 		.kindName = "vector-hnsw",
 		.indexAccessMethodName = "hnsw",
-		.needsReorderAfterFilter = false,
 		.parseIndexCreationSpecFunc = &ParseHNSWCreationSpec,
 		.generateIndexParamStrFunc = &GenerateHNSWIndexParamStr,
 		.parseIndexSearchSpecFunc = &ParseHNSWIndexSearchSpec,
 		.getIndexAccessMethodOidFunc = &PgVectorHNSWIndexAmId,
 		.setSearchParametersToGUCFunc = &SetHNSWSearchParametersToGUC,
-		.getDefaultSearchParamBsonFunc = &GetHNSWDefaultSearchParamBson,
 		.calculateSearchParamBsonFunc = &CalculateHNSWSearchParamBson,
 		.extractIndexCompressionTypeFunc = &ExtractHNSWCompressionType
 	},
@@ -219,12 +214,6 @@ RegisterVectorIndexExtension(const VectorIndexDefinition *extensibleDefinition)
 	{
 		ereport(ERROR, (errmsg(
 							"setSearchParametersToGUCFunc is not defined for the vector index")));
-	}
-
-	if (extensibleDefinition->getDefaultSearchParamBsonFunc == NULL)
-	{
-		ereport(ERROR, (errmsg(
-							"getDefaultSearchParamBsonFunc is not defined for the vector index")));
 	}
 
 	if (extensibleDefinition->calculateSearchParamBsonFunc == NULL)
@@ -630,8 +619,19 @@ ParseHNSWIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 /* Private methods */
 /* --------------------------------------------------------- */
 static pgbson *
-CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows)
+CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows,
+							pgbson *searchParamBson)
 {
+	/* If the searchParamBson already has the nProbes */
+	bson_iter_t documentIterator;
+	if (searchParamBson != NULL &&
+		PgbsonInitIteratorAtPath(searchParamBson, VECTOR_PARAMETER_NAME_IVF_NPROBES,
+								 &documentIterator))
+	{
+		return searchParamBson;
+	}
+
+	/* Calculate the default nProbes */
 	int numLists = -1;
 	if (indexOptions == NULL)
 	{
@@ -678,13 +678,29 @@ CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows)
 								defaultNumProbes);
 	}
 
+	if (searchParamBson != NULL)
+	{
+		PgbsonWriterConcat(&optionsWriter, searchParamBson);
+	}
+
 	return PgbsonWriterGetPgbson(&optionsWriter);
 }
 
 
 static pgbson *
-CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows)
+CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows,
+							 pgbson *searchParamBson)
 {
+	/* If the searchParamBson already has the efSearch */
+	bson_iter_t documentIterator;
+	if (searchParamBson != NULL &&
+		PgbsonInitIteratorAtPath(searchParamBson, VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH,
+								 &documentIterator))
+	{
+		return searchParamBson;
+	}
+
+	/* Calculate the default efSearch */
 	int efConstruction = -1;
 
 	if (indexOptions == NULL)
@@ -724,6 +740,11 @@ CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows)
 								defaultEfSearch);
 	}
 
+	if (searchParamBson != NULL)
+	{
+		PgbsonWriterConcat(&optionsWriter, searchParamBson);
+	}
+
 	return PgbsonWriterGetPgbson(&optionsWriter);
 }
 
@@ -736,6 +757,7 @@ SetIVFSearchParametersToGUC(const pgbson *searchParamBson)
 	while (bson_iter_next(&documentIterator))
 	{
 		const char *key = bson_iter_key(&documentIterator);
+		const bson_value_t *value = bson_iter_value(&documentIterator);
 		if (strcmp(key, VECTOR_PARAMETER_NAME_IVF_NPROBES) == 0)
 		{
 			int32_t nProbes = BsonValueAsInt32(bson_iter_value(
@@ -748,8 +770,31 @@ SetIVFSearchParametersToGUC(const pgbson *searchParamBson)
 			snprintf(nProbesStr, sizeof(nProbesStr), "%d",
 					 nProbes);
 			SetGUCLocally("ivfflat.probes", nProbesStr);
+		}
+		else if (strcmp(key, VECTOR_PARAMETER_NAME_ITERATIVE_SCAN) == 0)
+		{
+			if (value->value_type == BSON_TYPE_UTF8)
+			{
+				/*
+				 * set local ivfflat.iterative_scan=relaxed_order
+				 * TODO: set pgvector GUCs for ivf iterative scan
+				 *      ivfflat.max_probes: Specify the max number of probes(32768 by default)
+				 */
+				const char *iterativeScanMode = value->value.v_utf8.str;
 
-			break;
+				/* The default of GUC VectorPreFilterIterativeScanMode is relaxed_order,
+				 * in case we set it to strict_order, it is not supported for the ivf index, use relaxed_order instead
+				 * this may cause the results to be slightly out of order */
+				if (strcmp(iterativeScanMode, "strict_order") == 0)
+				{
+					ereport(WARNING, errmsg(
+								"Iiterative_scan '%s' is not supported for ivf index, use relaxed_order instead, this may cause the results to be slightly out of order.",
+								iterativeScanMode));
+					iterativeScanMode = "relaxed_order";
+				}
+
+				SetGUCLocally("ivfflat.iterative_scan", iterativeScanMode);
+			}
 		}
 	}
 }
@@ -763,10 +808,10 @@ SetHNSWSearchParametersToGUC(const pgbson *searchParamBson)
 	while (bson_iter_next(&documentIterator))
 	{
 		const char *key = bson_iter_key(&documentIterator);
+		const bson_value_t *value = bson_iter_value(&documentIterator);
 		if (strcmp(key, VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH) == 0)
 		{
-			int32_t efSearch = BsonValueAsInt32(bson_iter_value(
-													&documentIterator));
+			int32_t efSearch = BsonValueAsInt32(value);
 
 			/*
 			 * set efSearch to local GUC hnsw.ef_search
@@ -775,38 +820,21 @@ SetHNSWSearchParametersToGUC(const pgbson *searchParamBson)
 			snprintf(efSearchStr, sizeof(efSearchStr), "%d",
 					 efSearch);
 			SetGUCLocally("hnsw.ef_search", efSearchStr);
-
-			break;
+		}
+		else if (strcmp(key, VECTOR_PARAMETER_NAME_ITERATIVE_SCAN) == 0)
+		{
+			if (value->value_type == BSON_TYPE_UTF8)
+			{
+				/*
+				 * set local hnsw.iterative_scan=relaxed_order
+				 * TODO: set pgvector GUCs for hnsw iterative scan
+				 *  hnsw.max_scan_tuples: Specify the max number of tuples to visit (20,000 by default)
+				 *  hnsw.scan_mem_multiplier: Specify the max amount of memory to use, as a multiple of work_mem (1 by default)
+				 */
+				SetGUCLocally("hnsw.iterative_scan", value->value.v_utf8.str);
+			}
 		}
 	}
-}
-
-
-static pgbson *
-GetIVFDefaultSearchParamBson(void)
-{
-	pgbson_writer optionsWriter;
-	PgbsonWriterInit(&optionsWriter);
-
-	PgbsonWriterAppendInt32(&optionsWriter, VECTOR_PARAMETER_NAME_IVF_NPROBES,
-							VECTOR_PARAMETER_NAME_IVF_NPROBES_STR_LEN,
-							IVFFLAT_DEFAULT_NPROBES);
-
-	return PgbsonWriterGetPgbson(&optionsWriter);
-}
-
-
-static pgbson *
-GetHNSWDefaultSearchParamBson(void)
-{
-	pgbson_writer optionsWriter;
-	PgbsonWriterInit(&optionsWriter);
-
-	PgbsonWriterAppendInt32(&optionsWriter, VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH,
-							VECTOR_PARAMETER_NAME_HNSW_EF_SEARCH_STR_LEN,
-							HNSW_DEFAULT_EF_SEARCH);
-
-	return PgbsonWriterGetPgbson(&optionsWriter);
 }
 
 

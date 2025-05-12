@@ -13,10 +13,12 @@
 #include <funcapi.h>
 #include <utils/portal.h>
 #include <utils/varlena.h>
+#include <utils/typcache.h>
 #include <executor/spi.h>
 #include <tcop/dest.h>
 #include <tcop/pquery.h>
 #include <tcop/tcopprot.h>
+#include <executor/tstoreReceiver.h>
 #include <nodes/makefuncs.h>
 #include <utils/lsyscache.h>
 #include <metadata/metadata_cache.h>
@@ -42,6 +44,7 @@
  */
 extern int32_t MaxWorkerCursorSize;
 extern bool EnablePrimaryKeyCursorScan;
+extern bool UseRawExecutorForQueryPlan;
 
 static char LastOpenPortalName[NAMEDATALEN] = { 0 };
 
@@ -91,6 +94,24 @@ typedef struct TailableCursorContinuationEntry
 	/* contiunation token for the tailable cursor. */
 	const char *continuationToken;
 } TailableCursorContinuationEntry;
+
+
+/*
+ * TupleDestDestReceiver is internal representation of a DestReceiver which
+ * forards tuples to a tuple destination.
+ */
+typedef struct BsonStoreTupleDestReceiver
+{
+	DestReceiver pub;
+
+	pgbson_array_writer *writer;
+
+	MemoryContext writerContext;
+
+	uint32_t numRowsFetched;
+
+	uint32_t *currentAccumulatedSize;
+} BsonStoreTupleDestReceiver;
 
 static void HoldPortal(Portal portal);
 static uint32 CursorHashEntryHashFunc(const void *obj, size_t objsize);
@@ -142,6 +163,17 @@ static pgbson * ProcessCursorResultRowContinuationAttribute(HTAB *cursorMap,
 static void AppendLastContinuationTokenToCursor(pgbson_writer *writer,
 												pgbson *continuationDoc);
 
+static bool DrainStatementViaPortal(const char *cursorName, int cursorOptions,
+									PlannedStmt *queryPlan, ParamListInfo paramList,
+									uint32_t *accumulatedSize,
+									pgbson_array_writer *arrayWriter,
+									MemoryContext currentContext);
+
+static bool DrainStatementViaExecutor(const char *cursorName, int cursorOptions,
+									  PlannedStmt *queryPlan, ParamListInfo paramList,
+									  uint32_t *accumulatedSize,
+									  pgbson_array_writer *arrayWriter,
+									  MemoryContext currentContext);
 
 const char NodeId[] = "nodeId";
 uint32_t NodeIdLength = 7;
@@ -498,11 +530,134 @@ CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 		queryPlan = pg_plan_query(query, NULL, cursorOptions, paramList);
 	}
 
+	if (UseRawExecutorForQueryPlan)
+	{
+		return DrainStatementViaExecutor(cursorName, cursorOptions, queryPlan,
+										 paramList, &accumulatedSize,
+										 arrayWriter, currentContext);
+	}
+
+	return DrainStatementViaPortal(cursorName, cursorOptions, queryPlan,
+								   paramList, &accumulatedSize, arrayWriter,
+								   currentContext);
+}
+
+
+static void
+BsonStoreDestReceiverStartup(DestReceiver *destReceiver, int operation,
+							 TupleDesc inputTupleDesc)
+{
+	/* nothing to do */
+}
+
+
+static bool
+BsonStoreDestReceiverReceive(TupleTableSlot *slot,
+							 DestReceiver *destReceiver)
+{
+	BsonStoreTupleDestReceiver *tupleDestReceiver =
+		(BsonStoreTupleDestReceiver *) destReceiver;
+
+	/*
+	 * DestReceiver doesn't support multiple result sets with different shapes.
+	 */
+	bool isNull = false;
+	Datum result = slot_getattr(slot, 1, &isNull);
+	if (isNull)
+	{
+		return true;
+	}
+
+	pgbson *resultBson = DatumGetPgBsonPacked(result);
+	MemoryContext oldContext = MemoryContextSwitchTo(tupleDestReceiver->writerContext);
+	PgbsonArrayWriterWriteDocument(tupleDestReceiver->writer, resultBson);
+	MemoryContextSwitchTo(oldContext);
+
+	return true;
+}
+
+
+static void
+BsonStoreDestReceiverShutdown(DestReceiver *destReceiver)
+{
+	/* nothing to do */
+}
+
+
+static void
+BsonStoreDestReceiverDestroy(DestReceiver *destReceiver)
+{
+	/* nothing to do */
+}
+
+
+/*
+ * For pure local execution, we know that we're parented by a
+ * function call, which has set up a Portal, a Snapshot and Transaction context.
+ * We can continue execution directly here. To execute this, we build a plan,
+ * start the executor and run it directly. Additionally, since we know we're pulling
+ * bson, we can create a custom DestReceiver that receives tuples directly into
+ * the target pgbson_array_writer. This avoids any temporary stores that would
+ * hold the data and instead just write it out to the target.
+ *
+ * TODO: Enable more scenarios (like singlePage scans) to use this.
+ */
+static bool
+DrainStatementViaExecutor(const char *cursorName, int cursorOptions,
+						  PlannedStmt *queryPlan, ParamListInfo paramList,
+						  uint32_t *accumulatedSize,
+						  pgbson_array_writer *arrayWriter,
+						  MemoryContext currentContext)
+{
+	ScanDirection scanDirection = ForwardScanDirection;
+	QueryEnvironment *queryEnv = create_queryEnv();
+	int eflags = 0;
+
+	MemoryContext localContext = AllocSetContextCreate(currentContext,
+													   "DocumentDBExecutePlan",
+													   ALLOCSET_DEFAULT_SIZES);
+	MemoryContext oldContext = MemoryContextSwitchTo(localContext);
+
+	BsonStoreTupleDestReceiver *destReceiver =
+		(BsonStoreTupleDestReceiver *) palloc0(sizeof(BsonStoreTupleDestReceiver));
+
+	destReceiver->pub.rStartup = BsonStoreDestReceiverStartup;
+	destReceiver->pub.receiveSlot = BsonStoreDestReceiverReceive;
+	destReceiver->pub.rShutdown = BsonStoreDestReceiverShutdown;
+	destReceiver->pub.rDestroy = BsonStoreDestReceiverDestroy;
+	destReceiver->currentAccumulatedSize = accumulatedSize;
+	destReceiver->writer = arrayWriter;
+	destReceiver->writerContext = currentContext;
+
+	/* Create a QueryDesc for the query */
+	QueryDesc *queryDesc = CreateQueryDesc(queryPlan, "",
+										   GetActiveSnapshot(), InvalidSnapshot,
+										   (DestReceiver *) destReceiver, paramList,
+										   queryEnv, 0);
+
+	ExecutorStart(queryDesc, eflags);
+	ExecutorRun(queryDesc, scanDirection, 0L, true);
+	ExecutorFinish(queryDesc);
+	ExecutorEnd(queryDesc);
+
+	FreeQueryDesc(queryDesc);
+	MemoryContextSwitchTo(oldContext);
+	MemoryContextDelete(localContext);
+	return true;
+}
+
+
+static bool
+DrainStatementViaPortal(const char *cursorName, int cursorOptions,
+						PlannedStmt *queryPlan, ParamListInfo paramList,
+						uint32_t *accumulatedSize,
+						pgbson_array_writer *arrayWriter,
+						MemoryContext currentContext)
+{
 	/* Create the cursor */
 	Portal queryPortal = CreatePortal(cursorName, false, false);
 	queryPortal->visible = true;
 	queryPortal->cursorOptions = cursorOptions;
-
 
 	/* Set the plan into the portal  */
 	PortalDefineQuery(queryPortal, NULL, "",
@@ -523,7 +678,7 @@ CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 	uint64_t currentAccumulatedSize = 0;
 	TerminationReason reason = FetchCursorAndWriteUntilPageOrSize(queryPortal, INT_MAX,
 																  arrayWriter,
-																  &accumulatedSize,
+																  accumulatedSize,
 																  cursorMap,
 																  &numRowsFetched,
 																  &currentAccumulatedSize,
@@ -1211,6 +1366,45 @@ BuildContinuationMap(pgbson *continuationValue, HTAB *cursorMap)
 
 
 /*
+ * Creates a tuple descriptor for the cursor result. This is deliberately made a raw tuple descriptor
+ * instead of a know SQL type for performance reasons and to avoid overhead of maintaining the new type.ACL_SELECT_FOR_UPDATE
+ *
+ * The tuple descriptor has maximim maxAttrNum of attributes.
+ *
+ * CODESYNC: Change this whenever we modify the OUT variables in sql/udfs/commands_crud/query_cursors_aggregate--latest.sql
+ */
+TupleDesc
+ConstructCursorResultTupleDesc(AttrNumber maxAttrNum)
+{
+	Assert(maxAttrNum >= 2 && maxAttrNum <= 4);
+	AttrNumber attrIndex = 0;
+
+	TupleDesc tupleDescriptor = CreateTemplateTupleDesc(maxAttrNum);
+
+	TupleDescInitEntry(tupleDescriptor, ++attrIndex, "cursor", DocumentDBCoreBsonTypeId(),
+					   -1, 0);
+	TupleDescInitEntry(tupleDescriptor, ++attrIndex, "continuation",
+					   DocumentDBCoreBsonTypeId(), -1, 0);
+
+	if (maxAttrNum > 2)
+	{
+		TupleDescInitEntry(tupleDescriptor, ++attrIndex, "persistConnection", BOOLOID, -1,
+						   0);
+		TupleDescInitEntry(tupleDescriptor, ++attrIndex, "cursorId", INT8OID, -1, 0);
+	}
+
+	if (tupleDescriptor->tdtypeid == RECORDOID && tupleDescriptor->tdtypmod < 0)
+	{
+		/* Register the type */
+		assign_record_type_typmod(tupleDescriptor);
+	}
+
+	tupleDescriptor->natts = maxAttrNum;
+	return tupleDescriptor;
+}
+
+
+/*
  * At the beginning of the cursor's execution, takes the serialized pgbson
  * and builds the cursor map for tailable cursror with the per node values.
  */
@@ -1469,11 +1663,11 @@ SetupCursorPagePreamble(pgbson_writer *topLevelWriter, pgbson_writer *cursorDoc,
  * Also creates the result tuple that's (document, continuation) and returns it.
  */
 Datum
-PostProcessCursorPage(PG_FUNCTION_ARGS,
-					  pgbson_writer *cursorDoc, pgbson_array_writer *arrayWriter,
+PostProcessCursorPage(pgbson_writer *cursorDoc, pgbson_array_writer *arrayWriter,
 					  pgbson_writer *topLevelWriter, int64_t cursorId,
 					  pgbson *continuation, bool persistConnection,
-					  pgbson *lastContinuationToken)
+					  pgbson *lastContinuationToken,
+					  TupleDesc cursorResultTupleDesc)
 {
 	/* Finish the cursor doc*/
 	PgbsonWriterEndArray(cursorDoc, arrayWriter);
@@ -1532,36 +1726,16 @@ PostProcessCursorPage(PG_FUNCTION_ARGS,
 	memset(values, 0, sizeof(values));
 	memset(nulls, 0, sizeof(nulls));
 
-	TupleDesc tupleDescriptor = NULL;
-	if (get_call_result_type(fcinfo, NULL, &tupleDescriptor) != TYPEFUNC_COMPOSITE)
-	{
-		elog(ERROR, "return type must be a row type");
-	}
-
-	if (tupleDescriptor->natts < 2 &&
-		tupleDescriptor->natts > 4)
-	{
-		elog(ERROR, "incorrect number of output arguments");
-	}
-
 	values[0] = PointerGetDatum(PgbsonWriterGetPgbson(topLevelWriter));
 	values[1] = queryFullyDrained ? (Datum) 0 : PointerGetDatum(continuation);
 	nulls[0] = false;
 	nulls[1] = queryFullyDrained;
+	values[2] = BoolGetDatum(persistConnection);
+	nulls[2] = false;
+	values[3] = Int64GetDatum(cursorId);
+	nulls[3] = false;
 
-	if (tupleDescriptor->natts >= 3)
-	{
-		values[2] = BoolGetDatum(persistConnection);
-		nulls[2] = false;
-	}
-
-	if (tupleDescriptor->natts == 4)
-	{
-		values[3] = Int64GetDatum(cursorId);
-		nulls[3] = false;
-	}
-
-	HeapTuple ret = heap_form_tuple(tupleDescriptor, values, nulls);
+	HeapTuple ret = heap_form_tuple(cursorResultTupleDesc, values, nulls);
 	return HeapTupleGetDatum(ret);
 }
 

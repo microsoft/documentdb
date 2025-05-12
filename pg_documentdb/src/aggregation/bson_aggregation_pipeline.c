@@ -1039,7 +1039,7 @@ CreateNamespaceName(text *databaseName, const StringView *collectionName)
  * For this we simply create the query from it and let the validation take place.
  */
 void
-ValidateAggregationPipeline(Datum databaseDatum, const StringView *baseCollection,
+ValidateAggregationPipeline(text *databaseDatum, const StringView *baseCollection,
 							const bson_value_t *pipelineValue)
 {
 	AggregationPipelineBuildContext validationContext = { 0 };
@@ -1147,7 +1147,7 @@ MutateQueryWithPipeline(Query *query, List *aggregationStages,
  * to match the contents of the provided aggregation pipeline.
  */
 Query *
-GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *queryData,
+GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *queryData,
 						 bool addCursorParams, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
@@ -1249,12 +1249,34 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
 			EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
 		}
+		else if (StringViewEqualsCString(&keyView, "$db"))
+		{
+			/* BackCompat: Ignore if provided top level */
+			if (context.databaseNameDatum == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &aggregationIterator, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseName = bson_iter_utf8(&aggregationIterator,
+														  &databaseLength);
+				context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																	 databaseLength);
+				database = context.databaseNameDatum;
+			}
+		}
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg("%*s is an unknown field",
 								   keyView.length, keyView.string)));
 		}
+	}
+
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
 	}
 
 	if (pipelineValue.value_type != BSON_TYPE_ARRAY)
@@ -1284,11 +1306,12 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
 	Query *query;
 	if (isCollectionAgnosticQuery)
 	{
-		query = GenerateBaseAgnosticQuery(database, &context);
+		query = GenerateBaseAgnosticQuery(context.databaseNameDatum, &context);
 	}
 	else
 	{
-		query = GenerateBaseTableQuery(database, &collectionName, collectionUuid,
+		query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
+									   collectionUuid,
 									   &context);
 	}
 
@@ -1356,7 +1379,7 @@ GenerateAggregationQuery(Datum database, pgbson *aggregationSpec, QueryData *que
  * Applies a find spec against a query and expands it into the underlying SQL AST.
  */
 Query *
-GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, bool
+GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, bool
 				  addCursorParams, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
@@ -1388,134 +1411,286 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 		StringView keyView = bson_iter_key_string_view(&findIterator);
 		const bson_value_t *value = bson_iter_value(&findIterator);
 
-		if (StringViewEqualsCString(&keyView, "find"))
+		/*
+		 * Key off of the first character to avoid the several "if/else" checks for every
+		 * key. If any letter becomes to long, we should add another lookup table
+		 * block to speed up the comparison.
+		 */
+		switch (keyView.string[0])
 		{
-			hasFind = true;
-			EnsureTopLevelFieldType("find", &findIterator, BSON_TYPE_UTF8);
-			collectionName.string = bson_iter_utf8(&findIterator, &collectionName.length);
-		}
-		else if (StringViewEqualsCString(&keyView, "filter"))
-		{
-			EnsureTopLevelFieldType("filter", &findIterator, BSON_TYPE_DOCUMENT);
-			filter = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "limit"))
-		{
-			/* In case ntoreturn is present and has been parsed already we throw this error */
-			if (!isNtoReturnSupported && hasNtoreturn)
+			case '$':
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+				if (StringViewEqualsCString(&keyView, "$db"))
+				{
+					/* BackCompat: Ignore if provided top level */
+					if (context.databaseNameDatum == NULL)
+					{
+						/* Extract the database out of $db */
+						EnsureTopLevelFieldType("$db", &findIterator, BSON_TYPE_UTF8);
+
+						uint32_t databaseLength = 0;
+						const char *databaseName = bson_iter_utf8(&findIterator,
+																  &databaseLength);
+						context.databaseNameDatum = cstring_to_text_with_len(databaseName,
+																			 databaseLength);
+						databaseDatum = context.databaseNameDatum;
+					}
+
+					continue;
+				}
+
+				goto default_find_case;
 			}
 
-			/* Validation handled in the stage processing */
-			limit = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "projection"))
-		{
-			/* Validation handled in the stage processing */
-			/* TODO - Mongo validates projection even if collection is not present */
-			/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
-			projection = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "skip"))
-		{
-			/* Validation handled in the stage processing */
-			skip = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "sort"))
-		{
-			EnsureTopLevelFieldType("sort", &findIterator, BSON_TYPE_DOCUMENT);
-			sort = *value;
-		}
-		else if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
-		{
-			EnsureTopLevelFieldType("collation", &findIterator, BSON_TYPE_DOCUMENT);
-			ReportFeatureUsage(FEATURE_COLLATION);
-			ParseAndGetCollationString(value, context.collationString);
-		}
-		else if (StringViewEqualsCString(&keyView, "singleBatch"))
-		{
-			EnsureTopLevelFieldType("singleBatch", &findIterator, BSON_TYPE_BOOL);
-			if (value->value.v_bool)
+			case 'a':
 			{
-				queryData->cursorKind = QueryCursorType_SingleBatch;
-			}
-		}
-		else if (StringViewEqualsCString(&keyView, "batchSize"))
-		{
-			/* In case ntoreturn is present and has been parsed already we throw this error */
-			if (!isNtoReturnSupported && hasNtoreturn)
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
-			}
-			SetBatchSize("batchSize", value, queryData);
-			hasBatchSize = !isNtoReturnSupported;
-		}
-		else if (StringViewEqualsCString(&keyView, "ntoreturn"))
-		{
-			/* In case of versions <6.0 we support ntoreturn */
-			if (isNtoReturnSupported)
-			{
-				SetBatchSize("ntoreturn", value, queryData);
+				if (StringViewEqualsCString(&keyView, "allowDiskUse") ||
+					StringViewEqualsCString(&keyView, "allowPartialResults"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
 			}
 
-			/* In case ntoreturn is the last option in the find command we first check if batchSize or limit is present */
-			if (limit.value_type != BSON_TYPE_EOD || hasBatchSize)
+			case 'b':
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+				if (StringViewEqualsCString(&keyView, "batchSize"))
+				{
+					/* In case ntoreturn is present and has been parsed already we throw this error */
+					if (!isNtoReturnSupported && hasNtoreturn)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+					SetBatchSize("batchSize", value, queryData);
+					hasBatchSize = !isNtoReturnSupported;
+					continue;
+				}
+
+				goto default_find_case;
 			}
-			hasNtoreturn = !isNtoReturnSupported;
+
+			case 'c':
+			{
+				if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
+				{
+					EnsureTopLevelFieldType("collation", &findIterator,
+											BSON_TYPE_DOCUMENT);
+					ReportFeatureUsage(FEATURE_COLLATION);
+					ParseAndGetCollationString(value, context.collationString);
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'f':
+			{
+				if (StringViewEqualsCString(&keyView, "find"))
+				{
+					hasFind = true;
+					EnsureTopLevelFieldType("find", &findIterator, BSON_TYPE_UTF8);
+					collectionName.string = bson_iter_utf8(&findIterator,
+														   &collectionName.length);
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "filter"))
+				{
+					EnsureTopLevelFieldType("filter", &findIterator, BSON_TYPE_DOCUMENT);
+					filter = *value;
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'h':
+			{
+				if (StringViewEqualsCString(&keyView, "hint"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'l':
+			{
+				if (StringViewEqualsCString(&keyView, "limit"))
+				{
+					/* In case ntoreturn is present and has been parsed already we throw this error */
+					if (!isNtoReturnSupported && hasNtoreturn)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+
+					/* Validation handled in the stage processing */
+					limit = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "let"))
+				{
+					EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
+					let = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "lsid"))
+				{
+					/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'm':
+			{
+				if (StringViewEqualsCString(&keyView, "min") ||
+					StringViewEqualsCString(&keyView, "max"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+				else if (setStatementTimeout &&
+						 StringViewEqualsCString(&keyView, "maxTimeMS"))
+				{
+					EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
+					SetExplicitStatementTimeout(BsonValueAsInt32(value));
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'n':
+			{
+				if (StringViewEqualsCString(&keyView, "ntoreturn"))
+				{
+					/* In case of versions <6.0 we support ntoreturn */
+					if (isNtoReturnSupported)
+					{
+						SetBatchSize("ntoreturn", value, queryData);
+					}
+
+					/* In case ntoreturn is the last option in the find command we first check if batchSize or limit is present */
+					if (limit.value_type != BSON_TYPE_EOD || hasBatchSize)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg(
+											"'limit' or 'batchSize' fields can not be set with 'ntoreturn' field")));
+					}
+					hasNtoreturn = !isNtoReturnSupported;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "noCursorTimeout"))
+				{
+					/* We ignore this for now (TODO Support this?) */
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'p':
+			{
+				if (StringViewEqualsCString(&keyView, "projection"))
+				{
+					/* Validation handled in the stage processing */
+					/* TODO - Mongo validates projection even if collection is not present */
+					/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
+					projection = *value;
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 'r':
+			{
+				if (StringViewEqualsCString(&keyView, "returnKey"))
+				{
+					if (BsonValueAsBool(value))
+					{
+						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+										errmsg("key %.*s is not supported yet",
+											   keyView.length, keyView.string),
+										errdetail_log("key %.*s is not supported yet",
+													  keyView.length, keyView.string)));
+					}
+
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+			case 's':
+			{
+				if (StringViewEqualsCString(&keyView, "skip"))
+				{
+					/* Validation handled in the stage processing */
+					skip = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "sort"))
+				{
+					EnsureTopLevelFieldType("sort", &findIterator, BSON_TYPE_DOCUMENT);
+					sort = *value;
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "singleBatch"))
+				{
+					EnsureTopLevelFieldType("singleBatch", &findIterator, BSON_TYPE_BOOL);
+					if (value->value.v_bool)
+					{
+						queryData->cursorKind = QueryCursorType_SingleBatch;
+					}
+					continue;
+				}
+				else if (StringViewEqualsCString(&keyView, "showRecordId"))
+				{
+					if (BsonValueAsBool(value))
+					{
+						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+										errmsg("key %.*s is not supported yet",
+											   keyView.length, keyView.string),
+										errdetail_log("key %.*s is not supported yet",
+													  keyView.length, keyView.string)));
+					}
+
+					continue;
+				}
+
+				goto default_find_case;
+			}
+
+default_find_case:
+			default:
+			{
+				if (!IsCommonSpecIgnoredField(keyView.string))
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg("%.*s is an unknown field",
+										   keyView.length, keyView.string),
+									errdetail_log("%.*s is an unknown field",
+												  keyView.length, keyView.string)));
+				}
+			}
 		}
-		else if (StringViewEqualsCString(&keyView, "let"))
-		{
-			EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
-			let = *value;
-		}
-		else if (StringViewEqualsCString(&keyView, "hint") ||
-				 StringViewEqualsCString(&keyView, "min") ||
-				 StringViewEqualsCString(&keyView, "max") ||
-				 StringViewEqualsCString(&keyView, "allowPartialResults") ||
-				 StringViewEqualsCString(&keyView, "allowDiskUse") ||
-				 StringViewEqualsCString(&keyView, "noCursorTimeout"))
-		{
-			/* We ignore this for now (TODO Support this?) */
-		}
-		else if (StringViewEqualsCString(&keyView, "$db") ||
-				 StringViewEqualsCString(&keyView, "lsid"))
-		{
-			/* Commonly ignored spec, add here to not pay cost of bsearch for hotpaths */
-		}
-		else if ((StringViewEqualsCString(&keyView, "returnKey") ||
-				  StringViewEqualsCString(&keyView, "showRecordId")) &&
-				 BsonValueAsBool(value))
-		{
-			/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("key %.*s is not supported yet",
-								   keyView.length, keyView.string),
-							errdetail_log("key %.*s is not supported yet",
-										  keyView.length, keyView.string)));
-		}
-		else if (setStatementTimeout &&
-				 StringViewEqualsCString(&keyView, "maxTimeMS"))
-		{
-			EnsureTopLevelFieldIsNumberLike("find.maxTimeMS", value);
-			SetExplicitStatementTimeout(BsonValueAsInt32(value));
-		}
-		else if (!IsCommonSpecIgnoredField(keyView.string))
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("%.*s is an unknown field",
-								   keyView.length, keyView.string),
-							errdetail_log("%.*s is an unknown field",
-										  keyView.length, keyView.string)));
-		}
+	}
+
+	if (context.databaseNameDatum == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"Required field database must be valid")));
 	}
 
 	if (!hasFind)
@@ -1575,7 +1750,8 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
 		context.requiresPersistentCursor = true;
 	}
 
-	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
+	Query *query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
+										  collectionUuid,
 										  &context);
 	Query *baseQuery = query;
 
@@ -1661,7 +1837,7 @@ GenerateFindQuery(Datum databaseDatum, pgbson *findSpec, QueryData *queryData, b
  * Generates a query that is akin to the MongoDB $count query command
  */
 Query *
-GenerateCountQuery(Datum databaseDatum, pgbson *countSpec, bool setStatementTimeout)
+GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
 	context.databaseNameDatum = databaseDatum;
@@ -1851,7 +2027,7 @@ GenerateCountQuery(Datum databaseDatum, pgbson *countSpec, bool setStatementTime
  * Generates a query that is akin to the MongoDB $distinct query command
  */
 Query *
-GenerateDistinctQuery(Datum databaseDatum, pgbson *distinctSpec, bool setStatementTimeout)
+GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStatementTimeout)
 {
 	AggregationPipelineBuildContext context = { 0 };
 	context.databaseNameDatum = databaseDatum;
@@ -1947,12 +2123,13 @@ GenerateDistinctQuery(Datum databaseDatum, pgbson *distinctSpec, bool setStateme
  * with it. Also updates the queryData with cursor related information.
  */
 int64_t
-ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
+ParseGetMore(text **databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 			 setStatementTimeout)
 {
 	bson_iter_t cursorSpecIter;
 	PgbsonInitIterator(getMoreSpec, &cursorSpecIter);
 	int64_t cursorId = 0;
+	StringView nameView = { 0 };
 	while (bson_iter_next(&cursorSpecIter))
 	{
 		const char *pathKey = bson_iter_key(&cursorSpecIter);
@@ -1972,18 +2149,31 @@ ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 		{
 			const bson_value_t *value = bson_iter_value(&cursorSpecIter);
 			EnsureTopLevelFieldValueType("collection", value, BSON_TYPE_UTF8);
-			StringView nameView = {
+			nameView = (StringView) {
 				.string = value->value.v_utf8.str,
 				.length = value->value.v_utf8.len
 			};
-			queryData->namespaceName = CreateNamespaceName(databaseName,
-														   &nameView);
 		}
 		else if (setStatementTimeout && strcmp(pathKey, "maxTimeMS") == 0)
 		{
 			const bson_value_t *value = bson_iter_value(&cursorSpecIter);
 			EnsureTopLevelFieldIsNumberLike("getMore.maxTimeMS", value);
 			SetExplicitStatementTimeout(BsonValueAsInt32(value));
+		}
+		else if (strcmp(pathKey, "$db") == 0)
+		{
+			/* BackCompat: Ignore if provided top level */
+			if (*databaseName == NULL)
+			{
+				/* Extract the database out of $db */
+				EnsureTopLevelFieldType("$db", &cursorSpecIter, BSON_TYPE_UTF8);
+
+				uint32_t databaseLength = 0;
+				const char *databaseStr = bson_iter_utf8(&cursorSpecIter,
+														 &databaseLength);
+				*databaseName = cstring_to_text_with_len(databaseStr,
+														 databaseLength);
+			}
 		}
 		else if (!IsCommonSpecIgnoredField(pathKey))
 		{
@@ -1993,11 +2183,20 @@ ParseGetMore(text *databaseName, pgbson *getMoreSpec, QueryData *queryData, bool
 		}
 	}
 
-	if (queryData->namespaceName == NULL)
+	if (nameView.length == 0)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
+						errmsg("Collection name can't be empty.")));
+	}
+
+	if (*databaseName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Required element \"collection\" missing.")));
+						errmsg("Required element \"$db\" missing.")));
 	}
+
+	queryData->namespaceName = CreateNamespaceName(*databaseName,
+												   &nameView);
 
 	if (cursorId == 0)
 	{
@@ -2178,6 +2377,11 @@ HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 	else
 	{
 		args = list_make2(currentProjection, addFieldsProcessed);
+		if (functionOid == BsonDollaMergeDocumentsFunctionOid())
+		{
+			bool overrideArrays = false;
+			args = lappend(args, MakeBoolValueConst(overrideArrays));
+		}
 	}
 
 	FuncExpr *resultExpr = makeFuncExpr(
@@ -3570,7 +3774,8 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
 	}
 
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,
-									 context->databaseNameDatum, false, false);
+									 PointerGetDatum(context->databaseNameDatum), false,
+									 false);
 	Const *collectionConst = MakeTextConst(context->collectionNameView.string,
 										   context->collectionNameView.length);
 
@@ -3593,7 +3798,7 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
  * where the maximum number of arguments can be larger than MaxEvenFunctionArguments.
  */
 Expr *
-GenerateMultiExpressionRepathExpression(List *repathArgs)
+GenerateMultiExpressionRepathExpression(List *repathArgs, bool overrideArrayInProjection)
 {
 	Assert(repathArgs != NIL && list_length(repathArgs) % 2 == 0);
 
@@ -3627,11 +3832,14 @@ GenerateMultiExpressionRepathExpression(List *repathArgs)
 	Expr *argsRepathExpression = (Expr *) makeFuncExpr(BsonRepathAndBuildFunctionOid(),
 													   BsonTypeId(), args, InvalidOid,
 													   InvalidOid, COERCE_EXPLICIT_CALL);
-	Expr *remainingArgsExprs = GenerateMultiExpressionRepathExpression(remainingArgs);
+	Expr *remainingArgsExprs = GenerateMultiExpressionRepathExpression(remainingArgs,
+																	   overrideArrayInProjection);
 
 	return (Expr *) makeFuncExpr(BsonDollaMergeDocumentsFunctionOid(),
 								 BsonTypeId(),
-								 list_make2(argsRepathExpression, remainingArgsExprs),
+								 list_make3(argsRepathExpression, remainingArgsExprs,
+											MakeBoolValueConst(
+												overrideArrayInProjection)),
 								 InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 }
 
@@ -5837,7 +6045,11 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 
 	/* Take the output and replace it with the repath_and_build */
 	TargetEntry *entry = linitial(query->targetList);
-	Expr *repathExpression = GenerateMultiExpressionRepathExpression(repathArgs);
+
+	/* $group doesn't allow dotted path so no need to override */
+	bool overrideArrayInProjection = false;
+	Expr *repathExpression = GenerateMultiExpressionRepathExpression(repathArgs,
+																	 overrideArrayInProjection);
 
 	entry->expr = repathExpression;
 	entry->resname = origEntry->resname;
@@ -6218,7 +6430,7 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
  * Updates the base table
  */
 Query *
-GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView,
+GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView,
 					   pg_uuid_t *collectionUuid,
 					   AggregationPipelineBuildContext *context)
 {
@@ -6227,12 +6439,13 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 	query->querySource = QSRC_ORIGINAL;
 	query->canSetTag = true;
 	context->collectionNameView = *collectionNameView;
-	context->namespaceName = CreateNamespaceName(DatumGetTextPP(databaseDatum),
+	context->namespaceName = CreateNamespaceName(databaseDatum,
 												 collectionNameView);
 	Datum collectionNameDatum = PointerGetDatum(
 		cstring_to_text_with_len(collectionNameView->string, collectionNameView->length));
 
-	MongoCollection *collection = GetMongoCollectionOrViewByNameDatum(databaseDatum,
+	MongoCollection *collection = GetMongoCollectionOrViewByNameDatum(PointerGetDatum(
+																		  databaseDatum),
 																	  collectionNameDatum,
 																	  AccessShareLock);
 
@@ -6258,7 +6471,7 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 	List *pipelineStages = NIL;
 	if (collection != NULL && collection->viewDefinition != NULL)
 	{
-		collection = ExtractViewDefinitionAndPipeline(databaseDatum,
+		collection = ExtractViewDefinitionAndPipeline(PointerGetDatum(databaseDatum),
 													  collection->viewDefinition,
 													  &pipelineStages,
 													  context);
@@ -6290,7 +6503,7 @@ GenerateBaseTableQuery(Datum databaseDatum, const StringView *collectionNameView
 		/* Here: Special case, if the database is config, try to see if we can create a base
 		 * table out of the system metadata.
 		 */
-		StringView databaseView = CreateStringViewFromText(DatumGetTextPP(databaseDatum));
+		StringView databaseView = CreateStringViewFromText(databaseDatum);
 		if (StringViewEqualsCString(&databaseView, "config"))
 		{
 			Query *returnedQuery = GenerateConfigDatabaseQuery(context);

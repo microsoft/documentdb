@@ -70,6 +70,9 @@ static bytea * BuildTermForBounds(CompositeQueryRunData *runData,
 								  IndexTermCreateMetadata *compositeMetadata,
 								  bool *partialMatch);
 static bool ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement);
+static int32_t RunCompareOnBounds(CompositeIndexBounds *bounds, const
+								  bson_value_t *compareValue,
+								  bool hasEqualityPrefix, bool *priorMatchesEquality);
 
 
 inline static IndexTermCreateMetadata
@@ -367,87 +370,114 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 
 		hasEqualityPrefix = hasEqualityPrefix && priorMatchesEquality;
 		const bson_value_t *compareValue = bson_iter_value(&compareIter);
-		if (runData->indexBounds[compareIndex].isEqualityBound)
+		int32_t compareInBounds = RunCompareOnBounds(
+			&runData->indexBounds[compareIndex],
+			compareValue,
+			hasEqualityPrefix,
+			&priorMatchesEquality);
+		if (compareInBounds != 0)
 		{
-			/* We have an equality on a term - if not equal - we can bail */
-			if (!BsonValueEquals(compareValue,
-								 &runData->indexBounds[compareIndex].lowerBound.
-								 processedBoundValue))
-			{
-				/* Stop the search */
-				return hasEqualityPrefix ? 1 : -1;
-			}
-
-			continue;
+			return compareInBounds;
 		}
 
-		priorMatchesEquality = false;
-		if (runData->indexBounds[compareIndex].lowerBound.bound.value_type !=
-			BSON_TYPE_EOD)
+		if (runData->indexBounds[compareIndex].indexRecheckFunctions != NIL)
 		{
-			bool isComparisonValid = false;
-			int32_t compareBounds = CompareBsonValueAndType(
-				compareValue,
-				&runData->indexBounds[compareIndex].lowerBound.processedBoundValue,
-				&isComparisonValid);
-			if (!isComparisonValid)
+			ListCell *recheckFuncs;
+			foreach(recheckFuncs,
+					runData->indexBounds[compareIndex].indexRecheckFunctions)
 			{
-				return -1;
-			}
-
-			if (compareBounds == 0)
-			{
-				if (!runData->indexBounds[compareIndex].lowerBound.isBoundInclusive)
+				IndexRecheckArgs *recheckStrategy = lfirst(recheckFuncs);
+				if (!IsValidRecheckForIndexValue(compareValue,
+												 compareTerm.isIndexTermTruncated,
+												 recheckStrategy))
 				{
-					/* for truncated you can't be sure - let the runtime re-evaluate */
-					return runData->indexBounds[compareIndex].lowerBound.
-						   isProcessedValueTruncated ? 0 : -1;
-				}
-				else
-				{
-					continue;
+					return -1;
 				}
 			}
+		}
+	}
 
-			if (compareBounds < 0)
+	return 0;
+}
+
+
+/*
+ * When running compare_partial, we first check if the current term matches
+ * based purely on the lower and upper bounds.
+ * Returns 0 if true, -1/1 if we need to bail.
+ * If we do have a match, further checks can be made for scenarios like
+ * Index rechecks.
+ */
+static int32_t
+RunCompareOnBounds(CompositeIndexBounds *bounds, const bson_value_t *compareValue,
+				   bool hasEqualityPrefix, bool *priorMatchesEquality)
+{
+	if (bounds->isEqualityBound)
+	{
+		/* We have an equality on a term - if not equal - we can bail */
+		if (!BsonValueEquals(compareValue,
+							 &bounds->lowerBound.
+							 processedBoundValue))
+		{
+			/* Stop the search */
+			return hasEqualityPrefix ? 1 : -1;
+		}
+
+		return 0;
+	}
+
+	*priorMatchesEquality = false;
+	if (bounds->lowerBound.bound.value_type != BSON_TYPE_EOD)
+	{
+		bool isComparisonValid = false;
+		int32_t compareBounds = CompareBsonValueAndType(
+			compareValue,
+			&bounds->lowerBound.processedBoundValue,
+			&isComparisonValid);
+		if (!isComparisonValid)
+		{
+			return -1;
+		}
+
+		if (compareBounds == 0)
+		{
+			if (!bounds->lowerBound.isBoundInclusive &&
+				!bounds->lowerBound.isProcessedValueTruncated)
 			{
-				/* compareValue < lowerBound, not a match */
 				return -1;
 			}
 		}
-
-		if (runData->indexBounds[compareIndex].upperBound.bound.value_type !=
-			BSON_TYPE_EOD)
+		else if (compareBounds < 0)
 		{
-			bool isComparisonValid = false;
-			int32_t compareBounds = CompareBsonValueAndType(
-				compareValue,
-				&runData->indexBounds[compareIndex].upperBound.processedBoundValue,
-				&isComparisonValid);
-			if (!isComparisonValid)
+			/* compareValue < lowerBound, not a match */
+			return -1;
+		}
+	}
+
+	if (bounds->upperBound.bound.value_type != BSON_TYPE_EOD)
+	{
+		bool isComparisonValid = false;
+		int32_t compareBounds = CompareBsonValueAndType(
+			compareValue,
+			&bounds->upperBound.processedBoundValue,
+			&isComparisonValid);
+		if (!isComparisonValid)
+		{
+			return -1;
+		}
+
+		if (compareBounds == 0)
+		{
+			if (!bounds->upperBound.isBoundInclusive &&
+				!bounds->upperBound.isProcessedValueTruncated)
 			{
 				return -1;
 			}
-
-			if (compareBounds == 0)
-			{
-				if (!runData->indexBounds[compareIndex].upperBound.isBoundInclusive)
-				{
-					/* for truncated you can't be sure - let the runtime re-evaluate */
-					return runData->indexBounds[compareIndex].upperBound.
-						   isProcessedValueTruncated ? 0 : -1;
-				}
-				else
-				{
-					continue;
-				}
-			}
-
-			if (compareBounds > 0)
-			{
-				/* Can stop searching */
-				return hasEqualityPrefix ? 1 : -1;
-			}
+		}
+		else if (compareBounds > 0)
+		{
+			/* Can stop searching */
+			return hasEqualityPrefix ? 1 : -1;
 		}
 	}
 
@@ -598,9 +628,7 @@ gin_bson_get_composite_path_generated_terms(PG_FUNCTION_ARGS)
 	if (context->index < context->totalTermCount)
 	{
 		Datum next = context->terms.entries[context->index++];
-		BsonIndexTerm term = {
-			false, false, { 0 }
-		};
+		BsonIndexTerm term = { 0 };
 		bytea *serializedTerm = DatumGetByteaPP(next);
 		InitializeBsonIndexTerm(serializedTerm, &term);
 
@@ -988,14 +1016,15 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		element.path = "$";
 		element.pathLength = 1;
 		element.bsonValue = PgbsonArrayWriterGetValue(&termWriter);
-		BsonIndexTermSerialized serializedTerm = SerializeBsonIndexTerm(
-			&element, &overallMetadata);
+		BsonCompressableIndexTermSerialized serializedTerm =
+			SerializeCompositeBsonIndexTermWithCompression(
+				&element, &overallMetadata, hasTruncation);
 		if (serializedTerm.isIndexTermTruncated)
 		{
 			hasTruncation = true;
 		}
 
-		indexEntries[i] = PointerGetDatum(serializedTerm.indexTermVal);
+		indexEntries[i] = serializedTerm.indexTermDatum;
 	}
 
 	if (totalTermCount > 1)

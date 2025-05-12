@@ -264,14 +264,14 @@ SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sale
 (3 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "user_roles", "pipeline": [{"$match": {"user_id": { "$ne": 200 }}}, {"$limit": 1}]}} ], "cursor": {} }'); 
-                                                                                                                                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM documentdb_data.documents_963003_9630006 collection WHERE (documentdb_api_internal.bson_dollar_inverse_match(document, (SELECT documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson) AS document FROM documentdb_data.documents_963002_9630004 collection_0_1 WHERE (documentdb_api_catalog.bson_dollar_ne(collection_0_1.document, '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson) AND (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963002'::bigint)) LIMIT '1'::bigint)) AS spec)) AND (shard_key_value OPERATOR(pg_catalog.=) '963003'::bigint))
+         Query: SELECT document FROM documentdb_data.documents_963003_9630006 collection WHERE (documentdb_api_internal.bson_dollar_inverse_match(document, (SELECT documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson) AS document FROM documentdb_data.documents_963002_9630004 collection_0_1 WHERE (documentdb_api_catalog.bson_dollar_ne(collection_0_1.document, '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson) AND (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963002'::bigint)) LIMIT '1'::bigint), false) AS spec)) AND (shard_key_value OPERATOR(pg_catalog.=) '963003'::bigint))
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documentdb_data.documents_963003_9630006 collection
                Output: collection.document
@@ -279,7 +279,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
                Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, $1)
                InitPlan 2 (returns $1)
                  ->  Result
-                       Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, $0)
+                       Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, $0, false)
                        InitPlan 1 (returns $0)
                          ->  Limit
                                Output: (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson))
@@ -296,14 +296,14 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
 (27 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "user_roles", "pipeline": [{"$match": {"user_id": { "$ne": 200 }}}]}} ], "cursor": {} }'); 
-                                                                                                                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                         
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM documentdb_data.documents_963003_9630006 collection WHERE (documentdb_api_internal.bson_dollar_inverse_match(document, (SELECT documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson) AS document FROM documentdb_data.documents_963002_9630004 collection_0_1 WHERE (documentdb_api_catalog.bson_dollar_ne(collection_0_1.document, '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson) AND (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963002'::bigint)))) AS spec)) AND (shard_key_value OPERATOR(pg_catalog.=) '963003'::bigint))
+         Query: SELECT document FROM documentdb_data.documents_963003_9630006 collection WHERE (documentdb_api_internal.bson_dollar_inverse_match(document, (SELECT documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson) AS document FROM documentdb_data.documents_963002_9630004 collection_0_1 WHERE (documentdb_api_catalog.bson_dollar_ne(collection_0_1.document, '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson) AND (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963002'::bigint))), false) AS spec)) AND (shard_key_value OPERATOR(pg_catalog.=) '963003'::bigint))
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documentdb_data.documents_963003_9630006 collection
                Output: collection.document
@@ -311,7 +311,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
                Filter: documentdb_api_internal.bson_dollar_inverse_match(collection.document, $1)
                InitPlan 2 (returns $1)
                  ->  Result
-                       Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, $0)
+                       Output: documentdb_api_internal.bson_dollar_merge_documents('{ "path" : "rule", "defaultResult" : false }'::documentdb_core.bson, $0, false)
                        InitPlan 1 (returns $0)
                          ->  Aggregate
                                Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson)

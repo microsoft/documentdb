@@ -14,7 +14,7 @@
 #include <fmgr.h>
 
 #include "vector/vector_spec.h"
-
+#include "vector/vector_configs.h"
 
 /*
  * Type that holds data needed for

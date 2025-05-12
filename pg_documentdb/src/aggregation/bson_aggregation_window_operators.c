@@ -799,13 +799,17 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		TargetEntry *firstEntryAfterSubQuery = linitial(query->targetList);
 
 		/* Use bson_repath_and_build to merge the output of all window operations */
-		Expr *repathExpr = GenerateMultiExpressionRepathExpression(repathArgs);
+		bool overrideArray = false;
+		Expr *repathExpr = GenerateMultiExpressionRepathExpression(repathArgs,
+																   overrideArray);
 		FuncExpr *mergeDocumentsExpr = makeFuncExpr(BsonDollaMergeDocumentsFunctionOid(),
 													BsonTypeId(),
-													list_make2(
+													list_make3(
 														(Expr *) firstEntryAfterSubQuery->
 														expr,
-														repathExpr),
+														repathExpr,
+														MakeBoolValueConst(
+															overrideArray)),
 													InvalidOid, InvalidOid,
 													COERCE_EXPLICIT_CALL);
 		firstEntryAfterSubQuery->expr = (Expr *) mergeDocumentsExpr;

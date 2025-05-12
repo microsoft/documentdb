@@ -85,7 +85,7 @@ async fn main() {
     .await
     .unwrap();
 
-    run_server(service_context, certificate_options, None, token.clone())
+    run_server(service_context, certificate_options, None, token.clone(), None)
         .await
         .unwrap();
 }

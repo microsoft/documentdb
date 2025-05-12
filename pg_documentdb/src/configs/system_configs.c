@@ -13,11 +13,21 @@
 #include <utils/guc.h>
 #include <limits.h>
 #include "configs/config_initialization.h"
+#include "vector/vector_configs.h"
 
 /*
  * Externally defined GUC constants
  * TODO(OSS): Move these as appropriate.
  */
+
+/* Enum values for iterative scan mode */
+static const struct config_enum_entry VECTOR_ITERATIVE_SCAN_OPTIONS[] =
+{
+	{ "off", VectorIterativeScan_OFF, false },
+	{ "relaxed_order", VectorIterativeScan_RELAXED_ORDER, false },
+	{ "strict_order", VectorIterativeScan_STRICT_ORDER, false },
+	{ NULL, 0, false }
+};
 
 /*
  * enable_create_collection_on_insert GUC determines whether
@@ -67,7 +77,7 @@ int MaxSchemaValidatorSize = DEFAULT_MAX_SCHEMA_VALIDATOR_SIZE;
 #define SCRAM_DEFAULT_SALT_LEN 28
 int ScramDefaultSaltLen = SCRAM_DEFAULT_SALT_LEN;
 
-#define MAX_USER_LIMIT 500
+#define MAX_USER_LIMIT 100
 int MaxUserLimit = MAX_USER_LIMIT;
 
 #define DEFAULT_TDIGEST_COMPRESSION_ACCURACY 1500
@@ -108,6 +118,12 @@ int MaxAggregationStagesAllowed = DEFAULT_AGGREGATION_STAGES_LIMIT;
 
 #define DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD INT_MAX
 int IndexTermCompressionThreshold = DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD;
+
+#define DEFAULT_ENABLE_USER_CRUD true
+bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
+
+#define DEFAULT_VECTOR_ITERATIVE_SCAN_MODE VectorIterativeScan_RELAXED_ORDER
+int VectorPreFilterIterativeScanMode = DEFAULT_VECTOR_ITERATIVE_SCAN_MODE;
 
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
@@ -316,5 +332,22 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		&IndexTermCompressionThreshold,
 		DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD, 256,
 		INT_MAX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableUserCrud", newGucPrefix),
+		gettext_noop(
+			"Enables user crud through the data plane."),
+		NULL, &EnableUserCrud, DEFAULT_ENABLE_USER_CRUD,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomEnumVariable(
+		psprintf("%s.vectorPreFilterIterativeScanMode", newGucPrefix),
+		gettext_noop(
+			"Set the iterative scan mode for vector pre-filtering. "
+			"Relaxed order allows results to be slightly out of order by distance, but provides better recall. "
+			"Strict order ensures results are in the exact order by distance"),
+		NULL, &VectorPreFilterIterativeScanMode, DEFAULT_VECTOR_ITERATIVE_SCAN_MODE,
+		VECTOR_ITERATIVE_SCAN_OPTIONS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

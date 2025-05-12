@@ -23,7 +23,7 @@
 bool EnableVectorHNSWIndex = DEFAULT_ENABLE_VECTOR_HNSW_INDEX;
 
 /* GUC to enable vector pre-filtering feature for vector search. */
-#define DEFAULT_ENABLE_VECTOR_PRE_FILTER false
+#define DEFAULT_ENABLE_VECTOR_PRE_FILTER true
 bool EnableVectorPreFilter = DEFAULT_ENABLE_VECTOR_PRE_FILTER;
 
 #define DEFAULT_ENABLE_VECTOR_PRE_FILTER_V2 false
@@ -101,6 +101,8 @@ bool EnableMatchWithLetInLookup =
 #define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
 bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
+#define DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN true
+bool UseRawExecutorForQueryPlan = DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN;
 
 /*
  * SECTION: Top level feature flags
@@ -116,8 +118,6 @@ bool EnableBypassDocumentValidation =
 #define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
 bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 
-#define DEFAULT_ENABLE_USER_CRUD false
-bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
 
 /*
  * SECTION: Collation feature flags
@@ -350,13 +350,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableUserCrud", newGucPrefix),
-		gettext_noop(
-			"Enables user crud through the data plane."),
-		NULL, &EnableUserCrud, DEFAULT_ENABLE_USER_CRUD,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.enableNowSystemVariable", newGucPrefix),
 		gettext_noop(
 			"Enables support for the $$NOW time system variable."),
@@ -417,6 +410,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable primary key cursor scan for streaming cursors."),
 		NULL, &EnablePrimaryKeyCursorScan,
 		DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useRawExecutorForQueryPlan", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable using the raw executor for query plans."),
+		NULL, &UseRawExecutorForQueryPlan,
+		DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

@@ -69,6 +69,7 @@ typedef struct TraverseValidateState
 {
 	CompareMatchValueFunc matchFunc;
 	CompareResult compareResult;
+	const char *collationString;
 } TraverseValidateState;
 
 /* The core comparison function extension for compare set bit position array for Bitwise operators */

@@ -191,26 +191,17 @@ AddExtensionQueryScanForVectorQuery(PlannerInfo *root, RelOptInfo *rel,
 	inputState->querySearchData = *searchQueryData;
 	inputState->hasVectorSearchData = true;
 
-	if (EnableVectorPreFilter)
-	{
-		bool failIfNotFound = true;
-		rel->pathlist = AddCustomPathForVectorCore(root, rel->pathlist, rel, inputState,
-												   failIfNotFound);
+	bool failIfNotFound = true;
+	rel->pathlist = AddCustomPathForVectorCore(root, rel->pathlist, rel, inputState,
+											   failIfNotFound);
 
-		if (rel->partial_pathlist != NIL)
-		{
-			failIfNotFound = false;
-			rel->partial_pathlist = AddCustomPathForVectorCore(root,
-															   rel->partial_pathlist, rel,
-															   inputState,
-															   failIfNotFound);
-		}
-	}
-	else
+	if (rel->partial_pathlist != NIL)
 	{
-		TrySetDefaultSearchParamForCustomScan(&(inputState->querySearchData));
-		rel->pathlist = AddCustomPathCore(rel->pathlist, inputState);
-		rel->partial_pathlist = AddCustomPathCore(rel->partial_pathlist, inputState);
+		failIfNotFound = false;
+		rel->partial_pathlist = AddCustomPathForVectorCore(root,
+														   rel->partial_pathlist, rel,
+														   inputState,
+														   failIfNotFound);
 	}
 }
 
@@ -351,14 +342,14 @@ AddCustomPathForVectorCore(PlannerInfo *planner, List *pathList, RelOptInfo *rel
 		searchBson = DatumGetPgBson(queryState->querySearchData.SearchParamBson);
 	}
 
-	if (searchBson == NULL || IsPgbsonEmptyDocument(searchBson))
-	{
-		IndexPath *indexPath = (IndexPath *) vectorSearchPath;
-
-		pgbson *defaultSearchParam = CalculateSearchParamBsonForIndexPath(indexPath);
-
-		queryState->querySearchData.SearchParamBson = PointerGetDatum(defaultSearchParam);
-	}
+	/* For normal vector search, if the search param is not specified, searchBson will be NULL
+	 * For filtering vector search, if the search param is not specified, searchBson contains the iterative param
+	 * We let index specific handler to decide if the default search param is needed or not
+	 */
+	IndexPath *indexPath = (IndexPath *) vectorSearchPath;
+	pgbson *defaultSearchParam = CalculateSearchParamBsonForIndexPath(indexPath,
+																	  searchBson);
+	queryState->querySearchData.SearchParamBson = PointerGetDatum(defaultSearchParam);
 
 	/* wrap the path in a custom path */
 	CustomPath *customPath = makeNode(CustomPath);

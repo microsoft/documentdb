@@ -592,9 +592,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=19 loops=1)
                Recheck Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Index Recheck: 4
+               Rows Removed by Index Recheck: 3
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on queryoperator_ab (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on queryoperator_ab (actual rows=22 loops=1)
                      Index Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
 (13 rows)
 
@@ -986,9 +986,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=21 loops=1)
                Recheck Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Index Recheck: 2
+               Rows Removed by Index Recheck: 1
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on queryoperator_b_a (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on queryoperator_b_a (actual rows=22 loops=1)
                      Index Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
 (13 rows)
 
@@ -1267,9 +1267,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                Sort Method: quicksort  Memory: 25kB
                ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=2 loops=1)
                      Recheck Cond: (document OPERATOR(documentdb_api_catalog.@&=) '{ "a" : [ { "$elemMatch" : { "b" : "M", "c" : { "$gt" : { "$numberInt" : "50" } } } }, { "$elemMatch" : { "c" : { "$numberInt" : "100" }, "d" : "Y" } } ] }'::documentdb_core.bson)
-                     Rows Removed by Index Recheck: 9
+                     Rows Removed by Index Recheck: 1
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on queryoperator_b_a (actual rows=11 loops=1)
+                     ->  Bitmap Index Scan on queryoperator_b_a (actual rows=3 loops=1)
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@&=) '{ "a" : [ { "$elemMatch" : { "b" : "M", "c" : { "$gt" : { "$numberInt" : "50" } } } }, { "$elemMatch" : { "c" : { "$numberInt" : "100" }, "d" : "Y" } } ] }'::documentdb_core.bson)
 (16 rows)
 
@@ -1582,9 +1582,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                Sort Method: quicksort  Memory: 27kB
                ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=21 loops=1)
                      Recheck Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-                     Rows Removed by Index Recheck: 2
+                     Rows Removed by Index Recheck: 1
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on queryoperator_b_a (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on queryoperator_b_a (actual rows=22 loops=1)
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "$numberInt" : "1" } }'::documentdb_core.bson)
 (16 rows)
 

@@ -13,6 +13,7 @@
 
 #include "index_am/documentdb_rum.h"
 #include "metadata/collection.h"
+#include "metadata/index.h"
 #include "io/bson_core.h"
 #include "lib/stringinfo.h"
 #include "api_hooks.h"
@@ -62,6 +63,12 @@ GetUserInfoFromExternalIdentityProvider_HookType
 	get_user_info_from_external_identity_provider_hook = NULL;
 IsUserExternal_HookType
 	is_user_external_hook = NULL;
+GetPidForIndexBuild_HookType get_pid_for_index_build_hook = NULL;
+TryGetIndexBuildJobOpIdQuery_HookType try_get_index_build_job_op_id_query_hook =
+	NULL;
+TryGetCancelIndexBuildQuery_HookType try_get_cancel_index_build_query_hook =
+	NULL;
+ShouldScheduleIndexBuilds_HookType should_schedule_index_builds_hook = NULL;
 UserNameValidation_HookType
 	username_validation_hook = NULL;
 PasswordValidation_HookType
@@ -557,4 +564,52 @@ GetShardIdsAndNamesForCollection(Oid relationOid, const char *tableName,
 		(*shardOidArray)[0] = ObjectIdGetDatum(relationOid);
 		(*shardNameArray)[0] = CStringGetTextDatum(tableName);
 	}
+}
+
+
+const char *
+GetPidForIndexBuild()
+{
+	if (get_pid_for_index_build_hook != NULL)
+	{
+		return get_pid_for_index_build_hook();
+	}
+
+	return NULL;
+}
+
+
+const char *
+TryGetIndexBuildJobOpIdQuery(void)
+{
+	if (try_get_index_build_job_op_id_query_hook != NULL)
+	{
+		return try_get_index_build_job_op_id_query_hook();
+	}
+
+	return NULL;
+}
+
+
+char *
+TryGetCancelIndexBuildQuery(int32_t indexId, char cmdType)
+{
+	if (try_get_cancel_index_build_query_hook != NULL)
+	{
+		return try_get_cancel_index_build_query_hook(indexId, cmdType);
+	}
+
+	return NULL;
+}
+
+
+bool
+ShouldScheduleIndexBuildJobs(void)
+{
+	if (should_schedule_index_builds_hook != NULL)
+	{
+		return should_schedule_index_builds_hook();
+	}
+
+	return true;
 }

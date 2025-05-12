@@ -163,16 +163,12 @@ typedef Oid (*GetIndexAccessMethodOidFunc)(void);
 typedef void (*SetSearchParametersToGUCFunc)(const pgbson *searchParamBson);
 
 /*
- * Get the default SearchParamBson for the vector index.
- */
-typedef pgbson *(*GetDefaultSearchParamBsonFunc)(void);
-
-/*
  * Dynamic calculation of search parameters
  * based on the number of rows and index options.
  */
-typedef pgbson *(*CalculateSearchParamBsonFunc)(bytea *indexOptions, Cardinality
-												indexRows);
+typedef pgbson *(*CalculateSearchParamBsonFunc)(bytea *indexOptions,
+												Cardinality indexRows,
+												pgbson *searchParamBson);
 
 /*
  * Extract the index compression type from the index options.
@@ -201,8 +197,6 @@ typedef struct VectorIndexDefinition
 
 	const char *indexAccessMethodName;
 
-	bool needsReorderAfterFilter;
-
 	ParseIndexCreationSpecFunc parseIndexCreationSpecFunc;
 
 	GenerateIndexParamStringFunc generateIndexParamStrFunc;
@@ -212,8 +206,6 @@ typedef struct VectorIndexDefinition
 	GetIndexAccessMethodOidFunc getIndexAccessMethodOidFunc;
 
 	SetSearchParametersToGUCFunc setSearchParametersToGUCFunc;
-
-	GetDefaultSearchParamBsonFunc getDefaultSearchParamBsonFunc;
 
 	CalculateSearchParamBsonFunc calculateSearchParamBsonFunc;
 
