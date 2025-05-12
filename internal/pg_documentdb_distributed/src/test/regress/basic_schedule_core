@@ -133,3 +133,8 @@ test: cursors_seqscan_sharded
 # See comments written for lock acquisition steps performed between Phase-1
 # and Phase-2 index builds in DefineIndex():
 test: collection_management
+
+# We want to test the merge stage with the GUC enableDataTableWithoutCreationTime enabled. 
+# However, since the merge operation does not work within a transaction, 
+# we cannot set this GUC inside one. This is why the test is not being run concurrently.
+test: three_column_data_table

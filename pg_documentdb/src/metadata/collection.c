@@ -104,6 +104,7 @@ static const StringView SystemPrefix = { .length = 7, .string = "system." };
 extern bool UseLocalExecutionShardQueries;
 extern bool EnableSchemaValidation;
 extern int MaxSchemaValidatorSize;
+extern bool EnableDataTableWithoutCreationTime;
 
 /* user-defined functions */
 PG_FUNCTION_INFO_V1(command_collection_table);
@@ -1179,8 +1180,8 @@ GetMongoDataCreationTimeVarAttrNumber(Oid collectionOid)
 
 	if (!HeapTupleIsValid(tuple))
 	{
-		/* If collection doesn't exist, we'll arrive here */
-		return (AttrNumber) 4;
+		/* creation_time column is not present */
+		return (AttrNumber) - 1;
 	}
 
 	Form_pg_attribute targetatt = (Form_pg_attribute) GETSTRUCT(tuple);

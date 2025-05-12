@@ -1124,11 +1124,22 @@ ShardCollectionCore(ShardCollectionArgs *args)
 
 	insertArgValues[1] = UInt64GetDatum(collection->collectionId);
 
-	appendStringInfo(queryInfo,
-					 "INSERT INTO %s (shard_key_value, object_id, document, creation_time)"
-					 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document, creation_time"
-					 " FROM %s",
-					 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		appendStringInfo(queryInfo,
+						 "INSERT INTO %s (shard_key_value, object_id, document, creation_time)"
+						 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document, creation_time"
+						 " FROM %s",
+						 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	}
+	else
+	{
+		appendStringInfo(queryInfo,
+						 "INSERT INTO %s (shard_key_value, object_id, document)"
+						 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document"
+						 " FROM %s",
+						 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	}
 
 	ExtensionExecuteQueryWithArgsViaSPI(queryInfo->data, nargs, insertArgTypes,
 										insertArgValues, insertArgNulls, readOnly,

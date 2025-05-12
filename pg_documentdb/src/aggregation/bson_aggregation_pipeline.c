@@ -6456,8 +6456,8 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 	RangeTblEntry *rte = makeNode(RangeTblEntry);
 
 	/* Match spec for ApiSchema.collection() function */
-	List *colNames = list_make4(makeString("shard_key_value"), makeString("object_id"),
-								makeString("document"), makeString("creation_time"));
+	List *colNames = list_make3(makeString("shard_key_value"), makeString("object_id"),
+								makeString("document"));
 
 	const char *collectionAlias = "collection";
 	if (context->numNestedLevels > 0 || context->nestedPipelineLevel > 0)
@@ -6470,6 +6470,8 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 	if (collection == NULL)
 	{
+		colNames = lappend(colNames, makeString("creation_time"));
+
 		/* Here: Special case, if the database is config, try to see if we can create a base
 		 * table out of the system metadata.
 		 */
@@ -6515,6 +6517,11 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 	{
 		rte->rtekind = RTE_RELATION;
 		rte->relid = collection->relationId;
+
+		if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+		{
+			colNames = lappend(colNames, makeString("creation_time"));
+		}
 
 		if (context->allowShardBaseTable)
 		{

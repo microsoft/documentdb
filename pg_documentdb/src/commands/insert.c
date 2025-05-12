@@ -129,6 +129,9 @@ static uint64 CallInsertWorkerForInsertOne(MongoCollection *collection, int64
 										   pgbson *document, text *transactionId);
 static Datum CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext
 							   allocContext);
+static inline List * CreateValuesListForInsert(Const *shardKey, Expr *objectId,
+											   Expr *document, AttrNumber
+											   creationTimeVarAttNum);
 
 /*
  * ApiGucPrefix.enable_create_collection_on_insert GUC determines whether
@@ -538,12 +541,7 @@ DoMultiInsertWithoutTransactionId(MongoCollection *collection, List *inserts, Oi
 	PG_TRY();
 	{
 		List *valuesList = NIL;
-
 		ListCell *insertCell;
-
-		TimestampTz nowValueTime = GetCurrentTimestamp();
-		Const *nowValue = makeConst(TIMESTAMPTZOID, -1, InvalidOid, 8,
-									TimestampTzGetDatum(nowValueTime), false, true);
 
 		/* Make params for all the BSONs - we have 2 per insert - objectId/insertDoc */
 		int expectedNumParams = Min(list_length(inserts), BatchWriteSubTransactionCount);
@@ -571,8 +569,11 @@ DoMultiInsertWithoutTransactionId(MongoCollection *collection, List *inserts, Oi
 
 			Expr *documentParam = CreateBsonParam(paramIndex, paramListInfo, insertDoc);
 			paramIndex++;
-			List *values = list_make4(shardKeyConst, objectidParam, documentParam,
-									  nowValue);
+
+			List *values = CreateValuesListForInsert(shardKeyConst, objectidParam,
+													 documentParam,
+													 collection->
+													 mongoDataCreationTimeVarAttrNumber);
 
 			valuesList = lappend(valuesList, values);
 			insertCount++;
@@ -873,11 +874,12 @@ ProcessInsertion(MongoCollection *collection,
 										 Int64GetDatum(shardKeyHash), false, true);
 		Expr *objectidParam = CreateBsonParam(0, paramListInfo, objectIdPtr);
 		Expr *documentParam = CreateBsonParam(1, paramListInfo, insertDoc);
-		TimestampTz nowValueTime = GetCurrentTimestamp();
-		Const *nowValue = makeConst(TIMESTAMPTZOID, -1, InvalidOid, 8,
-									TimestampTzGetDatum(nowValueTime), false, true);
-		List *singleInsertList = list_make4(shardKeyConst, objectidParam, documentParam,
-											nowValue);
+
+		List *singleInsertList = CreateValuesListForInsert(shardKeyConst, objectidParam,
+														   documentParam,
+														   collection->
+														   mongoDataCreationTimeVarAttrNumber);
+
 		Query *query = CreateInsertQuery(collection, optionalInsertShardOid, list_make1(
 											 singleInsertList));
 		uint64_t insertResult = RunInsertQuery(query, paramListInfo);
@@ -1345,13 +1347,17 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 
 	/* Make the base table RTE */
 	RangeTblEntry *rte = makeNode(RangeTblEntry);
-	List *colNames = list_make4(makeString("shard_key_value"), makeString("object_id"),
-								makeString("document"),
-								makeString("creation_time"));
+	List *colNames = list_make3(makeString("shard_key_value"), makeString("object_id"),
+								makeString("document"));
 
-	/* If "creation_time" is the fifth column, then we should include "change_description" in the RTE. */
-	if (collection->mongoDataCreationTimeVarAttrNumber == 5)
+
+	if (collection->mongoDataCreationTimeVarAttrNumber == 4)
 	{
+		colNames = lappend(colNames, makeString("creation_time"));
+	}
+	else if (collection->mongoDataCreationTimeVarAttrNumber == 5)
+	{
+		/* If "creation_time" is the fifth column, then we should include "change_description" in the RTE. */
 		colNames = ModifyTableColumnNames(colNames);
 	}
 
@@ -1385,10 +1391,15 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 	query->resultRelation = 1;
 
 	/* Make the VALUES RTE */
-	List *valuesColNames = list_make4(makeString("shard_key_value"),
+	List *valuesColNames = list_make3(makeString("shard_key_value"),
 									  makeString("object_id"),
-									  makeString("document"),
-									  makeString("creation_time"));
+									  makeString("document"));
+
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		valuesColNames = lappend(valuesColNames, makeString("creation_time"));
+	}
+
 	RangeTblEntry *valuesRte = makeNode(RangeTblEntry);
 	valuesRte->rtekind = RTE_VALUES;
 	valuesRte->alias = valuesRte->eref = makeAlias("values", valuesColNames);
@@ -1398,11 +1409,20 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 	valuesRte->inh = false;
 	valuesRte->inFromCl = true;
 
-	valuesRte->coltypes = list_make4_oid(INT8OID, BsonTypeId(), BsonTypeId(),
-										 TIMESTAMPTZOID);
-	valuesRte->coltypmods = list_make4_int(-1, -1, -1, -1);
-	valuesRte->colcollations = list_make4_oid(InvalidOid, InvalidOid, InvalidOid,
-											  InvalidOid);
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		valuesRte->coltypes = list_make4_oid(INT8OID, BsonTypeId(), BsonTypeId(),
+											 TIMESTAMPTZOID);
+		valuesRte->coltypmods = list_make4_int(-1, -1, -1, -1);
+		valuesRte->colcollations = list_make4_oid(InvalidOid, InvalidOid, InvalidOid,
+												  InvalidOid);
+	}
+	else
+	{
+		valuesRte->coltypes = list_make3_oid(INT8OID, BsonTypeId(), BsonTypeId());
+		valuesRte->coltypmods = list_make3_int(-1, -1, -1);
+		valuesRte->colcollations = list_make3_oid(InvalidOid, InvalidOid, InvalidOid);
+	}
 	query->rtable = lappend(query->rtable, valuesRte);
 
 	RangeTblRef *valuesRteRef = makeNode(RangeTblRef);
@@ -1412,7 +1432,7 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 	query->jointree = makeFromExpr(fromList, NULL);
 
 	/* Now create the targetlist */
-	query->targetList = list_make4(
+	query->targetList = list_make3(
 		makeTargetEntry((Expr *) makeVar(2, 1, INT8OID, -1, InvalidOid, 0),
 						DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER,
 						"shard_key_value", false),
@@ -1421,11 +1441,18 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 						false),
 		makeTargetEntry((Expr *) makeVar(2, 3, BsonTypeId(), -1, InvalidOid, 0),
 						DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER, "document",
-						false),
-		makeTargetEntry((Expr *) makeVar(2, 4, TIMESTAMPTZOID, -1, InvalidOid, 0),
-						collection->mongoDataCreationTimeVarAttrNumber, "creation_time",
 						false)
 		);
+
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		query->targetList = lappend(query->targetList,
+									makeTargetEntry((Expr *) makeVar(2, 4, TIMESTAMPTZOID,
+																	 -1, InvalidOid, 0),
+													collection->
+													mongoDataCreationTimeVarAttrNumber,
+													"creation_time", false));
+	}
 
 	/* In order to use a portal & SPI we create a returning list of a const */
 	query->returningList = list_make1(
@@ -1478,4 +1505,23 @@ RunInsertQuery(Query *insertQuery, ParamListInfo paramListInfo)
 	}
 
 	return numRowsProcessed;
+}
+
+
+/* indicates the presence of a creation_time column in the table, either at attribute number 4 or 5 */
+static inline List *
+CreateValuesListForInsert(Const *shardKey, Expr *objectId, Expr *document, AttrNumber
+						  creationTimeVarAttNum)
+{
+	if (creationTimeVarAttNum != -1)
+	{
+		TimestampTz nowValueTime = (TimestampTz) 000000000000000LL;  /* "2000-01-01 00:00:00+00" */
+		Const *nowValue = makeConst(TIMESTAMPTZOID, -1, InvalidOid, 8,
+									TimestampTzGetDatum(nowValueTime), false, true);
+		return list_make4(shardKey, objectId, document, nowValue);
+	}
+	else
+	{
+		return list_make3(shardKey, objectId, document);
+	}
 }

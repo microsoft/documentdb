@@ -896,7 +896,7 @@ MakeActionWhenNotMatched(WhenNotMatchedAction whenNotMatched, Var *sourceDocVar,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
 	/* for insert operation */
-	action->targetList = list_make4(
+	action->targetList = list_make3(
 		makeTargetEntry((Expr *) sourceShardKeyVar,
 						DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER,
 						"target_shard_key_value", false),
@@ -905,11 +905,17 @@ MakeActionWhenNotMatched(WhenNotMatchedAction whenNotMatched, Var *sourceDocVar,
 						false),
 		makeTargetEntry((Expr *) addObjecIdFuncExpr,
 						DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER, "document",
-						false),
-		makeTargetEntry((Expr *) nowValue,
-						targetCollection->mongoDataCreationTimeVarAttrNumber,
-						"creation_time",
 						false));
+
+	if (targetCollection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		action->targetList = lappend(action->targetList,
+									 makeTargetEntry((Expr *) nowValue,
+													 targetCollection->
+													 mongoDataCreationTimeVarAttrNumber,
+													 "creation_time",
+													 false));
+	}
 
 	return action;
 }

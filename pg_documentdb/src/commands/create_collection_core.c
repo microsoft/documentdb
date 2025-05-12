@@ -25,6 +25,7 @@
 
 extern bool EnableNativeColocation;
 extern bool EnableNativeTableColocation;
+extern bool EnableDataTableWithoutCreationTime;
 
 static bool CanColocateAtDatabaseLevel(text *databaseDatum);
 static const char * CreatePostgresDataTable(uint64_t collectionId,
@@ -226,12 +227,19 @@ CreatePostgresDataTable(uint64_t collectionId, const char *colocateWith, const
 	                  *     defined in collection.h if you decide changing definiton
 	                  *     or position of document column.
 	                  */
-					 "document %s.bson not null,"
-
-	                 /* creation time (for TTL) */
-					 "creation_time timestamptz"
-					 ")", dataTableNameInfo->data,
+					 "document %s.bson not null",
+					 dataTableNameInfo->data,
 					 CoreSchemaName, CoreSchemaName);
+
+	/* Let's add creation_time column only when EnableDataTableWithoutCreationTime GUC is off */
+	if (EnableDataTableWithoutCreationTime)
+	{
+		appendStringInfo(createTableStringInfo, ")");
+	}
+	else
+	{
+		appendStringInfo(createTableStringInfo, ", creation_time timestamptz)");
+	}
 
 	bool readOnly = false;
 	bool isNull = false;

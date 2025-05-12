@@ -154,6 +154,10 @@ bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRAD
 #define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
 bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
 
+#define DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME false
+bool EnableDataTableWithoutCreationTime =
+	DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME;
+
 /* Remove after v105 */
 #define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
 bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
@@ -426,5 +430,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to skip enforcing transaction read only."),
 		NULL, &SkipEnforceTransactionReadOnly,
 		DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableDataTableWithoutCreationTime", newGucPrefix),
+		gettext_noop(
+			"Create data table without creation_time column."),
+		NULL, &EnableDataTableWithoutCreationTime,
+		DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
