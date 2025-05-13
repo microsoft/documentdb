@@ -19,6 +19,7 @@ on:
 permissions:
   packages: write
   contents: read
+  id-token: write
 
 env:
   DEFAULT_BASE_VERSION: '0.103.0'
@@ -46,14 +47,6 @@ jobs:
     - name: Set Default Values
       run: |
         echo "BASE_VERSION=${{ github.event.inputs.base_version || env.DEFAULT_BASE_VERSION }}" >> $GITHUB_ENV
-    - name: Show Env Variables
-      run: |
-        echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
-        echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
-        echo "ARCH=${{ matrix.arch }}"
-        echo "BASE_ARCH=${{ matrix.base_arch }}"
-        echo "RUNNER=${{ matrix.runner }}"
-        echo "BASE_VERSION=${{ env.BASE_VERSION }}"
     - name: Login to GHCR
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     - name: Build and Push ${{ matrix.arch }} Image
@@ -67,7 +60,7 @@ jobs:
         docker push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:$TAG
 
   create-manifest:
-    name: Create and Push Manifest
+    name: Create, Push, Sign & Verify Manifest
     runs-on: ubuntu-22.04
     needs: build-and-push
     steps:
@@ -82,5 +75,20 @@ jobs:
           --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 \
           --amend ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
         docker manifest push ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }}
-
-
+    - name: Install cosign
+      uses: sigstore/cosign-installer@main
+    - name: Sign manifest (keyless)
+      run: |
+        # extract the manifest-list digest via verbose inspect + awk
+        DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }} \
+          | awk '/^Digest:/ { print $2 }')
+        echo "Signing manifest-list@${DIGEST}"
+        cosign sign ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}@${DIGEST} -y
+    - name: Verify manifest signature (keyless)
+      run: |
+        DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }} \
+          | awk '/^Digest:/ { print $2 }')
+        cosign verify \
+          --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build_gateway.yml@refs/heads/${{ github.ref_name }}" \
+          --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+          ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}@${DIGEST}
