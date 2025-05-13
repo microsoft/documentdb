@@ -31,7 +31,6 @@ jobs:
           SOURCE_TAG: ${{ github.event.inputs.source_tag }}
           TARGET_TAG: ${{ github.event.inputs.target_tag }}
         run: |
-          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.SOURCE_TAG }} | awk '/^Digest:/ { print $2 }')
-          docker manifest create ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.TARGET_TAG}} \
-            --amend ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}@$DIGEST
-          docker manifest push ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.TARGET_TAG }}
+          docker buildx imagetools create \
+            -t ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.TARGET_TAG }} \
+            ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.SOURCE_TAG }}
