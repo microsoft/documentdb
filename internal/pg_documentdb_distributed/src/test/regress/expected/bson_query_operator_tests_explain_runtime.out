@@ -480,6 +480,31 @@ SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 22, "a": [{ "b":
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
+/* insert NaN and Infinity */
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 23, "a" : NaN}', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 24, "a" : Infinity}', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 25, "a" : -Infinity}', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 26, "a" : [NaN, Infinity]}', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
 /* validate explain */
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$eq" : 1 }}';
                                                            QUERY PLAN                                                            
@@ -494,28 +519,28 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=4 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Filter: 19
+               Rows Removed by Filter: 23
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : 1 }}';
                                                             QUERY PLAN                                                            
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=19 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=23 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1363 bytes
+   Tuple data received from nodes: 1526 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1363 bytes
+         Tuple data received from node: 1526 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=19 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=23 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
                Rows Removed by Filter: 4
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -532,9 +557,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=4 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Filter: 19
+               Rows Removed by Filter: 23
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -551,9 +576,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=5 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Filter: 18
+               Rows Removed by Filter: 22
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -570,9 +595,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=5 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Filter: 18
+               Rows Removed by Filter: 22
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -589,9 +614,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=6 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<=) '{ "a.b" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-               Rows Removed by Filter: 17
+               Rows Removed by Filter: 21
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -667,9 +692,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=15 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Filter: 8
+               Rows Removed by Filter: 12
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -686,9 +711,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=1 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
-               Rows Removed by Filter: 22
+               Rows Removed by Filter: 26
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -705,9 +730,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=3 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 20
+               Rows Removed by Filter: 24
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -724,9 +749,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=16 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Filter: 7
+               Rows Removed by Filter: 11
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -743,9 +768,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=1 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
-               Rows Removed by Filter: 22
+               Rows Removed by Filter: 26
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -762,9 +787,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=3 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 20
+               Rows Removed by Filter: 24
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -781,9 +806,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=5 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Filter: 18
+               Rows Removed by Filter: 22
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -800,28 +825,28 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=18 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
-               Rows Removed by Filter: 5
+               Rows Removed by Filter: 9
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lt" : [ { "b": [ 2, 3, 4 ] } ] }}';
                                                                                            QUERY PLAN                                                                                            
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=8 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=9 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 707 bytes
+   Tuple data received from nodes: 762 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 707 bytes
+         Tuple data received from node: 762 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=8 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=9 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 15
+               Rows Removed by Filter: 18
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -838,9 +863,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=6 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Filter: 17
+               Rows Removed by Filter: 21
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -857,28 +882,28 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=18 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<=) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
-               Rows Removed by Filter: 5
+               Rows Removed by Filter: 9
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lte" : [ { "b": [ 2, 3, 4 ] } ] }}';
                                                                                             QUERY PLAN                                                                                            
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=8 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=9 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 707 bytes
+   Tuple data received from nodes: 762 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 707 bytes
+         Tuple data received from node: 762 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=8 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=9 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@<=) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 15
+               Rows Removed by Filter: 18
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -895,9 +920,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=2 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
-               Rows Removed by Filter: 21
+               Rows Removed by Filter: 25
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -914,9 +939,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
-               Rows Removed by Filter: 23
+               Rows Removed by Filter: 27
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
@@ -933,64 +958,64 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 23
+               Rows Removed by Filter: 27
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$ne" : { "b": 1 } }}';
                                                                 QUERY PLAN                                                                
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=21 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=25 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1569 bytes
+   Tuple data received from nodes: 1732 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1569 bytes
+         Tuple data received from node: 1732 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=21 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=25 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "b" : { "$numberInt" : "1" } } }'::documentdb_core.bson)
                Rows Removed by Filter: 2
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (14 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$ne" : { "b": [ true, false ] } }}';
                                                             QUERY PLAN                                                             
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=23 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=27 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1691 bytes
+   Tuple data received from nodes: 1854 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1691 bytes
+         Tuple data received from node: 1854 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=23 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=27 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "b" : [ true, false ] } }'::documentdb_core.bson)
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (13 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$ne" : [ { "b": [ 2, 3, 4 ] } ] }}';
                                                                                             QUERY PLAN                                                                                            
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=23 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=27 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1691 bytes
+   Tuple data received from nodes: 1854 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1691 bytes
+         Tuple data received from node: 1854 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=23 loops=1)
+         ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=27 loops=1)
                Recheck Cond: (shard_key_value = '1300'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : [ { "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" }, { "$numberInt" : "4" } ] } ] }'::documentdb_core.bson)
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                      Index Cond: (shard_key_value = '1300'::bigint)
 (13 rows)
 
@@ -1088,9 +1113,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=1 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: ((document OPERATOR(documentdb_api_catalog.@&=) '{ "_id" : [ { "$numberInt" : "2" } ] }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@!=) '{ "_id" : { "$numberInt" : "40" } }'::documentdb_core.bson))
-                     Rows Removed by Filter: 22
+                     Rows Removed by Filter: 26
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1188,9 +1213,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=5 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (((document OPERATOR(documentdb_api_catalog.@>) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@<=) '{ "_id" : { "$numberInt" : "5" } }'::documentdb_core.bson)) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
-                     Rows Removed by Filter: 18
+                     Rows Removed by Filter: 22
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1225,9 +1250,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=2 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@&=) '{ "a" : [ { "$elemMatch" : { "b" : "M", "c" : { "$gt" : { "$numberInt" : "50" } } } }, { "$elemMatch" : { "c" : { "$numberInt" : "100" }, "d" : "Y" } } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 21
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1248,31 +1273,31 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "b" : { "$numberInt" : "4" } }'::documentdb_core.bson))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or" : [ { "a": 3 }, { "a": { "$gte": 4 } } ] }' ORDER BY object_id;
                                                                                                                     QUERY PLAN                                                                                                                     
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=2 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 0 bytes
+   Tuple data received from nodes: 91 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 0 bytes
+         Tuple data received from node: 91 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=0 loops=1)
+         ->  Sort (actual rows=2 loops=1)
                Sort Key: object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
+               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=2 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "$numberInt" : "4" } }'::documentdb_core.bson))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1292,9 +1317,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "3" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1314,9 +1339,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "3" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1324,52 +1349,52 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or" : [ { "a": { "$gt": 3 } } ] }' ORDER BY object_id;
                                                                                                                                               QUERY PLAN                                                                                                                                              
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=2 loops=1)
    Output: remote_scan.object_id, remote_scan.document
    Task Count: 1
-   Tuple data received from nodes: 0 bytes
+   Tuple data received from nodes: 91 bytes
    Tasks Shown: All
    ->  Task
          Query: SELECT object_id, document FROM documentdb_data.documents_1300_1300002 collection WHERE ((document OPERATOR(documentdb_api_catalog.#>) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '1300'::bigint)) ORDER BY object_id
-         Tuple data received from node: 0 bytes
+         Tuple data received from node: 91 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=0 loops=1)
+         ->  Sort (actual rows=2 loops=1)
                Output: object_id, document
                Sort Key: collection.object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documentdb_data.documents_1300_1300002 collection (actual rows=0 loops=1)
+               ->  Bitmap Heap Scan on documentdb_data.documents_1300_1300002 collection (actual rows=2 loops=1)
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: (collection.document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [ { "a": { "$gt": 3 } } ] }' ORDER BY object_id;
                                                                                                                                               QUERY PLAN                                                                                                                                              
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=2 loops=1)
    Output: remote_scan.object_id, remote_scan.document
    Task Count: 1
-   Tuple data received from nodes: 0 bytes
+   Tuple data received from nodes: 91 bytes
    Tasks Shown: All
    ->  Task
          Query: SELECT object_id, document FROM documentdb_data.documents_1300_1300002 collection WHERE ((document OPERATOR(documentdb_api_catalog.#>) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '1300'::bigint)) ORDER BY object_id
-         Tuple data received from node: 0 bytes
+         Tuple data received from node: 91 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=0 loops=1)
+         ->  Sort (actual rows=2 loops=1)
                Output: object_id, document
                Sort Key: collection.object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documentdb_data.documents_1300_1300002 collection (actual rows=0 loops=1)
+               ->  Bitmap Heap Scan on documentdb_data.documents_1300_1300002 collection (actual rows=2 loops=1)
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: (collection.document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
@@ -1394,9 +1419,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
@@ -1420,9 +1445,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) OR (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "b" : { "$minKey" : 1 } }'::documentdb_core.bson)))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
@@ -1446,9 +1471,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) OR (collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson)))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
@@ -1472,9 +1497,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                      Output: object_id, document
                      Recheck Cond: (collection.shard_key_value = '1300'::bigint)
                      Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) OR (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : null }'::documentdb_core.bson) OR (collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson)))
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (collection.shard_key_value = '1300'::bigint)
 (21 rows)
 
@@ -1495,9 +1520,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=2 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-                     Rows Removed by Filter: 21
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1517,9 +1542,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [  ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1539,74 +1564,74 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=2 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 21
+                     Rows Removed by Filter: 25
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$nin": [ 1 ]} }' ORDER BY object_id;
                                                               QUERY PLAN                                                              
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=21 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=25 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1605 bytes
+   Tuple data received from nodes: 1768 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1605 bytes
+         Tuple data received from node: 1768 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=21 loops=1)
+         ->  Sort (actual rows=25 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
-               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=21 loops=1)
+               Sort Method: quicksort  Memory: 28kB
+               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=25 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@!=) '{ "a" : { "$numberInt" : "1" } }'::documentdb_core.bson)
                      Rows Removed by Filter: 2
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$nin": [ ]} }' ORDER BY object_id;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=23 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=27 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1691 bytes
+   Tuple data received from nodes: 1854 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1691 bytes
+         Tuple data received from node: 1854 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=23 loops=1)
+         ->  Sort (actual rows=27 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
-               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=23 loops=1)
+               Sort Method: quicksort  Memory: 28kB
+               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=27 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@!*=) '{ "a" : [  ] }'::documentdb_core.bson)
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (16 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$nin": [ 1, 2 ]} }' ORDER BY object_id;
                                                                             QUERY PLAN                                                                             
 ---------------------------------------------------------------------
- Custom Scan (Citus Adaptive) (actual rows=21 loops=1)
+ Custom Scan (Citus Adaptive) (actual rows=25 loops=1)
    Task Count: 1
-   Tuple data received from nodes: 1605 bytes
+   Tuple data received from nodes: 1768 bytes
    Tasks Shown: All
    ->  Task
-         Tuple data received from node: 1605 bytes
+         Tuple data received from node: 1768 bytes
          Node: host=localhost port=58070 dbname=regression
-         ->  Sort (actual rows=21 loops=1)
+         ->  Sort (actual rows=25 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
-               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=21 loops=1)
+               Sort Method: quicksort  Memory: 28kB
+               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=25 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@!*=) '{ "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }'::documentdb_core.bson)
                      Rows Removed by Filter: 2
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 
@@ -1626,9 +1651,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
                      Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "3" }, { "$numberInt" : "4" } ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 23
+                     Rows Removed by Filter: 27
                      Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=23 loops=1)
+                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
 (17 rows)
 

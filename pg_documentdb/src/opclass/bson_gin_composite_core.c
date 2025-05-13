@@ -851,18 +851,25 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			{
 				/* This is similar to $exists: true */
 				SetBoundsExistsTrue(queryBounds);
+				break;
 			}
-			else
-			{
-				CompositeSingleBound bounds = { 0 };
-				bounds.bound = queryElement->bsonValue;
-				bounds.isBoundInclusive = true;
-				SetLowerBound(&queryBounds->lowerBound, &bounds);
 
-				/* Apply type bracketing */
-				bounds = GetTypeUpperBound(queryElement->bsonValue.value_type);
+			CompositeSingleBound bounds = { 0 };
+			bounds.bound = queryElement->bsonValue;
+			bounds.isBoundInclusive = true;
+			SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+
+			if (IsBsonValueNaN(&queryElement->bsonValue))
+			{
+				/* NaN is not comparable, so it should just match NaN */
 				SetUpperBound(&queryBounds->upperBound, &bounds);
+				break;
 			}
+
+			/* Apply type bracketing */
+			bounds = GetTypeUpperBound(queryElement->bsonValue.value_type);
+			SetUpperBound(&queryBounds->upperBound, &bounds);
 
 			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
 			{
@@ -879,6 +886,13 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			bounds.bound = queryElement->bsonValue;
 			bounds.isBoundInclusive = false;
 			SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+			if (IsBsonValueNaN(&queryElement->bsonValue))
+			{
+				/* Range should just be [ > NaN, < NaN ] */
+				SetUpperBound(&queryBounds->upperBound, &bounds);
+				break;
+			}
 
 			/* Apply type bracketing */
 			if (queryElement->bsonValue.value_type == BSON_TYPE_MINKEY)
@@ -902,6 +916,13 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			bounds.isBoundInclusive = queryStrategy ==
 									  BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL;
 			SetUpperBound(&queryBounds->upperBound, &bounds);
+
+			if (IsBsonValueNaN(&queryElement->bsonValue))
+			{
+				/* Range should just be [NaN, NaN]. */
+				SetLowerBound(&queryBounds->lowerBound, &bounds);
+				break;
+			}
 
 			/* Apply type bracketing */
 			if (queryElement->bsonValue.value_type == BSON_TYPE_MAXKEY)

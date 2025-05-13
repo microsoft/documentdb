@@ -187,4 +187,13 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE docu
 -- this should evaluate to _id 10/12 even though it should evaluate to false
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$eq": 2, "$lt": 1 }}';
 
+-- test queries with NaN
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gt": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lte": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lt": NaN }}' ORDER BY object_id;
+
+-- TODO: remove _id filtering once we fix the array query issue in composite since composite should be matching the document but it doesn't.
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }, "_id": {"$ne": 26}}' ORDER BY object_id;
+
 ROLLBACK;

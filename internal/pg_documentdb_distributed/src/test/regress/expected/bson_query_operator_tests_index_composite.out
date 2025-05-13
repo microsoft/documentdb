@@ -75,9 +75,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(19 rows)
+(23 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : 2 }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -100,9 +104,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(20 rows)
+(24 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : 3 }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -127,9 +135,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(22 rows)
+(26 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : [0, 1, 2] }}' ORDER BY object_id;
             object_id             |                                                                                                                                        document                                                                                                                                         
@@ -152,9 +164,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(20 rows)
+(24 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : true }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -179,9 +195,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(22 rows)
+(26 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$ne" : "c" }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -207,9 +227,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(23 rows)
+(27 rows)
 
 /* array index equality */
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b.1": { "$eq" :  1 }}' ORDER BY object_id;
@@ -241,9 +265,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(20 rows)
+(24 rows)
 
 /* ensure documents match if there's equality on the field exactly */
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$eq" :  { "b" : 1 } }}' ORDER BY object_id;
@@ -301,9 +329,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(21 rows)
+(25 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$ne" :  { "b" : [ 0, 1, 2 ] } }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -327,9 +359,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(21 rows)
+(25 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$ne" :  [ { "b": 0 }, { "b": 1 }, { "b": 3 }] }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -354,9 +390,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(22 rows)
+(26 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$ne" :  { "b" : [ { "1" : [1, 2, 3 ] } ] } }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -381,9 +421,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(22 rows)
+(26 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$ne" :  1 }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -407,9 +451,13 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "20" } } | { "_id" : { "$numberInt" : "20" }, "a" : [ { "b" : "M", "c" : { "$numberInt" : "100" }, "d" : "Y" } ] }
  { "" : { "$numberInt" : "21" } } | { "_id" : { "$numberInt" : "21" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "10" } }, { "c" : { "$numberInt" : "15" } }, { "c" : { "$numberInt" : "18" } } ], "d" : [ { "e" : { "$numberInt" : "10" } }, { "e" : { "$numberInt" : "15" } }, { "e" : { "$numberInt" : "18" } } ] } ] }
  { "" : { "$numberInt" : "22" } } | { "_id" : { "$numberInt" : "22" }, "a" : [ { "b" : [ { "c" : { "$numberInt" : "11" } } ], "d" : [ { "e" : { "$numberInt" : "20" } }, { "e" : { "$numberInt" : "25" } } ] } ] }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
  { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
  { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(21 rows)
+(25 rows)
 
 /* validation of query results for all operators */
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$eq" : 1 }}' ORDER BY object_id;
@@ -555,14 +603,17 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 (0 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$gte" : null }}' ORDER BY object_id;
-            object_id            |                                  document                                  
+            object_id             |                                   document                                   
 ---------------------------------------------------------------------
- { "" : { "$numberInt" : "6" } } | { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "1" } }
- { "" : { "$numberInt" : "7" } } | { "_id" : { "$numberInt" : "7" }, "a" : true }
- { "" : { "$numberInt" : "9" } } | { "_id" : { "$numberInt" : "9" }, "a" : { "c" : { "$numberInt" : "1" } } }
- { "" : "ab_null" }              | { "_id" : "ab_null", "a" : { "b" : null } }
- { "" : "ab_undefined" }         | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(5 rows)
+ { "" : { "$numberInt" : "6" } }  | { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "1" } }
+ { "" : { "$numberInt" : "7" } }  | { "_id" : { "$numberInt" : "7" }, "a" : true }
+ { "" : { "$numberInt" : "9" } }  | { "_id" : { "$numberInt" : "9" }, "a" : { "c" : { "$numberInt" : "1" } } }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
+ { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
+(8 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$lt" : 1 }}' ORDER BY object_id;
             object_id             |                                                                                                                                                     document                                                                                                                                                     
@@ -684,14 +735,17 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 (6 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$lte" : null }}' ORDER BY object_id;
-            object_id            |                                  document                                  
+            object_id             |                                   document                                   
 ---------------------------------------------------------------------
- { "" : { "$numberInt" : "6" } } | { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "1" } }
- { "" : { "$numberInt" : "7" } } | { "_id" : { "$numberInt" : "7" }, "a" : true }
- { "" : { "$numberInt" : "9" } } | { "_id" : { "$numberInt" : "9" }, "a" : { "c" : { "$numberInt" : "1" } } }
- { "" : "ab_null" }              | { "_id" : "ab_null", "a" : { "b" : null } }
- { "" : "ab_undefined" }         | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
-(5 rows)
+ { "" : { "$numberInt" : "6" } }  | { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "1" } }
+ { "" : { "$numberInt" : "7" } }  | { "_id" : { "$numberInt" : "7" }, "a" : true }
+ { "" : { "$numberInt" : "9" } }  | { "_id" : { "$numberInt" : "9" }, "a" : { "c" : { "$numberInt" : "1" } } }
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : "ab_null" }               | { "_id" : "ab_null", "a" : { "b" : null } }
+ { "" : "ab_undefined" }          | { "_id" : "ab_undefined", "a" : { "b" : { "$undefined" : true } } }
+(8 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$exists" : 1 }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -724,7 +778,11 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
  { "" : { "$numberInt" : "8" } }  | { "_id" : { "$numberInt" : "8" }, "a" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }
  { "" : { "$numberInt" : "9" } }  | { "_id" : { "$numberInt" : "9" }, "a" : { "c" : { "$numberInt" : "1" } } }
  { "" : { "$numberInt" : "17" } } | { "_id" : { "$numberInt" : "17" }, "a" : [  ] }
-(5 rows)
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "24" } } | { "_id" : { "$numberInt" : "24" }, "a" : { "$numberDouble" : "Infinity" } }
+ { "" : { "$numberInt" : "25" } } | { "_id" : { "$numberInt" : "25" }, "a" : { "$numberDouble" : "-Infinity" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
+(9 rows)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$exists" : "some" }}' ORDER BY object_id;
             object_id             |                                                                                                                                                           document                                                                                                                                                           
@@ -1352,5 +1410,36 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE docu
  { "_id" : { "$numberInt" : "10" }, "a" : { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] } }
  { "_id" : { "$numberInt" : "12" }, "a" : [ { "b" : [ { "$numberInt" : "-1" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }, { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" }, { "$numberInt" : "7" } ] } ] }
 (2 rows)
+
+-- test queries with NaN
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN }}' ORDER BY object_id;
+            object_id             |                                                   document                                                   
+---------------------------------------------------------------------
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
+(2 rows)
+
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gt": NaN }}' ORDER BY object_id;
+ object_id | document 
+---------------------------------------------------------------------
+(0 rows)
+
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lte": NaN }}' ORDER BY object_id;
+            object_id             |                                                   document                                                   
+---------------------------------------------------------------------
+ { "" : { "$numberInt" : "23" } } | { "_id" : { "$numberInt" : "23" }, "a" : { "$numberDouble" : "NaN" } }
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
+(2 rows)
+
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lt": NaN }}' ORDER BY object_id;
+ object_id | document 
+---------------------------------------------------------------------
+(0 rows)
+
+-- TODO: remove _id filtering once we fix the array query issue in composite since composite should be matching the document but it doesn't.
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }, "_id": {"$ne": 26}}' ORDER BY object_id;
+ object_id | document 
+---------------------------------------------------------------------
+(0 rows)
 
 ROLLBACK;
