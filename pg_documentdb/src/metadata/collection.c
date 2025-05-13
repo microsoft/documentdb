@@ -104,7 +104,6 @@ static const StringView SystemPrefix = { .length = 7, .string = "system." };
 extern bool UseLocalExecutionShardQueries;
 extern bool EnableSchemaValidation;
 extern int MaxSchemaValidatorSize;
-extern bool EnableDataTableWithoutCreationTime;
 
 /* user-defined functions */
 PG_FUNCTION_INFO_V1(command_collection_table);
