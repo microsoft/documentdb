@@ -97,7 +97,11 @@ typedef struct
 typedef struct
 {
 	bool isLookupUnwind;
-	bool useInnerJoin;
+
+	/*
+	 * Only applicable for Lookup Unwind combination.
+	 */
+	bool preserveNullAndEmptyArrays;
 } LookupContext;
 
 typedef struct LookupOptimizationArgs
@@ -395,10 +399,9 @@ HandleLookup(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_LOOKUP);
 
-	LookupContext lookupContext = {
-		.isLookupUnwind = false,
-		.useInnerJoin = false
-	};
+	LookupContext lookupContext;
+	memset(&lookupContext, 0, sizeof(LookupContext));
+	lookupContext.isLookupUnwind = false;
 
 	return HandleLookupCore(existingValue, query, context, &lookupContext);
 }
@@ -435,9 +438,7 @@ HandleLookupUnwind(const bson_value_t *existingValue, Query *query,
 
 	LookupContext lookupContext = {
 		.isLookupUnwind = true,
-
-		/* Use INNER JOIN if we don't want to preserve empty array */
-		.useInnerJoin = !preserveNullAndEmptyArrays
+		.preserveNullAndEmptyArrays = preserveNullAndEmptyArrays
 	};
 	return HandleLookupCore(&lookupSpec, query, context, &lookupContext);
 }
@@ -1886,12 +1887,9 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 /*
  * Helper method to create Lookup's JOIN RTE - this is the entry in the RTE
  * That goes in the Lookup's FROM clause and ties the two tables together.
- *
- * Note: useInnerJoin makes use of the INNER JOIN instead of LEFT JOIN
  */
 inline static RangeTblEntry *
-MakeLookupJoinRte(List *joinVars, List *colNames, List *joinLeftCols, List *joinRightCols,
-				  bool useInnerJoin)
+MakeLookupJoinRte(List *joinVars, List *colNames, List *joinLeftCols, List *joinRightCols)
 {
 	/* Add an RTE for the JoinExpr */
 	RangeTblEntry *joinRte = makeNode(RangeTblEntry);
@@ -1899,7 +1897,7 @@ MakeLookupJoinRte(List *joinVars, List *colNames, List *joinLeftCols, List *join
 	joinRte->rtekind = RTE_JOIN;
 	joinRte->relid = InvalidOid;
 	joinRte->subquery = NULL;
-	joinRte->jointype = useInnerJoin ? JOIN_INNER : JOIN_LEFT;
+	joinRte->jointype = JOIN_LEFT;
 	joinRte->joinmergedcols = 0; /* No using clause */
 	joinRte->joinaliasvars = joinVars;
 	joinRte->joinleftcols = joinLeftCols;
@@ -2583,8 +2581,7 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 							  &outputColNames, &rightJoinCols);
 
 	RangeTblEntry *joinRte = MakeLookupJoinRte(outputVars, outputColNames, leftJoinCols,
-											   rightJoinCols,
-											   lookupContext->useInnerJoin);
+											   rightJoinCols);
 
 
 	lookupQuery->rtable = list_make3(leftTree, rightTree, joinRte);
@@ -2768,11 +2765,27 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 		 * that means we are performing a LEFT JOIN but if the left documnets don't match with anything
 		 * on the right we still need to write the left documents. So we will need to replace the rightOutput
 		 * expression to a coalesce(rightOutput, {}) expression.
+		 *
+		 * Similarly, if `preserveNullAndEmptyArrays: false` we will need to filter out all the non-matching
+		 * NULL documents from the right query i.e. righQuery.document IS NOT NULL
 		 */
-		if (!lookupContext->useInnerJoin)
+		Expr *rightDocExpr = lsecond(mergeDocumentsArgs);
+		if (lookupContext->preserveNullAndEmptyArrays)
 		{
-			Expr *coalesceExpr = GetEmptyBsonCoalesce(lsecond(mergeDocumentsArgs));
+			Expr *coalesceExpr = GetEmptyBsonCoalesce(rightDocExpr);
 			list_nth_cell(mergeDocumentsArgs, 1)->ptr_value = coalesceExpr;
+		}
+		else
+		{
+			NullTest *nullTest = makeNode(NullTest);
+			nullTest->argisrow = false;
+			nullTest->nulltesttype = IS_NOT_NULL;
+			nullTest->arg = rightDocExpr;
+
+			List *existingQuals = make_ands_implicit(
+				(Expr *) lookupQuery->jointree->quals);
+			existingQuals = lappend(existingQuals, nullTest);
+			lookupQuery->jointree->quals = (Node *) make_ands_explicit(existingQuals);
 		}
 		mergeDocumentsArgs = lappend(mergeDocumentsArgs,
 									 MakeTextConst(lookupArgs->lookupAs.string,

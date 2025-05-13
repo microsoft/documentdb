@@ -1,6 +1,6 @@
-SET citus.next_shard_id TO 60000;
-SET documentdb.next_collection_id TO 6000;
-SET documentdb.next_collection_index_id TO 6000;
+SET citus.next_shard_id TO 9631000;
+SET documentdb.next_collection_id TO 963100;
+SET documentdb.next_collection_index_id TO 963100;
 \i sql/bson_aggregation_stage_lookup_tests_core.sql
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 -- Insert data
@@ -181,12 +181,12 @@ WHERE bson_dollar_in(t2.document, t1.match)
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                ->  Nested Loop Left Join
-                     ->  Bitmap Heap Scan on documents_6000_60000 collection
-                           Recheck Cond: (shard_key_value = '6000'::bigint)
+                     ->  Bitmap Heap Scan on documents_963100_9631001 collection
+                           Recheck Cond: (shard_key_value = '963100'::bigint)
                            ->  Bitmap Index Scan on _id_
-                                 Index Cond: (shard_key_value = '6000'::bigint)
+                                 Index Cond: (shard_key_value = '963100'::bigint)
                      ->  Aggregate
-                           ->  Seq Scan on documents_6001_60016 t2
+                           ->  Seq Scan on documents_963101_9631022 t2
                                  Filter: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson))
 (14 rows)
 
@@ -267,7 +267,7 @@ $Q$);
                Tasks Shown: One of 8
                ->  Task
                      Node: host=localhost port=58070 dbname=regression
-                     ->  Seq Scan on documents_6002_60048 documents_6002
+                     ->  Seq Scan on documents_963102_9631048 documents_963102
    Task Count: 1
    Tasks Shown: All
    ->  Task
@@ -276,7 +276,7 @@ $Q$);
                ->  Nested Loop Left Join
                      ->  Function Scan on read_intermediate_result intermediate_result
                      ->  Aggregate
-                           ->  Seq Scan on documents_6001_60016 t2
+                           ->  Seq Scan on documents_963101_9631022 t2
                                  Filter: (document OPERATOR(documentdb_api_catalog.@*=) intermediate_result.match)
 (18 rows)
 
@@ -891,12 +891,12 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
-                     ->  Bitmap Heap Scan on documents_6012_60207 collection_0_1
+                     ->  Bitmap Heap Scan on documents_963112_9631201 collection_0_1
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>) '{ "quantity" : { "$numberInt" : "110" } }'::documentdb_core.bson)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
                            ->  Bitmap Index Scan on idx_pipelinefrom_quantity
@@ -916,14 +916,14 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
                      ->  Sort
                            Sort Key: collection_0_1.object_id
-                           ->  Seq Scan on documents_6012_60207 collection_0_1
+                           ->  Seq Scan on documents_963112_9631201 collection_0_1
                                  Filter: ((document OPERATOR(documentdb_api_catalog.@>) '{ "quantity" : { "$numberInt" : "110" } }'::documentdb_core.bson) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text))
 (15 rows)
 
@@ -954,12 +954,12 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
-                     ->  Bitmap Heap Scan on documents_6012_60207 collection_0_1
+                     ->  Bitmap Heap Scan on documents_963112_9631201 collection_0_1
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "name" : "Honest John Pizza" }'::documentdb_core.bson)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
                            ->  Bitmap Index Scan on idx_pipelinefrom_name
@@ -979,12 +979,12 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
-                     ->  Bitmap Heap Scan on documents_6012_60207 collection_0_1
+                     ->  Bitmap Heap Scan on documents_963112_9631201 collection_0_1
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "name" : "Honest John Pizza" }'::documentdb_core.bson)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
                            ->  Bitmap Index Scan on idx_pipelinefrom_name
@@ -1041,18 +1041,18 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
                      ->  Nested Loop Left Join
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(documentdb_api_internal.bson_dollar_merge_documents(collection_0_1.document, (SubPlan 2), true), documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
-                           ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                                 Index Cond: (shard_key_value = '6012'::bigint)
+                           ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                                 Index Cond: (shard_key_value = '963112'::bigint)
                            ->  Aggregate
-                                 ->  Index Scan using _id_ on documents_6012_60207 collection_0_2
-                                       Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
+                                 ->  Index Scan using _id_ on documents_963112_9631201 collection_0_2
+                                       Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
                            SubPlan 2
                              ->  Aggregate
                                    ->  ProjectSet
@@ -1068,7 +1068,7 @@ BEGIN;
 SET LOCAL enable_seqscan TO off;
 EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "pipelineto", "pipeline": [ { "$lookup": { "from": "pipelinefrom", "localField": "_id", "foreignField": "_id", "as": "matched_docs_id" } } ], "cursor": {} }');
-                                                                 QUERY PLAN                                                                  
+                                                                  QUERY PLAN                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -1076,13 +1076,13 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
-                     ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                           Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
+                     ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                           Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
 (13 rows)
 
 ROLLBACK;
@@ -1090,7 +1090,7 @@ BEGIN;
 SET LOCAL enable_seqscan TO off;
 EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "pipelineto", "pipeline": [ { "$lookup": { "from": "pipelinefrom", "localField": "_id", "foreignField": "_id", "as": "matched_docs_id" } } ], "cursor": {} }');
-                                                                 QUERY PLAN                                                                  
+                                                                  QUERY PLAN                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -1098,13 +1098,13 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
-                     ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                           Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
+                     ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                           Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
 (13 rows)
 
 ROLLBACK;
@@ -1120,18 +1120,18 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
                      ->  Nested Loop Left Join
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(documentdb_api_internal.bson_dollar_merge_documents(collection_0_1.document, (SubPlan 2), true), documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
-                           ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                                 Index Cond: (shard_key_value = '6012'::bigint)
+                           ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                                 Index Cond: (shard_key_value = '963112'::bigint)
                            ->  Aggregate
-                                 ->  Index Scan using _id_ on documents_6012_60207 collection_0_2
-                                       Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
+                                 ->  Index Scan using _id_ on documents_963112_9631201 collection_0_2
+                                       Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
                            SubPlan 2
                              ->  Aggregate
                                    ->  Function Scan on bson_lookup_unwind lookup_subpipeline_substage_1_1
@@ -1153,18 +1153,18 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
                      ->  Nested Loop Left Join
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(documentdb_api_internal.bson_dollar_merge_documents(collection_0_1.document, (SubPlan 2), true), documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
-                           ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                                 Index Cond: (shard_key_value = '6012'::bigint)
+                           ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                                 Index Cond: (shard_key_value = '963112'::bigint)
                            ->  Aggregate
-                                 ->  Index Scan using _id_ on documents_6012_60207 collection_0_2
-                                       Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
+                                 ->  Index Scan using _id_ on documents_963112_9631201 collection_0_2
+                                       Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
                            SubPlan 2
                              ->  Aggregate
                                    ->  Sort
@@ -1190,18 +1190,18 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6013_60220 collection
-                     Recheck Cond: (shard_key_value = '6013'::bigint)
+               ->  Bitmap Heap Scan on documents_963113_9631217 collection
+                     Recheck Cond: (shard_key_value = '963113'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6013'::bigint)
+                           Index Cond: (shard_key_value = '963113'::bigint)
                ->  Aggregate
                      ->  Nested Loop Left Join
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(documentdb_api_internal.bson_dollar_merge_documents(collection_0_1.document, (SubPlan 2), true), documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "restaurant_name" }'::documentdb_core.bson), 'name'::text)
-                           ->  Index Scan using _id_ on documents_6012_60207 collection_0_1
-                                 Index Cond: (shard_key_value = '6012'::bigint)
+                           ->  Index Scan using _id_ on documents_963112_9631201 collection_0_1
+                                 Index Cond: (shard_key_value = '963112'::bigint)
                            ->  Aggregate
-                                 ->  Index Scan using _id_ on documents_6012_60207 collection_0_2
-                                       Index Cond: ((shard_key_value = '6012'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
+                                 ->  Index Scan using _id_ on documents_963112_9631201 collection_0_2
+                                       Index Cond: ((shard_key_value = '963112'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection_0_1.object_id))
                            SubPlan 2
                              ->  Aggregate
                                    ->  Function Scan on bson_lookup_unwind lookup_subpipeline_substage_1_1
@@ -1426,7 +1426,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_wit
 (1 row)
 
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_with_operator_left", "pipeline": [ { "$lookup": { "from": "lookup_with_operator_right", "localField": "_id", "foreignField": "_id", "as": "myfoo" } }] }');
-                                                                 QUERY PLAN                                                                  
+                                                                  QUERY PLAN                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -1434,17 +1434,17 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6016_60270 collection
-                     Recheck Cond: (shard_key_value = '6016'::bigint)
+               ->  Bitmap Heap Scan on documents_963116_9631268 collection
+                     Recheck Cond: (shard_key_value = '963116'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6016'::bigint)
+                           Index Cond: (shard_key_value = '963116'::bigint)
                ->  Aggregate
-                     ->  Index Scan using _id_ on documents_6017_60286 collection_0_1
-                           Index Cond: ((shard_key_value = '6017'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
+                     ->  Index Scan using _id_ on documents_963117_9631284 collection_0_1
+                           Index Cond: ((shard_key_value = '963117'::bigint) AND (object_id OPERATOR(documentdb_core.=) collection.object_id))
 (13 rows)
 
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_with_operator_left", "pipeline": [ { "$project": { "_id": "500" }}, { "$lookup": { "from": "lookup_with_operator_right", "localField": "_id", "foreignField": "_id", "as": "myfoo" } }] }');
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                  
+                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -1452,13 +1452,13 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               ->  Bitmap Heap Scan on documents_6016_60270 collection
-                     Recheck Cond: (shard_key_value = '6016'::bigint)
+               ->  Bitmap Heap Scan on documents_963116_9631268 collection
+                     Recheck Cond: (shard_key_value = '963116'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value = '6016'::bigint)
+                           Index Cond: (shard_key_value = '963116'::bigint)
                ->  Aggregate
-                     ->  Index Scan using _id_ on documents_6017_60286 collection_0_1
-                           Index Cond: ((shard_key_value = '6017'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(documentdb_api_internal.bson_dollar_project(collection.document, '{ "_id" : "500" }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), '{ "_id" : "_id" }'::documentdb_core.bson))))
+                     ->  Index Scan using _id_ on documents_963117_9631284 collection_0_1
+                           Index Cond: ((shard_key_value = '963117'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(documentdb_api_internal.bson_dollar_project(collection.document, '{ "_id" : "500" }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), '{ "_id" : "_id" }'::documentdb_core.bson))))
 (13 rows)
 
 -- Test for Index push down crash when Foreign Field = '_id' and the target collection is sharded 
@@ -1604,51 +1604,50 @@ SELECT document FROM bson_aggregation_pipeline('db',
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
                Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+               ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
-                     Filter: (collection_0_1.document IS NOT NULL)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
-(18 rows)
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
+(17 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id", "pipeline": [ { "$addFields": { "myBar": 1 } }, { "$limit": 10 }] } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '$matched_docs'::text) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_2."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(lookup_subpipeline_substage_0.lookup_unwind, '{ "myBar" : { "$numberInt" : "1" } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind) LIMIT '10'::bigint) agg_stage_sub_1_2), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1) agg_stage_1
+         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '$matched_docs'::text) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_2."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(lookup_subpipeline_substage_0.lookup_unwind, '{ "myBar" : { "$numberInt" : "1" } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind) LIMIT '10'::bigint) agg_stage_sub_1_2), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1) agg_stage_1
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_dollar_unwind(documentdb_api_internal.bson_dollar_merge_documents(collection.document, (SubPlan 1), true), '$matched_docs'::text)
                ->  Nested Loop Left Join
                      Output: collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson))
-                     ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+                     ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                            Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                           Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                           Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                            ->  Bitmap Index Scan on _id_
-                                 Index Cond: (collection.shard_key_value = '6000'::bigint)
+                                 Index Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
-                           ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+                           ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                                  Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
                                  Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
                SubPlan 1
@@ -1663,6 +1662,56 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs" } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
+         Node: host=localhost port=58070 dbname=regression
+         ->  Nested Loop
+               Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
+               Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
+               ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
+                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
+                     Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
+                     ->  Bitmap Index Scan on _id_
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
+(17 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
+    '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "includeArrayIndex": "idx" } } ], "cursor": {} }'); -- this will not inline
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) agg_stage_1
+         Node: host=localhost port=58070 dbname=regression
+         ->  ProjectSet
+               Output: documentdb_api_catalog.bson_dollar_unwind(documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)), true), '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson)
+               ->  Nested Loop Left Join
+                     Output: collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson))
+                     ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
+                           Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                           Recheck Cond: (collection.shard_key_value = '963100'::bigint)
+                           ->  Bitmap Index Scan on _id_
+                                 Index Cond: (collection.shard_key_value = '963100'::bigint)
+                     ->  Aggregate
+                           Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
+                           ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
+                                 Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                                 Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
+(21 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
+    '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "preserveNullAndEmptyArrays" : true } } ], "cursor": {} }'); -- should inline and use LEFT JOIN
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
@@ -1670,70 +1719,19 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
-         Node: host=localhost port=58070 dbname=regression
-         ->  Nested Loop
-               Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
-               Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
-                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
-                     Filter: (collection_0_1.document IS NOT NULL)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
-                     Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
-                     ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
-(18 rows)
-
-EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "includeArrayIndex": "idx" } } ], "cursor": {} }'); -- this will not inline
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
----------------------------------------------------------------------
- Custom Scan (Citus Adaptive)
-   Output: remote_scan.document
-   Task Count: 1
-   Tasks Shown: All
-   ->  Task
-         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) agg_stage_1
-         Node: host=localhost port=58070 dbname=regression
-         ->  ProjectSet
-               Output: documentdb_api_catalog.bson_dollar_unwind(documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)), true), '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson)
-               ->  Nested Loop Left Join
-                     Output: collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson))
-                     ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
-                           Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                           Recheck Cond: (collection.shard_key_value = '6000'::bigint)
-                           ->  Bitmap Index Scan on _id_
-                                 Index Cond: (collection.shard_key_value = '6000'::bigint)
-                     ->  Aggregate
-                           Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
-                           ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
-                                 Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
-                                 Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-(21 rows)
-
-EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "preserveNullAndEmptyArrays" : true } } ], "cursor": {} }'); -- should inline and use LEFT JOIN
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
----------------------------------------------------------------------
- Custom Scan (Citus Adaptive)
-   Output: remote_scan.document
-   Task Count: 1
-   Tasks Shown: All
-   ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'matched_docs'::text)
                Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
                ->  Materialize
                      Output: collection_0_1.document, collection_0_1.object_id
-                     ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+                     ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                            Output: collection_0_1.document, collection_0_1.object_id
 (19 rows)
 
@@ -1877,51 +1875,50 @@ SELECT document FROM bson_aggregation_pipeline('db',
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
                Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+               ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
-                     Filter: (collection_0_1.document IS NOT NULL)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
-(18 rows)
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
+(17 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id", "pipeline": [ { "$addFields": { "myBar": 1 } }, { "$limit": 10 }] } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '$matched_docs'::text) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_2."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(lookup_subpipeline_substage_0.lookup_unwind, '{ "myBar" : { "$numberInt" : "1" } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind) LIMIT '10'::bigint) agg_stage_sub_1_2), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1) agg_stage_1
+         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '$matched_docs'::text) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_2."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(lookup_subpipeline_substage_0.lookup_unwind, '{ "myBar" : { "$numberInt" : "1" } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind) LIMIT '10'::bigint) agg_stage_sub_1_2), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1) agg_stage_1
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_dollar_unwind(documentdb_api_internal.bson_dollar_merge_documents(collection.document, (SubPlan 1), true), '$matched_docs'::text)
                ->  Nested Loop Left Join
                      Output: collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson))
-                     ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+                     ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                            Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                           Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                           Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                            ->  Bitmap Index Scan on _id_
-                                 Index Cond: (collection.shard_key_value = '6000'::bigint)
+                                 Index Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
-                           ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+                           ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                                  Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
                                  Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
                SubPlan 1
@@ -1936,51 +1933,50 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
                Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+               ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
-                     Filter: (collection_0_1.document IS NOT NULL)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
-(18 rows)
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
+(17 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "includeArrayIndex": "idx" } } ], "cursor": {} }'); -- this will not inline
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) agg_stage_1
+         Query: SELECT documentdb_api_catalog.bson_dollar_unwind(document, '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))) agg_stage_1
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_dollar_unwind(documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)), true), '{ "path" : "$matched_docs", "includeArrayIndex" : "idx" }'::documentdb_core.bson)
                ->  Nested Loop Left Join
                      Output: collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson))
-                     ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+                     ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                            Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                           Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                           Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                            ->  Bitmap Index Scan on _id_
-                                 Index Cond: (collection.shard_key_value = '6000'::bigint)
+                                 Index Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
-                           ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+                           ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                                  Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
                                  Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
 (21 rows)
@@ -1988,26 +1984,26 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 	
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "_id" } }, { "$unwind": { "path": "$matched_docs", "preserveNullAndEmptyArrays" : true } } ], "cursor": {} }'); -- should inline and use LEFT JOIN
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document, collection_0_1.object_id AS "objectId" FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE (lookup_right_query_stage_0."objectId" OPERATOR(documentdb_core.=) ANY (lookup_stage_1.lookup_filter))) "lookupRight_stage_1" ON (true))
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'matched_docs'::text)
                Join Filter: (collection_0_1.object_id OPERATOR(documentdb_core.=) ANY (documentdb_api_internal.bson_dollar_lookup_extract_filter_array(collection.document, '{ "_id" : "item" }'::documentdb_core.bson)))
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
-                     Recheck Cond: (collection.shard_key_value = '6000'::bigint)
+                     Recheck Cond: (collection.shard_key_value = '963100'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (collection.shard_key_value = '6000'::bigint)
+                           Index Cond: (collection.shard_key_value = '963100'::bigint)
                ->  Materialize
                      Output: collection_0_1.document, collection_0_1.object_id
-                     ->  Seq Scan on documentdb_data.documents_6001_60016 collection_0_1
+                     ->  Seq Scan on documentdb_data.documents_963101_9631022 collection_0_1
                            Output: collection_0_1.document, collection_0_1.object_id
 (19 rows)
 
@@ -2039,24 +2035,24 @@ SELECT document FROM bson_aggregation_pipeline('db',
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "orders", "pipeline": [ { "$match": { "item": { "$exists": true } } }, { "$lookup": { "from": "inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_6000_60000 collection WHERE ((collection.document OPERATOR(documentdb_api_catalog.#>=) '{ "item" : { "$minKey" : 1 } }'::documentdb_core.bsonquery) AND (collection.shard_key_value OPERATOR(pg_catalog.=) '6000'::bigint))) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_6001_60016 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '6001'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'sku'::text)) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, "lookupRight_stage_1".document, 'matched_docs'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_963100_9631001 collection WHERE ((collection.document OPERATOR(documentdb_api_catalog.#>=) '{ "item" : { "$minKey" : 1 } }'::documentdb_core.bsonquery) AND (collection.shard_key_value OPERATOR(pg_catalog.=) '963100'::bigint))) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_963101_9631022 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '963101'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'sku'::text)) "lookupRight_stage_1" ON (true)) WHERE ("lookupRight_stage_1".document IS NOT NULL)
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
                Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson), 'sku'::text)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6000_60000 collection
+               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
                      Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "item" : { "$minKey" : 1 } }'::documentdb_core.bson)
                      ->  Bitmap Index Scan on orders_item_1
                            Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "item" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Bitmap Heap Scan on documentdb_data.documents_6001_60016 collection_0_1
+               ->  Bitmap Heap Scan on documentdb_data.documents_963101_9631022 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
                      Recheck Cond: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson), 'sku'::text)
                      ->  Bitmap Index Scan on idx_inventory_sku
