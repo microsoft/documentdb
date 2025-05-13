@@ -24,7 +24,7 @@ permissions:
 env:
   DEFAULT_BASE_VERSION: '0.103.0'
   DEFAULT_MANIFEST_TAG: 'test'
-  IMAGE_NAME: preview
+  IMAGE_NAME: documentdb-local
   IMAGE_TAG: ${{ github.run_id }}-$(date +'%Y-%m-%d')
 
 jobs:

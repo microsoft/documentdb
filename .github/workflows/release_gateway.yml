@@ -1,0 +1,34 @@
+name: Copy to microsoft/documentdb-local
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: 'Tag in your repo to copy (e.g. test or 1234-2024-05-13)'
+        required: true
+  push:
+    branches:
+      - 'copy' 
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REPO_NAME: documentdb-local
+  SOURCE_TAG: test
+  TARGET_TAG: latest
+
+jobs:
+  copy-and-push-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Retag existing manifest
+        run: |
+          DIGEST=$(docker manifest inspect -v ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.SOURCE_TAG }} | awk '/^Digest:/ { print $2 }')
+          docker manifest create ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.TARGET_TAG }} \
+            --amend ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}@$DIGEST
+          docker manifest push ghcr.io/${{ github.repository }}/${{ env.REPO_NAME }}:${{ env.TARGET_TAG }}
