@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_tag:
-        description: 'Tag in your repo to copy (e.g. test or 1234-2024-05-13)'
+        description: 'Tag in your repo to copy (default: test)'
         required: true
         default: 'test'
       target_tag:
