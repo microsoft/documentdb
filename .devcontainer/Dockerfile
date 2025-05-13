@@ -100,7 +100,6 @@ RUN apt-get update && \
     libproj-dev \
     libxml2-dev \
     libjson-c-dev \
-    libgdal-dev \
     libgeos++-dev \
     libgeos-dev \
     && rm -rf /var/lib/apt/lists/*
