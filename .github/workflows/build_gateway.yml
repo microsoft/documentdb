@@ -79,7 +79,6 @@ jobs:
       uses: sigstore/cosign-installer@main
     - name: Sign manifest (keyless)
       run: |
-        # extract the manifest-list digest via verbose inspect + awk
         DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ env.MANIFEST_TAG }} \
           | awk '/^Digest:/ { print $2 }')
         echo "Signing manifest-list@${DIGEST}"
