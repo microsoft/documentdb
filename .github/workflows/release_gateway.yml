@@ -1,4 +1,4 @@
-name: Copy to microsoft/documentdb-local
+name: Release Gateway
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: true
   push:
     branches:
-      - 'copy' 
+      - 'main' 
 
 permissions:
   contents: read
