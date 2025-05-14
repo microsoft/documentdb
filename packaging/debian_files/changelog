@@ -1,12 +1,26 @@
-documentdb (DOCUMENTDB_VERSION) Unreleased; urgency=low
+documentdb (0.104.0) Unreleased; urgency=low
 
-  * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
-  * Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
-  * Support ARM64 architecture when building docker container *[Preview]*
+  * Add string case support for `$toDate` operator
+  * Support collation with `$indexOfArray` aggregation operator. *[Feature]*
+  * Support collation with arrays and objects comparisons *[Feature]*
+  * Support background index builds *[Bugfix]* (#36)
+  * Enable user CRUD by default *[Feature]*
 
- -- Shuai Tian <shuaitian@microsoft.com>  Wed, 09 Apr 2026 12:00:00 +0000
+ -- Shuai Tian <shuaitian@microsoft.com>  Wed, 14 May 2025 12:00:00 +0000
 
-documentdb (0.102-0) unstable; urgency=medium
+documentdb (0.103.0) unstable; urgency=medium
+
+  * Support collation with aggregation and find on sharded collections [Feature]
+  * Support $convert on binData to binData, string to binData and binData to string (except with format: auto) [Feature]
+  * Support half-precision vector indexing, vectors can have up to 4,000 dimensions [Feature]
+  * Support collation with $documents and $replaceWith stage of the aggregation pipeline [Feature]
+  * Push pg_documentdb_gw for documentdb connections [Feature]
+  * Support ARM64 architecture when building docker container [Preview]
+  * Fix list_databases for databases with size > 2 GB [Bugfix] (#119)
+
+ -- Shuai Tian <shuaitian@microsoft.com>  Fri, 09 May 2025 12:00:00 +0000
+
+documentdb (0.102.0) unstable; urgency=medium
 
   * Support index pushdown for vector search queries [Bugfix]
   * Support exact search for vector search queries [Feature]
@@ -29,7 +43,7 @@ documentdb (0.102-0) unstable; urgency=medium
 
  -- Shuai Tian <shuaitian@microsoft.com>  Wed, 26 Mar 2025 10:00:00 +0000
 
-documentdb (0.101-0) unstable; urgency=medium
+documentdb (0.101.0) unstable; urgency=medium
 
   * Push $graphlookup recursive CTE JOIN filters to index [Perf]
   * Build pg_documentdb for PostgreSQL 17 [Infra] (#13)
@@ -40,7 +54,7 @@ documentdb (0.101-0) unstable; urgency=medium
 
  -- Shuai Tian <shuaitian@microsoft.com>  Tue, 12 Feb 2025 10:00:00 +0000
 
-documentdb (0.100-0) unstable; urgency=medium
+documentdb (0.100.0) unstable; urgency=medium
 
   * Initial release
 
