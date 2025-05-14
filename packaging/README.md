@@ -27,14 +27,14 @@ Visit the [Releases](../../releases) page of this repository and download the `.
 Example:
 
 ```bash
-wget https://github.com/YOUR_ORG/YOUR_REPO/releases/download/v0.103.0/deb12-postgresql-16-documentdb_0.103.0_amd64.deb
+wget https://github.com/microsoft/documentdb/releases/download/v0.103-0/ubuntu22.04-postgresql-16-documentdb_0.103.0_amd64.deb
 ```
 
 ## 🔽 2. Install the Package
 
 Install the downloaded package using `dpkg`:
 ```bash
-sudo dpkg -i deb12-postgresql-16-documentdb_0.103.0_amd64.deb
+sudo dpkg -i ubuntu22.04-postgresql-16-documentdb_0.103.0_amd64.deb
 ```
 If you see dependency errors, fix them with:
 ```bash
