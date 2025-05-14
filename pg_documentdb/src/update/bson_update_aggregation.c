@@ -163,17 +163,16 @@ static MongoUpdateAggregationOperator AggregationOperators[] =
  * the pipeline against documents to produce modified documents.
  */
 struct AggregationPipelineUpdateState *
-GetAggregationPipelineUpdateState(pgbson *updateSpec)
+GetAggregationPipelineUpdateState(const bson_value_t *updateSpec)
 {
-	bson_iter_t updateIterator;
-	PgbsonInitIteratorAtPath(updateSpec, "", &updateIterator);
-	if (!BSON_ITER_HOLDS_ARRAY(&updateIterator) ||
-		!bson_iter_recurse(&updateIterator, &updateIterator))
+	if (updateSpec->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
 							"aggregation pipeline should be an array")));
 	}
 
+	bson_iter_t updateIterator;
+	BsonValueInitIterator(updateSpec, &updateIterator);
 	List *aggregationStages = NIL;
 	while (bson_iter_next(&updateIterator))
 	{

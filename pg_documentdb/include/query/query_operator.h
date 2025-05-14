@@ -110,6 +110,8 @@ typedef struct BsonQueryOperatorContext
 
 Var * MakeSimpleDocumentVar(void);
 Node * ReplaceBsonQueryOperators(Query *node, ParamListInfo boundParams);
+
+void ValidateQueryDocumentValue(const bson_value_t *queryDocumentValue);
 void ValidateQueryDocument(pgbson *queryDocument);
 bool QueryDocumentsAreEquivalent(const pgbson *leftQueryDocument,
 								 const pgbson *rightQueryDocument);
@@ -117,7 +119,7 @@ List * CreateQualsFromQueryDocIterator(bson_iter_t *queryDocIterator,
 									   BsonQueryOperatorContext *context);
 Node * EvaluateBoundParameters(Node *expression, ParamListInfo boundParams);
 
-List * CreateQualsForBsonValueTopLevelQuery(const pgbson *query);
+List * CreateQualsForBsonValueTopLevelQueryIter(bson_iter_t *queryIter);
 Expr * CreateQualForBsonValueExpression(const bson_value_t *expression, const
 										char *collationString);
 Expr * CreateQualForBsonValueArrayExpression(const bson_value_t *expression);

@@ -32,7 +32,7 @@ struct BsonIntermediatePathNode;
 typedef struct PositionalUpdateSpec
 {
 	/* The input query spec - used when evaluating $ positional operators */
-	pgbson *querySpec;
+	const bson_value_t *querySpec;
 
 	/* hashmap of char* to bson_value_t* */
 	HTAB *arrayFilters;
@@ -100,8 +100,9 @@ typedef struct MongoUpdateOperatorSpec
 
 /* aggregation */
 
-struct AggregationPipelineUpdateState * GetAggregationPipelineUpdateState(
-	pgbson *updateSpec);
+struct AggregationPipelineUpdateState * GetAggregationPipelineUpdateState(const
+																		  bson_value_t *
+																		  updateSpec);
 
 pgbson * ProcessAggregationPipelineUpdate(pgbson *sourceDoc,
 										  const struct AggregationPipelineUpdateState *
@@ -112,9 +113,12 @@ pgbson * ProcessAggregationPipelineUpdate(pgbson *sourceDoc,
 /* Update workflows */
 void RegisterUpdateOperatorExtension(const MongoUpdateOperatorSpec *extensibleDefinition);
 
-const struct BsonIntermediatePathNode * GetOperatorUpdateState(pgbson *updateSpec,
-															   pgbson *querySpec,
-															   pgbson *arrayFilters,
+const struct BsonIntermediatePathNode * GetOperatorUpdateState(const
+															   bson_value_t *updateSpec,
+															   const bson_value_t *
+															   querySpec,
+															   const bson_value_t *
+															   arrayFilters,
 															   bool isUpsert);
 pgbson * ProcessUpdateOperatorWithState(pgbson *sourceDoc,
 										const struct BsonIntermediatePathNode *

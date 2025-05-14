@@ -109,10 +109,6 @@ static bool ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
 static void ValidateShardKey(const pgbson *shardKeyDoc);
 static void FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 											ShardKeyFieldValues *shardKeyValues);
-static bool ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
-											 const bson_value_t *query,
-											 int64 *shardKeyHash,
-											 bool *isShardKeyValueCollationAware);
 static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int
 									 collectionVarno, ShardKeyFieldValues *fieldValues,
 									 bool *isShardKeyValueCollationAware);
@@ -588,7 +584,7 @@ CreateShardKeyValueFilter(int collectionVarno, Const *valueConst)
  * ComputeShardKeyHashForQueryValue returns whether the given query filters all
  * shard key fields by a specific value and computes the hash of the values.
  */
-static bool
+bool
 ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
 								 const bson_value_t *query, int64 *shardKeyHash,
 								 bool *isShardKeyValueCollationAware)

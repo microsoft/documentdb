@@ -93,7 +93,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "expdata" :[13,3,1]}', '{ "": { "$bit": { "expdata.0" : { "and" :10 }  }  }}', '{}');
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "expdata" :13}', '{ "": { "$bit": { "expdata" : { "and" : 0, "or" : 10 }} }}', '{}');
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "expdata" :13}', '{ "": { "$bit": { "expdata" : { "or" : 10, "xor" : 10 }} }}', '{}');
-SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1}', '{ "": { "$bit": { "expdata" : { "or" : 10 }} }, "upsert" : false}', '{}');
+SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1}', '{ "": { "$bit": { "expdata" : { "or" : 10 }} }}', '{}');
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "key": { "x": { "y": [ 100, 200 ]}}, "f": 12 }', '{ "": { "$bit": {"key.x.y.0": {"and": 10}, "f": {"and": 10 }}}}', '{}');
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "key": { "x": { "y": 10 }}, "f": 1}', '{ "": { "$bit": { "key.x.y": { "xor": 10 } }}}', '{}');
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "key": {"x": { "y": [100 , 200 ] } }, "f": 1 } ', '{ "": { "$bit": { "key.x.y.0": { "and": 10 } }}}', '{}');

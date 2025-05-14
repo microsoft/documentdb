@@ -546,7 +546,7 @@ CreateQualForBsonValueArrayExpression(const bson_value_t *expression)
  * typically supplied by an @@ operator).
  */
 List *
-CreateQualsForBsonValueTopLevelQuery(const pgbson *query)
+CreateQualsForBsonValueTopLevelQueryIter(bson_iter_t *queryIter)
 {
 	Var *var = makeVar(1, 1, INTERNALOID, -1, DEFAULT_COLLATION_OID, 0);
 	BsonQueryOperatorContext context = { 0 };
@@ -557,9 +557,7 @@ CreateQualsForBsonValueTopLevelQuery(const pgbson *query)
 	context.requiredFilterPathNameHashSet = NULL;
 	context.variableContext = NULL;
 
-	bson_iter_t queryDocIterator;
-	PgbsonInitIterator(query, &queryDocIterator);
-	return CreateQualsFromQueryDocIterator(&queryDocIterator, &context);
+	return CreateQualsFromQueryDocIterator(queryIter, &context);
 }
 
 
@@ -1116,8 +1114,23 @@ IsValidBsonDocumentForDollarInOrNinOp(const bson_value_t *value)
 void
 ValidateQueryDocument(pgbson *queryDocument)
 {
+	bson_value_t queryValue = ConvertPgbsonToBsonValue(queryDocument);
+	return ValidateQueryDocumentValue(&queryValue);
+}
+
+
+void
+ValidateQueryDocumentValue(const bson_value_t *value)
+{
+	if (value->value_type != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Validate query must be given a document - not: %s",
+							   BsonTypeName(value->value_type))));
+	}
+
 	bson_iter_t queryDocIter;
-	PgbsonInitIterator(queryDocument, &queryDocIter);
+	BsonValueInitIterator(value, &queryDocIter);
 
 	BsonQueryOperatorContext context = {
 		.documentExpr = (Expr *) MakeSimpleDocumentVar(),

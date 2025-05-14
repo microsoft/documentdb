@@ -453,7 +453,7 @@ BuildDeletionSpecListFromSequence(pgbsonsequence *sequence)
 static DeletionSpec *
 BuildDeletionSpec(bson_iter_t *deletionIter)
 {
-	pgbson *query = NULL;
+	bson_value_t *query = NULL;
 	int64 limit = -1;
 
 	while (bson_iter_next(deletionIter))
@@ -464,7 +464,7 @@ BuildDeletionSpec(bson_iter_t *deletionIter)
 		{
 			EnsureTopLevelFieldType("delete.deletes.q", deletionIter, BSON_TYPE_DOCUMENT);
 
-			query = PgbsonInitFromIterDocumentValue(deletionIter);
+			query = CreateBsonValueCopy(bson_iter_value(deletionIter));
 		}
 		else if (strcmp(field, "limit") == 0)
 		{
@@ -656,7 +656,7 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 							   "regular delete")));
 	}
 
-	pgbson *query = deletionSpec->deleteOneParams.query;
+	pgbson *query = PgbsonInitFromDocumentBsonValue(deletionSpec->deleteOneParams.query);
 
 	/* determine whether query filters by a single shard key value */
 	int64 shardKeyHash = 0;
@@ -678,14 +678,15 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 		TraverseQueryDocumentAndGetId(&queryDocIter, &idFromQueryDocument,
 									  errorOnConflict, &queryHasNonIdFilters);
 
+	uint64_t result = 0;
 	if (deletionSpec->limit == 0)
 	{
 		/*
 		 * Delete as many document as match the query. This is not a retryable
 		 * operation, so we ignore transactionId.
 		 */
-		return DeleteAllMatchingDocuments(collection, query,
-										  hasShardKeyValueFilter, shardKeyHash);
+		result = DeleteAllMatchingDocuments(collection, query,
+											hasShardKeyValueFilter, shardKeyHash);
 	}
 	else
 	{
@@ -719,8 +720,11 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 								   "_id or shard key filter")));
 		}
 
-		return deleteOneResult.isRowDeleted ? 1 : 0;
+		result = deleteOneResult.isRowDeleted ? 1 : 0;
 	}
+
+	pfree(query);
+	return result;
 }
 
 
@@ -1060,9 +1064,11 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 {
 	uint64 planId = QUERY_DELETE_ONE;
 	List *sortFieldDocuments = deleteOneParams->sort == NULL ? NIL :
-							   PgbsonDecomposeFields(deleteOneParams->sort);
+							   BsonValueDocumentDecomposeFields(deleteOneParams->sort);
+
+	pgbson *query = PgbsonInitFromDocumentBsonValue(deleteOneParams->query);
 	bool queryHasNonIdFilters = false;
-	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(deleteOneParams->query,
+	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(query,
 																&queryHasNonIdFilters);
 
 	int argCount = 2 + list_length(sortFieldDocuments);
@@ -1176,7 +1182,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 
 	/* we use bytea because bson may not have the same OID on all nodes */
 	argTypes[1] = BYTEAOID;
-	argValues[1] = PointerGetDatum(CastPgbsonToBytea(deleteOneParams->query));
+	argValues[1] = PointerGetDatum(CastPgbsonToBytea(query));
 
 	char *argNulls = NULL;
 	bool readOnly = false;
@@ -1245,7 +1251,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 				bool forceProjectId = false;
 				bool allowInclusionExclusion = false;
 				bson_iter_t projectIter;
-				PgbsonInitIterator(deleteOneParams->returnFields, &projectIter);
+				BsonValueInitIterator(deleteOneParams->returnFields, &projectIter);
 
 				const BsonProjectionQueryState *projectionState =
 					GetProjectionStateForBsonProject(&projectIter,
@@ -1282,12 +1288,12 @@ SerializeDeleteOneParams(const DeleteOneParams *deleteParams)
 
 	if (deleteParams->query != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "query", 5, deleteParams->query);
+		PgbsonWriterAppendValue(&writer, "query", 5, deleteParams->query);
 	}
 
 	if (deleteParams->sort != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "sort", 4, deleteParams->sort);
+		PgbsonWriterAppendValue(&writer, "sort", 4, deleteParams->sort);
 	}
 
 	PgbsonWriterAppendBool(&writer, "returnDeletedDocument", 21,
@@ -1295,8 +1301,8 @@ SerializeDeleteOneParams(const DeleteOneParams *deleteParams)
 
 	if (deleteParams->returnFields != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "returnFields", 12,
-								   deleteParams->returnFields);
+		PgbsonWriterAppendValue(&writer, "returnFields", 12,
+								deleteParams->returnFields);
 	}
 
 	PgbsonWriterEndDocument(&commandWriter, &writer);
@@ -1316,13 +1322,13 @@ DeserializeDeleteWorkerSpecForDeleteOne(const bson_value_t *workerSpecValue,
 		const char *key = bson_iter_key(&commandIter);
 		if (strcmp(key, "query") == 0)
 		{
-			deleteOneParams->query = PgbsonInitFromDocumentBsonValue(bson_iter_value(
-																		 &commandIter));
+			deleteOneParams->query = CreateBsonValueCopy(bson_iter_value(
+															 &commandIter));
 		}
 		else if (strcmp(key, "sort") == 0)
 		{
-			deleteOneParams->sort = PgbsonInitFromDocumentBsonValue(bson_iter_value(
-																		&commandIter));
+			deleteOneParams->sort = CreateBsonValueCopy(bson_iter_value(
+															&commandIter));
 		}
 		else if (strcmp(key, "returnDeletedDocument") == 0)
 		{
@@ -1330,7 +1336,7 @@ DeserializeDeleteWorkerSpecForDeleteOne(const bson_value_t *workerSpecValue,
 		}
 		else if (strcmp(key, "returnFields") == 0)
 		{
-			deleteOneParams->returnFields = PgbsonInitFromDocumentBsonValue(
+			deleteOneParams->returnFields = CreateBsonValueCopy(
 				bson_iter_value(&commandIter));
 		}
 	}
@@ -1534,7 +1540,7 @@ ValidateQueryDocuments(BatchDeletionSpec *batchSpec)
 		MemoryContext oldContext = CurrentMemoryContext;
 		PG_TRY();
 		{
-			ValidateQueryDocument(deletionSpec->deleteOneParams.query);
+			ValidateQueryDocumentValue(deletionSpec->deleteOneParams.query);
 			isSuccess = true;
 		}
 		PG_CATCH();

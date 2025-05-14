@@ -292,9 +292,11 @@ static void ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 						  bool forceInlineWrites,
 						  ExprEvalState *stateForSchemaValidation);
 static UpdateAllMatchingDocsResult UpdateAllMatchingDocuments(MongoCollection *collection,
-															  pgbson *query,
-															  pgbson *update,
-															  pgbson *arrayFilters, bool
+															  const bson_value_t *query,
+															  const bson_value_t *update,
+															  const bson_value_t *
+															  arrayFilters,
+															  bool
 															  hasShardKeyValueFilter,
 															  int64 shardKeyHash,
 															  ExprEvalState *
@@ -315,8 +317,10 @@ static void UpdateOneInternalWithRetryRecord(MongoCollection *collection, int64
 											 UpdateOneResult *result,
 											 ExprEvalState *stateForSchemaValidation);
 static bool SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64
-								  shardKeyHash, pgbson *query,
-								  pgbson *update, pgbson *arrayFilters, pgbson *sort,
+								  shardKeyHash, const bson_value_t *query,
+								  const bson_value_t *update, const
+								  bson_value_t *arrayFilters,
+								  const bson_value_t *sort,
 								  UpdateCandidate *updateCandidate,
 								  bool getOriginalDocument, bool *hasOnlyObjectIdFilter);
 static bool UpdateDocumentByTID(uint64 collectionId, const char *shardTableName, int64
@@ -329,8 +333,9 @@ static void UpdateOneObjectId(MongoCollection *collection,
 							  bson_value_t *objectId, text *transactionId,
 							  UpdateOneResult *result,
 							  ExprEvalState *stateForSchemaValidation);
-static pgbson * UpsertDocument(MongoCollection *collection, pgbson *update,
-							   pgbson *query, pgbson *arrayFilters,
+static pgbson * UpsertDocument(MongoCollection *collection, const bson_value_t *update,
+							   const bson_value_t *query, const
+							   bson_value_t *arrayFilters,
 							   ExprEvalState *stateForSchemaValidation,
 							   bool hasOnlyObjectIdFilter);
 static List * ValidateQueryAndUpdateDocuments(BatchUpdateSpec *batchSpec);
@@ -871,9 +876,9 @@ BuildUpdateSpecListFromSequence(pgbsonsequence *updateDocs, bool *hasUpsert)
 static UpdateSpec *
 BuildUpdateSpec(bson_iter_t *updateIter)
 {
-	pgbson *query = NULL;
-	pgbson *update = NULL;
-	pgbson *arrayFilters = NULL;
+	bson_value_t *query = NULL;
+	bson_value_t *update = NULL;
+	bson_value_t *arrayFilters = NULL;
 	bool isMulti = false;
 	bool isUpsert = false;
 
@@ -885,7 +890,8 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 		{
 			EnsureTopLevelFieldType("update.updates.q", updateIter, BSON_TYPE_DOCUMENT);
 
-			query = PgbsonInitFromIterDocumentValue(updateIter);
+			query = palloc(sizeof(bson_value_t));
+			*query = *bson_iter_value(updateIter);
 		}
 		else if (strcmp(field, "u") == 0)
 		{
@@ -898,10 +904,8 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 									   BsonIterTypeName(updateIter))));
 			}
 
-			const bson_value_t *bsonValue = bson_iter_value(updateIter);
-
-			/* we keep update documents in projected form to preserve the type */
-			update = BsonValueToDocumentPgbson(bsonValue);
+			update = palloc(sizeof(bson_value_t));
+			*update = *bson_iter_value(updateIter);
 		}
 		else if (strcmp(field, "multi") == 0)
 		{
@@ -919,10 +923,10 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 		{
 			EnsureTopLevelFieldType("update.updates.arrayFilters", updateIter,
 									BSON_TYPE_ARRAY);
-			const bson_value_t *bsonValue = bson_iter_value(updateIter);
 
-			/* we keep arrayFilters in projected form to preserve the type */
-			arrayFilters = BsonValueToDocumentPgbson(bsonValue);
+
+			arrayFilters = palloc(sizeof(bson_value_t));
+			*arrayFilters = *bson_iter_value(updateIter);
 		}
 		else if (strcmp(field, "collation") == 0)
 		{
@@ -1210,6 +1214,8 @@ DoUnshardedMultiUpdateViaUpdateWorker(MongoCollection *collection, List *updates
 		ReThrowError(errorData);
 	}
 	PG_END_TRY();
+
+	pfree(workerSpec);
 }
 
 
@@ -1445,9 +1451,9 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 			  text *transactionId, UpdateResult *result, bool forceInlineWrites,
 			  ExprEvalState *stateForSchemaValidation)
 {
-	pgbson *query = updateSpec->updateOneParams.query;
-	pgbson *update = updateSpec->updateOneParams.update;
-	pgbson *arrayFilters = updateSpec->updateOneParams.arrayFilters;
+	const bson_value_t *query = updateSpec->updateOneParams.query;
+	const bson_value_t *update = updateSpec->updateOneParams.update;
+	const bson_value_t *arrayFilters = updateSpec->updateOneParams.arrayFilters;
 	bool isUpsert = updateSpec->updateOneParams.isUpsert;
 	bool isMulti = updateSpec->isMulti;
 
@@ -1455,8 +1461,9 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 	int64 shardKeyHash = 0;
 	bool isShardKeyValueCollationAware = false;
 	bool hasShardKeyValueFilter =
-		ComputeShardKeyHashForQuery(collection->shardKey, collection->collectionId, query,
-									&shardKeyHash, &isShardKeyValueCollationAware);
+		ComputeShardKeyHashForQueryValue(collection->shardKey, collection->collectionId,
+										 query,
+										 &shardKeyHash, &isShardKeyValueCollationAware);
 
 	result->rowsMatched = 0;
 	result->rowsModified = 0;
@@ -1535,7 +1542,7 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 		{
 			/* determine whether query filters by a single object ID */
 			bson_iter_t queryDocIter;
-			PgbsonInitIterator(query, &queryDocIter);
+			BsonValueInitIterator(query, &queryDocIter);
 			bson_value_t idFromQueryDocument = { 0 };
 			bool errorOnConflict = false;
 			bool queryHasNonIdFilters = false;
@@ -1581,18 +1588,13 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
  * number of updated rows and matched documents for the query.
  */
 static UpdateAllMatchingDocsResult
-UpdateAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
-						   pgbson *updateDoc, pgbson *arrayFilters,
+UpdateAllMatchingDocuments(MongoCollection *collection, const bson_value_t *queryDocValue,
+						   const bson_value_t *updateDocValue, const
+						   bson_value_t *arrayFiltersValue,
 						   bool hasShardKeyValueFilter, int64 shardKeyHash,
 						   ExprEvalState *schemaValidationExprEvalState,
 						   bool *hasOnlyObjectIdFilter)
 {
-	bool queryHasNonIdFilters = false;
-	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(queryDoc,
-																&queryHasNonIdFilters);
-
-	*hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
-
 	const char *tableName = collection->tableName;
 	bool isLocalShardQuery = false;
 	if (collection->shardTableName[0] != '\0')
@@ -1613,7 +1615,21 @@ UpdateAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	memset(&result, 0, sizeof(UpdateAllMatchingDocsResult));
 
 	SPI_connect();
-	initStringInfo(&updateQuery);
+
+	pgbson *queryDoc = PgbsonInitFromDocumentBsonValue(queryDocValue);
+
+	/* Here we need to create a document wrapper to preserve the type */
+	pgbson *updateDoc = BsonValueToDocumentPgbson(updateDocValue);
+	pgbson *arrayFilters = arrayFiltersValue == NULL ? NULL :
+						   BsonValueToDocumentPgbson(arrayFiltersValue);
+
+	/* Do these under the SPI Context so that they get deleted automatically at the end */
+	bool queryHasNonIdFilters = false;
+	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(queryDoc,
+																&queryHasNonIdFilters);
+
+	*hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
+
 
 	/* We use a CTE with the UPDATE document and then select the count of number of rows to get the matched docs,
 	 * and the sum of the RETURNING value, which returns 1 if a document was updated and 0
@@ -1635,6 +1651,7 @@ UpdateAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	 * value if no update is needed is with the multi CTE approach mentioned above, which is a lot slower.
 	 *
 	 */
+	initStringInfo(&updateQuery);
 	if (EnableSchemaValidation && schemaValidationExprEvalState != NULL)
 	{
 		/*
@@ -1895,7 +1912,7 @@ UpdateOne(MongoCollection *collection, UpdateOneParams *updateOneParams,
 
 		/* If we have to reinsert the document in a different shard */
 		bool queryHasNonIdFilters = false;
-		pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(
+		pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocumentValue(
 			updateOneParams->query, &queryHasNonIdFilters);
 		bool hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
 
@@ -2019,12 +2036,13 @@ CallUpdateWorkerForUpdateOne(MongoCollection *collection,
 	result->resultDocument = NULL;
 	result->upsertedObjectId = NULL;
 
-	Datum resultDatum = CallUpdateWorker(collection, SerializeUpdateOneParams(
-											 updateOneParams, collection->shardKey), NULL,
+	pgbson *workerParams = SerializeUpdateOneParams(updateOneParams,
+													collection->shardKey);
+	Datum resultDatum = CallUpdateWorker(collection, workerParams, NULL,
 										 shardKeyHash, transactionId);
 
+	pfree(workerParams);
 	pgbson *resultPgbson = DatumGetPgBson(resultDatum);
-
 	DeserializeUpdateOneResult(resultPgbson, result);
 }
 
@@ -2294,26 +2312,22 @@ WriteUpdateOneParamsAsUpdateSpec(UpdateOneParams *params, pgbson_writer *writer)
 {
 	if (params->query != NULL)
 	{
-		PgbsonWriterAppendDocument(writer, "q", 1, params->query);
+		PgbsonWriterAppendValue(writer, "q", 1, params->query);
 	}
 
-	pgbsonelement updateElement;
-	PgbsonToSinglePgbsonElement(params->update, &updateElement);
-	PgbsonWriterAppendValue(writer, "u", 1, &updateElement.bsonValue);
+	PgbsonWriterAppendValue(writer, "u", 1, params->update);
 
 	PgbsonWriterAppendBool(writer, "upsert", -1, params->isUpsert != 0);
 
 	if (params->sort != NULL)
 	{
-		PgbsonWriterAppendDocument(writer, "sort", 4, params->sort);
+		PgbsonWriterAppendValue(writer, "sort", 4, params->sort);
 	}
 
 	if (params->arrayFilters != NULL)
 	{
-		pgbsonelement arrayFilterElement = { 0 };
-		PgbsonToSinglePgbsonElement(params->arrayFilters, &arrayFilterElement);
 		PgbsonWriterAppendValue(writer, "arrayFilters", 12,
-								&arrayFilterElement.bsonValue);
+								params->arrayFilters);
 	}
 }
 
@@ -2369,7 +2383,7 @@ SerializeUpdateOneParams(UpdateOneParams *params, pgbson *shardKeyBson)
 
 	if (params->query != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "query", -1, params->query);
+		PgbsonWriterAppendValue(&writer, "query", -1, params->query);
 	}
 
 	if (shardKeyBson != NULL)
@@ -2377,7 +2391,14 @@ SerializeUpdateOneParams(UpdateOneParams *params, pgbson *shardKeyBson)
 		PgbsonWriterAppendDocument(&writer, "shardKeyBson", -1, shardKeyBson);
 	}
 
-	PgbsonWriterAppendDocument(&writer, "update", -1, params->update);
+	/* Back-compat (to handle new coordinator, old worker)
+	 * write it as a document that is { "": value }
+	 * TODO: See if this can be elided in the future
+	 */
+	pgbson_writer valueWriter;
+	PgbsonWriterStartDocument(&writer, "update", -1, &valueWriter);
+	PgbsonWriterAppendValue(&valueWriter, "", 0, params->update);
+	PgbsonWriterEndDocument(&writer, &valueWriter);
 
 	PgbsonWriterAppendBool(&writer, "isUpsert", -1, params->isUpsert != 0);
 
@@ -2386,19 +2407,26 @@ SerializeUpdateOneParams(UpdateOneParams *params, pgbson *shardKeyBson)
 
 	if (params->sort != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "sort", 4, params->sort);
+		PgbsonWriterAppendValue(&writer, "sort", 4, params->sort);
 	}
 
 	PgbsonWriterAppendInt32(&writer, "returnDocument", -1, (int) params->returnDocument);
 
 	if (params->returnFields != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "returnFields", -1, params->returnFields);
+		PgbsonWriterAppendValue(&writer, "returnFields", -1, params->returnFields);
 	}
 
 	if (params->arrayFilters != NULL)
 	{
-		PgbsonWriterAppendDocument(&writer, "arrayFilters", -1, params->arrayFilters);
+		/*
+		 * back compat: To handle new coordinator old worker scenario, write it in the
+		 * prior format of { "": value }
+		 * TODO: See if this can be elided in the future
+		 */
+		PgbsonWriterStartDocument(&writer, "arrayFilters", -1, &valueWriter);
+		PgbsonWriterAppendValue(&valueWriter, "", 0, params->arrayFilters);
+		PgbsonWriterEndDocument(&writer, &valueWriter);
 	}
 
 	PgbsonWriterEndDocument(&commandWriter, &writer);
@@ -2515,27 +2543,34 @@ DeserializeUpdateWorkerSpec(pgbson *updateInternalSpec,
 		}
 		else if (strcmp(key, "arrayFilters") == 0)
 		{
-			updateOneParams->arrayFilters = PgbsonInitFromDocumentBsonValue(
-				bson_iter_value(&internalIter));
+			/* From a compat perspective, this is serialized as { "": value } */
+			pgbsonelement arrayFilterElement;
+			const bson_value_t *itervalue = bson_iter_value(&internalIter);
+			BsonValueToPgbsonElement(itervalue, &arrayFilterElement);
+			updateOneParams->arrayFilters = CreateBsonValueCopy(
+				&arrayFilterElement.bsonValue);
 		}
 		else if (strcmp(key, "query") == 0)
 		{
-			updateOneParams->query = PgbsonInitFromDocumentBsonValue(bson_iter_value(
-																		 &internalIter));
+			updateOneParams->query = CreateBsonValueCopy(bson_iter_value(
+															 &internalIter));
 		}
 		else if (strcmp(key, "sort") == 0)
 		{
-			updateOneParams->sort = PgbsonInitFromDocumentBsonValue(bson_iter_value(
-																		&internalIter));
+			updateOneParams->sort = CreateBsonValueCopy(bson_iter_value(
+															&internalIter));
 		}
 		else if (strcmp(key, "update") == 0)
 		{
-			updateOneParams->update = PgbsonInitFromDocumentBsonValue(bson_iter_value(
-																		  &internalIter));
+			pgbsonelement updateElement;
+			const bson_value_t *itervalue = bson_iter_value(&internalIter);
+			BsonValueToPgbsonElement(itervalue, &updateElement);
+			updateOneParams->update = CreateBsonValueCopy(
+				&updateElement.bsonValue);
 		}
 		else if (strcmp(key, "returnFields") == 0)
 		{
-			updateOneParams->returnFields = PgbsonInitFromDocumentBsonValue(
+			updateOneParams->returnFields = CreateBsonValueCopy(
 				bson_iter_value(&internalIter));
 		}
 		else if (strcmp(key, "returnDocument") == 0)
@@ -2969,7 +3004,7 @@ UpdateOneInternal(MongoCollection *collection, UpdateOneParams *updateOneParams,
 		bool forceProjectId = false;
 		bool allowInclusionExclusion = false;
 		bson_iter_t projectIter;
-		PgbsonInitIterator(updateOneParams->returnFields, &projectIter);
+		BsonValueInitIterator(updateOneParams->returnFields, &projectIter);
 
 		const BsonProjectionQueryState *projectionState =
 			GetProjectionStateForBsonProject(&projectIter,
@@ -2987,15 +3022,20 @@ UpdateOneInternal(MongoCollection *collection, UpdateOneParams *updateOneParams,
  */
 static bool
 SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 shardKeyHash,
-					  pgbson *query,
-					  pgbson *update, pgbson *arrayFilters, pgbson *sort,
+					  const bson_value_t *queryValue,
+					  const bson_value_t *update, const bson_value_t *arrayFilters,
+					  const bson_value_t *sort,
 					  UpdateCandidate *updateCandidate, bool getOriginalDocument,
 					  bool *hasOnlyObjectIdFilter)
 {
 	uint64 planId = QUERY_UPDATE_SELECT_UPDATE_CANDIDATE;
-	StringInfoData updateQuery;
-	List *sortFieldDocuments = sort != NULL ? PgbsonDecomposeFields(sort) : NIL;
+	SPI_connect();
 
+	StringInfoData updateQuery;
+	List *sortFieldDocuments = sort != NULL ? BsonValueDocumentDecomposeFields(sort) :
+							   NIL;
+
+	pgbson *query = PgbsonInitFromDocumentBsonValue(queryValue);
 	bool queryHasNonIdFilters = false;
 	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(query,
 																&queryHasNonIdFilters);
@@ -3012,8 +3052,6 @@ SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 sha
 	memset(argNulls, 'n', argCount);
 	bool foundDocument = false;
 	int varArgsOffset = 2;
-
-	SPI_connect();
 
 	initStringInfo(&updateQuery);
 
@@ -3147,7 +3185,7 @@ SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 sha
 
 		/* Do this inside the SPI context so that the memory gets cleaned up once we close the SPI session. */
 		pgbson *originalDoc = DatumGetPgBson(originalDocumentDatum);
-		pgbson *updatedDocument = BsonUpdateDocument(originalDoc, update, query,
+		pgbson *updatedDocument = BsonUpdateDocument(originalDoc, update, queryValue,
 													 arrayFilters);
 
 		if (updatedDocument != NULL)
@@ -3379,8 +3417,8 @@ UpdateOneObjectId(MongoCollection *collection, UpdateOneParams *updateOneParams,
  * and returns the inserted object ID.
  */
 static pgbson *
-UpsertDocument(MongoCollection *collection, pgbson *update,
-			   pgbson *query, pgbson *arrayFilters,
+UpsertDocument(MongoCollection *collection, const bson_value_t *update,
+			   const bson_value_t *query, const bson_value_t *arrayFilters,
 			   ExprEvalState *stateForSchemaValidation,
 			   bool hasOnlyObjectIdFilter)
 {
@@ -3445,7 +3483,7 @@ ValidateQueryAndUpdateDocuments(BatchUpdateSpec *batchSpec)
 		MemoryContext oldContext = CurrentMemoryContext;
 		PG_TRY();
 		{
-			ValidateQueryDocument(updateSpec->updateOneParams.query);
+			ValidateQueryDocumentValue(updateSpec->updateOneParams.query);
 			ValidateUpdateDocument(updateSpec->updateOneParams.update,
 								   updateSpec->updateOneParams.query,
 								   updateSpec->updateOneParams.arrayFilters);

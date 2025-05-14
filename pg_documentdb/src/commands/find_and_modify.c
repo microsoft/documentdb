@@ -35,19 +35,19 @@ typedef struct
 	char *collectionName;
 
 	/* "query" field */
-	pgbson *query;
+	bson_value_t *query;
 
 	/* "sort" field */
-	pgbson *sort;
+	bson_value_t *sort;
 
 	/* "remove" field */
 	bool remove;
 
 	/* "update" field */
-	pgbson *update;
+	bson_value_t *update;
 
 	/* "arrayFilters" field */
-	pgbson *arrayFilters;
+	bson_value_t *arrayFilters;
 
 	/*
 	 * "new" field
@@ -58,7 +58,7 @@ typedef struct
 	bool returnNewDocument;
 
 	/* "fields" field */
-	pgbson *returnFields;
+	bson_value_t *returnFields;
 
 	/* "upsert" field */
 	bool upsert;
@@ -192,7 +192,7 @@ command_find_and_modify(PG_FUNCTION_ARGS)
 			 * noop, but we still need to report errors due to invalid query
 			 * / update documents.
 			 */
-			ValidateQueryDocument(spec.query);
+			ValidateQueryDocumentValue(spec.query);
 
 			if (!spec.remove)
 			{
@@ -268,7 +268,7 @@ ParseFindAndModifyMessage(pgbson *message)
 			if (EnsureTopLevelFieldTypeNullOk("findAndModify.query", &messageIter,
 											  BSON_TYPE_DOCUMENT))
 			{
-				spec.query = PgbsonInitFromIterDocumentValue(&messageIter);
+				spec.query = CreateBsonValueCopy(bson_iter_value(&messageIter));
 			}
 		}
 		else if (strcmp(key, "sort") == 0)
@@ -276,7 +276,7 @@ ParseFindAndModifyMessage(pgbson *message)
 			if (EnsureTopLevelFieldTypeNullOk("findAndModify.sort", &messageIter,
 											  BSON_TYPE_DOCUMENT))
 			{
-				spec.sort = PgbsonInitFromIterDocumentValue(&messageIter);
+				spec.sort = CreateBsonValueCopy(bson_iter_value(&messageIter));
 			}
 		}
 		else if (strcmp(key, "remove") == 0)
@@ -298,7 +298,7 @@ ParseFindAndModifyMessage(pgbson *message)
 			}
 
 			/* we keep update documents in projected form to preserve the type */
-			spec.update = BsonValueToDocumentPgbson(bson_iter_value(&messageIter));
+			spec.update = CreateBsonValueCopy(bson_iter_value(&messageIter));
 		}
 		else if (strcmp(key, "new") == 0)
 		{
@@ -314,7 +314,7 @@ ParseFindAndModifyMessage(pgbson *message)
 											  BSON_TYPE_DOCUMENT) &&
 				!IsBsonValueEmptyDocument(bson_iter_value(&messageIter)))
 			{
-				spec.returnFields = PgbsonInitFromIterDocumentValue(&messageIter);
+				spec.returnFields = CreateBsonValueCopy(bson_iter_value(&messageIter));
 			}
 		}
 		else if (strcmp(key, "upsert") == 0)
@@ -338,7 +338,7 @@ ParseFindAndModifyMessage(pgbson *message)
 									BSON_TYPE_ARRAY);
 
 			/* we keep arrayFilters in projected form to preserve the type */
-			spec.arrayFilters = BsonValueToDocumentPgbson(bson_iter_value(&messageIter));
+			spec.arrayFilters = CreateBsonValueCopy(bson_iter_value(&messageIter));
 		}
 		else if (!SkipFailOnCollation && strcmp(key, "collation") == 0)
 		{
@@ -445,7 +445,9 @@ ParseFindAndModifyMessage(pgbson *message)
 
 	if (spec.query == NULL)
 	{
-		spec.query = PgbsonInitEmpty();
+		pgbson *emptyQuery = PgbsonInitEmpty();
+		spec.query = palloc(sizeof(bson_value_t));
+		*spec.query = ConvertPgbsonToBsonValue(emptyQuery);
 	}
 
 	return spec;
@@ -462,11 +464,13 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 {
 	int64 shardKeyHash = 0;
 	bool shardKeyValueCollationAware = false;
-	bool hasShardKeyValueFilter = ComputeShardKeyHashForQuery(collection->shardKey,
-															  collection->collectionId,
-															  spec->query,
-															  &shardKeyHash,
-															  &shardKeyValueCollationAware);
+	bool hasShardKeyValueFilter = ComputeShardKeyHashForQueryValue(collection->shardKey,
+																   collection->
+																   collectionId,
+																   spec->query,
+																   &shardKeyHash,
+																   &
+																   shardKeyValueCollationAware);
 
 	if (!hasShardKeyValueFilter)
 	{

@@ -101,7 +101,7 @@ static pgbson * RewriteDocumentAddObjectIdCore(const bson_value_t *docValue,
  * document IDs that match, it uses the smallest one.
  */
 bool
-FindShardKeyValueForDocumentId(MongoCollection *collection, pgbson *queryDoc,
+FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *queryDoc,
 							   bson_value_t *objectId, int64 *shardKeyValue)
 {
 	StringInfoData selectQuery;
@@ -129,7 +129,8 @@ FindShardKeyValueForDocumentId(MongoCollection *collection, pgbson *queryDoc,
 
 	/* we use bytea because bson may not have the same OID on all nodes */
 	argTypes[1] = BYTEAOID;
-	argValues[1] = PointerGetDatum(CastPgbsonToBytea(queryDoc));
+	argValues[1] = PointerGetDatum(CastPgbsonToBytea(PgbsonInitFromDocumentBsonValue(
+														 queryDoc)));
 
 	char *argNulls = NULL;
 	bool readOnly = false;
@@ -189,6 +190,24 @@ SetExplicitStatementTimeout(int timeoutMilliseconds)
 }
 
 
+pgbson *
+GetObjectIdFilterFromQueryDocumentValue(const bson_value_t *queryDoc,
+										bool *queryHasNonIdFilters)
+{
+	bson_iter_t queryIterator;
+	bson_value_t queryIdValue;
+	bool errorOnConflict = false;
+	BsonValueInitIterator(queryDoc, &queryIterator);
+	if (TraverseQueryDocumentAndGetId(&queryIterator, &queryIdValue, errorOnConflict,
+									  queryHasNonIdFilters))
+	{
+		return BsonValueToDocumentPgbson(&queryIdValue);
+	}
+
+	return NULL;
+}
+
+
 /*
  * Extracts the object_id if applicable from a query doc and returns a serialized pgbson
  * containing the object_id (top level column) value if one was extracted.
@@ -197,17 +216,8 @@ SetExplicitStatementTimeout(int timeoutMilliseconds)
 pgbson *
 GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *queryHasNonIdFilters)
 {
-	bson_iter_t queryIterator;
-	bson_value_t queryIdValue;
-	bool errorOnConflict = false;
-	PgbsonInitIterator(queryDoc, &queryIterator);
-	if (TraverseQueryDocumentAndGetId(&queryIterator, &queryIdValue, errorOnConflict,
-									  queryHasNonIdFilters))
-	{
-		return BsonValueToDocumentPgbson(&queryIdValue);
-	}
-
-	return NULL;
+	bson_value_t queryIdValue = ConvertPgbsonToBsonValue(queryDoc);
+	return GetObjectIdFilterFromQueryDocumentValue(&queryIdValue, queryHasNonIdFilters);
 }
 
 

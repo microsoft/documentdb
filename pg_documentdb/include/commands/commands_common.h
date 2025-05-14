@@ -67,7 +67,8 @@ typedef struct WriteError
 } WriteError;
 
 
-bool FindShardKeyValueForDocumentId(MongoCollection *collection, pgbson *queryDoc,
+bool FindShardKeyValueForDocumentId(MongoCollection *collection, const
+									bson_value_t *queryDoc,
 									bson_value_t *objectId, int64 *shardKeyValue);
 
 bool IsCommonSpecIgnoredField(const char *fieldName);
@@ -75,6 +76,8 @@ bool IsCommonSpecIgnoredField(const char *fieldName);
 WriteError * GetWriteErrorFromErrorData(ErrorData *errorData, int writeErrorIdx);
 bool TryGetErrorMessageAndCode(ErrorData *errorData, int *code, char **errmessage);
 
+pgbson * GetObjectIdFilterFromQueryDocumentValue(const bson_value_t *queryDoc,
+												 bool *hasNonIdFields);
 pgbson * GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *hasNonIdFields);
 
 

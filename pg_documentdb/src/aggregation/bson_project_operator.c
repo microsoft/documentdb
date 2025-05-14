@@ -506,8 +506,10 @@ PostProcessLeafNodeForFind(void *state, const StringView *path, BsonPathNode *ch
 			{
 				treeState->positionalOperatorState->isQueryEmpty = IsPgbsonEmptyDocument(
 					treeState->querySpec);
+				bson_value_t queryValue = ConvertPgbsonToBsonValue(
+					treeState->querySpec);
 				treeState->positionalOperatorState->positionalQueryData =
-					GetPositionalQueryData(treeState->querySpec);
+					GetPositionalQueryData(&queryValue);
 			}
 		}
 

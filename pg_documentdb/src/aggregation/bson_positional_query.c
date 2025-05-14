@@ -99,10 +99,12 @@ static void PositionalSetIntermediateArrayIndex(void *state, int32_t index);
  * object that is used in evaluation of the positional $ operator.
  */
 BsonPositionalQueryData *
-GetPositionalQueryData(const pgbson *query)
+GetPositionalQueryData(const bson_value_t *query)
 {
 	/* Step 1: Create Quals for the query based on BSON value inputs */
-	List *queryQuals = CreateQualsForBsonValueTopLevelQuery(query);
+	bson_iter_t queryDocIterator;
+	BsonValueInitIterator(query, &queryDocIterator);
+	List *queryQuals = CreateQualsForBsonValueTopLevelQueryIter(&queryDocIterator);
 
 	List *finalQuals = NIL;
 
