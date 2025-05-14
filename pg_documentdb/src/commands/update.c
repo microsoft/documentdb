@@ -881,6 +881,7 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 	bson_value_t *arrayFilters = NULL;
 	bool isMulti = false;
 	bool isUpsert = false;
+	bson_value_t *sort = NULL;
 
 	while (bson_iter_next(updateIter))
 	{
@@ -947,6 +948,14 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 							errmsg("BSON field 'update.updates.comment' is not yet "
 								   "supported")));
 		}
+		else if (strcmp(field, "sort") == 0)
+		{
+			EnsureTopLevelFieldType("update.updates.sort", updateIter,
+									BSON_TYPE_DOCUMENT);
+
+			sort = palloc(sizeof(bson_value_t));
+			*sort = *bson_iter_value(updateIter);
+		}
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
@@ -975,6 +984,7 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 	updateSpec->updateOneParams.isUpsert = isUpsert;
 	updateSpec->updateOneParams.arrayFilters = arrayFilters;
 	updateSpec->updateOneParams.returnDocument = UPDATE_RETURNS_NONE;
+	updateSpec->updateOneParams.sort = sort;
 	updateSpec->isMulti = isMulti;
 
 	return updateSpec;
@@ -1457,6 +1467,14 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 	bool isUpsert = updateSpec->updateOneParams.isUpsert;
 	bool isMulti = updateSpec->isMulti;
 
+	/* cannot use sort with multi: true */
+	if (isMulti && updateSpec->updateOneParams.sort != NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
+						errmsg("Cannot specify sort with multi=true")));
+	}
+
+
 	/* determine whether query filters by a single shard key value */
 	int64 shardKeyHash = 0;
 	bool isShardKeyValueCollationAware = false;
@@ -1479,6 +1497,7 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 							errmsg("multi update is not supported for "
 								   "replacement-style update")));
 		}
+
 
 		/*
 		 * Update as many document as match the query. This is not a retryable

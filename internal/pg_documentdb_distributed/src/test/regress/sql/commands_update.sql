@@ -702,3 +702,71 @@ SELECT documentdb_api.update('update', '{ "update": "single", "updates": [ { "q"
 -- this will collide and produce a unique conflict.
 SELECT documentdb_api.update('update', '{ "update": "single", "updates": [ { "q": { "_id": 8010, "a": 5 }, "u": { "$set": { "c": 8010 } }, "upsert": true, "multi": true }] }');
 ROLLBACK;
+
+
+-- test updateOne with sort
+select documentdb_api.create_collection('update', 'test_update_one_sort');
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":1,"a":3,"b":7}');
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":2,"a":3,"b":5}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":10}},"multi":false,"upsert":false, "sort": {"_id": 1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":3,"a":3,"b":3}');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-1}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-1}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"b":{"$lt":5}},"u":{"$set":{"text":"smaller than 5"}},"multi":false,"upsert":false, "sort": {"b": -1}}, {"q":{"b":{"$gte":5}},"u":{"$set":{"text":"large"}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+-- negative test case
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"b":{"$lt":5}},"u":{"$set":{"text":"tt"}},"multi":true,"sort": {"b": -1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+SELECT documentdb_api.insert('update', '{"insert":"test_update_one_sort_ex", "documents":[{"_id":-1,"a":1,"b":"string"}, {"_id":-2,"a":0,"b":1.2}, {"_id":-3,"a":1,"b":[1,2,3]}]}');
+select documentdb_api.update('update', '{"update":"test_update_one_sort_ex", "updates":[{"q":{"a":{"$gte":0}},"u":{"$set":{"b":"exception"}},"multi":false,"sort": {"b": -1}},{"q":{"a":{"$gte":0}},"u":{"$set":{"b":[4,5]}},"multi":false,"sort": {"b": 1}}]}');
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":"exception"}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":[4,5]}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+WITH generated_data AS (
+    SELECT
+        row_number() OVER () AS _id, 
+        1 AS a,
+        CASE (random()*6)::int
+            WHEN 0 THEN (random()*1000)::int::text
+            WHEN 1 THEN to_char(random()*1000, 'FM999.9999')
+            WHEN 2 THEN 'str_' || floor(random()*10000)::int
+            WHEN 3 THEN (ARRAY['true','false'])[floor(random()*2)+1]
+            WHEN 4 THEN to_char(
+                         now() - (floor(random()*3650)||' days')::interval,
+                         'YYYY-MM-DD'
+                     )
+            WHEN 5 THEN gen_random_uuid()::text
+            ELSE NULL::text
+        END AS b
+    FROM generate_series(1, 1000)
+)
+SELECT documentdb_api.insert(
+    'update'::text,
+    ('{"insert":"test_update_one_sort_ex", "documents":[' ||
+    (SELECT string_agg(row_to_json(g)::text, ',') FROM generated_data g) ||
+    ']}')::bson  
+);
+select documentdb_api.update('update', '{"update":"test_update_one_sort_ex", "updates":[{"q":{"a":{"$gte":0}},"u":{"$set":{"b":"exception"}},"multi":false,"sort": {"b": -1}},{"q":{"a":{"$gte":0}},"u":{"$set":{"b":[4,5]}},"multi":false,"sort": {"b": 1}}]}');
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":"exception"}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":[4,5]}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+
+-- sharded collection
+select documentdb_api.shard_collection('update', 'test_update_one_sort', '{"_id": "hashed"}', false);
+-- expect to fail as updateOne without id filter is not supported on sharded collection
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-10}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+-- expect to succeed as updateOne with id filter is supported on sharded collection
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":1, "a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":2, "a":3},"u":{"$set":{"b":-10}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+-- negative test case
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":3, "a":3},"u":{"$set":{"b":-1}},"multi":true,"upsert":false, "sort": {"_id": -1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+-- expect to throw error but the first one should succeed
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":3, "a":3},"u":{"$set":{"b":-10}},"multi":true,"upsert":false},{"q":{"_id":3, "a":3},"u":{"$set":{"b":-2}},"multi":true,"upsert":false, "sort": {"_id": -1}}]}');
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+
