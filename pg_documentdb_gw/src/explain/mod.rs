@@ -206,7 +206,9 @@ async fn run_explain(
         verbosity,
         Verbosity::AllShardsQueryPlan | Verbosity::AllShardsExecution
     ) {
-        let mut pg = connection_context.pg_without_transaction(false).await?;
+        let mut pg = connection_context
+            .pull_connection_without_transaction(false)
+            .await?;
         let t = pg.get_inner().transaction().await?;
         let explain_config_query = connection_context
             .service_context
@@ -225,7 +227,7 @@ async fn run_explain(
         .await?
     } else {
         connection_context
-            .pg()
+            .pull_connection()
             .await?
             .query_db_bson(
                 &query,

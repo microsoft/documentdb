@@ -14,25 +14,25 @@ use tokio_postgres::types::Type;
 use crate::{
     context::{ConnectionContext, Cursor, CursorStoreEntry},
     error::{DocumentDBError, ErrorCode, Result},
-    postgres::{Client, PgDocument, Timeout},
+    postgres::{Connection, PgDocument, Timeout},
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo},
     responses::{PgResponse, RawResponse, Response},
 };
 
 pub async fn save_cursor(
-    context: &ConnectionContext,
-    client: Arc<Client>,
+    conn_context: &ConnectionContext,
+    conn: Arc<Connection>,
     response: &PgResponse,
     request_info: &RequestInfo<'_>,
 ) -> Result<()> {
     if let Some((persist, cursor)) = response.get_cursor()? {
-        let client = if persist { Some(client) } else { None };
-        context
+        let conn = if persist { Some(conn) } else { None };
+        conn_context
             .add_cursor(
-                client,
+                conn,
                 cursor,
-                context.auth_state.username()?,
+                conn_context.auth_state.username()?,
                 request_info.db()?,
                 request_info.collection()?,
                 request_info.session_id.map(|v| v.to_vec()),
@@ -95,7 +95,7 @@ pub async fn process_kill_cursors(
 pub async fn process_get_more(
     request: &Request<'_>,
     request_info: &RequestInfo<'_>,
-    context: &ConnectionContext,
+    conn_context: &ConnectionContext,
 ) -> Result<Response> {
     let mut id = None;
     request.extract_fields(|k, v| {
@@ -110,30 +110,33 @@ pub async fn process_get_more(
         "getMore not present in document".to_string(),
     ))?;
     let CursorStoreEntry {
-        client: cursor_client,
+        conn: cursor_conn,
         cursor,
         db,
         collection,
         session_id,
         ..
-    } = context
-        .get_cursor(id, context.auth_state.username()?)
+    } = conn_context
+        .get_cursor(id, conn_context.auth_state.username()?)
         .await
         .ok_or(DocumentDBError::documentdb_error(
             ErrorCode::CursorNotFound,
             "Provided cursor not found.".to_string(),
         ))?;
 
-    let persist = cursor_client.is_some();
-    let client = if let Some(client) = cursor_client {
-        client
+    let persist = cursor_conn.is_some();
+    let conn = if let Some(conn) = cursor_conn {
+        conn
     } else {
-        context.pg().await?
+        conn_context.pull_connection().await?
     };
 
-    let results = client
+    let results = conn
         .query(
-            context.service_context.query_catalog().cursor_get_more(),
+            conn_context
+                .service_context
+                .query_catalog()
+                .cursor_get_more(),
             &[Type::TEXT, Type::BYTEA, Type::BYTEA],
             &[
                 &request_info.db()?,
@@ -147,14 +150,14 @@ pub async fn process_get_more(
     if let Some(row) = results.first() {
         let continuation: Option<PgDocument> = row.try_get(1)?;
         if let Some(continuation) = continuation {
-            context
+            conn_context
                 .add_cursor(
-                    if persist { Some(client) } else { None },
+                    if persist { Some(conn) } else { None },
                     Cursor {
                         cursor_id: id,
                         continuation: continuation.0.to_raw_document_buf(),
                     },
-                    context.auth_state.username()?,
+                    conn_context.auth_state.username()?,
                     &db,
                     &collection,
                     session_id,

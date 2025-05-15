@@ -12,7 +12,7 @@ use tokio_postgres::IsolationLevel;
 use crate::{
     configuration::SetupConfiguration,
     error::{DocumentDBError, ErrorCode, Result},
-    postgres::{self, Client},
+    postgres::{self, Connection},
 };
 use std::{
     collections::HashMap,
@@ -42,20 +42,20 @@ impl Transaction {
     pub async fn start(
         config: &dyn SetupConfiguration,
         request: &RequestTransactionInfo,
-        client: Arc<Client>,
+        conn: Arc<Connection>,
         isolation_level: IsolationLevel,
         session_id: Vec<u8>,
     ) -> Result<Self> {
         Ok(Transaction {
             session_id,
             transaction_number: request.transaction_number,
-            transaction: Some(postgres::Transaction::start(client, isolation_level).await?),
+            transaction: Some(postgres::Transaction::start(conn, isolation_level).await?),
             cursors: CursorStore::new(config, false),
         })
     }
 
-    pub fn get_client(&self) -> Option<Arc<Client>> {
-        self.transaction.as_ref().map(|t| t.get_client())
+    pub fn get_connection(&self) -> Option<Arc<Connection>> {
+        self.transaction.as_ref().map(|t| t.get_connection())
     }
 
     pub fn get_session_id(&self) -> &[u8] {
@@ -154,12 +154,12 @@ impl TransactionStore {
         }
     }
 
-    pub async fn get_client(&self, session_id: &[u8]) -> Option<Arc<Client>> {
+    pub async fn get_connection(&self, session_id: &[u8]) -> Option<Arc<Connection>> {
         self.transactions
             .read()
             .await
             .get(session_id)
-            .and_then(|(_, t)| t.get_client())
+            .and_then(|(_, t)| t.get_connection())
     }
 
     pub async fn create(
@@ -230,7 +230,7 @@ impl TransactionStore {
             let transaction = Transaction::start(
                 context.service_context.setup_configuration(),
                 transaction_info,
-                Arc::new(context.pg_without_transaction(true).await?),
+                Arc::new(context.pull_connection_without_transaction(true).await?),
                 transaction_info
                     .isolation_level
                     .unwrap_or(IsolationLevel::ReadCommitted),

@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::context::{ConnectionContext, ServiceContext};
 use crate::error::{DocumentDBError, Result};
-use crate::postgres::Pool;
+use crate::postgres::ConnectionPool;
 use crate::requests::RequestType;
 
 pub use crate::postgres::QueryCatalog;
@@ -45,6 +45,9 @@ pub mod protocol;
 pub mod requests;
 pub mod responses;
 pub mod telemetry;
+
+pub const SYSTEM_REQUESTS_MAX_CONNECTIONS: usize = 2;
+pub const AUTHENTICATION_MAX_CONNECTIONS: usize = 5;
 
 pub async fn run_server(
     sc: ServiceContext,
@@ -74,7 +77,7 @@ pub async fn run_server(
             &listener,
             token.clone(),
             enforce_ssl_tcp,
-            cipher_map
+            cipher_map,
         )
         .await
         {
@@ -89,7 +92,8 @@ pub async fn get_service_context(
     setup_configuration: Box<dyn SetupConfiguration>,
     dynamic: Arc<dyn DynamicConfiguration>,
     query_catalog: QueryCatalog,
-    system_pool: Arc<Pool>,
+    system_requests_pool: Arc<ConnectionPool>,
+    authentication_pool: Arc<ConnectionPool>,
 ) -> Result<ServiceContext> {
     let mut i = 0;
     let mut interval = tokio::time::interval(Duration::from_secs(30));
@@ -99,7 +103,8 @@ pub async fn get_service_context(
             setup_configuration.clone(),
             dynamic.clone(),
             query_catalog.clone(),
-            system_pool.clone(),
+            system_requests_pool.clone(),
+            authentication_pool.clone(),
         )
         .await
         {
@@ -139,7 +144,7 @@ async fn listen_for_connections(
     listener: &TcpListener,
     token: CancellationToken,
     enforce_ssl_tcp: bool,
-    cipher_map: Option<fn(Option<&str>) -> i32>
+    cipher_map: Option<fn(Option<&str>) -> i32>,
 ) -> Result<bool> {
     let token_clone = token.clone();
 
@@ -191,7 +196,7 @@ async fn handle_connection(
     ip: SocketAddr,
     stream: TcpStream,
     enforce_ssl_tcp: bool,
-    cipher_map: Option<fn(Option<&str>) -> i32>
+    cipher_map: Option<fn(Option<&str>) -> i32>,
 ) {
     let mut connection_context =
         ConnectionContext::new(sc, telemetry, ip, ssl.version_str().to_string()).await;
@@ -290,7 +295,7 @@ async fn get_response(
     }
 
     // Once authorized, make sure that there is a pool of pg clients for the user/password.
-    ctx.ensure_client_pool(
+    ctx.allocate_data_pool(
         ctx.auth_state.username()?,
         ctx.auth_state
             .password
@@ -454,5 +459,3 @@ where
 
     Ok(())
 }
-
-

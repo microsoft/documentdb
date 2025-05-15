@@ -23,7 +23,7 @@ pub(crate) async fn process_create_user(
     let request_info = request.extract_common()?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().create_user(),
@@ -42,7 +42,7 @@ pub(crate) async fn process_drop_user(
     let request_info = request.extract_common()?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().drop_user(),
@@ -61,7 +61,7 @@ pub(crate) async fn process_update_user(
     let request_info = request.extract_common()?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().update_user(),
@@ -80,7 +80,7 @@ pub(crate) async fn process_users_info(
     let request_info = request.extract_common()?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().users_info(),

@@ -194,9 +194,9 @@ async fn handle_sasl_continue(
             client_nonce
         );
 
-        let results = ctx
+        let scram_sha256_row = ctx
             .service_context
-            .system_client()
+            .authentication_connection()
             .await?
             .query(
                 ctx.service_context
@@ -208,11 +208,12 @@ async fn handle_sasl_continue(
             )
             .await?;
 
-        let result: PgDocument = results
+        let scram_sha256_doc: PgDocument = scram_sha256_row
             .first()
             .ok_or(DocumentDBError::pg_response_empty())?
             .try_get(0)?;
-        if result
+
+        if scram_sha256_doc
             .0
             .get_i32("ok")
             .map_err(DocumentDBError::pg_response_invalid)?
@@ -220,10 +221,12 @@ async fn handle_sasl_continue(
         {
             return Err(DocumentDBError::unauthorized("Invalid key".to_string()));
         }
-        let server_signature = result
+
+        let server_signature = scram_sha256_doc
             .0
             .get_str("ServerSignature")
             .map_err(DocumentDBError::pg_response_invalid)?;
+
         let payload = bson::Binary {
             subtype: BinarySubtype::Generic,
             bytes: format!("v={}", server_signature).as_bytes().to_vec(),
@@ -331,7 +334,7 @@ async fn get_salt_and_iteration(ctx: &ConnectionContext, username: &str) -> Resu
 
     let results = ctx
         .service_context
-        .system_client()
+        .authentication_connection()
         .await?
         .query(
             ctx.service_context.query_catalog().salt_and_iterations(),

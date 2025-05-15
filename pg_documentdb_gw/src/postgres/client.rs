@@ -17,7 +17,7 @@ use tokio_postgres::{
     NoTls, Row,
 };
 
-pub type PgClient = deadpool_postgres::Object;
+pub type InnerConnection = deadpool_postgres::Object;
 
 pub fn pg_configuration(sc: &dyn SetupConfiguration) -> tokio_postgres::Config {
     let mut config = tokio_postgres::Config::new();
@@ -30,12 +30,12 @@ pub fn pg_configuration(sc: &dyn SetupConfiguration) -> tokio_postgres::Config {
 
 // Ensures search_path is set on all acquired clients
 #[derive(Debug)]
-pub struct Pool {
+pub struct ConnectionPool {
     pool: deadpool_postgres::Pool,
     _reaper: JoinHandle<()>,
 }
 
-impl Pool {
+impl ConnectionPool {
     pub fn new_with_user(
         sc: &dyn SetupConfiguration,
         query_catalog: &QueryCatalog,
@@ -81,13 +81,13 @@ impl Pool {
             }
         });
 
-        Ok(Pool {
+        Ok(ConnectionPool {
             pool,
             _reaper: reaper,
         })
     }
 
-    pub async fn get(&self) -> Result<PgClient> {
+    pub async fn get_inner_connection(&self) -> Result<InnerConnection> {
         Ok(self.pool.get().await?)
     }
 }
@@ -96,8 +96,8 @@ impl Pool {
 // WrongType { postgres: Other(Other { name: "bson", oid: 18934, kind: Simple, schema: "schema_name" }), rust: "document_gateway::postgres::document::PgDocument" })
 // Will be occur if the wrong one is used.
 #[derive(Debug)]
-pub struct Client {
-    client: PgClient,
+pub struct Connection {
+    inner_conn: InnerConnection,
     pub in_transaction: bool,
 }
 
@@ -130,7 +130,7 @@ impl Timeout {
     }
 }
 
-impl Client {
+impl Connection {
     async fn query_internal(
         &self,
         query: &str,
@@ -138,10 +138,10 @@ impl Client {
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<Row>> {
         let statement = self
-            .client
+            .inner_conn
             .prepare_typed_cached(query, parameter_types)
             .await?;
-        Ok(self.client.query(&statement, params).await?)
+        Ok(self.inner_conn.query(&statement, params).await?)
     }
 
     pub async fn query(
@@ -156,13 +156,13 @@ impl Client {
                 timeout_type: _,
                 max_time_ms,
             }) if self.in_transaction => {
-                self.client
+                self.inner_conn
                     .batch_execute(&format!("set local statement_timeout to {}", max_time_ms))
                     .await?;
 
                 let results = self.query_internal(query, parameter_types, params).await;
 
-                self.client
+                self.inner_conn
                     .batch_execute(&format!(
                         "set local statement_timeout to {}",
                         Duration::from_secs(120).as_millis()
@@ -174,33 +174,33 @@ impl Client {
                 timeout_type: TimeoutType::Transaction,
                 max_time_ms,
             }) => {
-                self.client.batch_execute("BEGIN").await?;
+                self.inner_conn.batch_execute("BEGIN").await?;
 
-                self.client
+                self.inner_conn
                     .batch_execute(&format!("set local statement_timeout to {}", max_time_ms))
                     .await?;
 
                 let results = match self.query_internal(query, parameter_types, params).await {
                     Ok(results) => Ok(results),
                     Err(e) => {
-                        self.client.batch_execute("ROLLBACK").await?;
+                        self.inner_conn.batch_execute("ROLLBACK").await?;
                         Err(e)
                     }
                 }?;
-                self.client.batch_execute("COMMIT").await?;
+                self.inner_conn.batch_execute("COMMIT").await?;
                 Ok(results)
             }
             Some(Timeout {
                 timeout_type: TimeoutType::Command,
                 max_time_ms,
             }) => {
-                self.client
+                self.inner_conn
                     .batch_execute(&format!("set statement_timeout to {}", max_time_ms))
                     .await?;
 
                 let results = self.query_internal(query, parameter_types, params).await;
 
-                self.client
+                self.inner_conn
                     .batch_execute(&format!(
                         "set statement_timeout to {}",
                         Duration::from_secs(120).as_millis()
@@ -224,18 +224,18 @@ impl Client {
     }
 
     pub async fn batch_execute(&self, query: &str) -> Result<()> {
-        Ok(self.client.batch_execute(query).await?)
+        Ok(self.inner_conn.batch_execute(query).await?)
     }
 
-    pub fn new(client: PgClient, in_transaction: bool) -> Self {
-        Client {
-            client,
+    pub fn new(conn: InnerConnection, in_transaction: bool) -> Self {
+        Connection {
+            inner_conn: conn,
             in_transaction,
         }
     }
 
     // Should avoid using this in general - Used for explain which has special handling
-    pub fn get_inner(&mut self) -> &mut PgClient {
-        &mut self.client
+    pub fn get_inner(&mut self) -> &mut InnerConnection {
+        &mut self.inner_conn
     }
 }

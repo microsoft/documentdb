@@ -275,9 +275,9 @@ async fn process_find(
     request_info: &RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
+    let conn = context.pull_connection().await?;
 
-    let results = client
+    let results = conn
         .query_db_bson(
             context
                 .service_context
@@ -290,7 +290,7 @@ async fn process_find(
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
@@ -300,7 +300,7 @@ async fn process_insert(
     connection_context: &ConnectionContext,
 ) -> Result<Response> {
     let results = connection_context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             connection_context.service_context.query_catalog().insert(),
@@ -324,8 +324,8 @@ async fn process_aggregate(
     request_info: &RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
-    let results = client
+    let conn = context.pull_connection().await?;
+    let results = conn
         .query_db_bson(
             context
                 .service_context
@@ -338,7 +338,7 @@ async fn process_aggregate(
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
@@ -348,7 +348,7 @@ async fn process_update(
     connection_context: &ConnectionContext,
 ) -> Result<Response> {
     let results = connection_context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             connection_context
@@ -386,7 +386,7 @@ async fn process_list_databases(
     let results = match filter {
         None => {
             context
-                .pg()
+                .pull_connection()
                 .await?
                 .query(
                     &query,
@@ -399,7 +399,7 @@ async fn process_list_databases(
         Some(filter) => {
             let doc = PgDocument(filter);
             context
-                .pg()
+                .pull_connection()
                 .await?
                 .query(
                     &query,
@@ -419,9 +419,9 @@ async fn process_list_collections(
     request_info: &RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
+    let conn = context.pull_connection().await?;
 
-    let results = client
+    let results = conn
         .query_db_bson(
             context.service_context.query_catalog().list_collections(),
             request_info.db()?,
@@ -431,7 +431,7 @@ async fn process_list_collections(
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
@@ -441,7 +441,7 @@ async fn process_validate(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().validate(),
@@ -459,7 +459,7 @@ async fn process_find_and_modify(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().find_and_modify(),
@@ -477,7 +477,7 @@ async fn process_distinct(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().distinct_query(),
@@ -496,7 +496,7 @@ async fn process_count(
 ) -> Result<Response> {
     let _ = request_info.collection()?;
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().count_query(),
@@ -514,7 +514,7 @@ async fn process_create(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context
@@ -560,7 +560,7 @@ async fn process_coll_stats(
         1.0
     };
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().coll_stats(),
@@ -585,7 +585,7 @@ async fn process_db_stats(
     };
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().db_stats(),
@@ -609,7 +609,7 @@ async fn process_shard_collection(
         .get_document("key")
         .map_err(DocumentDBError::parse_failure())?;
     let _ = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().shard_collection(),
@@ -680,7 +680,7 @@ async fn process_rename_collection(
     }
 
     let _ = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().rename_collection(),
@@ -710,7 +710,7 @@ async fn process_current_op(
     })?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().current_op(),
@@ -728,7 +728,7 @@ async fn process_coll_mod(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().coll_mod(),
@@ -752,7 +752,7 @@ async fn get_parameter(
     params: Vec<String>,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().get_parameter(),

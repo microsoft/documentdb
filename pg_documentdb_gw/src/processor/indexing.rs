@@ -38,7 +38,7 @@ pub async fn process_create_indexes(
     }
 
     let results = connection_context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             connection_context
@@ -81,7 +81,7 @@ pub async fn wait_for_index(
     loop {
         interval.tick().await;
         let results = context
-            .pg()
+            .pull_connection()
             .await?
             .query(
                 context
@@ -168,7 +168,7 @@ pub async fn process_reindex(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().re_index(),
@@ -186,7 +186,7 @@ pub async fn process_drop_indexes(
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().drop_indexes(),
@@ -215,9 +215,9 @@ pub async fn process_list_indexes(
     request_info: &RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
+    let conn = context.pull_connection().await?;
 
-    let results = client
+    let results = conn
         .query_db_bson(
             context
                 .service_context
@@ -230,6 +230,6 @@ pub async fn process_list_indexes(
         .await?;
 
     let response = PgResponse::new(results);
-    save_cursor(context, client, &response, request_info).await?;
+    save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }

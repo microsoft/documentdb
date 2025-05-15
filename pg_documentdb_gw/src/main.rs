@@ -13,8 +13,8 @@ use std::{env, path::PathBuf, sync::Arc};
 use documentdb_gateway::{
     configuration::{DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration},
     get_service_context, populate_ssl_certificates,
-    postgres::{create_query_catalog, Pool},
-    run_server,
+    postgres::{create_query_catalog, ConnectionPool},
+    run_server, AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -48,23 +48,23 @@ async fn main() {
     let query_catalog = create_query_catalog();
 
     let postgres_system_user = setup_configuration.postgres_system_user();
-    let system_pool = Arc::new(
-        Pool::new_with_user(
+    let system_requests_pool = Arc::new(
+        ConnectionPool::new_with_user(
             &setup_configuration,
             &query_catalog,
             &postgres_system_user,
             None,
             format!("{}-SystemRequests", setup_configuration.application_name()),
-            5,
+            SYSTEM_REQUESTS_MAX_CONNECTIONS,
         )
-        .expect("Failed to create system pool"),
+        .expect("Failed to create system requests pool"),
     );
-    log::trace!("Pool initialized");
+    log::trace!("System requests pool initialized");
 
     let dynamic_configuration = PgConfiguration::new(
         &query_catalog,
         &setup_configuration,
-        &system_pool,
+        &system_requests_pool,
         "documentdb.",
     )
     .await
@@ -76,16 +76,36 @@ async fn main() {
         populate_ssl_certificates().await.unwrap()
     };
 
+    let authentication_pool = Arc::new(
+        ConnectionPool::new_with_user(
+            &setup_configuration,
+            &query_catalog,
+            &postgres_system_user,
+            None,
+            format!("{}-PreAuthRequests", setup_configuration.application_name()),
+            AUTHENTICATION_MAX_CONNECTIONS,
+        )
+        .expect("Failed to create authentication pool"),
+    );
+    log::trace!("Authentication pool initialized");
+
     let service_context = get_service_context(
         Box::new(setup_configuration),
         dynamic_configuration,
         query_catalog,
-        system_pool.clone(),
+        system_requests_pool.clone(),
+        authentication_pool.clone(),
     )
     .await
     .unwrap();
 
-    run_server(service_context, certificate_options, None, token.clone(), None)
-        .await
-        .unwrap();
+    run_server(
+        service_context,
+        certificate_options,
+        None,
+        token.clone(),
+        None,
+    )
+    .await
+    .unwrap();
 }
