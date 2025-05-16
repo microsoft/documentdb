@@ -5,15 +5,21 @@
 It supports seamless CRUD operations on BSON data types, full-text search, geospatial queries, and vector embeddings — all within the robust PostgreSQL ecosystem.
 
 
-## Get Start Here
+## Getting Started with DocumentDB
 
-[Introduction](v1/documentdb.md)
+A curated collection of guides to help you understand what DocumentDB is, why it matters, and how to get up and running—from initial setup to advanced document operations.
 
-[Prebuild Image](v1/prebuild-image.md)
-
-[Packaging](v1/packaging.md)
-
-[DocumentDB Gateway](v1/gateway.md)
+- [Introduction](v1/introduction.md)
+- [Why DocumentDB?](v1/why-documentdb.md)
+- [DocumentDB Gateway](v1/gateway.md)
+- [Prebuild Image](v1/prebuild-image.md)
+- [Getting Started](v1/get-started.md)
+- [Usage (CRUD)](v1/usage.md)
+- [Collection Management](v1/collection-management.md)
+- [Indexing](v1/indexing.md)
+- [Aggregation](v1/aggregation.md)
+- [Joins](v1/joins.md)
+- [Packaging](v1/packaging.md)
 
 ---
 
@@ -66,3 +72,35 @@ docker build -f .devcontainer/Dockerfile -t documentdb .
 docker run -v $(pwd):/home/documentdb/code -it documentdb /bin/bash
 make && sudo make install
 ```
+
+### Community
+
+- Please refer to page for contributing to our [Roadmap list](https://github.com/orgs/microsoft/projects/1407/views/1).
+- [FerretDB](https://github.com/FerretDB/FerretDB) integration allows using DocumentDB as backend engine.
+
+Contributors and users can join the [DocumentDB Discord channel in the Microsoft OSS server](https://aka.ms/documentdb_discord) for quick collaboration.
+
+### How to Contribute
+
+To contribute, see these documents:
+
+- [Code of Conduct](./CODE_OF_CONDUCT.md)  
+- [Security](./SECURITY.md)  
+- [Contributing](./CONTRIBUTING.md)
+
+### FAQs
+
+Q1. While performing `make check` if you encounter error `FATAL:  "/home/documentdb/code/pg_documentdb_core/src/test/regress/tmp/data" has wrong ownership`?
+
+Please drop the `/home/documentdb/code/pg_documentdb_core/src/test/regress/tmp/` directory and rerun the `make check`.
+
+
+Contributors and users can join the [DocumentDB Discord channel in the Microsoft OSS server](https://aka.ms/documentdb_discord) for quick collaboration.
+
+### License
+
+**DocumentDB** is licensed under the MIT License. See [LICENSE](./LICENSE.txt) for details.
+
+### Trademarks
+
+This project may use trademarks or logos. Use of Microsoft trademarks must follow Microsoft’s [Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks). Use of third-party marks is subject to their policies.
