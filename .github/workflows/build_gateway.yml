@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - 'main'
-      - "initdb"
     paths-ignore:
       - '*.md'
 

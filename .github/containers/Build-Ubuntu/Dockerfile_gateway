@@ -5,9 +5,6 @@ ARG BASE_VERSION=0.103.0
 # Define the base image dynamically
 FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-${BASE_VERSION} AS stage
 
-# Set postgres user and group to desired UID/GID
-RUN sudo groupmod -g 103 postgres && sudo usermod -u 105 -g 103 postgres
-
 # Install dependencies
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
