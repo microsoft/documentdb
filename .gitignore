@@ -72,3 +72,5 @@ build/
 
 # deb packages
 *.deb
+
+site/
