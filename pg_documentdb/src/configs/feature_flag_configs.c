@@ -162,6 +162,10 @@ bool EnableDataTableWithoutCreationTime =
 #define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
 bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
 
+#define DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION false
+bool SkipCreateIndexesOnCreateCollection =
+	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
+
 /* FEATURE FLAGS END */
 
 void
@@ -438,5 +442,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Create data table without creation_time column."),
 		NULL, &EnableDataTableWithoutCreationTime,
 		DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.skipCreateIndexesOnCreateCollection", newGucPrefix),
+		gettext_noop(
+			"Whether or not to skip creating indexes on create collection."),
+		NULL, &SkipCreateIndexesOnCreateCollection,
+		DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

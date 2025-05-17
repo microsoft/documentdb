@@ -90,6 +90,7 @@ typedef struct
 
 extern int MaxIndexBuildAttempts;
 extern int IndexQueueEvictionIntervalInSec;
+extern bool SkipCreateIndexesOnCreateCollection;
 
 /* Do not retry the index build if error code belongs to following list. */
 static const SkippableError SkippableErrors[] = {
@@ -933,6 +934,30 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 	 * Record indexes into metadata as invalid.
 	 */
 	ListCell *indexDefCell = NULL;
+
+	/* If we created the collection in this transaction, just create the indexes
+	 * in the same transaction.
+	 */
+	if (result.createdCollectionAutomatically && !SkipCreateIndexesOnCreateCollection)
+	{
+		ereport(LOG, (errmsg(
+						  "Building indexes inline due to create collection for collection "
+						  UINT64_FORMAT,
+						  collectionId),
+					  errdetail_log(
+						  "Building indexes inline due to create collection for collection "
+						  UINT64_FORMAT,
+						  collectionId)));
+
+		bool uniqueIndexOnly = false;
+		bool skipCheckCollectionCreate = true;
+		CreateIndexesResult innerResult = create_indexes_non_concurrently(dbNameDatum,
+																		  createIndexesArg,
+																		  skipCheckCollectionCreate,
+																		  uniqueIndexOnly);
+		innerResult.createdCollectionAutomatically = true;
+		return innerResult;
+	}
 
 	foreach(indexDefCell, createIndexesArg.indexDefList)
 	{

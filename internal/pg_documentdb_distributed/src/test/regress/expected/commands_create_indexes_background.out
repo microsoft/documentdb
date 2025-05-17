@@ -183,9 +183,9 @@ SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt, 
 -- note that those are valid ..
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**foo": 1}, "name": "my_idx_1"}]}');
 NOTICE:  creating collection
-                                                                                                               retval                                                                                                                | ok |                                     requests                                     
+                                                                                                               retval                                                                                                                | ok | requests 
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t  | { "indexRequest" : { "cmdType" : "C", "ids" : [ { "$numberInt" : "32001" } ] } }
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**": 1}, "name": "my_idx_3"}]}');
@@ -626,9 +626,9 @@ SELECT documentdb_api_internal.create_indexes_background_internal(
    }'
 );
 NOTICE:  creating collection
-                                                                                                                                                      create_indexes_background_internal                                                                                                                                                       
+                                                                                                 create_indexes_background_internal                                                                                                  
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "3" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "indexRequest" : { "cmdType" : "C", "ids" : [ { "$numberInt" : "32029" }, { "$numberInt" : "32030" } ] }, "ok" : { "$numberInt" : "1" } }
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "3" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
 --- sleep for 2 seconds, so above request is processed by cron-job
@@ -741,6 +741,7 @@ NOTICE:  creating collection
 (1 row)
 
 CALL documentdb_distributed_test_helpers.create_indexes_background('db', '{ "createIndexes": "ValidateVectorSearchAsync", "indexes": [ { "name": "largeVectorIndex", "key": { "largevector": "cosmosSearch"}, "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 2001 } } ] }');
+NOTICE:  creating collection
                                                                                                      retval                                                                                                     | ok 
 ---------------------------------------------------------------------
  { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "column cannot have more than 2000 dimensions for hnsw index", "code" : { "$numberInt" : "261" } } }, "ok" : { "$numberInt" : "0" } } | f
