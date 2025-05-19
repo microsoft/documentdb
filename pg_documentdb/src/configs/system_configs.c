@@ -125,6 +125,9 @@ bool EnableUserCrud = DEFAULT_ENABLE_USER_CRUD;
 #define DEFAULT_VECTOR_ITERATIVE_SCAN_MODE VectorIterativeScan_RELAXED_ORDER
 int VectorPreFilterIterativeScanMode = DEFAULT_VECTOR_ITERATIVE_SCAN_MODE;
 
+#define DEFAULT_ENABLE_GEONEAR_FORCE_INDEX_PUSHDOWN true
+bool EnableGeonearForceIndexPushdown = DEFAULT_ENABLE_GEONEAR_FORCE_INDEX_PUSHDOWN;
+
 /* Note that this is explicitly left disabled
  * This is primarily because the operator that sets default_transaction_readonly
  * would want to avoid new writes (perhaps due to high disk usage) and a background
@@ -356,6 +359,14 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 			"Enables TTL jobs on read-only nodes. This will override"
 			" the default_transaction_readonly on the TTL job only."),
 		NULL, &EnableTtlJobsOnReadOnly, DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enable_force_push_geonear_index", newGucPrefix),
+		gettext_noop(
+			"Enables ensuring that geonear queries are always pushed to the geospatial index."),
+		NULL, &EnableGeonearForceIndexPushdown,
+		DEFAULT_ENABLE_GEONEAR_FORCE_INDEX_PUSHDOWN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomEnumVariable(

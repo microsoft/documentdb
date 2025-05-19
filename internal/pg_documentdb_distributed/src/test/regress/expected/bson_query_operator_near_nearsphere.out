@@ -93,6 +93,44 @@ SELECT documentdb_api.insert_one('db','near_sphere','{ "_id": 15, "a": { "geo": 
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
+-- Test near and nearsphere with index and runtime flags
+-- Should fail
+SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0]}}}');
+ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0]}}}');
+ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+BEGIN;
+-- Should pass
+SET LOCAL documentdb.enable_force_push_geonear_index to off;
+SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0]}}}');
+                                                                       document                                                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "0" } ] } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "b" : [ { "$numberDouble" : "1.1000000000000000888" }, { "$numberDouble" : "1.1000000000000000888" } ] } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "b" : [ { "$numberDouble" : "2.2900000000000000355" }, { "$numberDouble" : "2.2900000000000000355" } ] } }
+ { "_id" : { "$numberInt" : "4" }, "a" : { "b" : [ { "$numberDouble" : "3.3100000000000000533" }, { "$numberDouble" : "3.3100000000000000533" } ] } }
+ { "_id" : { "$numberInt" : "5" }, "a" : { "b" : [ { "$numberDouble" : "4.4199999999999999289" }, { "$numberDouble" : "4.4199999999999999289" } ] } }
+ { "_id" : { "$numberInt" : "6" }, "a" : { "b" : [ { "$numberDouble" : "5.5" }, { "$numberDouble" : "5.5" } ] } }
+ { "_id" : { "$numberInt" : "7" }, "a" : { "b" : [ { "$numberDouble" : "6.6600000000000001421" }, { "$numberDouble" : "6.6600000000000001421" } ] } }
+ { "_id" : { "$numberInt" : "8" }, "a" : { "b" : [ { "$numberDouble" : "7.7400000000000002132" }, { "$numberDouble" : "7.7400000000000002132" } ] } }
+ { "_id" : { "$numberInt" : "9" }, "a" : { "b" : [ { "$numberDouble" : "8.8100000000000004974" }, { "$numberDouble" : "8.8100000000000004974" } ] } }
+(9 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0]}}}');
+                                                                       document                                                                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "b" : [ { "$numberInt" : "0" }, { "$numberInt" : "0" } ] } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "b" : [ { "$numberDouble" : "1.1000000000000000888" }, { "$numberDouble" : "1.1000000000000000888" } ] } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "b" : [ { "$numberDouble" : "2.2900000000000000355" }, { "$numberDouble" : "2.2900000000000000355" } ] } }
+ { "_id" : { "$numberInt" : "4" }, "a" : { "b" : [ { "$numberDouble" : "3.3100000000000000533" }, { "$numberDouble" : "3.3100000000000000533" } ] } }
+ { "_id" : { "$numberInt" : "5" }, "a" : { "b" : [ { "$numberDouble" : "4.4199999999999999289" }, { "$numberDouble" : "4.4199999999999999289" } ] } }
+ { "_id" : { "$numberInt" : "6" }, "a" : { "b" : [ { "$numberDouble" : "5.5" }, { "$numberDouble" : "5.5" } ] } }
+ { "_id" : { "$numberInt" : "7" }, "a" : { "b" : [ { "$numberDouble" : "6.6600000000000001421" }, { "$numberDouble" : "6.6600000000000001421" } ] } }
+ { "_id" : { "$numberInt" : "8" }, "a" : { "b" : [ { "$numberDouble" : "7.7400000000000002132" }, { "$numberDouble" : "7.7400000000000002132" } ] } }
+ { "_id" : { "$numberInt" : "9" }, "a" : { "b" : [ { "$numberDouble" : "8.8100000000000004974" }, { "$numberDouble" : "8.8100000000000004974" } ] } }
+(9 rows)
+
+ROLLBACK;
 -- $near and $nearSphere enforce index usage
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "near_sphere", "indexes": [{"key": {"a.b": "2d"}, "name": "my_2d_ab_idx" }, {"key": {"a.b": "2dsphere"}, "name": "my_2ds_ab_idx" }, {"key": {"a.geo": "2dsphere"}, "name": "my_2ds_ageo_idx" }]}', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -750,7 +788,7 @@ SELECT document FROM documentdb_api.collection('db', 'near_sphere') WHERE docume
 
 -- Explain tests to ensure index pushdown
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0]}}}');
-                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                                              
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -765,7 +803,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (10 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0], "$minDistance": 5, "$maxDistance": 8}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                          QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -781,7 +819,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (11 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"type": "Point", "coordinates": [0, 0]}}}}');
-                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                            
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -796,7 +834,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (10 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"type": "Point", "coordinates": [0, 0]}, "$minDistance": 500000, "$maxDistance": 1500000}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -812,7 +850,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (11 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0]}}}');
-                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                        
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -827,7 +865,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (10 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0], "$minDistance": 0.8, "$maxDistance": 1}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -843,7 +881,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (11 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.geo": { "$nearSphere": {"type": "Point", "coordinates": [0, 0]}}}}');
-                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                  
+                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                               
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -858,7 +896,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (10 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point", "coordinates": [0, 0]}, "$minDistance": 500000, "$maxDistance": 1500000}}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -1427,7 +1465,7 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filt
 
 -- Explain tests to ensure index pushdown
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0]}}}');
-                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                       
+                                                                                                                                                                                                                   QUERY PLAN                                                                                                                                                                                                                    
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1444,7 +1482,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (12 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0], "$minDistance": 5, "$maxDistance": 8}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1462,7 +1500,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (13 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"type": "Point", "coordinates": [0, 0]}}}}');
-                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                  
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1479,7 +1517,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (12 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"type": "Point", "coordinates": [0, 0]}, "$minDistance": 500000, "$maxDistance": 1500000}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1497,7 +1535,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (13 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0]}}}');
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                 
+                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                              
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1514,7 +1552,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (12 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0], "$minDistance": 0.8, "$maxDistance": 1}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1532,7 +1570,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (13 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.geo": { "$nearSphere": {"type": "Point", "coordinates": [0, 0]}}}}');
-                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
@@ -1549,7 +1587,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
 (12 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point", "coordinates": [0, 0]}, "$minDistance": 500000, "$maxDistance": 1500000}}}}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Sort
    Output: remote_scan.document, remote_scan.distance
