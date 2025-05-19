@@ -4,6 +4,7 @@
 * Support collation with arrays and objects comparisons *[Feature]*
 * Support background index builds *[Bugfix]* (#36)
 * Enable user CRUD by default *[Feature]*
+* Add public `documentdb-local` Docker image with gateway to GHCR
 
 ### documentdb v0.103-0 (Unreleased) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*
