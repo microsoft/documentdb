@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Usage - DocumentDB</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Usage";
+        var mkdocs_page_input_path = "v1/usage.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> DocumentDB
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Version 1.0</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">Get Started</a>
+                  </li>
+                  <li class="toctree-l1"><a class="" href="../documentdb.md">Introduction</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prebuild/">Prebuild Images</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../gateway/">Gateway</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DocumentDB</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Usage</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/microsoft/documentdb/edit/master/docs/v1/usage.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>Once you have your <code>DocumentDB</code> set up running, you can start with creating collections, indexes and perform queries on them.</p>
+<h3 id="create-a-collection">Create a collection<a class="headerlink" href="#create-a-collection" title="Permanent link">&para;</a></h3>
+<p>DocumentDB provides <a href="https://github.com/microsoft/documentdb/wiki/Functions#create_collection">documentdb_api.create_collection</a> function to create a new collection within a specified database, enabling you to manage and organize your BSON documents effectively.</p>
+<pre><code class="language-sql">SELECT documentdb_api.create_collection('documentdb','patient');
+</code></pre>
+<h3 id="perform-crud-operations">Perform CRUD operations<a class="headerlink" href="#perform-crud-operations" title="Permanent link">&para;</a></h3>
+<h4 id="insert-documents">Insert documents<a class="headerlink" href="#insert-documents" title="Permanent link">&para;</a></h4>
+<p>The <a href="https://github.com/microsoft/documentdb/wiki/Functions#insert_one">documentdb_api.insert_one</a> command is used to add a single document into a collection.</p>
+<pre><code class="language-sql">select documentdb_api.insert_one('documentdb','patient', '{ &quot;patient_id&quot;: &quot;P001&quot;, &quot;name&quot;: &quot;Alice Smith&quot;, &quot;age&quot;: 30, &quot;phone_number&quot;: &quot;555-0123&quot;, &quot;registration_year&quot;: &quot;2023&quot;,&quot;conditions&quot;: [&quot;Diabetes&quot;, &quot;Hypertension&quot;]}');
+select documentdb_api.insert_one('documentdb','patient', '{ &quot;patient_id&quot;: &quot;P002&quot;, &quot;name&quot;: &quot;Bob Johnson&quot;, &quot;age&quot;: 45, &quot;phone_number&quot;: &quot;555-0456&quot;, &quot;registration_year&quot;: &quot;2023&quot;, &quot;conditions&quot;: [&quot;Asthma&quot;]}');
+select documentdb_api.insert_one('documentdb','patient', '{ &quot;patient_id&quot;: &quot;P003&quot;, &quot;name&quot;: &quot;Charlie Brown&quot;, &quot;age&quot;: 29, &quot;phone_number&quot;: &quot;555-0789&quot;, &quot;registration_year&quot;: &quot;2024&quot;, &quot;conditions&quot;: [&quot;Allergy&quot;, &quot;Anemia&quot;]}');
+select documentdb_api.insert_one('documentdb','patient', '{ &quot;patient_id&quot;: &quot;P004&quot;, &quot;name&quot;: &quot;Diana Prince&quot;, &quot;age&quot;: 40, &quot;phone_number&quot;: &quot;555-0987&quot;, &quot;registration_year&quot;: &quot;2024&quot;, &quot;conditions&quot;: [&quot;Migraine&quot;]}');
+select documentdb_api.insert_one('documentdb','patient', '{ &quot;patient_id&quot;: &quot;P005&quot;, &quot;name&quot;: &quot;Edward Norton&quot;, &quot;age&quot;: 55, &quot;phone_number&quot;: &quot;555-1111&quot;, &quot;registration_year&quot;: &quot;2025&quot;, &quot;conditions&quot;: [&quot;Hypertension&quot;, &quot;Heart Disease&quot;]}');
+</code></pre>
+<h4 id="read-document-from-a-collection">Read document from a collection<a class="headerlink" href="#read-document-from-a-collection" title="Permanent link">&para;</a></h4>
+<p>The <code>documentdb_api.collection</code> function is used for retrieving the documents in a collection.</p>
+<pre><code class="language-sql">SELECT document FROM documentdb_api.collection('documentdb','patient');
+</code></pre>
+<p>Alternatively, we can apply filter to our queries.</p>
+<pre><code class="language-sql">SET search_path TO documentdb_api, documentdb_core;
+SET documentdb_core.bsonUseEJson TO true;
+
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('documentdb', '{ &quot;find&quot; : &quot;patient&quot;, &quot;filter&quot; : {&quot;patient_id&quot;:&quot;P005&quot;}}');
+</code></pre>
+<p>We can perform range queries as well.</p>
+<pre><code class="language-sql">SELECT cursorPage FROM documentdb_api.find_cursor_first_page('documentdb', '{ &quot;find&quot; : &quot;patient&quot;, &quot;filter&quot; : { &quot;$and&quot;: [{ &quot;age&quot;: { &quot;$gte&quot;: 10 } },{ &quot;age&quot;: { &quot;$lte&quot;: 35 } }] }}');
+</code></pre>
+<h4 id="update-document-in-a-collection">Update document in a collection<a class="headerlink" href="#update-document-in-a-collection" title="Permanent link">&para;</a></h4>
+<p>DocumentDB uses the <a href="https://github.com/microsoft/documentdb/wiki/Functions#update">documentdb_api.update</a> function to modify existing documents within a collection.</p>
+<p>The SQL command updates the <code>age</code> for patient <code>P004</code>.</p>
+<pre><code class="language-sql">select documentdb_api.update('documentdb', '{&quot;update&quot;:&quot;patient&quot;, &quot;updates&quot;:[{&quot;q&quot;:{&quot;patient_id&quot;:&quot;P004&quot;},&quot;u&quot;:{&quot;$set&quot;:{&quot;age&quot;:14}}}]}');
+</code></pre>
+<p>Similarly, we can update multiple documents using <code>multi</code> property.</p>
+<pre><code class="language-sql">SELECT documentdb_api.update('documentdb', '{&quot;update&quot;:&quot;patient&quot;, &quot;updates&quot;:[{&quot;q&quot;:{},&quot;u&quot;:{&quot;$set&quot;:{&quot;age&quot;:24}},&quot;multi&quot;:true}]}');
+</code></pre>
+<h4 id="delete-document-from-the-collection">Delete document from the collection<a class="headerlink" href="#delete-document-from-the-collection" title="Permanent link">&para;</a></h4>
+<p>DocumentDB uses the <a href="https://github.com/microsoft/documentdb/wiki/Functions#delete">documentdb_api.delete</a> function for precise document removal based on specified criteria.</p>
+<p>The SQL command deletes the document for patient <code>P002</code>.</p>
+<pre><code class="language-sql">SELECT documentdb_api.delete('documentdb', '{&quot;delete&quot;: &quot;patient&quot;, &quot;deletes&quot;: [{&quot;q&quot;: {&quot;patient_id&quot;: &quot;P002&quot;}, &quot;limit&quot;: 1}]}');
+</code></pre>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/microsoft/documentdb" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

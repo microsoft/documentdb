@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Joins - DocumentDB</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Joins";
+        var mkdocs_page_input_path = "v1/joins.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> DocumentDB
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Version 1.0</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">Get Started</a>
+                  </li>
+                  <li class="toctree-l1"><a class="" href="../documentdb.md">Introduction</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prebuild/">Prebuild Images</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../gateway/">Gateway</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DocumentDB</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Joins</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/microsoft/documentdb/edit/master/docs/v1/joins.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h3 id="join-data-from-multiple-collections">Join data from multiple collections<a class="headerlink" href="#join-data-from-multiple-collections" title="Permanent link">&para;</a></h3>
+<p>Let's create an additional collection named <code>appointment</code> to demonstrate how a join operation can be performed.</p>
+<pre><code class="language-sql">select documentdb_api.insert_one('documentdb','appointment', '{&quot;appointment_id&quot;: &quot;A001&quot;, &quot;patient_id&quot;: &quot;P001&quot;, &quot;doctor_name&quot;: &quot;Dr. Milind&quot;, &quot;appointment_date&quot;: &quot;2023-01-20&quot;, &quot;reason&quot;: &quot;Routine checkup&quot; }');
+select documentdb_api.insert_one('documentdb','appointment', '{&quot;appointment_id&quot;: &quot;A002&quot;, &quot;patient_id&quot;: &quot;P001&quot;, &quot;doctor_name&quot;: &quot;Dr. Moore&quot;, &quot;appointment_date&quot;: &quot;2023-02-10&quot;, &quot;reason&quot;: &quot;Follow-up&quot;}');
+select documentdb_api.insert_one('documentdb','appointment', '{&quot;appointment_id&quot;: &quot;A004&quot;, &quot;patient_id&quot;: &quot;P003&quot;, &quot;doctor_name&quot;: &quot;Dr. Smith&quot;, &quot;appointment_date&quot;: &quot;2024-03-12&quot;, &quot;reason&quot;: &quot;Allergy consultation&quot;}');
+select documentdb_api.insert_one('documentdb','appointment', '{&quot;appointment_id&quot;: &quot;A005&quot;, &quot;patient_id&quot;: &quot;P004&quot;, &quot;doctor_name&quot;: &quot;Dr. Moore&quot;, &quot;appointment_date&quot;: &quot;2024-04-15&quot;, &quot;reason&quot;: &quot;Migraine treatment&quot;}');
+select documentdb_api.insert_one('documentdb','appointment', '{&quot;appointment_id&quot;: &quot;A007&quot;,&quot;patient_id&quot;: &quot;P001&quot;, &quot;doctor_name&quot;: &quot;Dr. Milind&quot;, &quot;appointment_date&quot;: &quot;2024-06-05&quot;, &quot;reason&quot;: &quot;Blood test&quot;}');
+select documentdb_api.insert_one('documentdb','appointment', '{ &quot;appointment_id&quot;: &quot;A009&quot;, &quot;patient_id&quot;: &quot;P003&quot;, &quot;doctor_name&quot;: &quot;Dr. Smith&quot;,&quot;appointment_date&quot;: &quot;2025-01-20&quot;, &quot;reason&quot;: &quot;Follow-up visit&quot;}');
+</code></pre>
+<p>The example presents each patient along with the doctors visited.</p>
+<pre><code class="language-sql">SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', '{ &quot;aggregate&quot;: &quot;patient&quot;, &quot;pipeline&quot;: [ { &quot;$lookup&quot;: { &quot;from&quot;: &quot;appointment&quot;,&quot;localField&quot;: &quot;patient_id&quot;, &quot;foreignField&quot;: &quot;patient_id&quot;, &quot;as&quot;: &quot;appointment&quot; } },{&quot;$unwind&quot;:&quot;$appointment&quot;},{&quot;$project&quot;:{&quot;_id&quot;:0,&quot;name&quot;:1,&quot;appointment.doctor_name&quot;:1,&quot;appointment.appointment_date&quot;:1}} ], &quot;cursor&quot;: { &quot;batchSize&quot;: 3 } }');
+</code></pre>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/microsoft/documentdb" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

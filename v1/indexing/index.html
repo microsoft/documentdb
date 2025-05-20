@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Indexing - DocumentDB</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Indexing";
+        var mkdocs_page_input_path = "v1/indexing.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> DocumentDB
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Version 1.0</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">Get Started</a>
+                  </li>
+                  <li class="toctree-l1"><a class="" href="../documentdb.md">Introduction</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prebuild/">Prebuild Images</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../gateway/">Gateway</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DocumentDB</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Indexing</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/microsoft/documentdb/edit/master/docs/v1/indexing.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h3 id="indexing">Indexing<a class="headerlink" href="#indexing" title="Permanent link">&para;</a></h3>
+<h4 id="create-an-index">Create an Index<a class="headerlink" href="#create-an-index" title="Permanent link">&para;</a></h4>
+<p>DocumentDB uses the <code>documentdb_api.create_indexes_background</code> function, which allows background index creation without disrupting database operations.</p>
+<p>The SQL command demonstrates how to create a <code>single field</code> index on <code>age</code> on the <code>patient</code> collection of the <code>documentdb</code>.</p>
+<pre><code class="language-sql">SELECT * FROM documentdb_api.create_indexes_background('documentdb', '{ &quot;createIndexes&quot;: &quot;patient&quot;, &quot;indexes&quot;: [{ &quot;key&quot;: {&quot;age&quot;: 1},&quot;name&quot;: &quot;idx_age&quot;}]}');
+</code></pre>
+<p>The SQL command demonstrates how to create a <code>compound index</code> on fields age and registration_year on the <code>patient</code> collection of the <code>documentdb</code>.</p>
+<pre><code class="language-sql">SELECT * FROM documentdb_api.create_indexes_background('documentdb', '{ &quot;createIndexes&quot;: &quot;patient&quot;, &quot;indexes&quot;: [{ &quot;key&quot;: {&quot;registration_year&quot;: 1, &quot;age&quot;: 1},&quot;name&quot;: &quot;idx_regyr_age&quot;}]}');
+</code></pre>
+<h4 id="drop-an-index">Drop an Index<a class="headerlink" href="#drop-an-index" title="Permanent link">&para;</a></h4>
+<p>DocumentDB uses the <code>documentdb_api.drop_indexes</code> function, which allows you to remove an existing index from a collection. The SQL command demonstrates how to drop the index named <code>id_ab_1</code> from the <code>first_collection</code> collection of the <code>documentdb</code>.</p>
+<pre><code class="language-sql">CALL documentdb_api.drop_indexes('documentdb', '{&quot;dropIndexes&quot;: &quot;patient&quot;, &quot;index&quot;:&quot;idx_age&quot;}');
+</code></pre>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/microsoft/documentdb" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

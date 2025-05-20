@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Get started - DocumentDB</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Get started";
+        var mkdocs_page_input_path = "v1/get-started.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> DocumentDB
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Version 1.0</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">Get Started</a>
+                  </li>
+                  <li class="toctree-l1"><a class="" href="../documentdb.md">Introduction</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prebuild/">Prebuild Images</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../gateway/">Gateway</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DocumentDB</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Get started</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/microsoft/documentdb/edit/master/docs/v1/get-started.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="get-started">Get Started<a class="headerlink" href="#get-started" title="Permanent link">&para;</a></h2>
+<h3 id="pre-requisite">Pre-requisite<a class="headerlink" href="#pre-requisite" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Ensure <a href="https://docs.docker.com/engine/install/">Docker</a> is installed on your system.</li>
+</ul>
+<h3 id="building-documentdb-with-docker">Building DocumentDB with Docker<a class="headerlink" href="#building-documentdb-with-docker" title="Permanent link">&para;</a></h3>
+<p>Step 1: Clone the DocumentDB repo.</p>
+<pre><code class="language-bash">git clone https://github.com/microsoft/documentdb.git
+</code></pre>
+<p>Step 2: Create the docker image. Navigate to cloned repo.</p>
+<pre><code class="language-bash">docker build . -f .devcontainer/Dockerfile -t documentdb 
+</code></pre>
+<p>Note: Validate using <code>docker image ls</code></p>
+<p>Step 3: Run the Image as a container</p>
+<pre><code class="language-bash">docker run -v $(pwd):/home/documentdb/code -it documentdb /bin/bash 
+
+cd code
+</code></pre>
+<p>(Aligns local location with docker image created, allows de-duplicating cloning repo again within image).<br>
+Note: Validate container is running <code>docker container ls</code></p>
+<p>Step 4: Build &amp; Deploy the binaries</p>
+<pre><code class="language-bash">make 
+</code></pre>
+<p>Note: Run in case of an unsuccessful build <code>git config --global --add safe.directory /home/documentdb/code</code> within image.</p>
+<pre><code class="language-bash">sudo make install
+</code></pre>
+<p>Note: To run backend postgresql tests after installing you can run <code>make check</code>.</p>
+<p>You are all set to work with DocumentDB.</p>
+<h3 id="using-the-prebuilt-docker-image">Using the Prebuilt Docker Image<a class="headerlink" href="#using-the-prebuilt-docker-image" title="Permanent link">&para;</a></h3>
+<p>You can use a <a href=".github\containers\Build-Ubuntu\PrebuildImageList.md">prebuilt docker image</a> for DocumentDB instead of building it from source.  Follow these steps:</p>
+<h4 id="pull-the-prebuilt-image">Pull the Prebuilt Image<a class="headerlink" href="#pull-the-prebuilt-image" title="Permanent link">&para;</a></h4>
+<p>Pull the prebuilt image directly from the Microsoft Container Registry:</p>
+<pre><code class="language-bash">docker pull mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0
+</code></pre>
+<h4 id="running-the-prebuilt-image">Running the Prebuilt Image<a class="headerlink" href="#running-the-prebuilt-image" title="Permanent link">&para;</a></h4>
+<p>To run the prebuilt image, use one of the following commands:</p>
+<ol>
+<li>Run the container:</li>
+</ol>
+<pre><code class="language-bash">docker run -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0
+</code></pre>
+<ol>
+<li>If external access is required, run the container with parameter "-e":</li>
+</ol>
+<pre><code class="language-bash">docker run -p 127.0.0.1:9712:9712 -dt mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-AMD64-0.103.0 -e
+</code></pre>
+<p>This will start the container and map port <code>9712</code> from the container to the host.</p>
+<h3 id="connecting-to-the-server">Connecting to the Server<a class="headerlink" href="#connecting-to-the-server" title="Permanent link">&para;</a></h3>
+<h4 id="internal-access">Internal Access<a class="headerlink" href="#internal-access" title="Permanent link">&para;</a></h4>
+<p>Step 1: Run <code>start_oss_server.sh</code> to initialize the DocumentDB server and manage dependencies.</p>
+<pre><code class="language-bash">./scripts/start_oss_server.sh
+</code></pre>
+<p>Or logging into the container if using prebuild image</p>
+<pre><code class="language-bash">docker exec -it &lt;container-id&gt; bash
+</code></pre>
+<p>Step 2: Connect to <code>psql</code> shell</p>
+<pre><code class="language-bash">psql -p 9712 -d postgres
+</code></pre>
+<h4 id="external-access">External Access<a class="headerlink" href="#external-access" title="Permanent link">&para;</a></h4>
+<p>Connect to <code>psql</code> shell</p>
+<pre><code class="language-bash">psql -h localhost --port 9712 -d postgres -U documentdb
+</code></pre>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/microsoft/documentdb" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
