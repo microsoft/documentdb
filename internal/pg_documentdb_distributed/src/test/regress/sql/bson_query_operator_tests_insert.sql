@@ -65,6 +65,7 @@ SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 37, "a" : {"$n
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 38, "a" : {"$numberInt": "2147483647"}}', NULL);
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 39, "a" : {"$numberInt": "2147483646"}}', NULL);
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 40, "a" : {"$numberInt": "2147483645"}}', NULL);
+SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 41, "a" : ["abc", "xyz1"]}', NULL);
 
 SELECT 1 FROM documentdb_api.insert_one('db','nullfield', '{"_id": 1, "a" : 1, "b": 1}');
 SELECT 1 FROM documentdb_api.insert_one('db','nullfield', '{"_id": 2, "a" : 2, "b": null}');

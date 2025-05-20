@@ -179,6 +179,16 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ 0, 1000  ] } }';
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$numberDecimal": "0.0"}, 1000  ] } }';
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$numberInt": "2147483647"}, {"$numberLong": "9223372036854775807"},  {"$numberLong": "2147483646"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$regex": ".*y.*"}] } }';
+
+-- test $nin
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ 1, 10 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ 1.0, 10 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ NaN, 1000 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$numberInt": "2147483647"}, {"$numberLong": "9223372036854775807"},  {"$numberLong": "2147483646"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*y.*"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*a.*"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*a.*"}, {"$regex":"Lets.*"}, 1, 10] } }';
 
 -- matches _id: 12 even though this condition should match none if applied per term.
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$gt": 3, "$lt": 5 }}';
@@ -195,5 +205,6 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 
 -- TODO: remove _id filtering once we fix the array query issue in composite since composite should be matching the document but it doesn't.
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }, "_id": {"$ne": 26}}' ORDER BY object_id;
+
 
 ROLLBACK;

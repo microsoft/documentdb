@@ -401,6 +401,12 @@ SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 40, "a" : {"$n
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
+SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 41, "a" : ["abc", "xyz1"]}', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
 SELECT 1 FROM documentdb_api.insert_one('db','nullfield', '{"_id": 1, "a" : 1, "b": 1}');
  ?column? 
 ---------------------------------------------------------------------
@@ -1664,9 +1670,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM do
          ->  Bitmap Heap Scan on documents_1303_1300052 collection (actual rows=2 loops=1)
                Recheck Cond: (shard_key_value = '1303'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberDouble" : "NaN" }, { "$numberInt" : "1000" } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 36
+               Rows Removed by Filter: 37
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=38 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=39 loops=1)
                      Index Cond: (shard_key_value = '1303'::bigint)
 (14 rows)
 
@@ -1683,9 +1689,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM do
          ->  Bitmap Heap Scan on documents_1303_1300052 collection (actual rows=2 loops=1)
                Recheck Cond: (shard_key_value = '1303'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberDouble" : "Infinity" }, { "$numberInt" : "1000" } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 36
+               Rows Removed by Filter: 37
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=38 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=39 loops=1)
                      Index Cond: (shard_key_value = '1303'::bigint)
 (14 rows)
 
@@ -1702,9 +1708,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM do
          ->  Bitmap Heap Scan on documents_1303_1300052 collection (actual rows=0 loops=1)
                Recheck Cond: (shard_key_value = '1303'::bigint)
                Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberDouble" : "1.0100000000000000089" }, { "$numberInt" : "10" } ] }'::documentdb_core.bson)
-               Rows Removed by Filter: 38
+               Rows Removed by Filter: 39
                Heap Blocks: exact=1
-               ->  Bitmap Index Scan on _id_ (actual rows=38 loops=1)
+               ->  Bitmap Index Scan on _id_ (actual rows=39 loops=1)
                      Index Cond: (shard_key_value = '1303'::bigint)
 (14 rows)
 

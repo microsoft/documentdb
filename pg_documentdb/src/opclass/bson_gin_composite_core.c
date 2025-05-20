@@ -42,11 +42,29 @@
  #include "query/bson_dollar_operators.h"
  #include "opclass/bson_gin_composite_private.h"
 
+/* --------------------------------------------------------- */
+/* Data-types */
+/* --------------------------------------------------------- */
+
+/* Wrapper struct around regexData to track if it is a negation operator regex or not. */
+typedef struct CompositeRegexData
+{
+	RegexData *regexData;
+
+	bool isNegationOperator;
+} CompositeRegexData;
+
+
+/* --------------------------------------------------------- */
+/* Forward declaration */
+/* --------------------------------------------------------- */
+
 static void ProcessBoundForQuery(CompositeSingleBound *bound, const
 								 IndexTermCreateMetadata *metadata);
 static void SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 											 BsonIndexStrategy queryStrategy,
-											 CompositeIndexBounds *queryBounds);
+											 CompositeIndexBounds *queryBounds,
+											 bool isNegationOp);
 
 
 static void SetUpperBound(CompositeSingleBound *currentBoundValue, const
@@ -84,7 +102,8 @@ static CompositeIndexBoundsSet * AddMultiBoundaryForDollarRegex(int32_t indexAtt
 																pgbsonelement *
 																queryElement,
 																VariableIndexBounds *
-																indexBounds);
+																indexBounds,
+																bool isNegationOp);
 
 inline static CompositeSingleBound
 GetTypeLowerBound(bson_type_t type)
@@ -353,6 +372,8 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 							queryElement->path)));
 	}
 
+	bool isNegationOp = false;
+
 	/* Now that we have the index path, add or update the bounds */
 	switch (queryStrategy)
 	{
@@ -370,8 +391,10 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		{
 			int numterms = 1;
 			CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
+			isNegationOp = queryStrategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL;
 			SetSingleRangeBoundsFromStrategy(queryElement,
-											 queryStrategy, set->bounds);
+											 queryStrategy, set->bounds,
+											 isNegationOp);
 			indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
 													  set);
 			break;
@@ -381,7 +404,8 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		{
 			if (queryElement->bsonValue.value_type == BSON_TYPE_REGEX)
 			{
-				AddMultiBoundaryForDollarRegex(i, queryElement, indexBounds);
+				AddMultiBoundaryForDollarRegex(i, queryElement, indexBounds,
+											   isNegationOp);
 			}
 			else
 			{
@@ -389,7 +413,8 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 				int numterms = 1;
 				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
 				SetSingleRangeBoundsFromStrategy(queryElement,
-												 queryStrategy, set->bounds);
+												 queryStrategy, set->bounds,
+												 isNegationOp);
 				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
 														  set);
 			}
@@ -414,7 +439,8 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 				int numterms = 1;
 				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
 				SetSingleRangeBoundsFromStrategy(queryElement,
-												 queryStrategy, set->bounds);
+												 queryStrategy, set->bounds,
+												 isNegationOp);
 				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
 														  set);
 			}
@@ -517,8 +543,11 @@ IsValidRecheckForIndexValue(const bson_value_t *compareValue,
 				return true;
 			}
 
-			RegexData *regexData = (RegexData *) recheckArgs->queryDatum;
-			return CompareRegexTextMatch(compareValue, regexData);
+			CompositeRegexData *compositeRegexData =
+				(CompositeRegexData *) recheckArgs->queryDatum;
+			bool result = CompareRegexTextMatch(compareValue,
+												compositeRegexData->regexData);
+			return compositeRegexData->isNegationOperator ? !result : result;
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_EXISTS:
@@ -823,7 +852,8 @@ SetBoundsExistsTrue(CompositeIndexBounds *queryBounds)
 static void
 SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 								 BsonIndexStrategy queryStrategy,
-								 CompositeIndexBounds *queryBounds)
+								 CompositeIndexBounds *queryBounds,
+								 bool isNegationOp)
 {
 	/* Now that we have the index path, add or update the bounds */
 	switch (queryStrategy)
@@ -946,13 +976,17 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 
 		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
 		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_UTF8);
+			CompositeSingleBound bounds = GetTypeLowerBound(isNegationOp ?
+															BSON_TYPE_MINKEY :
+															BSON_TYPE_UTF8);
 			SetLowerBound(&queryBounds->lowerBound, &bounds);
 
-			bounds = GetTypeUpperBound(BSON_TYPE_UTF8);
+			bounds = GetTypeUpperBound(isNegationOp ? BSON_TYPE_MAXKEY : BSON_TYPE_UTF8);
 			SetUpperBound(&queryBounds->upperBound, &bounds);
 
 			RegexData *regexData = (RegexData *) palloc0(sizeof(RegexData));
+			CompositeRegexData *compositeRegexData = (CompositeRegexData *) palloc0(
+				sizeof(RegexData));
 			if (queryElement->bsonValue.value_type == BSON_TYPE_REGEX)
 			{
 				regexData->regex = queryElement->bsonValue.value.v_regex.regex;
@@ -967,8 +1001,11 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			regexData->pcreData = RegexCompile(regexData->regex,
 											   regexData->options);
 
+			compositeRegexData->regexData = regexData;
+			compositeRegexData->isNegationOperator = isNegationOp;
+
 			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) regexData;
+			args->queryDatum = (Pointer) compositeRegexData;
 			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_REGEX;
 			queryBounds->indexRecheckFunctions =
 				lappend(queryBounds->indexRecheckFunctions, args);
@@ -1216,6 +1253,7 @@ AddMultiBoundaryForDollarAll(int32_t indexAttribute,
 	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(allArraySize,
 																 indexAttribute);
 
+	bool isNegationOp = false;
 	int index = 0;
 	while (bson_iter_next(&arrayIter))
 	{
@@ -1234,7 +1272,7 @@ AddMultiBoundaryForDollarAll(int32_t indexAttribute,
 		if (element.bsonValue.value_type == BSON_TYPE_REGEX)
 		{
 			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_REGEX,
-											 &set->bounds[index]);
+											 &set->bounds[index], isNegationOp);
 		}
 		else if (element.bsonValue.value_type == BSON_TYPE_DOCUMENT &&
 				 TryGetBsonValueToPgbsonElement(&element.bsonValue,
@@ -1243,12 +1281,12 @@ AddMultiBoundaryForDollarAll(int32_t indexAttribute,
 		{
 			SetSingleRangeBoundsFromStrategy(&innerDocumentElement,
 											 BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH,
-											 &set->bounds[index]);
+											 &set->bounds[index], isNegationOp);
 		}
 		else
 		{
 			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_EQUAL,
-											 &set->bounds[index]);
+											 &set->bounds[index], isNegationOp);
 		}
 
 		/* TODO: Since we represet $all as a $in at the index layer, we need runtime recheck */
@@ -1303,6 +1341,7 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 																 indexAttribute);
 
 	int index = 0;
+	bool isNegationOp = false;
 	while (bson_iter_next(&arrayIter))
 	{
 		if (index >= inArraySize)
@@ -1320,7 +1359,8 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 		{
 			CompositeIndexBoundsSet *regexSet = AddMultiBoundaryForDollarRegex(index,
 																			   &element,
-																			   NULL);
+																			   NULL,
+																			   isNegationOp);
 			set->bounds[index] = regexSet->bounds[0];
 			set->bounds[index + 1] = regexSet->bounds[1];
 			index += 2;
@@ -1328,7 +1368,7 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 		else
 		{
 			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_EQUAL,
-											 &set->bounds[index]);
+											 &set->bounds[index], isNegationOp);
 			index++;
 		}
 	}
@@ -1352,6 +1392,7 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 
 	bool arrayHasNull = false;
 	int32_t inArraySize = 0;
+	bool isNegationOp = true;
 	while (bson_iter_next(&arrayIter))
 	{
 		const bson_value_t *arrayValue = bson_iter_value(&arrayIter);
@@ -1364,6 +1405,12 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 		}
 
 		inArraySize++;
+		if (arrayValue->value_type == BSON_TYPE_REGEX)
+		{
+			/* Regex has 2 boundaries */
+			inArraySize++;
+		}
+
 		arrayHasNull = arrayHasNull || arrayValue->value_type == BSON_TYPE_NULL;
 	}
 
@@ -1399,33 +1446,43 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 
 		if (element.bsonValue.value_type == BSON_TYPE_REGEX)
 		{
-			/* TODO: Handle this */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg(
-								"The $nin operator does not support regex patterns yet.")));
+			CompositeIndexBoundsSet *regexSet = AddMultiBoundaryForDollarRegex(index,
+																			   &element,
+																			   NULL,
+																			   isNegationOp);
+
+			set->bounds[index] = regexSet->bounds[0];
+			set->bounds[index + 1] = regexSet->bounds[1];
+			index += 2;
 		}
 		else
 		{
 			SetSingleRangeBoundsFromStrategy(&element,
 											 BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL,
-											 &set->bounds[index]);
+											 &set->bounds[index],
+											 isNegationOp);
+			index++;
 		}
-
-		index++;
 	}
+
 	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 }
 
 
 static CompositeIndexBoundsSet *
 AddMultiBoundaryForDollarRegex(int32_t indexAttribute, pgbsonelement *queryElement,
-							   VariableIndexBounds *indexBounds)
+							   VariableIndexBounds *indexBounds, bool isNegationOp)
 {
 	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(2,
 																 indexAttribute);
 
 	SetSingleRangeBoundsFromStrategy(queryElement,
-									 BSON_INDEX_STRATEGY_DOLLAR_REGEX, &set->bounds[0]);
+									 BSON_INDEX_STRATEGY_DOLLAR_REGEX, &set->bounds[0],
+									 isNegationOp);
+
+	/* For not operator we need to recheck because of array terms. ["ab", "ca"] we would match a regex like "c*.*" for the second term however for the first we wouldn't, so we need to go to the runtime. */
+	set->bounds[0].requiresRuntimeRecheck = isNegationOp;
+	set->bounds[1].requiresRuntimeRecheck = isNegationOp;
 
 	/* The second bound is an exact match on the $regex itself */
 	CompositeSingleBound equalsBounds = { 0 };
@@ -1579,6 +1636,7 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(typeArraySize,
 																 indexAttribute);
 
+	bool isNegationOp = false;
 	int index = 0;
 	while (bson_iter_next(&arrayIter))
 	{
@@ -1594,7 +1652,7 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 		element.bsonValue = *bson_iter_value(&arrayIter);
 
 		SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_TYPE,
-										 &set->bounds[index]);
+										 &set->bounds[index], isNegationOp);
 		index++;
 	}
 	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
