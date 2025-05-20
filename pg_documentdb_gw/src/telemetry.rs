@@ -15,6 +15,9 @@ use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
 use either::Either;
 
+// Re-export the OpenTelemetry provider
+pub use crate::open_telemetry_provider::OpenTelemetryProvider;
+
 // TelemetryProvider takes care of emitting events and metrics
 // for tracking the gateway.
 #[async_trait]
@@ -29,6 +32,12 @@ pub trait TelemetryProvider: Send + Sync + DynClone {
         _: String,
         _: &mut ComputeRequestTracker,
     );
+
+    // Check and emit the perceived availability of a cluster
+    fn update_cluster_availability(&self, cluster_id: &str, is_available: bool);
+    
+    // Track a request being routed to a specific region
+    fn track_request_routing(&self, target_region: &str, status: &str);
 }
 
 clone_trait_object!(TelemetryProvider);

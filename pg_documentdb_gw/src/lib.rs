@@ -39,17 +39,19 @@ pub mod configuration;
 pub mod context;
 pub mod error;
 pub mod explain;
+pub mod open_telemetry_provider;
 pub mod postgres;
 pub mod processor;
 pub mod protocol;
 pub mod requests;
 pub mod responses;
 pub mod telemetry;
+pub mod monitoring;
 
 pub async fn run_server(
     sc: ServiceContext,
     certificate_options: CertificateOptions,
-    telemetry: Option<Box<dyn TelemetryProvider>>,
+    telemetry: Option<Arc<dyn TelemetryProvider>>,
     token: CancellationToken,
     cipher_map: Option<fn(Option<&str>) -> i32>,
 ) -> Result<()> {
@@ -135,7 +137,7 @@ pub async fn populate_ssl_certificates() -> Result<CertificateOptions> {
 async fn listen_for_connections(
     sc: ServiceContext,
     certificate_options: &CertificateOptions,
-    telemetry: Option<Box<dyn TelemetryProvider>>,
+    telemetry: Option<Arc<dyn TelemetryProvider>>,
     listener: &TcpListener,
     token: CancellationToken,
     enforce_ssl_tcp: bool,
@@ -187,7 +189,7 @@ async fn get_stream(ssl: Ssl, stream: TcpStream) -> Result<SslStream<TcpStream>>
 async fn handle_connection(
     ssl: Ssl,
     sc: ServiceContext,
-    telemetry: Option<Box<dyn TelemetryProvider>>,
+    telemetry: Option<Arc<dyn TelemetryProvider>>,
     ip: SocketAddr,
     stream: TcpStream,
     enforce_ssl_tcp: bool,

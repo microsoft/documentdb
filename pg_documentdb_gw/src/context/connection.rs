@@ -35,7 +35,7 @@ pub struct ConnectionContext {
     pub requires_response: bool,
     pub client_information: Option<RawDocumentBuf>,
     pub transaction: Option<(Vec<u8>, i64)>,
-    pub telemetry_provider: Option<Box<dyn TelemetryProvider>>,
+    pub telemetry_provider: Option<Arc<dyn TelemetryProvider>>,
     pub ip: SocketAddr,
     pub cipher_type: i32,
     pub ssl_protocol: String,
@@ -120,7 +120,7 @@ impl ConnectionContext {
 
     pub async fn new(
         sc: ServiceContext,
-        telemetry_provider: Option<Box<dyn TelemetryProvider>>,
+        telemetry_provider: Option<Arc<dyn TelemetryProvider>>,
         ip: SocketAddr,
         ssl_protocol: String,
     ) -> Self {
