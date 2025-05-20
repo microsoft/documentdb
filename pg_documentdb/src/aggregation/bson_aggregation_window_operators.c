@@ -144,7 +144,8 @@ static TargetEntry * UpdateWindowOperatorAndFrameOptions(const
 static void UpdatePartitionAndSortClauses(Query *query, Expr *docExpr,
 										  Expr *partitionByExpr,
 										  List *sortByClauses, int allFrameOptions,
-										  ParseState *pstate);
+										  ParseState *pstate,
+										  const char *collationString);
 static bool IsPartitionByOnShardKey(const bson_value_t *partitionByValue,
 									const MongoCollection *collection);
 static void ThrowInvalidFrameOptions(void);
@@ -788,7 +789,8 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		 * Note: All resjunk entries should be followed by non-resjunk entries added above for window functions.
 		 */
 		UpdatePartitionAndSortClauses(query, docExpr, partitionExpr, sortOptions,
-									  allFrameOptions, parseState);
+									  allFrameOptions, parseState,
+									  context->collationString);
 
 		/*
 		 * Migrate to subquery and merge results of all window functions back to document
@@ -914,7 +916,8 @@ static void
 UpdatePartitionAndSortClauses(Query *query, Expr *docExpr,
 							  Expr *partitionByExpr,
 							  List *sortOptions, int allFrameOptions,
-							  ParseState *pstate)
+							  ParseState *pstate,
+							  const char *collationString)
 {
 	bool resjunk = true;
 
@@ -960,17 +963,42 @@ UpdatePartitionAndSortClauses(Query *query, Expr *docExpr,
 			SetWindowFieldSortOption *sortOption =
 				(SetWindowFieldSortOption *) lfirst(lc);
 			List *args = NIL;
+			bool applyCollationToSort = IsCollationApplicable(collationString) &&
+										IsClusterVersionAtleast(DocDB_V0, 104, 0);
+
 			Oid sortFunctionOid = InvalidOid;
 			if (isRangeWindow)
 			{
-				sortFunctionOid = BsonOrderByPartitionFunctionOid();
-				args = list_make3(docExpr, sortOption->sortSpecConst,
-								  MakeBoolValueConst(isTimeRangeWindow));
+				if (applyCollationToSort)
+				{
+					Const *collationConst = MakeTextConst(collationString, strlen(
+															  collationString));
+					sortFunctionOid = BsonOrderByPartitionWithCollationFunctionOid();
+					args = list_make4(docExpr, sortOption->sortSpecConst,
+									  MakeBoolValueConst(isTimeRangeWindow),
+									  collationConst);
+				}
+				else
+				{
+					sortFunctionOid = BsonOrderByPartitionFunctionOid();
+					args = list_make3(docExpr, sortOption->sortSpecConst,
+									  MakeBoolValueConst(isTimeRangeWindow));
+				}
 			}
 			else
 			{
-				sortFunctionOid = BsonOrderByFunctionOid();
-				args = list_make2(docExpr, sortOption->sortSpecConst);
+				if (applyCollationToSort)
+				{
+					Const *collationConst = MakeTextConst(collationString, strlen(
+															  collationString));
+					sortFunctionOid = BsonOrderByWithCollationFunctionOid();
+					args = list_make3(docExpr, sortOption->sortSpecConst, collationConst);
+				}
+				else
+				{
+					sortFunctionOid = BsonOrderByFunctionOid();
+					args = list_make2(docExpr, sortOption->sortSpecConst);
+				}
 			}
 			Expr *expr = (Expr *) makeFuncExpr(sortFunctionOid, BsonTypeId(), args,
 											   InvalidOid, InvalidOid,
@@ -978,10 +1006,23 @@ UpdatePartitionAndSortClauses(Query *query, Expr *docExpr,
 
 			SortBy *sortBy = makeNode(SortBy);
 			sortBy->location = -1;
-			sortBy->sortby_dir = sortOption->isAscending ? SORTBY_ASC : SORTBY_DESC;
 			sortBy->sortby_nulls = sortOption->isAscending ? SORTBY_NULLS_FIRST :
 								   SORTBY_NULLS_LAST;
 			sortBy->node = (Node *) expr;
+
+			if (applyCollationToSort)
+			{
+				sortBy->sortby_dir = SORTBY_USING;
+				sortBy->useOp = sortOption->isAscending ?
+								list_make2(makeString(ApiInternalSchemaNameV2),
+										   makeString("<<<")) :
+								list_make2(makeString(ApiInternalSchemaNameV2),
+										   makeString(">>>"));
+			}
+			else
+			{
+				sortBy->sortby_dir = sortOption->isAscending ? SORTBY_ASC : SORTBY_DESC;
+			}
 
 			TargetEntry *sortEntry = makeTargetEntry((Expr *) sortBy->node,
 													 pstate->p_next_resno++,

@@ -1,5 +1,6 @@
 ### documentdb v0.104-0 (Unreleased) ###
 * Add string case support for `$toDate` operator
+* Support `sort` with collation in runtime*[Feature]*
 * Support collation with `$indexOfArray` aggregation operator. *[Feature]*
 * Support collation with arrays and objects comparisons *[Feature]*
 * Support background index builds *[Bugfix]* (#36)
@@ -12,7 +13,7 @@
 * Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
 * Support half-precision vector indexing, vectors can have up to 4,000 dimensions *[Feature]*
 * Support ARM64 architecture when building docker container *[Preview]*
-* Support collation with `$documents` and `$replceWith` stage of the aggregation pipeline *[Feature]*
+* Support collation with `$documents` and `$replaceWith` stage of the aggregation pipeline *[Feature]*
 * Push pg_documentdb_gw for documentdb connections *[Feature]*
 
 ### documentdb v0.102-0 (March 26, 2025) ###

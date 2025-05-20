@@ -111,6 +111,7 @@ typedef struct TraverseOrderByValidateState
 	bool isOrderByMin;
 	bson_value_t orderByValue;
 	CustomOrderByOptions options;
+	const char *collationString;
 } TraverseOrderByValidateState;
 
 /* State for comparison operations of simple dollar operators
@@ -374,7 +375,8 @@ static bool DollarRangeVisitTopLevelField(pgbsonelement *element, const
 static bool DollarRangeVisitArrayField(pgbsonelement *element, const
 									   StringView *filterPath,
 									   int arrayIndex, void *state);
-static Datum BsonOrderbyCore(pgbson *leftBson, pgbson *rightBson, bool validateSort,
+static Datum BsonOrderbyCore(pgbson *leftBson, pgbson *rightBson, const
+							 char *collationString, bool validateSort,
 							 const CustomOrderByOptions options);
 
 /*
@@ -500,6 +502,11 @@ PG_FUNCTION_INFO_V1(bson_dollar_exists);
 PG_FUNCTION_INFO_V1(command_bson_orderby);
 PG_FUNCTION_INFO_V1(bson_orderby_partition);
 PG_FUNCTION_INFO_V1(bson_vector_orderby);
+PG_FUNCTION_INFO_V1(bson_orderby_compare);
+PG_FUNCTION_INFO_V1(bson_orderby_lt);
+PG_FUNCTION_INFO_V1(bson_orderby_eq);
+PG_FUNCTION_INFO_V1(bson_orderby_gt);
+
 PG_FUNCTION_INFO_V1(bson_dollar_bits_all_clear);
 PG_FUNCTION_INFO_V1(bson_dollar_bits_any_clear);
 PG_FUNCTION_INFO_V1(bson_dollar_bits_all_set);
@@ -1638,9 +1645,17 @@ command_bson_orderby(PG_FUNCTION_ARGS)
 {
 	pgbson *document = PG_GETARG_PGBSON_PACKED(0);
 	pgbson *filter = PG_GETARG_PGBSON_PACKED(1);
+	char *collationString = NULL;
+
+	if (EnableCollation && PG_NARGS() > 2 && !PG_ARGISNULL(2))
+	{
+		collationString = text_to_cstring(PG_GETARG_TEXT_P(2));
+	}
+
 	bool validateSort = true;
 	CustomOrderByOptions options = CustomOrderByOptions_Default;
-	Datum returnedBson = BsonOrderbyCore(document, filter, validateSort, options);
+	Datum returnedBson = BsonOrderbyCore(document, filter, collationString, validateSort,
+										 options);
 
 	PG_FREE_IF_COPY(document, 0);
 	PG_FREE_IF_COPY(filter, 1);
@@ -1659,12 +1674,19 @@ bson_orderby_partition(PG_FUNCTION_ARGS)
 	pgbson *document = PG_GETARG_PGBSON_PACKED(0);
 	pgbson *filter = PG_GETARG_PGBSON_PACKED(1);
 	bool isTimeRangeWindow = PG_GETARG_BOOL(2);
+	char *collationString = NULL;
+
+	if (EnableCollation && PG_NARGS() > 3 && !PG_ARGISNULL(3))
+	{
+		collationString = text_to_cstring(PG_GETARG_TEXT_P(3));
+	}
+
 	bool validateSort = true;
 
 	CustomOrderByOptions options = isTimeRangeWindow ?
 								   CustomOrderByOptions_AllowOnlyDates :
 								   CustomOrderByOptions_AllowOnlyNumbers;
-	Datum returnedBson = BsonOrderbyCore(document, filter, validateSort,
+	Datum returnedBson = BsonOrderbyCore(document, filter, collationString, validateSort,
 										 options);
 
 	PG_FREE_IF_COPY(document, 0);
@@ -1694,15 +1716,153 @@ bson_vector_orderby(PG_FUNCTION_ARGS)
 
 
 /*
+ * bson_orderby_compare compares two bson documents.
+ * It returns:
+ * -1 if the left document is less than the right document
+ * 0 if the left document is equal to the right document
+ * 1 if the left document is greater than the right document
+ *
+ * left and right will contain one or two fields:
+ * 1. the compare field path
+ * 2. the collation string to use for comparison (optional)
+ *
+ * Example: { "a": "name", "collation": "en-u-ks-level1" }
+ *
+ * It is also the custom comparator for ORDER BY ... USING clause.
+ */
+Datum
+bson_orderby_compare(PG_FUNCTION_ARGS)
+{
+	pgbson *left = PG_GETARG_PGBSON(0);
+	pgbson *right = PG_GETARG_PGBSON(1);
+
+	pgbsonelement leftElement = { 0 };
+	pgbsonelement rightElement = { 0 };
+
+	char *collationStringLeft =
+		(char *) PgbsonToSinglePgbsonElementWithCollation(left,
+														  &leftElement);
+	collationStringLeft = IsCollationApplicable(collationStringLeft) ?
+						  collationStringLeft : NULL;
+
+	char *collationStringRight =
+		(char *) PgbsonToSinglePgbsonElementWithCollation(right,
+														  &rightElement);
+	collationStringRight = IsCollationApplicable(collationStringRight) ?
+						   collationStringRight : NULL;
+
+	/* compare the collation strings. */
+	char *collationString = NULL;
+	if (collationStringLeft != NULL && collationStringRight != NULL)
+	{
+		int collationCmp = strcmp(collationStringLeft, collationStringRight);
+
+		if (collationCmp != 0)
+		{
+			PG_RETURN_INT32(collationCmp);
+		}
+
+		collationString = collationStringLeft;
+	}
+	else if (collationStringLeft != NULL && collationStringRight == NULL)
+	{
+		PG_RETURN_INT32(1);
+	}
+	else if (collationStringRight != NULL && collationStringLeft == NULL)
+	{
+		PG_RETURN_INT32(-1);
+	}
+
+	/* compare the left and right values */
+	int cmp = 0;
+	bool isComparisonValid = true;
+	if (collationString != NULL)
+	{
+		cmp = CompareBsonValueAndTypeWithCollation(&leftElement.bsonValue,
+												   &rightElement.bsonValue,
+												   &isComparisonValid, collationString);
+	}
+	else
+	{
+		cmp = CompareBsonValueAndType(&leftElement.bsonValue, &rightElement.bsonValue,
+									  &isComparisonValid);
+	}
+
+	PG_RETURN_INT32(cmp);
+}
+
+
+/*
+ * bson_orderby_lt compares two bson documents and returns true if the left document
+ * is less than the right document.
+ *
+ * left and right will contain one or two fields:
+ * 1. the compare field path
+ * 2. the collation string to use for comparison (optional)
+ *
+ * Example: { "a": "name", "collation": "en-u-ks-level1" }
+ *
+ * It is also the comparator for ORDER BY ... USING  <<< clause.
+ */
+Datum
+bson_orderby_lt(PG_FUNCTION_ARGS)
+{
+	int cmp = DatumGetInt32(bson_orderby_compare(fcinfo));
+	PG_RETURN_BOOL(cmp < 0);
+}
+
+
+/*
+ * bson_orderby_eq compares two bson documents and returns true if the left document
+ * is equal than the right document.
+ *
+ * left and right will contain one or two fields:
+ * 1. the compare field path
+ * 2. the collation string to use for comparison (optional)
+ *
+ * Example: { "a": "name", "collation": "en-u-ks-level1" }
+ *
+ * It implements the === internal operator.
+ */
+Datum
+bson_orderby_eq(PG_FUNCTION_ARGS)
+{
+	int cmp = DatumGetInt32(bson_orderby_compare(fcinfo));
+	PG_RETURN_BOOL(cmp == 0);
+}
+
+
+/*
+ * bson_orderby_gt compares two bson documents and returns true if the left document
+ * is greater than the right document.
+ *
+ * left and right will contain one or two fields:
+ * 1. the compare field path
+ * 2. the collation string to use for comparison (optional)
+ *
+ * Example: { "a": "name", "collation": "en-u-ks-level1" }
+ *
+ * It is also the comparator for ORDER BY ... USING >>> clause.
+ */
+Datum
+bson_orderby_gt(PG_FUNCTION_ARGS)
+{
+	int cmp = DatumGetInt32(bson_orderby_compare(fcinfo));
+	PG_RETURN_BOOL(cmp > 0);
+}
+
+
+/*
  * Applies the $sort runtime projection.
  * ValidateSort is to handle a bug with $first where it passes the expression
  * as one of the sort specs
  */
 Datum
-BsonOrderby(pgbson *document, pgbson *filter, bool validateSort)
+BsonOrderby(pgbson *document, pgbson *filter, bool validateSort, const
+			char *collationString)
 {
 	CustomOrderByOptions options = CustomOrderByOptions_Default;
-	return BsonOrderbyCore(document, filter, validateSort, options);
+	return BsonOrderbyCore(document, filter, collationString, validateSort, options);
 }
 
 
@@ -2321,13 +2481,13 @@ CompareModOperator(const bson_value_t *srcVal, const bson_value_t *modArrVal)
  * Few cases require the type to be same e.g. $sort in `$setWindowFields` stage
  */
 static Datum
-BsonOrderbyCore(pgbson *document, pgbson *filter, bool validateSort,
-				CustomOrderByOptions options)
+BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
+				bool validateSort, CustomOrderByOptions options)
 {
 	bson_iter_t documentIterator;
 	pgbsonelement filterElement;
 	TraverseOrderByValidateState state = {
-		{ 0 }, NULL, { 0 }, options
+		{ 0 }, NULL, { 0 }, options, collationString
 	};
 
 	pgbson_writer writer;
@@ -2371,6 +2531,12 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, bool validateSort,
 	{
 		PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
 								&state.orderByValue);
+	}
+
+	/* append the collation for use in bson_orderby_compare */
+	if (IsCollationApplicable(collationString))
+	{
+		PgbsonWriterAppendUtf8(&writer, "collation", 9, collationString);
 	}
 
 	return PointerGetDatum(PgbsonWriterGetPgbson(&writer));
@@ -2874,9 +3040,21 @@ CompareForOrderBy(const pgbsonelement *element,
 	else
 	{
 		bool isComparisonValidIgnore;
-		int sortOrderCmp = CompareBsonValueAndType(&element->bsonValue,
+		int sortOrderCmp = 0;
+		if (IsCollationApplicable(validationState->collationString))
+		{
+			sortOrderCmp =
+				CompareBsonValueAndTypeWithCollation(&element->bsonValue,
+													 &validationState->orderByValue,
+													 &isComparisonValidIgnore,
+													 validationState->collationString);
+		}
+		else
+		{
+			sortOrderCmp = CompareBsonValueAndType(&element->bsonValue,
 												   &validationState->orderByValue,
 												   &isComparisonValidIgnore);
+		}
 
 		if (sortOrderCmp > 0 && !validationState->isOrderByMin)
 		{

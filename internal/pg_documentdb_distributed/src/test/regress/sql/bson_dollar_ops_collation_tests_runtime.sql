@@ -261,6 +261,45 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filte
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "$or" : [{ "a": { "$eq": "cat" } }, { "b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "de", "strength" : 1, "caseLevel": false, "caseFirst": "lower", "numericOrdering": true} }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "$or" : [{ "a": { "$eq": "cat" } }, { "b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "bn", "strength" : 1, "caseLevel": false, "caseFirst": "lower", "numericOrdering": true} }');
 
+-- collation with sort/order by
+SELECT documentdb_api.insert_one('db', 'coll_order_tests0', '{"_id": "CaT", "a": "cat", "b": "CaT"}');
+SELECT documentdb_api.insert_one('db', 'coll_order_tests0', '{"_id": "CAt", "a": "cat", "b": "CAt"}');
+SELECT documentdb_api.insert_one('db', 'coll_order_tests0', '{"_id": "CAT", "a": "cat", "b": "CAT"}');
+SELECT documentdb_api.insert_one('db', 'coll_order_tests0', '{"_id": "cAT", "a": "cat", "b": "cAT"}');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "b": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "b": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "b": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "upper" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "b": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "upper" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$gte": "cat"} }, "sort": { "b": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "lower" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$gte": "cat"} }, "sort": { "b": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "lower" } }');
+
+-- collation with sort/order by with collation-aware _id
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "_id": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 3 } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "upper" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$lte": "cat"} }, "sort": { "_id": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "upper" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$gte": "cat"} }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "lower" } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests0", "filter": { "a": {"$gte": "cat"} }, "sort": { "_id": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "lower" } }');
+
+-- collation with sort/order by: numericOrdering is respected
+SELECT documentdb_api.insert_one('db', 'coll_order_tests1', '{"_id": 1, "a": "cat", "b": "10"}');
+SELECT documentdb_api.insert_one('db', 'coll_order_tests1', '{"_id": 2, "a": "cat", "b": "2"}');
+SELECT documentdb_api.insert_one('db', 'coll_order_tests1', '{"_id": 3, "a": "cat", "b": "3"}');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests1", "filter": { "a": "cat" }, "sort": { "b": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "numericOrdering" : false } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests1", "filter": { "a": "cat" }, "sort": { "b": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "numericOrdering" : true } }');
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests1", "filter": { "a": "cat" }, "sort": { "b": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "numericOrdering" : false } }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "coll_order_tests1", "filter": { "a": "cat" }, "sort": { "b": -1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "numericOrdering" : true } }');
+
+-- collation with sort/order by: setWindowFields
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "coll_order_tests1", "pipeline":  [{"$setWindowFields": { "sortBy": {"b": -1}, "output": {"res": { "$push": "$b", "window": {"documents": ["unbounded", "unbounded"]}}}}}], "collation": { "locale": "en", "numericOrdering" : false } }');
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "coll_order_tests1", "pipeline":  [{"$setWindowFields": { "sortBy": {"b": -1}, "output": {"res": { "$push": "$b", "window": {"documents": ["unbounded", "unbounded"]}}}}}], "collation": { "locale": "en", "numericOrdering" : true } }');
+
 
 -- (11) Unsupported scenarios
 

@@ -101,6 +101,7 @@ bool CompareArrayForBitsAnySet(bson_iter_t *sourceArrayIter,
 							   bson_iter_t *filterArrayIter,
 							   bool isSignExtended);
 
-Datum BsonOrderby(pgbson *leftBson, pgbson *rightBson, bool validateSort);
+Datum BsonOrderby(pgbson *leftBson, pgbson *rightBson, bool validateSort,
+				  const char *collationString);
 
 #endif

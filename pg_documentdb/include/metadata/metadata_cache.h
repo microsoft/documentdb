@@ -168,7 +168,16 @@ Oid ApiCatalogCollectionIndexIdSequenceId(void);
 
 /* order by */
 Oid BsonOrderByFunctionOid(void);
+Oid BsonOrderByWithCollationFunctionOid(void);
 Oid BsonOrderByPartitionFunctionOid(void);
+Oid BsonOrderByPartitionWithCollationFunctionOid(void);
+Oid BsonOrderByCompareFunctionOId(void);
+Oid BsonOrderByLtFunctionOId(void);
+Oid BsonOrderByEqFunctionOId(void);
+Oid BsonOrderByGtFunctionOId(void);
+Oid BsonOrderyByLtOperatorId(void);
+Oid BsonOrderyByEqOperatorId(void);
+Oid BsonOrderyByGtOperatorId(void);
 Oid BsonOrderByIndexOperatorId(void);
 
 /* Postgres internal functions */

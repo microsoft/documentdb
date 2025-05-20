@@ -427,6 +427,9 @@ BsonOrderTransition(PG_FUNCTION_ARGS, bool invertSort, bool isSingle, bool
 	int currentPos;
 	BsonOrderAggValue *newValue = palloc0(sizeof(BsonOrderAggValue));
 
+	/* TODO: support collation with sorted accumulators*/
+	char *collationString = NULL;
+
 	/* Find which position newValue needs ot be inserted into */
 	for (currentPos = inputAggregateState.currentCount - 1; currentPos >= 0; currentPos--)
 	{
@@ -453,7 +456,7 @@ BsonOrderTransition(PG_FUNCTION_ARGS, bool invertSort, bool isSingle, bool
 					newValue->sortKeyValues[currentParsePos++] = BsonOrderby(
 						inputDocument,
 						DatumGetPgBson(sortSpecs[i]),
-						validateSort);
+						validateSort, collationString);
 				}
 			}
 
@@ -528,7 +531,8 @@ BsonOrderTransition(PG_FUNCTION_ARGS, bool invertSort, bool isSingle, bool
 								DatumGetPgBson(
 									sortSpecs
 									[currentParsePos]),
-								validateSort);
+								validateSort,
+								collationString);
 			}
 			currentParsePos++;
 		}

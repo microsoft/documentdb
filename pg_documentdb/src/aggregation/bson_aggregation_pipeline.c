@@ -4600,7 +4600,6 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			pgbson *sortDoc = PgbsonElementToPgbson(&element);
 			Const *sortBson = MakeBsonConst(sortDoc);
 			bool isAscending = ValidateOrderbyExpressionAndGetIsAscending(sortDoc);
-			SortByNulls sortByNulls = SORTBY_NULLS_DEFAULT;
 
 			bool hasSortById = strcmp(element.path, "_id") == 0;
 			bool canPushdownSortById = false;
@@ -4616,6 +4615,11 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 				}
 			}
 
+			SortBy *sortBy = makeNode(SortBy);
+			SortByNulls sortByNulls = SORTBY_NULLS_DEFAULT;
+			SortByDir sortByDirection = isAscending ? SORTBY_ASC : SORTBY_DESC;
+			sortBy->location = -1;
+
 			/* If the sort is on _id and we can push it down to the primary key index, use ORDER BY object_id instead. */
 			if (EnableSortbyIdPushDownToPrimaryKey && canPushdownSortById)
 			{
@@ -4626,17 +4630,46 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			else
 			{
 				/* match mongo behavior. */
+				Oid funcOid = BsonOrderByFunctionOid();
+				List *args = NIL;
+
+				/* apply collation to the sort comparison */
+				if (IsCollationApplicable(context->collationString) &&
+					IsClusterVersionAtleast(DocDB_V0, 104, 0))
+				{
+					funcOid = BsonOrderByWithCollationFunctionOid();
+					Const *collationConst = MakeTextConst(context->collationString,
+														  strlen(
+															  context->collationString));
+
+					args = list_make3(sortInput, sortBson, collationConst);
+
+					/*
+					 * For ascending order: ORDER BY <value> USING ApiInternalSchemaNameV2.<<<
+					 * For descending order: ORDER BY <value> USING ApiInternalSchemaNameV2.>>>
+					 */
+					sortByDirection = SORTBY_USING;
+					sortBy->useOp = isAscending ?
+									list_make2(makeString(ApiInternalSchemaNameV2),
+											   makeString("<<<")) :
+									list_make2(makeString(ApiInternalSchemaNameV2),
+											   makeString(">>>"));
+				}
+				else
+				{
+					args = list_make2(sortInput, sortBson);
+				}
+
 				sortByNulls = isAscending ? SORTBY_NULLS_FIRST : SORTBY_NULLS_LAST;
-				expr = (Expr *) makeFuncExpr(BsonOrderByFunctionOid(),
+
+				expr = (Expr *) makeFuncExpr(funcOid,
 											 BsonTypeId(),
-											 list_make2(sortInput, sortBson),
+											 args,
 											 InvalidOid, InvalidOid,
 											 COERCE_EXPLICIT_CALL);
 			}
 
-			SortBy *sortBy = makeNode(SortBy);
-			sortBy->location = -1;
-			sortBy->sortby_dir = isAscending ? SORTBY_ASC : SORTBY_DESC;
+			sortBy->sortby_dir = sortByDirection;
 			sortBy->sortby_nulls = sortByNulls;
 			sortBy->node = (Node *) expr;
 
@@ -4787,6 +4820,12 @@ HandleSortByCount(const bson_value_t *existingValue, Query *query,
 inline static bool
 CanSortByObjectId(Query *query, AggregationPipelineBuildContext *context)
 {
+	/* _id values may be collation-sensitive so do not filter by object_id = */
+	if (IsCollationApplicable(context->collationString))
+	{
+		return false;
+	}
+
 	RangeTblEntry *rte = linitial(query->rtable);
 	if (context->mongoCollection == NULL ||
 		rte->rtekind != RTE_RELATION ||

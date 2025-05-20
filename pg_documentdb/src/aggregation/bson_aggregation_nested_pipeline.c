@@ -3789,7 +3789,7 @@ BuildRecursiveGraphLookupQuery(QuerySource parentSource, GraphLookupArgs *args,
 	unionAllQuery->canSetTag = true;
 	unionAllQuery->jointree = makeFromExpr(NIL, NULL);
 
-	/* We need to build the output of hte UNION ALL first (since this is recursive )*/
+	/* We need to build the output of the UNION ALL first (since this is recursive )*/
 	/* The first var is the document */
 	Var *documentVar = makeVar(1, 1, BsonTypeId(), -1, InvalidOid, 0);
 	TargetEntry *docEntry = makeTargetEntry((Expr *) documentVar,
@@ -3819,7 +3819,6 @@ BuildRecursiveGraphLookupQuery(QuerySource parentSource, GraphLookupArgs *args,
 	cteCycleClause->cycle_mark_typmod = -1;
 	cteCycleClause->cycle_mark_neop = BooleanNotEqualOperator;
 	graphCteExpr->cycle_clause = cteCycleClause;
-
 
 	ParseState *parseState = make_parsestate(NULL);
 	parseState->p_expr_kind = EXPR_KIND_SELECT_TARGET;

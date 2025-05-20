@@ -240,11 +240,38 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_orderby function */
 	Oid BsonOrderByFunctionId;
 
+	/* OID of the bson_orderby with collation function */
+	Oid BsonOrderByWithCollationFunctionId;
+
+	/* OID of the bson_orderby_compare function */
+	Oid BsonOrderByCompareFunctionOId;
+
+	/* OID of bson_orderby_eq function */
+	Oid BsonOrderByEqFunctionOId;
+
+	/* OID of bson_orderby_gt function */
+	Oid BsonOrderByGtFunctionOId;
+
+	/* OID of bson_orderby_lt function */
+	Oid BsonOrderByLtFunctionOId;
+
+	/* OID of the bson (ApiInternalSchemaV2.<<<) bson function */
+	Oid BsonOrderyByLtOperatorId;
+
+	/* OID of the bson (ApiInternalSchemaV2.===) bson function */
+	Oid BsonOrderyByEqOperatorId;
+
+	/* OID of the bson (ApiInternalSchemaV2.<<<) bson function */
+	Oid BsonOrderyByGtOperatorId;
+
 	/* OID of hte bson order by index operator */
 	Oid BsonOrderByIndexOperatorId;
 
 	/* OID of the bson_orderby_partition function */
 	Oid BsonOrderByPartitionFunctionOid;
+
+	/* OID of the bson_orderby_partition with collation function */
+	Oid BsonOrderByPartitionWithCollationFunctionOid;
 
 	/* OID of the bson vector search orderby operator */
 	Oid VectorOrderByQueryOperatorId;
@@ -4807,6 +4834,107 @@ BsonOrderByIndexOperatorId(void)
 
 
 /*
+ * BsonOrderByFunctionId returns the OID of the bson_orderby(<bson>, <bson>, text) function.
+ */
+Oid
+BsonOrderByWithCollationFunctionOid(void)
+{
+	return GetOperatorFunctionIdThreeArgs(&Cache.BsonOrderByWithCollationFunctionId,
+										  DocumentDBApiInternalSchemaName,
+										  "bson_orderby", BsonTypeId(), BsonTypeId(),
+										  TEXTOID);
+}
+
+
+/*
+ * BsonOrderByFunctionId returns the OID of the bson_orderby_compare(<bson>, <bson>) function.
+ */
+Oid
+BsonOrderByCompareFunctionOId(void)
+{
+	return GetBinaryOperatorFunctionIdWithSchema(
+		&Cache.BsonOrderByCompareFunctionOId,
+		"bson_orderby_compare", BsonTypeId(), BsonTypeId(),
+		DocumentDBApiInternalSchemaName);
+}
+
+
+/*
+ * BsonOrderByLtFunctionOId returns the OID of the bson_orderby_lt(<bson>, <bson>) function.
+ */
+Oid
+BsonOrderByLtFunctionOId(void)
+{
+	return GetBinaryOperatorFunctionIdWithSchema(
+		&Cache.BsonOrderByLtFunctionOId,
+		"bson_orderby_lt", BsonTypeId(), BsonTypeId(),
+		DocumentDBApiInternalSchemaName);
+}
+
+
+/*
+ * BsonOrderByEqFunctionOId returns the OID of the bson_orderby_eq(<bson>, <bson>) function.
+ */
+Oid
+BsonOrderByEqFunctionOId(void)
+{
+	return GetBinaryOperatorFunctionIdWithSchema(
+		&Cache.BsonOrderByEqFunctionOId,
+		"bson_orderby_eq", BsonTypeId(), BsonTypeId(),
+		DocumentDBApiInternalSchemaName);
+}
+
+
+/*
+ * BsonOrderByGtFunctionOId returns the OID of the bson_orderby_gt(<bson>, <bson>) function.
+ */
+Oid
+BsonOrderByGtFunctionOId(void)
+{
+	return GetBinaryOperatorFunctionIdWithSchema(
+		&Cache.BsonOrderByGtFunctionOId,
+		"bson_orderby_gt", BsonTypeId(), BsonTypeId(),
+		DocumentDBApiInternalSchemaName);
+}
+
+
+/*
+ * BsonOrderByLtFunctionOId returns the OID of the <bson> <<< <bson> function.
+ */
+Oid
+BsonOrderyByLtOperatorId(void)
+{
+	return GetInternalBinaryOperatorId(
+		&Cache.BsonOrderyByLtOperatorId,
+		BsonTypeId(), "<<<", BsonTypeId());
+}
+
+
+/*
+ * BsonOrderByMatchOperatorId returns the OID of the <bson> === <bson> function.
+ */
+Oid
+BsonOrderyByEqOperatorId(void)
+{
+	return GetInternalBinaryOperatorId(
+		&Cache.BsonOrderyByEqOperatorId,
+		BsonTypeId(), "===", BsonTypeId());
+}
+
+
+/*
+ * BsonOrderByDescOperatorId returns the OID of the <bson> >>> <bson> function.
+ */
+Oid
+BsonOrderyByGtOperatorId(void)
+{
+	return GetInternalBinaryOperatorId(
+		&Cache.BsonOrderyByGtOperatorId,
+		BsonTypeId(), ">>>", BsonTypeId());
+}
+
+
+/*
  * BsonOrderByPartitionFunctionOid returns the OID of the bson_orderby_partition(<bson>, <bson>, bool) function.
  */
 Oid
@@ -4824,6 +4952,30 @@ BsonOrderByPartitionFunctionOid(void)
 
 		Cache.BsonOrderByPartitionFunctionOid =
 			LookupFuncName(functionNameList, 3, paramOids, missingOK);
+	}
+
+	return Cache.BsonOrderByPartitionFunctionOid;
+}
+
+
+/*
+ * BsonOrderByPartitionFunctionOid returns the OID of the bson_orderby_partition(<bson>, <bson>, bool, text) function.
+ */
+Oid
+BsonOrderByPartitionWithCollationFunctionOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonOrderByPartitionFunctionOid == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString(DocumentDBApiInternalSchemaName),
+											makeString(
+												"bson_orderby_partition"));
+		Oid paramOids[4] = { BsonTypeId(), BsonTypeId(), BOOLOID, TEXTOID };
+		bool missingOK = false;
+
+		Cache.BsonOrderByPartitionWithCollationFunctionOid =
+			LookupFuncName(functionNameList, 4, paramOids, missingOK);
 	}
 
 	return Cache.BsonOrderByPartitionFunctionOid;
