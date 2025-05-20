@@ -4,8 +4,19 @@ theme:
   name: readthedocs
 
 nav:
-  - DocumentDB:
-      - Version 0.103: v1/index.md
+  - Home: v1/index.md
+  - DocumentDB v0.103:
+      - Introduction: v1/introduction.md
+      - Getting Started: v1/get-started.md
+      - Why DocumentDB?: v1/why-documentdb.md
+      - DocumentDB Gateway: v1/gateway.md
+      - Prebuild Image: v1/prebuild.md
+      - Usage (CRUD): v1/usage.md
+      - Collection Management: v1/collection-management.md
+      - Indexing: v1/indexing.md
+      - Aggregation: v1/aggregation.md
+      - Joins: v1/joins.md
+      - Packaging: v1/packaging.md
 
 plugins:
   - search
