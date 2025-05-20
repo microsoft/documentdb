@@ -5,7 +5,7 @@ theme:
 
 nav:
   - Version 1.0:
-      - Get Started: v1/index.md
+      - Document DB: v1/index.md
 
 plugins:
   - search
