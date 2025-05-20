@@ -146,15 +146,6 @@ static Datum HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 
 static int64_t GenerateCursorId(int64_t inputValue);
 
-/* Generates a base QueryData used for the first page */
-inline static QueryData
-GenerateFirstPageQueryData(void)
-{
-	QueryData queryData = { 0 };
-	queryData.batchSize = 101;
-	return queryData;
-}
-
 
 /* --------------------------------------------------------- */
 /* Top level exports */

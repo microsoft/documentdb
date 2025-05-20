@@ -1674,8 +1674,7 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 
 	pgbson *pipeline = DatumGetPgBson(aggregationConst->constvalue);
 
-	QueryData queryData = { 0 };
-	queryData.batchSize = 101;
+	QueryData queryData = GenerateFirstPageQueryData();
 	bool enableCursorParam = false;
 	bool setStatementTimeout = false;
 	Query *finalQuery;

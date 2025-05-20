@@ -124,4 +124,17 @@ void ParseInputForNGroupAccumulators(const bson_value_t *inputDocument,
 									 bson_value_t *input,
 									 bson_value_t *elementsToFetch,
 									 const char *opName);
+
+extern int DefaultCursorFirstPageBatchSize;
+
+/* Generates a base QueryData used for the first page */
+inline static QueryData
+GenerateFirstPageQueryData(void)
+{
+	QueryData queryData = { 0 };
+	queryData.batchSize = DefaultCursorFirstPageBatchSize;
+	return queryData;
+}
+
+
 #endif

@@ -116,6 +116,9 @@ char *CurrentOpApplicationName = DEFAULT_CURRENT_OP_APPLICATION_NAME;
 #define DEFAULT_AGGREGATION_STAGES_LIMIT 1000
 int MaxAggregationStagesAllowed = DEFAULT_AGGREGATION_STAGES_LIMIT;
 
+#define DEFAULT_CURSOR_FIRST_PAGE_BATCH_SIZE 101
+int DefaultCursorFirstPageBatchSize = DEFAULT_CURSOR_FIRST_PAGE_BATCH_SIZE;
+
 #define DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD INT_MAX
 int IndexTermCompressionThreshold = DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD;
 
@@ -377,5 +380,12 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 			"Strict order ensures results are in the exact order by distance"),
 		NULL, &VectorPreFilterIterativeScanMode, DEFAULT_VECTOR_ITERATIVE_SCAN_MODE,
 		VECTOR_ITERATIVE_SCAN_OPTIONS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.defaultCursorFirstPageBatchSize", newGucPrefix),
+		gettext_noop("The default batch size for the first page of a cursor."),
+		NULL, &DefaultCursorFirstPageBatchSize,
+		DEFAULT_CURSOR_FIRST_PAGE_BATCH_SIZE, 1, INT_MAX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
