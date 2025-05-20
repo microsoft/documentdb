@@ -4,8 +4,8 @@ theme:
   name: readthedocs
 
 nav:
-  - Version 1.0:
-      - DocumentDB: v1/index.md
+  - DocumentDB:
+      - Version 0.103: v1/index.md
 
 plugins:
   - search
