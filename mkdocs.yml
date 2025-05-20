@@ -6,9 +6,6 @@ theme:
 nav:
   - Version 1.0:
       - Get Started: v1/index.md
-      - Introduction: v1/documentdb.md
-      - Prebuild Images: v1/prebuild.md
-      - Gateway: v1/gateway.md
 
 plugins:
   - search
