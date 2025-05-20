@@ -5,7 +5,7 @@ theme:
 
 nav:
   - Version 1.0:
-      - Document DB: v1/index.md
+      - DocumentDB: v1/index.md
 
 plugins:
   - search
