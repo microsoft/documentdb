@@ -23,8 +23,7 @@ pub struct DocumentDBSetupConfiguration {
     pub blocked_role_prefixes: Vec<String>,
 
     // Gateway listener configuration
-    #[serde(default)]
-    pub use_local_host: bool,
+    pub use_local_host: Option<bool>,
     pub gateway_listen_port: Option<u16>,
 
     // Postgres configuration
@@ -34,17 +33,15 @@ pub struct DocumentDBSetupConfiguration {
     pub postgres_database: Option<String>,
 
     #[serde(default)]
-    pub allow_transaction_snapshot: bool,
+    pub allow_transaction_snapshot: Option<bool>,
     pub transaction_timeout_secs: Option<u64>,
     pub cursor_timeout_secs: Option<u64>,
-
-    pub enforce_ssl_tcp: bool,
+    pub enforce_ssl_tcp: Option<bool>,
     pub certificate_options: Option<CertificateOptions>,
 
     #[serde(default)]
     pub dynamic_configuration_file: String,
     pub dynamic_configuration_refresh_interval_secs: Option<u32>,
-
     pub postgres_command_timeout_secs: Option<u64>,
 }
 
@@ -108,15 +105,15 @@ impl SetupConfiguration for DocumentDBSetupConfiguration {
     }
 
     fn use_local_host(&self) -> bool {
-        self.use_local_host
+        self.use_local_host.unwrap_or(true)
     }
 
     fn gateway_listen_port(&self) -> u16 {
-        self.gateway_listen_port.unwrap_or(27017)
+        self.gateway_listen_port.unwrap_or(10260)
     }
 
     fn enforce_ssl_tcp(&self) -> bool {
-        self.enforce_ssl_tcp
+        self.enforce_ssl_tcp.unwrap_or(true)
     }
 
     fn blocked_role_prefixes(&self) -> &[String] {
