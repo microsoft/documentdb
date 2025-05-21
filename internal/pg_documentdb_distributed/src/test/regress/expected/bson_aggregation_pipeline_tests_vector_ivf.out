@@ -91,8 +91,7 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_vector', '{ "_id": 
 
 -- check dimensions exceeds 2000
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 2, "similarity": "COS", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8101 ON documentdb_data.documents_8100 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_cosine_ops) WITH (lists = 2) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-ivf", "numLists" : 2, "similarity" : "COS", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 2, "similarity": "COS", "dimensions": 3 } } ] }', true);
 NOTICE:  ivfflat index created with little data
 DETAIL:  This will cause low recall.
@@ -1180,7 +1179,7 @@ SELECT set_config('documentdb' || '.next_collection_id', '' || :vector__next_col
 SELECT set_config('documentdb' || '.next_collection_index_id', '' || :vector__next_collection_index_id, FALSE);
  set_config 
 ---------------------------------------------------------------------
- 8115
+ 8114
 (1 row)
 
 ---------------------------------------------------------------------
@@ -3559,11 +3558,7 @@ ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001, "compression": ["half"] } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-ivf", "numLists" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : [ "half" ] } } :: caused by :: compression must be a string not array
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8144 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8145 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-ivf", "numLists" : 16, "similarity" : "L2", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2000 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -3583,8 +3578,7 @@ CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_i
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 4001, "compression": "half" } } ] }', true);
-ERROR:  column cannot have more than 4000 dimensions for ivfflat index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8147 ON documentdb_data.documents_8105 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.halfvec(4001)) public.halfvec_l2_ops) WITH (lists = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "half_index", "cosmosSearchOptions" : { "kind" : "vector-ivf", "numLists" : 16, "similarity" : "L2", "dimensions" : 4001, "compression" : "half" } } :: caused by :: field cannot have more than 4000 dimensions for vector index
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 4000, "compression": "half" } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -4109,7 +4103,7 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_ivf_halfvec', '{ "_
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": 3, "compression": "half" } } ] }', true);
 ERROR:  "2.2222222e+13" is out of range for type halfvec
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8157 ON documentdb_data.documents_8107 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (lists = 100) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8153 ON documentdb_data.documents_8107 USING ivfflat(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (lists = 100) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": 3 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------

@@ -943,7 +943,6 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001, "compression": ["half"] } } ] }', true);
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
 SET client_min_messages TO WARNING;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_ivf_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 16, "similarity": "L2", "dimensions": 2000 } } ] }', true);
 RESET client_min_messages;

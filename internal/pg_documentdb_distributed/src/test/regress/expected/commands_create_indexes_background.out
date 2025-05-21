@@ -734,17 +734,15 @@ CALL documentdb_distributed_test_helpers.create_indexes_background(
 
 -- test skippable error test
 CALL documentdb_distributed_test_helpers.create_indexes_background('db', '{ "createIndexes": "ValidateVectorSearchAsync", "indexes": [ { "name": "largeVectorIndex", "key": { "largevector": "cosmosSearch"}, "cosmosSearchOptions": { "kind": "vector-ivf", "numLists": 100, "similarity": "COS", "dimensions": 2001 } } ] }');
-NOTICE:  creating collection
-                                                                                                      retval                                                                                                       | ok 
+                                                                                                                                                                                                                                      retval                                                                                                                                                                                                                                      | ok 
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "column cannot have more than 2000 dimensions for ivfflat index", "code" : { "$numberInt" : "261" } } }, "ok" : { "$numberInt" : "0" } } | f
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"largeVectorIndex\", \"key\" : { \"largevector\" : \"cosmosSearch\" }, \"cosmosSearchOptions\" : { \"kind\" : \"vector-ivf\", \"numLists\" : 100, \"similarity\" : \"COS\", \"dimensions\" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f
 (1 row)
 
 CALL documentdb_distributed_test_helpers.create_indexes_background('db', '{ "createIndexes": "ValidateVectorSearchAsync", "indexes": [ { "name": "largeVectorIndex", "key": { "largevector": "cosmosSearch"}, "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 2001 } } ] }');
-NOTICE:  creating collection
-                                                                                                     retval                                                                                                     | ok 
+                                                                                                                                                                                                                            retval                                                                                                                                                                                                                             | ok 
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "column cannot have more than 2000 dimensions for hnsw index", "code" : { "$numberInt" : "261" } } }, "ok" : { "$numberInt" : "0" } } | f
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"largeVectorIndex\", \"key\" : { \"largevector\" : \"cosmosSearch\" }, \"cosmosSearchOptions\" : { \"kind\" : \"vector-hnsw\", \"similarity\" : \"COS\", \"dimensions\" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f
 (1 row)
 
 -- test another skippable error

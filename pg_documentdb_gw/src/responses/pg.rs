@@ -11,7 +11,6 @@ use core::str;
 use bson::{Bson, Document, RawDocument, RawDocumentBuf};
 
 use documentdb_macros::documentdb_int_error_mapping;
-use regex::Regex;
 use tokio_postgres::{error::SqlState, Row};
 
 use crate::{
@@ -21,29 +20,12 @@ use crate::{
 };
 
 use super::{raw::RawResponse, Response};
-use once_cell::sync::Lazy;
 
 /// A server response from PG - holds ownership of the whole response from the backend
 #[derive(Debug)]
 pub struct PgResponse {
     rows: Vec<Row>,
 }
-
-static VECTOR_INDEX_LENGTH_CONTRAINT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"column cannot have more than (?<dimension>\d+) dimensions for")
-        .expect("Static input")
-});
-
-static VECTOR_DIMENSIONS_EXCEEDED_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"vector cannot have more than (?<dimension>\d+) dimensions").expect("Static input")
-});
-
-static VECTOR_DISKANN_INDEX_LENGTH_CONTRAINT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"vector dimension cannot be larger than (?<dimension>\d+) dimensions for diskann index",
-    )
-    .expect("Static input")
-});
 
 impl PgResponse {
     pub fn new(rows: Vec<Row>) -> Self {
@@ -240,20 +222,6 @@ impl PgResponse {
                         Some("index creation requires resources too large to fit in the resource memory limit, please try creating index with less number of documents or creating index before inserting documents into collection".to_string()), None
                     ))
                 }
-                else if let Some(captures) = VECTOR_INDEX_LENGTH_CONTRAINT_REGEX.captures(msg) {
-                    let dimension = captures.name("dimension").unwrap().as_str();
-                    Some((
-                        ErrorCode::BadValue as i32,
-                        Some(format!("field cannot have more than {} dimensions for vector index", dimension)), None
-                    ))
-                }
-                else if let Some(captures) = VECTOR_DIMENSIONS_EXCEEDED_REGEX.captures(msg) {
-                    let dimension = captures.name("dimension").unwrap().as_str();
-                    Some((
-                        ErrorCode::BadValue as i32,
-                        Some(format!("field cannot have more than {} dimensions for vector index", dimension)), None
-                    ))
-                }
                 else {
                     Some((ErrorCode::InternalError as i32, None, None))
                 }
@@ -278,17 +246,7 @@ impl PgResponse {
             },
             SqlState::INTERNAL_ERROR =>
             {
-                if let Some(captures) = VECTOR_DISKANN_INDEX_LENGTH_CONTRAINT_REGEX.captures(msg)
-                {
-                    let dimension = captures.name("dimension").unwrap().as_str();
-                    Some((
-                        ErrorCode::BadValue as i32,
-                        Some(format!("field cannot have more than {} dimensions for diskann index", dimension)), None
-                    ))
-                }
-                else {
-                    Some((ErrorCode::InternalError as i32, None, None))
-                }
+                Some((ErrorCode::InternalError as i32, None, None))
             },
             SqlState::INVALID_TEXT_REPRESENTATION
             | SqlState::INVALID_PARAMETER_VALUE

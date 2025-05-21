@@ -2876,6 +2876,42 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 							"vector index must specify dimensions greater than 1")));
 	}
 
+	/* Check max dimensions for non-compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_None &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_NON_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_NON_COMPRESSED)));
+	}
+
+	/* Check max dimensions for half compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_Half &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_HALF_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_HALF_COMPRESSED)));
+	}
+
+	/* Check max dimensions for pq compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_PQ &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_PQ_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_PQ_COMPRESSED)));
+	}
+
 	if (cosmosSearchOptions->commonOptions.distanceMetric ==
 		VectorIndexDistanceMetric_Unknown)
 	{

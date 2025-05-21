@@ -125,8 +125,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "unknown", "similarity" : "IP", "dimensions" : 3 } } :: caused by :: Invalid search index kind unknown
 -- check dimensions exceeds 2000
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8201 ON documentdb_data.documents_8200 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "similarity" : "COS", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SET documentdb.enableVectorHNSWIndex = off;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": -4, "efConstruction": 16, "similarity": "IP", "dimensions": 3 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : -4, "efConstruction" : 16, "similarity" : "IP", "dimensions" : 3 } } :: caused by :: hnsw index is not supported for this cluster tier
@@ -995,7 +994,7 @@ SELECT set_config('documentdb' || '.next_collection_id', '' || :vector__next_col
 SELECT set_config('documentdb' || '.next_collection_index_id', '' || :vector__next_collection_index_id, FALSE);
  set_config 
 ---------------------------------------------------------------------
- 8218
+ 8217
 (1 row)
 
 ---------------------------------------------------------------------
@@ -3299,11 +3298,7 @@ ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": ["half"] } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : [ "half" ] } } :: caused by :: compression must be a string not array
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8249 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8250 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2000 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
@@ -3321,8 +3316,7 @@ CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_h
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4001, "compression": "half" } } ] }', true);
-ERROR:  column cannot have more than 4000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8252 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.halfvec(4001)) public.halfvec_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "half_index", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 4001, "compression" : "half" } } :: caused by :: field cannot have more than 4000 dimensions for vector index
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4000, "compression": "half" } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
@@ -3887,7 +3881,7 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_hnsw_halfvec', '{ "
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 3, "compression": "half" } } ] }', true);
 ERROR:  "2.2222222e+13" is out of range for type halfvec
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8262 ON documentdb_data.documents_8207 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8258 ON documentdb_data.documents_8207 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 3 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
