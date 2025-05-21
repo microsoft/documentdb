@@ -57,7 +57,7 @@ pub async fn process_request(
             RequestType::ConnectionStatus => constant::process_connection_status(),
             RequestType::Count => process_count(request, request_info, connection_context).await,
             RequestType::Create => process_create(request, request_info, connection_context).await,
-            RequestType::CreateIndexes => {
+            RequestType::CreateIndex | RequestType::CreateIndexes => {
                 indexing::process_create_indexes(
                     request,
                     request_info,

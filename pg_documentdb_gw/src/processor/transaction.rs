@@ -27,7 +27,10 @@ pub async fn handle(
 
         if matches!(
             request.request_type(),
-            RequestType::ReIndex | RequestType::CreateIndexes | RequestType::DropIndexes
+            RequestType::ReIndex
+                | RequestType::CreateIndex
+                | RequestType::CreateIndexes
+                | RequestType::DropIndexes
         ) {
             return Err(DocumentDBError::documentdb_error(
                 ErrorCode::OperationNotSupportedInTransaction,
