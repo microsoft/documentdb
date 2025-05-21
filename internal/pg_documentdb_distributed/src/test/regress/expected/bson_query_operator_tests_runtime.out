@@ -1706,10 +1706,10 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 ---------------------------------------------------------------------
 (0 rows)
 
--- TODO: remove _id filtering once we fix the array query issue in composite since composite should be matching the document but it doesn't.
-SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }, "_id": {"$ne": 26}}' ORDER BY object_id;
- object_id | document 
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }}' ORDER BY object_id;
+            object_id             |                                                   document                                                   
 ---------------------------------------------------------------------
-(0 rows)
+ { "" : { "$numberInt" : "26" } } | { "_id" : { "$numberInt" : "26" }, "a" : [ { "$numberDouble" : "NaN" }, { "$numberDouble" : "Infinity" } ] }
+(1 row)
 
 ROLLBACK;

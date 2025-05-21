@@ -203,8 +203,7 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lte": NaN }}' ORDER BY object_id;
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lt": NaN }}' ORDER BY object_id;
 
--- TODO: remove _id filtering once we fix the array query issue in composite since composite should be matching the document but it doesn't.
-SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }, "_id": {"$ne": 26}}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }}' ORDER BY object_id;
 
 
 ROLLBACK;

@@ -1664,28 +1664,23 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 							   pgbsonelement *queryElement,
 							   VariableIndexBounds *indexBounds)
 {
+	const bool isNegationOp = false;
 	DollarRangeParams *params = ParseQueryDollarRange(queryElement);
 
-	CompositeSingleBound bounds = { 0 };
-	if (params->minValue.value_type == BSON_TYPE_MINKEY &&
-		params->isMinInclusive)
+	pgbsonelement boundElement = { 0 };
+	if (params->minValue.value_type != BSON_TYPE_EOD)
 	{
 		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
 																	 indexAttribute);
-		SetBoundsExistsTrue(&set->bounds[0]);
-		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
-	}
-	else if (params->minValue.value_type != BSON_TYPE_EOD)
-	{
-		bounds.bound = params->minValue;
-		bounds.isBoundInclusive = params->isMinInclusive;
-		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
-																	 indexAttribute);
-		SetLowerBound(&set->bounds[0].lowerBound, &bounds);
 
-		/* Apply type bracketing */
-		bounds = GetTypeUpperBound(params->minValue.value_type);
-		SetUpperBound(&set->bounds[0].upperBound, &bounds);
+		BsonIndexStrategy queryStrategy = params->isMinInclusive ?
+										  BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL :
+										  BSON_INDEX_STRATEGY_DOLLAR_GREATER;
+		boundElement.bsonValue = params->minValue;
+		boundElement.path = queryElement->path;
+		boundElement.pathLength = queryElement->pathLength;
+		SetSingleRangeBoundsFromStrategy(&boundElement,
+										 queryStrategy, &set->bounds[0], isNegationOp);
 		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 	}
 
@@ -1693,13 +1688,14 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 	{
 		CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(1,
 																	 indexAttribute);
-		bounds.bound = params->maxValue;
-		bounds.isBoundInclusive = params->isMaxInclusive;
-		SetUpperBound(&set->bounds[0].upperBound, &bounds);
-
-		/* Apply type bracketing */
-		bounds = GetTypeLowerBound(params->maxValue.value_type);
-		SetLowerBound(&set->bounds[0].upperBound, &bounds);
+		BsonIndexStrategy queryStrategy = params->isMaxInclusive ?
+										  BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL :
+										  BSON_INDEX_STRATEGY_DOLLAR_LESS;
+		boundElement.bsonValue = params->maxValue;
+		boundElement.path = queryElement->path;
+		boundElement.pathLength = queryElement->pathLength;
+		SetSingleRangeBoundsFromStrategy(&boundElement,
+										 queryStrategy, &set->bounds[0], isNegationOp);
 		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 	}
 }
