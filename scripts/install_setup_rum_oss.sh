@@ -45,7 +45,7 @@ if [ "${DESTINSTALLDIR:-""}" == "" ]; then
     sudo PATH=$PATH -E make install USE_PGXS=1
 else
     make USE_PGXS=1
-    make DESTDIR=$DESTINSTALLDIR install
+    make USE_PGXS=1 DESTDIR=$DESTINSTALLDIR install
 fi
 popd
 

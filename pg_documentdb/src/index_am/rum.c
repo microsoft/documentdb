@@ -133,20 +133,12 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 		indexRoutine->amoptsprocnum = RUMNProcs + 1;
 	}
 
-	if (EnableNewCompositeIndexOpclass)
-	{
-		indexRoutine->ambeginscan = extension_rumbeginscan;
-		indexRoutine->amrescan = extension_rumrescan;
-		indexRoutine->amgetbitmap = extension_amgetbitmap;
-		indexRoutine->amgettuple = extension_amgettuple;
-		indexRoutine->amendscan = extension_rumendscan;
-
-		if (EnableIndexOrderbyPushdown)
-		{
-			indexRoutine->amvalidate = extension_rumvalidate;
-		}
-	}
-
+	indexRoutine->ambeginscan = extension_rumbeginscan;
+	indexRoutine->amrescan = extension_rumrescan;
+	indexRoutine->amgetbitmap = extension_amgetbitmap;
+	indexRoutine->amgettuple = extension_amgettuple;
+	indexRoutine->amendscan = extension_rumendscan;
+	indexRoutine->amvalidate = extension_rumvalidate;
 	indexRoutine->amcostestimate = extension_rumcostestimate;
 
 	return indexRoutine;
@@ -423,6 +415,11 @@ static IndexScanDesc
 extension_rumbeginscan(Relation rel, int nkeys, int norderbys)
 {
 	EnsureRumLibLoaded();
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.ambeginscan(rel, nkeys, norderbys);
+	}
+
 	return extension_rumbeginscan_core(rel, nkeys, norderbys,
 									   &rum_index_routine);
 }
@@ -457,6 +454,13 @@ static void
 extension_rumendscan(IndexScanDesc scan)
 {
 	EnsureRumLibLoaded();
+
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		rum_index_routine.amendscan(scan);
+		return;
+	}
+
 	extension_rumendscan_core(scan, &rum_index_routine);
 }
 
@@ -486,6 +490,12 @@ extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 					ScanKey orderbys, int norderbys)
 {
 	EnsureRumLibLoaded();
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		rum_index_routine.amrescan(scan, scankey, nscankeys, orderbys, norderbys);
+		return;
+	}
+
 	extension_rumrescan_core(scan, scankey, nscankeys,
 							 orderbys, norderbys, &rum_index_routine);
 }
@@ -561,6 +571,11 @@ static int64
 extension_amgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
 {
 	EnsureRumLibLoaded();
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.amgetbitmap(scan, tbm);
+	}
+
 	return extension_rumgetbitmap_core(scan, tbm, &rum_index_routine);
 }
 
@@ -586,6 +601,11 @@ static bool
 extension_amgettuple(IndexScanDesc scan, ScanDirection direction)
 {
 	EnsureRumLibLoaded();
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.amgettuple(scan, direction);
+	}
+
 	return extension_rumgettuple_core(scan, direction, &rum_index_routine);
 }
 
@@ -634,7 +654,7 @@ CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 static bool
 extension_rumvalidate(Oid opclassoid)
 {
-	if (EnableIndexOrderbyPushdown &&
+	if (EnableNewCompositeIndexOpclass && EnableIndexOrderbyPushdown &&
 		opclassoid == BsonRumCompositeIndexOperatorFamily())
 	{
 		/* TODO: Figure this out for order by semantics */
