@@ -1526,12 +1526,10 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db',
                ->  Sort
                      Output: document, object_id
                      Sort Key: collection.object_id
-                     ->  Bitmap Heap Scan on documentdb_data.documents_7996_7990114 collection
+                     ->  Index Scan using my_idx_1 on documentdb_data.documents_7996_7990114 collection
                            Output: document, object_id
-                           Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson)
-                           ->  Bitmap Index Scan on my_idx_1
-                                 Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson)
-(17 rows)
+                           Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson)
+(15 rows)
 
 ROLLBACK;
 BEGIN;

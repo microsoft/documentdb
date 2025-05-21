@@ -5,6 +5,7 @@
 * Support collation with arrays and objects comparisons *[Feature]*
 * Support background index builds *[Bugfix]* (#36)
 * Enable user CRUD by default *[Feature]*
+* Enable rum_enable_index_scan as default on *[Perf]*
 * Add public `documentdb-local` Docker image with gateway to GHCR
 
 ### documentdb v0.103-0 (May 09, 2025) ###
