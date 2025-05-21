@@ -11,6 +11,7 @@
 #include <postgres.h>
 #include <miscadmin.h>
 #include <utils/guc.h>
+#include <limits.h>
 #include "configs/config_initialization.h"
 
 
@@ -101,6 +102,18 @@ bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
 #define DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN true
 bool UseRawExecutorForQueryPlan = DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN;
+
+#define DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS false
+bool UseFileBasedPersistedCursors = DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS;
+
+#define DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS false
+bool EnableFileBasedPersistedCursors = DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS;
+
+#define DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE INT_MAX
+int MaxAllowedCursorIntermediateFileSize = DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE;
+
+#define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
+int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
 
 /*
  * SECTION: Top level feature flags
@@ -451,4 +464,36 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &SkipCreateIndexesOnCreateCollection,
 		DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useFileBasedPersistedCursors", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use file based persisted cursors."),
+		NULL, &UseFileBasedPersistedCursors,
+		DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableFileBasedPersistedCursors", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable file based persisted cursors."),
+		NULL, &EnableFileBasedPersistedCursors,
+		DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.maxCursorIntermediateFileSize", newGucPrefix),
+		gettext_noop(
+			"Maximum size of intermediate file for cursor."),
+		NULL, &MaxAllowedCursorIntermediateFileSize,
+		DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE,
+		1024, INT_MAX, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.defaultCursorExpiryTimeLimitSeconds", newGucPrefix),
+		gettext_noop(
+			"Default expiry time limit for cursor."),
+		NULL, &DefaultCursorExpiryTimeLimitSeconds,
+		DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS,
+		1, 3600, PGC_USERSET, 0, NULL, NULL, NULL);
 }

@@ -27,6 +27,7 @@
 
 
 extern bool EnableNowSystemVariable;
+extern bool UseFileBasedPersistedCursors;
 
 /* --------------------------------------------------------- */
 /* Data types */
@@ -118,6 +119,12 @@ typedef struct
 	 * The current page's cursor info.
 	 */
 	QueryData queryData;
+
+	/*
+	 * The cursor state for the current page if using
+	 * file based persisted cursors.
+	 */
+	bytea *cursorFileState;
 } QueryGetMoreInfo;
 
 /* --------------------------------------------------------- */
@@ -139,6 +146,13 @@ static pgbson * BuildPersistedContinuationDocument(const char *cursorName, int64
 												   TimeSystemVariables *
 												   timeSystemVariables,
 												   int numIterations);
+
+static pgbson * BuildPersistedFileContinuationDocument(const char *cursorName, int64_t
+													   cursorId, QueryKind queryKind,
+													   TimeSystemVariables *
+													   timeSystemVariables,
+													   int numIterations,
+													   bytea *continuationState);
 
 static Datum HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 									QueryData *cursorState,
@@ -349,18 +363,57 @@ aggregation_cursor_get_more(text *database, pgbson *getMoreSpec,
 	{
 		case CursorKind_Persisted:
 		{
-			int numIterations = 0;
-			queryFullyDrained = DrainPersistedCursor(getMoreInfo.cursorName,
-													 getMoreInfo.queryData.batchSize,
-													 &numIterations,
-													 accumulatedSize, &arrayWriter);
-			continuationDoc = queryFullyDrained ? NULL :
-							  BuildPersistedContinuationDocument(getMoreInfo.cursorName,
-																 getMoreInfo.cursorId,
-																 getMoreInfo.queryKind,
-																 &getMoreInfo.queryData.
-																 timeSystemVariables,
-																 numIterations);
+			if (getMoreInfo.cursorFileState != NULL)
+			{
+				if (!UseFileBasedPersistedCursors)
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							 errmsg("File based persisted cursors are not enabled.")));
+				}
+
+				int numIterations = 0;
+				getMoreInfo.cursorFileState = DrainPersistedFileCursor(
+					getMoreInfo.cursorName,
+					getMoreInfo.
+					queryData.batchSize,
+					&numIterations,
+					accumulatedSize,
+					&arrayWriter,
+					getMoreInfo.
+					cursorFileState);
+				queryFullyDrained = getMoreInfo.cursorFileState == NULL;
+				continuationDoc = queryFullyDrained ? NULL :
+								  BuildPersistedFileContinuationDocument(
+					getMoreInfo.cursorName,
+					getMoreInfo.
+					cursorId,
+					getMoreInfo.
+					queryKind,
+					&getMoreInfo.
+					queryData.
+					timeSystemVariables,
+					numIterations,
+					getMoreInfo.
+					cursorFileState);
+			}
+			else
+			{
+				int numIterations = 0;
+				queryFullyDrained = DrainPersistedCursor(getMoreInfo.cursorName,
+														 getMoreInfo.queryData.batchSize,
+														 &numIterations,
+														 accumulatedSize, &arrayWriter);
+				continuationDoc = queryFullyDrained ? NULL :
+								  BuildPersistedContinuationDocument(
+					getMoreInfo.cursorName,
+					getMoreInfo.cursorId,
+					getMoreInfo.queryKind,
+					&getMoreInfo.
+					queryData.
+					timeSystemVariables,
+					numIterations);
+			}
 			break;
 		}
 
@@ -630,18 +683,46 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 			bool isHoldCursor = !IsInTransactionBlock(isTopLevel);
 			persistConnection = isHoldCursor;
 			bool closeCursor = false;
-			queryFullyDrained = CreateAndDrainPersistedQuery(cursorName, query,
-															 queryData->batchSize,
-															 &numIterations,
-															 accumulatedSize,
-															 &arrayWriter,
-															 isHoldCursor, closeCursor);
-			continuationDoc = queryFullyDrained ? NULL :
-							  BuildPersistedContinuationDocument(cursorName, cursorId,
-																 queryKind,
-																 &queryData->
-																 timeSystemVariables,
-																 numIterations);
+
+			if (isHoldCursor && UseFileBasedPersistedCursors)
+			{
+				persistConnection = false;
+				bytea *cursorFileState = CreateAndDrainPersistedQueryWithFiles(cursorName,
+																			   query,
+																			   queryData->
+																			   batchSize,
+																			   &
+																			   numIterations,
+																			   accumulatedSize,
+																			   &
+																			   arrayWriter,
+																			   closeCursor);
+				queryFullyDrained = cursorFileState == NULL;
+				continuationDoc = queryFullyDrained ? NULL :
+								  BuildPersistedFileContinuationDocument(cursorName,
+																		 cursorId,
+																		 queryKind,
+																		 &queryData->
+																		 timeSystemVariables,
+																		 numIterations,
+																		 cursorFileState);
+			}
+			else
+			{
+				queryFullyDrained = CreateAndDrainPersistedQuery(cursorName, query,
+																 queryData->batchSize,
+																 &numIterations,
+																 accumulatedSize,
+																 &arrayWriter,
+																 isHoldCursor,
+																 closeCursor);
+				continuationDoc = queryFullyDrained ? NULL :
+								  BuildPersistedContinuationDocument(cursorName, cursorId,
+																	 queryKind,
+																	 &queryData->
+																	 timeSystemVariables,
+																	 numIterations);
+			}
 			break;
 		}
 
@@ -721,6 +802,47 @@ BuildStreamingContinuationDocument(HTAB *cursorMap, pgbson *querySpec, int64_t c
 	{
 		SerializeContinuationsToWriter(&writer, cursorMap);
 	}
+
+	/* In the response add the number of iterations (used in tests) */
+	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
+
+	/* Add the time system variables */
+	if (EnableNowSystemVariable)
+	{
+		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
+			BSON_TYPE_EOD)
+		{
+			PgbsonWriterAppendValue(&writer, "sn", 2, &timeSystemVariables->nowValue);
+		}
+	}
+
+	return PgbsonWriterGetPgbson(&writer);
+}
+
+
+static pgbson *
+BuildPersistedFileContinuationDocument(const char *cursorName, int64_t
+									   cursorId, QueryKind queryKind,
+									   TimeSystemVariables *
+									   timeSystemVariables,
+									   int numIterations,
+									   bytea *continuationState)
+{
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+	PgbsonWriterAppendInt64(&writer, "qi", 2, cursorId);
+	PgbsonWriterAppendBool(&writer, "qp", 2, true);
+
+	/* Add the original query spec so that getMore can reuse it */
+	PgbsonWriterAppendInt32(&writer, "qk", 2, (int) queryKind);
+	PgbsonWriterAppendUtf8(&writer, "qn", 2, cursorName);
+
+	bson_value_t continuationValue;
+	continuationValue.value_type = BSON_TYPE_BINARY;
+	continuationValue.value.v_binary.subtype = BSON_SUBTYPE_BINARY;
+	continuationValue.value.v_binary.data = (uint8_t *) continuationState;
+	continuationValue.value.v_binary.data_len = VARSIZE(continuationState);
+	PgbsonWriterAppendValue(&writer, "qf", 2, &continuationValue);
 
 	/* In the response add the number of iterations (used in tests) */
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
@@ -840,6 +962,21 @@ ParseCursorInputSpec(pgbson *cursorSpec, QueryGetMoreInfo *getMoreInfo)
 						continue;
 					}
 
+					case 'f':
+					{
+						/* Query file state for the cursor */
+						Assert(pathKey[2] == '\0');
+						bson_subtype_t subtype;
+						uint32_t binaryLength = 0;
+						const uint8_t *binaryData = NULL;
+						bson_iter_binary(&cursorSpecIter, &subtype,
+										 &binaryLength, &binaryData);
+
+						bytea *cursorState = palloc(binaryLength);
+						memcpy(cursorState, binaryData, binaryLength);
+						getMoreInfo->cursorFileState = cursorState;
+						continue;
+					}
 
 					/* Continuation persistence - ignored */
 					case 'p':
