@@ -85,7 +85,21 @@ async fn main() {
     .await
     .unwrap();
 
-    run_server(service_context, certificate_options, None, token.clone(), None)
+    let telemetry_provider = Arc::new(documentdb_gateway::open_telemetry_provider::OpenTelemetryProvider::new());
+    
+    let telemetry_clone = telemetry_provider.clone();
+    
+    // Initialize the cluster monitor with the primary pool
+    let cluster_monitor = documentdb_gateway::monitoring::ClusterMonitor::new(
+        system_pool.clone(), 
+        None, // Replace with secondary pool if available
+        telemetry_clone,
+        30
+    );
+    
+    let _monitor_handle = cluster_monitor.start().await;
+    
+    run_server(service_context, certificate_options, Some(telemetry_provider), token.clone(), None)
         .await
         .unwrap();
 }
