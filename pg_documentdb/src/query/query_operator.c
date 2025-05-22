@@ -110,6 +110,7 @@ typedef struct IdFilterWalkerContext
 
 extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
+extern bool EnableLetForWriteCommands;
 extern bool EnableIndexOperatorBounds;
 
 /* --------------------------------------------------------- */
@@ -246,10 +247,13 @@ bson_query_match(PG_FUNCTION_ARGS)
 	ReplaceBsonQueryOperatorsContext context;
 	memset(&context, 0, sizeof(context));
 
-	/* if EnableEnableLetAndCollationForQueryMatch is off,  */
-	/* the collationString and variableSpec will be ignored  */
 	Node *quals = NULL;
-	if (!EnableLetAndCollationForQueryMatch || PG_NARGS() == 2)
+	bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+											EnableLetForWriteCommands;
+
+	/* if useQueryMatchWithLetAndCollation is off,  */
+	/* the collationString and variableSpec will be ignored  */
+	if (!useQueryMatchWithLetAndCollation || PG_NARGS() == 2)
 	{
 		/* Expand the @@ operator into regular BSON operators */
 		OpExpr *queryExpr = makeNode(OpExpr);
@@ -262,7 +266,7 @@ bson_query_match(PG_FUNCTION_ARGS)
 
 		quals = ReplaceBsonQueryOperatorsMutator((Node *) queryExpr, &context);
 	}
-	else if (EnableLetAndCollationForQueryMatch && PG_NARGS() == 4)
+	else if (useQueryMatchWithLetAndCollation && PG_NARGS() == 4)
 	{
 		Const *variableSpecConst = NULL;
 		if (PG_ARGISNULL(2))
@@ -797,7 +801,10 @@ ReplaceBsonQueryOperatorsMutator(Node *node, ReplaceBsonQueryOperatorsContext *c
 	else if (IsA(node, FuncExpr))
 	{
 		FuncExpr *funcExpr = (FuncExpr *) node;
-		if (EnableLetAndCollationForQueryMatch &&
+
+		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+												EnableLetForWriteCommands;
+		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{
 			Node *queryNode = lsecond(funcExpr->args);

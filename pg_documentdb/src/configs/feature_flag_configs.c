@@ -131,6 +131,17 @@ bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 
 
 /*
+ * SECTION: Let support feature flags
+ */
+#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
+bool EnableLetAndCollationForQueryMatch =
+	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
+
+#define DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS false
+bool EnableLetForWriteCommands = DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS;
+
+
+/*
  * SECTION: Collation feature flags
  */
 #define DEFAULT_SKIP_FAIL_ON_COLLATION false
@@ -139,10 +150,6 @@ bool SkipFailOnCollation = DEFAULT_SKIP_FAIL_ON_COLLATION;
 #define DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION false
 bool EnableLookupIdJoinOptimizationOnCollation =
 	DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION;
-
-#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
-bool EnableLetAndCollationForQueryMatch =
-	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
 
 
 /*
@@ -391,6 +398,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable collation and let for query match."),
 		NULL, &EnableLetAndCollationForQueryMatch,
 		DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableLetForWriteCommands", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable let variables and $$NOW support for write (update, delete, findAndModify) commands. Only support for delete is available now."),
+		NULL, &EnableLetForWriteCommands,
+		DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

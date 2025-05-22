@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/planner/planner.c
+ * src/planner/documents_planner.c
  *
  * Implementation of the documentdb_api planner hook.
  *
@@ -105,6 +105,7 @@ static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundP
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
 extern bool EnableLetAndCollationForQueryMatch;
+extern bool EnableLetForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
@@ -870,7 +871,9 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 			}
 		}
 
-		if (EnableLetAndCollationForQueryMatch &&
+		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+												EnableLetForWriteCommands;
+		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{
 			queryFlags->mongoQueryFlags |= HAS_QUERY_MATCH_FUNCTION;

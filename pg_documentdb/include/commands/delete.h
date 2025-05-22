@@ -31,6 +31,9 @@ typedef struct
 
 	/* fields to return if returning a document */
 	const bson_value_t *returnFields;
+
+	/* parsed variable spec*/
+	const bson_value_t *variableSpec;
 } DeleteOneParams;
 
 

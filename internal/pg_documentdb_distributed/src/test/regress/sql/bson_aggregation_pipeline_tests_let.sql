@@ -332,12 +332,15 @@ RESET citus.explain_all_tasks;
 RESET citus.max_adaptive_executor_pool_size;
 
 -- query match
--- enableLetAndCollationForQueryMatch GUC off: ignore variableSpec
+-- ignore variableSpec (turn both GUCs off)
 SET documentdb.enableLetAndCollationForQueryMatch TO off;
+SET documentdb.enableLetForWriteCommands TO off;
+
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"a": "$$varRef"} }', '{ "let": {"varRef": "cat"} }', NULL);
 
--- enableLetAndCollationForQueryMatch GUC on: use variableSpec
+-- use variableSpec (turn either GUC on)
 SET documentdb.enableLetAndCollationForQueryMatch TO on;
+SET documentdb.enableLetForWriteCommands TO on;
 
 -- query match: wrong access of variable in query (outside $expr)
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"a": "$$varRef"}', '{ "let": {"varRef": "cat"} }', NULL);
@@ -371,6 +374,7 @@ SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE 
 SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$not": {"$lt": ["$_id", "$$varRef"] } } }', '{ "let": {"varRef": 1} }', NULL);
 
 RESET documentdb.enableLetAndCollationForQueryMatch;
+RESET documentdb.enableLetForWriteCommands;
 
 
 -- let with geonear

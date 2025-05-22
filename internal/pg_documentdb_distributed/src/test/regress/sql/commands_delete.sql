@@ -403,3 +403,90 @@ SELECT documentdb_api.delete(
 
 select document from documentdb_api.collection('db', 'explainTest') order by 1;
 
+
+-- let support
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 1, "a":"dog"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 2, "a":"cat"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 3, "a":"$$varRef"}');
+
+-- enableLetForWriteCommands GUC off: ignore variableSpec
+SET documentdb.enableLetForWriteCommands TO off;
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "cat"} }');
+
+-- enableLetForWriteCommands GUC on: user variableSpec
+SET documentdb.enableLetForWriteCommands TO on;
+
+-- variables accessed outside $expr will not evaluate to let variable value
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "$$varRef" }, "limit": 0}], "let": {"varRef": 2}} ');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "$$varRef" }, "limit": 1}], "let": {"varRef": 2}} ');
+
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$_id", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$_id", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+ROLLBACK;
+
+BEGIN;
+--- deleteOne (1)
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$_id", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$_id", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+ROLLBACK;
+
+BEGIN;
+--- deleteMany (2)
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lte": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "zebra"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+-- deleteMany: when ordered, expect only first delete to be executed
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lt": ["$a", "$$varRef1"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$a", "$$varRef2"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef1"] } }, "limit": 0}], "ordered": true, "let": {"varRef1": 2, "varRef2": "kangaroo"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+-- deleteOne: when ordered, expect only first delete to be executed
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lt": ["$_id", "$$varRef1"] } }, "limit": 1}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef2"] } }, "limit": 1}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef1"] } }, "limit": 1}], "ordered": true, "let": {"varRef1": 2, "varRef2": "kangaroo"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+-- deleteMany: when not ordered, expect first and last delete to be executed
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lt": ["$a", "$$varRef1"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$a", "$$varRef2"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef1"] } }, "limit": 0}], "ordered": false, "let": {"varRef1": 2, "varRef2": "kangaroo"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+-- deleteOne: when not ordered, expect first and last delete to be executed
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lt": ["$_id", "$$varRef1"] } }, "limit": 1}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef2"] } }, "limit": 1}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef1"] } }, "limit": 1}], "ordered": false, "let": {"varRef1": 2, "varRef2": "kangaroo"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+-- sharded collection
+SELECT documentdb_api.shard_collection('db', 'coll_delete', '{ "a": "hashed" }', false);
+
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 1}], "let": {"varRef": 2} }');
+ROLLBACK;
+
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lte": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "zebra"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lt": ["$a", "$$varRef1"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$a", "$$varRef2"] } }, "limit": 0}, { "q": { "$expr": {"$lte": ["$_id", "$$varRef1"] } }, "limit": 0}], "ordered": true, "let": {"varRef1": 2, "varRef2": "kangaroo"}} ');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+RESET documentdb.enableLetForWriteCommands;
