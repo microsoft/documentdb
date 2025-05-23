@@ -81,7 +81,7 @@ You are all set to work with DocumentDB.
 
 ### Using the Prebuilt Docker Image
 
-You can use a [prebuilt docker image](.github\containers\Build-Ubuntu\PrebuildImageList.md) for DocumentDB instead of building it from source.  Follow these steps:
+You can use a [prebuilt docker image](.github/containers/Build-Ubuntu/PrebuildImageList.md) for DocumentDB instead of building it from source.  Follow these steps:
 
 #### Pull the Prebuilt Image
 
