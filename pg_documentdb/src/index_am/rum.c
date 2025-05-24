@@ -39,6 +39,8 @@ extern bool EnableIndexOrderbyPushdown;
 static bool loaded_rum_routine = false;
 static IndexAmRoutine rum_index_routine = { 0 };
 
+RumIndexArrayStateFuncs *IndexArrayStateFuncs = NULL;
+
 typedef enum IndexMultiKeyStatus
 {
 	IndexMultiKeyStatus_Unknown = 0,
@@ -55,6 +57,8 @@ typedef struct DocumentDBRumIndexState
 	ScanKeyData compositeKey;
 
 	IndexMultiKeyStatus multiKeyStatus;
+
+	void *indexArrayState;
 } DocumentDBRumIndexState;
 
 static bool IsIndexIsValidForQuery(IndexPath *path);
@@ -75,8 +79,6 @@ static int64 extension_amgetbitmap(IndexScanDesc scan,
 								   TIDBitmap *tbm);
 static bool extension_amgettuple(IndexScanDesc scan,
 								 ScanDirection direction);
-
-static bool extension_rumvalidate(Oid opclassoid);
 
 inline static void
 EnsureRumLibLoaded(void)
@@ -110,6 +112,29 @@ extensionrumhandler(PG_FUNCTION_ARGS)
 }
 
 
+void
+RegisterIndexArrayStateFuncs(RumIndexArrayStateFuncs *funcs)
+{
+	if (IndexArrayStateFuncs != NULL)
+	{
+		ereport(ERROR, (errmsg("Index array state functions already registered")));
+	}
+
+	if (funcs == NULL)
+	{
+		ereport(ERROR, (errmsg("Index array state functions cannot be null")));
+	}
+
+	if (funcs->createState == NULL || funcs->addItem == NULL ||
+		funcs->freeState == NULL)
+	{
+		ereport(ERROR, (errmsg("Index array state functions cannot be null")));
+	}
+
+	IndexArrayStateFuncs = funcs;
+}
+
+
 IndexAmRoutine *
 GetRumIndexHandler(PG_FUNCTION_ARGS)
 {
@@ -138,7 +163,6 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 	indexRoutine->amgetbitmap = extension_amgetbitmap;
 	indexRoutine->amgettuple = extension_amgettuple;
 	indexRoutine->amendscan = extension_rumendscan;
-	indexRoutine->amvalidate = extension_rumvalidate;
 	indexRoutine->amcostestimate = extension_rumcostestimate;
 
 	return indexRoutine;
@@ -544,7 +568,21 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 			if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_HasArrays)
 			{
-				ereport(ERROR, (errmsg("Cannot push down order by on path with arrays")));
+				if (IndexArrayStateFuncs != NULL)
+				{
+					if (outerScanState->indexArrayState != NULL)
+					{
+						/* free the state */
+						IndexArrayStateFuncs->freeState(outerScanState->indexArrayState);
+					}
+
+					outerScanState->indexArrayState = IndexArrayStateFuncs->createState();
+				}
+				else
+				{
+					ereport(ERROR, (errmsg(
+										"Cannot push down order by on path with arrays")));
+				}
 			}
 
 			coreRoutine->amrescan(outerScanState->innerScan,
@@ -610,6 +648,21 @@ extension_amgettuple(IndexScanDesc scan, ScanDirection direction)
 }
 
 
+static bool
+GetOneTupleCore(DocumentDBRumIndexState *outerScanState,
+				IndexScanDesc scan, ScanDirection direction,
+				IndexAmRoutine *coreRoutine)
+{
+	bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
+	scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+	scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+	scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
+	scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
+	scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
+	return result;
+}
+
+
 bool
 extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 						   IndexAmRoutine *coreRoutine)
@@ -618,12 +671,30 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 	{
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
 
-		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
-		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
-		scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
-		return result;
+		if (outerScanState->indexArrayState == NULL)
+		{
+			/* No arrays, or we don't support dedup - just return the basics */
+			return GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+		}
+		else
+		{
+			bool result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+			while (result)
+			{
+				/* if we could add it to the bitmap, return */
+				if (IndexArrayStateFuncs->addItem(outerScanState->indexArrayState,
+												  &scan->xs_heaptid))
+				{
+					return true;
+				}
+
+				/* else, get the next tuple */
+				result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+			}
+
+			return result;
+		}
 	}
 	else
 	{
@@ -648,18 +719,4 @@ CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 	bool hasArrays = coreRoutine->amgettuple(innerDesc, ForwardScanDirection);
 	coreRoutine->amendscan(innerDesc);
 	return hasArrays ? IndexMultiKeyStatus_HasArrays : IndexMultiKeyStatus_HasNoArrays;
-}
-
-
-static bool
-extension_rumvalidate(Oid opclassoid)
-{
-	if (EnableNewCompositeIndexOpclass && EnableIndexOrderbyPushdown &&
-		opclassoid == BsonRumCompositeIndexOperatorFamily())
-	{
-		/* TODO: Figure this out for order by semantics */
-		return true;
-	}
-
-	return rum_index_routine.amvalidate(opclassoid);
 }
