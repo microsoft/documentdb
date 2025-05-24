@@ -235,6 +235,9 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 	if (indexCmdRequest->attemptCount >= MaxIndexBuildAttempts)
 	{
 		/* mark the request as skipped (pruned at a later point) */
+		elog(LOG, "Max attempts reached for index_id: %d and collectionId: "
+			 UINT64_FORMAT,
+			 indexCmdRequest->indexId, collectionId);
 		MarkIndexRequestStatus(indexCmdRequest->indexId,
 							   CREATE_INDEX_COMMAND_TYPE,
 							   IndexCmdStatus_Skippable, indexCmdRequest->comment, NULL,
@@ -359,8 +362,9 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 		errorMessage = edata->message;
 		errorCode = edata->sqlerrcode;
 
-		ereport(DEBUG1, (errmsg("couldn't create some of the (invalid) "
-								"collection indexes")));
+		ereport(LOG, (errcode(errorCode), errmsg("couldn't create some of the (invalid) "
+												 "collection indexes: file %s, line %d",
+												 edata->filename, edata->lineno)));
 
 		/*
 		 * Couldn't complete creating invalid indexes, need to abort the
