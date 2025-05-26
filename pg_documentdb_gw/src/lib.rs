@@ -14,8 +14,8 @@ use error::ErrorCode;
 use log::{error, log_enabled, warn};
 use openssl::ssl::{Ssl, SslContextBuilder, SslMethod, SslOptions};
 use protocol::header::Header;
-use requests::compute_request_tracker::ComputeRequestTracker;
-use requests::{ComputeRequestInterval, Request, RequestInfo, RequestMessage};
+use requests::request_tracker::RequestTracker;
+use requests::{Request, RequestInfo, RequestIntervalKind, RequestMessage};
 use responses::{CommandError, Response};
 use socket2::TcpKeepalive;
 use std::sync::Arc;
@@ -232,7 +232,7 @@ where
                         None,
                         &mut stream,
                         None,
-                        &mut ComputeRequestTracker::default(),
+                        &mut RequestInfo::new(),
                     )
                     .await
                     {
@@ -271,7 +271,7 @@ async fn get_response(
     ctx: &mut ConnectionContext,
     message: &RequestMessage,
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     header: &Header,
 ) -> Result<Response> {
     // Parse the request bytes into a type and the contained document(s)
@@ -321,9 +321,9 @@ where
     R: AsyncRead + AsyncWrite + Unpin + Send,
 {
     // Read the request message off the stream
+    let mut request_tracker = RequestTracker::new();
 
-    let mut compute_request_tracker = ComputeRequestTracker::new();
-
+    let buffer_read_start = request_tracker.start_timer();
     let message = protocol::reader::read_request(header, stream, connection_context).await?;
 
     log::trace!(activity_id = header.activity_id.as_str(); "[{}] Request parsed.", header.request_id);
@@ -339,16 +339,22 @@ where
         ));
     }
 
-    let start = compute_request_tracker.start_timer();
+    request_tracker.record_duration(RequestIntervalKind::BufferRead, buffer_read_start);
+
+    let handle_request_start = request_tracker.start_timer();
+
+    let format_request_start = request_tracker.start_timer();
     let request = protocol::reader::parse_request(&message, connection_context).await?;
-    compute_request_tracker.record_duration(ComputeRequestInterval::FormatRequest, start);
+    request_tracker.record_duration(RequestIntervalKind::FormatRequest, format_request_start);
+
+    let mut request_info = request.extract_common()?;
+    request_info.request_tracker = request_tracker;
 
     if log_enabled!(log::Level::Trace) {
         log::trace!(activity_id = header.activity_id.as_str(); "Request: {}", request.to_json()?)
     }
 
     let mut collection = String::new();
-    let start = compute_request_tracker.start_timer();
     let result = handle_request(
         connection_context,
         header,
@@ -356,10 +362,32 @@ where
         &message,
         stream,
         &mut collection,
-        &mut compute_request_tracker,
+        &mut request_info,
     )
     .await;
-    compute_request_tracker.record_duration(ComputeRequestInterval::RequestDuration, start);
+    request_info
+        .request_tracker
+        .record_duration(RequestIntervalKind::HandleRequest, handle_request_start);
+
+    if connection_context
+        .dynamic_configuration()
+        .enable_verbose_logging_gateway()
+        .await
+    {
+        log::info!(
+            activity_id = header.activity_id.as_str();
+            "Latency for Mongo Request with ActivityId: {}, BufferRead={}ms, HandleRequest={}ms, FormatRequest={}ms, ProcessRequest={}ms, PostgresBeginTransaction={}ms, PostgresSetStatementTimeout={}ms, PostgresTransactionCommit={}ms, FormatResponse={}ms",
+            header.activity_id,
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::BufferRead),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::HandleRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::ProcessRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresBeginTransaction),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresSetStatementTimeout),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresTransactionCommit),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatResponse)
+        );
+    }
 
     // Errors in request handling are handled explicitly so that telemetry can have access to the request
     // Returns Ok afterwards so that higher level error telemetry is not invoked.
@@ -371,7 +399,7 @@ where
             Some(&request),
             stream,
             Some(collection),
-            &mut compute_request_tracker,
+            &mut RequestInfo::new(),
         )
         .await
         {
@@ -389,17 +417,17 @@ async fn handle_request<R>(
     message: &RequestMessage,
     stream: &mut R,
     collection: &mut String,
-    compute_request_tracker: &mut ComputeRequestTracker,
+    request_info: &mut RequestInfo<'_>,
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
 {
-    let request_info = request.extract_common()?;
     *collection = request_info.collection().unwrap_or("").to_string();
 
     // Process the response for the message
-    let start = compute_request_tracker.start_timer();
-    let response = get_response(ctx, message, request, &request_info, header).await?;
+    let response = get_response(ctx, message, request, request_info, header).await?;
+
+    let format_response_start = request_info.request_tracker.start_timer();
 
     // Write the response back to the stream
     if ctx.requires_response {
@@ -415,12 +443,14 @@ where
                 Some(request),
                 Left(&response),
                 collection.to_string(),
-                compute_request_tracker,
+                request_info,
             )
             .await;
     }
 
-    compute_request_tracker.record_duration(ComputeRequestInterval::HandleResponse, start);
+    request_info
+        .request_tracker
+        .record_duration(RequestIntervalKind::FormatResponse, format_response_start);
 
     Ok(())
 }
@@ -432,7 +462,7 @@ async fn log_and_write_error<R>(
     request: Option<&Request<'_>>,
     stream: &mut R,
     collection: Option<String>,
-    compute_request_tracker: &mut ComputeRequestTracker,
+    request_info: &mut RequestInfo<'_>,
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
@@ -452,7 +482,7 @@ where
                 request,
                 Right((&error_response, response.as_bytes().len())),
                 collection.unwrap_or_default(),
-                compute_request_tracker,
+                request_info,
             )
             .await;
     }

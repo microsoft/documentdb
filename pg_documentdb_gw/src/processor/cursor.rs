@@ -94,7 +94,7 @@ pub async fn process_kill_cursors(
 
 pub async fn process_get_more(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     conn_context: &ConnectionContext,
 ) -> Result<Response> {
     let mut id = None;
@@ -139,11 +139,12 @@ pub async fn process_get_more(
                 .cursor_get_more(),
             &[Type::TEXT, Type::BYTEA, Type::BYTEA],
             &[
-                &request_info.db()?,
+                &db,
                 &PgDocument(request.document()),
                 &PgDocument(&cursor.continuation),
             ],
             Timeout::command(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 

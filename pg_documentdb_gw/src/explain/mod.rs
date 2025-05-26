@@ -5,6 +5,7 @@
  *
  *-------------------------------------------------------------------------
  */
+#![allow(clippy::unnecessary_to_owned)]
 
 use core::f64;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
@@ -111,7 +112,7 @@ fn write_output_stage(
 #[async_recursion]
 pub async fn process_explain(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     verbosity: Option<Verbosity>,
     context: &ConnectionContext,
 ) -> Result<Response> {
@@ -183,7 +184,7 @@ impl Verbosity {
 
 async fn run_explain(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     query_base: &str,
     verbosity: Verbosity,
     connection_context: &ConnectionContext,
@@ -231,9 +232,10 @@ async fn run_explain(
             .await?
             .query_db_bson(
                 &query,
-                request_info.db()?,
+                &request_info.db()?.to_string(),
                 &PgDocument(request.document()),
                 Timeout::transaction(request_info.max_time_ms),
+                request_info,
             )
             .await?
     };

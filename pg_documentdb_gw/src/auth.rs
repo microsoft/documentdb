@@ -18,7 +18,7 @@ use crate::{
     postgres::PgDocument,
     processor,
     protocol::OK_SUCCEEDED,
-    requests::{Request, RequestType},
+    requests::{Request, RequestInfo, RequestType},
     responses::{RawResponse, Response},
 };
 
@@ -71,8 +71,9 @@ pub async fn process(ctx: &mut ConnectionContext, request: &Request<'_>) -> Resu
         return Ok(response);
     }
 
+    let request_info = request.extract_common();
     if request.request_type().allowed_unauthorized() {
-        return processor::process_request(request, &request.extract_common()?, ctx).await;
+        return processor::process_request(request, &mut request_info?, ctx).await;
     }
 
     Err(DocumentDBError::unauthorized(format!(
@@ -205,6 +206,7 @@ async fn handle_sasl_continue(
                 &[Type::TEXT, Type::TEXT, Type::TEXT],
                 &[&username, &auth_message, &proof],
                 None,
+                &mut RequestInfo::new(),
             )
             .await?;
 
@@ -341,6 +343,7 @@ async fn get_salt_and_iteration(ctx: &ConnectionContext, username: &str) -> Resu
             &[Type::TEXT],
             &[&username],
             None,
+            &mut RequestInfo::new(),
         )
         .await?;
 

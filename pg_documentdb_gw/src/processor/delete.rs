@@ -53,16 +53,16 @@ where
 
 pub async fn process_drop_database(
     _request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     conn_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
-    let db = request_info.db()?;
+    let db = request_info.db()?.to_string();
 
     // Invalidate cursors
     conn_context
         .service_context
-        .invalidate_cursors_by_database(db)
+        .invalidate_cursors_by_database(&db)
         .await;
 
     run_readonly_if_needed(
@@ -73,8 +73,9 @@ pub async fn process_drop_database(
             conn.query(
                 conn_context.service_context.query_catalog().drop_database(),
                 &[Type::TEXT],
-                &[&db],
+                &[&request_info.db()?.to_string()],
                 Timeout::transaction(request_info.max_time_ms),
+                request_info,
             )
             .await
         },
@@ -89,16 +90,16 @@ pub async fn process_drop_database(
 
 pub async fn process_drop_collection(
     _request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
-    let coll = request_info.collection()?;
+    let coll = request_info.collection()?.to_string();
 
     // Invalidate cursors
     connection_context
         .service_context
-        .invalidate_cursors_by_collection(request_info.db()?, coll)
+        .invalidate_cursors_by_collection(request_info.db()?, request_info.collection()?)
         .await;
 
     run_readonly_if_needed(
@@ -112,8 +113,12 @@ pub async fn process_drop_collection(
                     .query_catalog()
                     .drop_collection(),
                 &[Type::TEXT, Type::TEXT],
-                &[&request_info.db()?, &coll],
+                &[
+                    &request_info.db()?.to_string(),
+                    &request_info.collection()?.to_string(),
+                ],
                 Timeout::transaction(request_info.max_time_ms),
+                request_info,
             )
             .await
         },
@@ -128,7 +133,7 @@ pub async fn process_drop_collection(
 
 pub async fn process_delete(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
@@ -141,11 +146,12 @@ pub async fn process_delete(
                 connection_context.service_context.query_catalog().delete(),
                 &[Type::TEXT, Type::BYTEA, Type::BYTEA],
                 &[
-                    &request_info.db()?,
+                    &request_info.db()?.to_string(),
                     &PgDocument(request.document()),
                     &request.extra(),
                 ],
                 Timeout::transaction(request_info.max_time_ms),
+                request_info,
             )
             .await
         },

@@ -9,7 +9,11 @@
 use std::time::Duration;
 
 use super::{PgDocument, QueryCatalog};
-use crate::{configuration::SetupConfiguration, error::Result};
+use crate::{
+    configuration::SetupConfiguration,
+    error::Result,
+    requests::{RequestInfo, RequestIntervalKind},
+};
 use deadpool_postgres::{Hook, HookError, Runtime};
 use tokio::task::JoinHandle;
 use tokio_postgres::{
@@ -144,42 +148,70 @@ impl Connection {
         Ok(self.inner_conn.query(&statement, params).await?)
     }
 
+    #[allow(unused_mut)]
     pub async fn query(
         &self,
         query: &str,
         parameter_types: &[Type],
         params: &[&(dyn ToSql + Sync)],
         timeout: Option<Timeout>,
+        request_info: &mut RequestInfo<'_>,
     ) -> Result<Vec<Row>> {
         match timeout {
             Some(Timeout {
                 timeout_type: _,
                 max_time_ms,
             }) if self.in_transaction => {
+                let set_timeout_start = request_info.request_tracker.start_timer();
                 self.inner_conn
                     .batch_execute(&format!("set local statement_timeout to {}", max_time_ms))
                     .await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresSetStatementTimeout,
+                    set_timeout_start,
+                );
 
+                let request_start = request_info.request_tracker.start_timer();
                 let results = self.query_internal(query, parameter_types, params).await;
+                request_info
+                    .request_tracker
+                    .record_duration(RequestIntervalKind::ProcessRequest, request_start);
 
+                let set_timeout_start = request_info.request_tracker.start_timer();
                 self.inner_conn
                     .batch_execute(&format!(
                         "set local statement_timeout to {}",
                         Duration::from_secs(120).as_millis()
                     ))
                     .await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresSetStatementTimeout,
+                    set_timeout_start,
+                );
+
                 Ok(results?)
             }
             Some(Timeout {
                 timeout_type: TimeoutType::Transaction,
                 max_time_ms,
             }) => {
+                let begin_transaction_start = request_info.request_tracker.start_timer();
                 self.inner_conn.batch_execute("BEGIN").await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresBeginTransaction,
+                    begin_transaction_start,
+                );
 
+                let set_timeout_start = request_info.request_tracker.start_timer();
                 self.inner_conn
                     .batch_execute(&format!("set local statement_timeout to {}", max_time_ms))
                     .await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresSetStatementTimeout,
+                    set_timeout_start,
+                );
 
+                let request_start = request_info.request_tracker.start_timer();
                 let results = match self.query_internal(query, parameter_types, params).await {
                     Ok(results) => Ok(results),
                     Err(e) => {
@@ -187,28 +219,60 @@ impl Connection {
                         Err(e)
                     }
                 }?;
+                request_info
+                    .request_tracker
+                    .record_duration(RequestIntervalKind::ProcessRequest, request_start);
+
+                let commit_start = request_info.request_tracker.start_timer();
                 self.inner_conn.batch_execute("COMMIT").await?;
+                request_info
+                    .request_tracker
+                    .record_duration(RequestIntervalKind::PostgresTransactionCommit, commit_start);
+
                 Ok(results)
             }
             Some(Timeout {
                 timeout_type: TimeoutType::Command,
                 max_time_ms,
             }) => {
+                let set_timeout_start = request_info.request_tracker.start_timer();
                 self.inner_conn
                     .batch_execute(&format!("set statement_timeout to {}", max_time_ms))
                     .await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresSetStatementTimeout,
+                    set_timeout_start,
+                );
 
+                let request_start = request_info.request_tracker.start_timer();
                 let results = self.query_internal(query, parameter_types, params).await;
+                request_info
+                    .request_tracker
+                    .record_duration(RequestIntervalKind::ProcessRequest, request_start);
 
+                let set_timeout_start = request_info.request_tracker.start_timer();
                 self.inner_conn
                     .batch_execute(&format!(
                         "set statement_timeout to {}",
                         Duration::from_secs(120).as_millis()
                     ))
                     .await?;
+                request_info.request_tracker.record_duration(
+                    RequestIntervalKind::PostgresSetStatementTimeout,
+                    set_timeout_start,
+                );
+
                 Ok(results?)
             }
-            None => self.query_internal(query, parameter_types, params).await,
+            None => {
+                let request_start = request_info.request_tracker.start_timer();
+                let results = self.query_internal(query, parameter_types, params).await;
+                request_info
+                    .request_tracker
+                    .record_duration(RequestIntervalKind::ProcessRequest, request_start);
+
+                results
+            }
         }
     }
 
@@ -218,9 +282,16 @@ impl Connection {
         db: &str,
         bson: &PgDocument<'_>,
         timeout: Option<Timeout>,
+        request_info: &mut RequestInfo<'_>,
     ) -> Result<Vec<Row>> {
-        self.query(query, &[Type::TEXT, Type::BYTEA], &[&db, bson], timeout)
-            .await
+        self.query(
+            query,
+            &[Type::TEXT, Type::BYTEA],
+            &[&db, bson],
+            timeout,
+            request_info,
+        )
+        .await
     }
 
     pub async fn batch_execute(&self, query: &str) -> Result<()> {

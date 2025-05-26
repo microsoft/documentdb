@@ -5,6 +5,7 @@
  *
  *-------------------------------------------------------------------------
  */
+#![allow(clippy::unnecessary_to_owned)]
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -25,11 +26,11 @@ use super::cursor::save_cursor;
 
 pub async fn process_create_indexes(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
-    let db = request_info.db()?;
+    let db = &request_info.db()?.to_string();
     if db == "config" || db == "admin" {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::IllegalOperation,
@@ -48,6 +49,7 @@ pub async fn process_create_indexes(
             db,
             &PgDocument(request.document()),
             Timeout::command(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     let row = results
@@ -63,7 +65,7 @@ pub async fn process_create_indexes(
 }
 
 pub async fn wait_for_index(
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     create_result: PgResponse,
     context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
@@ -91,6 +93,7 @@ pub async fn wait_for_index(
                 &[Type::BYTEA],
                 &[&create_request_details],
                 Timeout::command(request_info.max_time_ms),
+                request_info,
             )
             .await?;
 
@@ -164,7 +167,7 @@ fn parse_create_index_error(response: &PgResponse) -> Result<Response> {
 
 pub async fn process_reindex(
     _request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
@@ -173,8 +176,12 @@ pub async fn process_reindex(
         .query(
             context.service_context.query_catalog().re_index(),
             &[Type::TEXT, Type::TEXT],
-            &[&request_info.db()?, &request_info.collection()?],
+            &[
+                &request_info.db()?.to_string(),
+                &request_info.collection()?.to_string(),
+            ],
             Timeout::command(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -182,7 +189,7 @@ pub async fn process_reindex(
 
 pub async fn process_drop_indexes(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
@@ -190,9 +197,10 @@ pub async fn process_drop_indexes(
         .await?
         .query_db_bson(
             context.service_context.query_catalog().drop_indexes(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
@@ -212,7 +220,7 @@ pub async fn process_drop_indexes(
 
 pub async fn process_list_indexes(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let conn = context.pull_connection().await?;
@@ -223,9 +231,10 @@ pub async fn process_list_indexes(
                 .service_context
                 .query_catalog()
                 .list_indexes_cursor_first_page(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
