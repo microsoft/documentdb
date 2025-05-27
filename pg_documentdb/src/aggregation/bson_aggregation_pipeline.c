@@ -1212,6 +1212,8 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 		}
 		else if (StringViewEqualsCString(&keyView, "let"))
 		{
+			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+
 			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
 																	 &aggregationIterator,
 																	 BSON_TYPE_DOCUMENT);
@@ -1535,7 +1537,10 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 				}
 				else if (StringViewEqualsCString(&keyView, "let"))
 				{
+					ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+
 					EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
+
 					let = *value;
 					continue;
 				}

@@ -643,9 +643,9 @@ CALL documentdb_api_internal.delete_expired_rows(3);
 CALL documentdb_api_internal.delete_expired_rows(3);
 CALL documentdb_api_internal.delete_expired_rows(3);
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                   get_feature_counter_pretty                                    
+                                                                            get_feature_counter_pretty                                                                             
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 10}, {"create_index_ttl" : 1}, {"ttl_purger_calls" : 3}]}
+ {"Feature_usage":[{"command_insert" : 10}, {"command_list_indexes_cursor_first_page" : 1}, {"create_index_ttl" : 1}, {"cursor_type_single_batch" : 1}, {"ttl_purger_calls" : 3}]}
 (1 row)
 
 -- Feature counter for _internalInhibitOptimization

@@ -326,6 +326,7 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 		}
 		else if (EnableVariablesSupportForWriteCommands && strcmp(field, "let") == 0)
 		{
+			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
 			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
 																	 deleteCommandIter,
 																	 BSON_TYPE_DOCUMENT);

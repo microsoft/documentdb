@@ -205,17 +205,26 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COLLATION] = "collation",
 
 	/* Feature Mapping region - Commands */
+	[FEATURE_COMMAND_AGG_CURSOR_FIRST_PAGE] = "command_agg_cursor_first_page",
 	[FEATURE_COMMAND_COLLMOD] = "command_collmod",
 	[FEATURE_COMMAND_COLLSTATS] = "command_collstats",
+	[FEATURE_COMMAND_COUNT] = "command_count",
 	[FEATURE_COMMAND_CREATE_COLLECTION] = "command_create_collection",
 	[FEATURE_COMMAND_CREATE_VALIDATION] = "command_create_validation",
 	[FEATURE_COMMAND_CREATE_VIEW] = "command_create_view",
 	[FEATURE_COMMAND_CURRENTOP] = "command_current_op",
 	[FEATURE_COMMAND_DBSTATS] = "command_dbstats",
 	[FEATURE_COMMAND_DELETE] = "command_delete",
+	[FEATURE_COMMAND_DISTINCT] = "command_distinct",
 	[FEATURE_COMMAND_FINDANDMODIFY] = "command_findAndModify",
+	[FEATURE_COMMAND_FIND_CURSOR_FIRST_PAGE] = "command_find_cursor_first_page",
+	[FEATURE_COMMAND_GET_MORE] = "command_get_more",
 	[FEATURE_COMMAND_INSERT] = "command_insert",
 	[FEATURE_COMMAND_INSERT_BULK] = "command_insert_bulk",
+	[FEATURE_COMMAND_LIST_COLLECTIONS_CURSOR_FIRST_PAGE] =
+		"command_list_collections_cursor_first_page",
+	[FEATURE_COMMAND_LIST_INDEXES_CURSOR_FIRST_PAGE] =
+		"command_list_indexes_cursor_first_page",
 	[FEATURE_COMMAND_SHARD_COLLECTION] = "command_shard_collection",
 	[FEATURE_COMMAND_RESHARD_COLLECTION] = "command_reshard_collection",
 	[FEATURE_COMMAND_UNSHARD_COLLECTION] = "command_unshard_collection",
@@ -246,6 +255,16 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_CREATE_INDEX_VECTOR_TYPE_IVFFLAT] = "create_index_vector_type_ivfflat",
 	[FEATURE_CREATE_UNIQUE_INDEX_WITH_TERM_TRUNCATION] =
 		"create_unique_index_with_term_truncation",
+
+	/* Feature Mapping region - Cursor types */
+	[FEATURE_CURSOR_TYPE_PERSISTENT] = "cursor_type_persistent",
+	[FEATURE_CURSOR_TYPE_POINT_READ] = "cursor_type_point_read",
+	[FEATURE_CURSOR_TYPE_SINGLE_BATCH] = "cursor_type_single_batch",
+	[FEATURE_CURSOR_TYPE_STREAMING] = "cursor_type_streaming",
+	[FEATURE_CURSOR_TYPE_TAILABLE] = "cursor_type_tailable",
+
+	/* Feature counter region - Top-level let support */
+	[FEATURE_LET_TOP_LEVEL] = "let_top_level",
 
 	/* Feature Mapping region - Query Operators */
 	[FEATURE_QUERY_OPERATOR_GEOINTERSECTS] = "query_operator_geointersects",

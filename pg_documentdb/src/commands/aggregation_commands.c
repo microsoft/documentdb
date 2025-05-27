@@ -18,6 +18,7 @@
 
 #include <metadata/metadata_cache.h>
 #include <utils/documentdb_errors.h>
+#include <utils/feature_counter.h>
 #include "utils/version_utils.h"
 #include <io/bson_core.h>
 #include <commands/cursor_private.h>
@@ -194,6 +195,8 @@ Datum
 aggregate_cursor_first_page(text *database, pgbson *aggregationSpec,
 							int64_t cursorId)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_AGG_CURSOR_FIRST_PAGE);
+
 	bool generateCursorParams = true;
 	bool setStatementTimeout = true;
 	QueryData queryData = GenerateFirstPageQueryData();
@@ -225,6 +228,8 @@ command_find_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 find_cursor_first_page(text *database, pgbson *findSpec, int64_t cursorId)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_FIND_CURSOR_FIRST_PAGE);
+
 	/* Parse the find spec for the purposes of query execution */
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = true;
@@ -258,6 +263,8 @@ command_list_collections_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 list_collections_first_page(text *database, pgbson *listCollectionsSpec)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_LIST_COLLECTIONS_CURSOR_FIRST_PAGE);
+
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = false;
 	bool setStatementTimeout = true;
@@ -295,6 +302,8 @@ command_list_indexes_cursor_first_page(PG_FUNCTION_ARGS)
 Datum
 list_indexes_first_page(text *database, pgbson *listIndexesSpec)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_LIST_INDEXES_CURSOR_FIRST_PAGE);
+
 	QueryData queryData = GenerateFirstPageQueryData();
 	bool generateCursorParams = false;
 	bool setStatementTimeout = true;
@@ -337,6 +346,8 @@ Datum
 aggregation_cursor_get_more(text *database, pgbson *getMoreSpec,
 							pgbson *cursorSpec, AttrNumber maxResponseAttributeNumber)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_GET_MORE);
+
 	TupleDesc tupleDesc = ConstructCursorResultTupleDesc(maxResponseAttributeNumber);
 
 	QueryGetMoreInfo getMoreInfo = { 0 };
@@ -532,6 +543,8 @@ aggregation_cursor_get_more(text *database, pgbson *getMoreSpec,
 Datum
 command_distinct_query(PG_FUNCTION_ARGS)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_DISTINCT);
+
 	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *distinctSpec = PG_GETARG_PGBSON(1);
 
@@ -560,6 +573,8 @@ command_distinct_query(PG_FUNCTION_ARGS)
 Datum
 command_count_query(PG_FUNCTION_ARGS)
 {
+	ReportFeatureUsage(FEATURE_COMMAND_COUNT);
+
 	text *database = PG_GETARG_TEXT_P(0);
 	pgbson *countSpec = PG_GETARG_PGBSON(1);
 
@@ -612,6 +627,8 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 	{
 		case QueryCursorType_SingleBatch:
 		{
+			ReportFeatureUsage(FEATURE_CURSOR_TYPE_SINGLE_BATCH);
+
 			bool isHoldCursor = false;
 			bool closeCursor = true;
 			CreateAndDrainPersistedQuery("singleBatchCursor", query,
@@ -627,6 +644,8 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 
 		case QueryCursorType_Tailable:
 		{
+			ReportFeatureUsage(FEATURE_CURSOR_TYPE_TAILABLE);
+
 			HTAB *tailableCursorMap = CreateTailableCursorHashSet();
 			postBatchResumeToken = DrainTailableQuery(tailableCursorMap,
 													  query,
@@ -647,6 +666,8 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 
 		case QueryCursorType_Streamable:
 		{
+			ReportFeatureUsage(FEATURE_CURSOR_TYPE_STREAMING);
+
 			Assert(queryData->cursorStateParamNumber == 1);
 			HTAB *cursorMap = CreateCursorHashSet();
 			queryFullyDrained = DrainStreamingQuery(cursorMap, query,
@@ -672,6 +693,8 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 
 		case QueryCursorType_Persistent:
 		{
+			ReportFeatureUsage(FEATURE_CURSOR_TYPE_PERSISTENT);
+
 			/* In order to create the persistent cursor we initialize a cursorId anyway */
 			cursorId = GenerateCursorId(cursorId);
 
@@ -728,6 +751,8 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 
 		case QueryCursorType_PointRead:
 		{
+			ReportFeatureUsage(FEATURE_CURSOR_TYPE_POINT_READ);
+
 			if (queryData->batchSize < 1)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
