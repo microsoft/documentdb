@@ -110,7 +110,7 @@ typedef struct IdFilterWalkerContext
 
 extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
-extern bool EnableLetForWriteCommands;
+extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOperatorBounds;
 
 /* --------------------------------------------------------- */
@@ -249,7 +249,7 @@ bson_query_match(PG_FUNCTION_ARGS)
 
 	Node *quals = NULL;
 	bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
-											EnableLetForWriteCommands;
+											EnableVariablesSupportForWriteCommands;
 
 	/* if useQueryMatchWithLetAndCollation is off,  */
 	/* the collationString and variableSpec will be ignored  */
@@ -803,7 +803,7 @@ ReplaceBsonQueryOperatorsMutator(Node *node, ReplaceBsonQueryOperatorsContext *c
 		FuncExpr *funcExpr = (FuncExpr *) node;
 
 		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
-												EnableLetForWriteCommands;
+												EnableVariablesSupportForWriteCommands;
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{

@@ -137,8 +137,9 @@ bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 bool EnableLetAndCollationForQueryMatch =
 	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
 
-#define DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS false
-bool EnableLetForWriteCommands = DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS;
+#define DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS false
+bool EnableVariablesSupportForWriteCommands =
+	DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS;
 
 
 /*
@@ -401,11 +402,11 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableLetForWriteCommands", newGucPrefix),
+		psprintf("%s.enableVariablesSupportForWriteCommands", newGucPrefix),
 		gettext_noop(
 			"Whether or not to enable let variables and $$NOW support for write (update, delete, findAndModify) commands. Only support for delete is available now."),
-		NULL, &EnableLetForWriteCommands,
-		DEFAULT_ENABLE_LET_FOR_WRITE_COMMANDS,
+		NULL, &EnableVariablesSupportForWriteCommands,
+		DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

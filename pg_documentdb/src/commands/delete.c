@@ -92,7 +92,7 @@ typedef struct
 } BatchDeletionResult;
 
 extern bool UseLocalExecutionShardQueries;
-extern bool EnableLetForWriteCommands;
+extern bool EnableVariablesSupportForWriteCommands;
 
 PG_FUNCTION_INFO_V1(command_delete);
 PG_FUNCTION_INFO_V1(command_delete_one);
@@ -324,7 +324,7 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 			SetExplicitStatementTimeout(BsonValueAsInt32(bson_iter_value(
 															 deleteCommandIter)));
 		}
-		else if (EnableLetForWriteCommands && strcmp(field, "let") == 0)
+		else if (EnableVariablesSupportForWriteCommands && strcmp(field, "let") == 0)
 		{
 			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
 																	 deleteCommandIter,
@@ -795,7 +795,7 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 
 	pgbson *variableSpecBson = variableSpec != NULL ?
 							   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
-	bool applyVariableSpec = EnableLetForWriteCommands &&
+	bool applyVariableSpec = EnableVariablesSupportForWriteCommands &&
 							 variableSpecBson != NULL && queryHasNonIdFilters;
 
 	if (applyVariableSpec)
@@ -1213,7 +1213,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	const bson_value_t *variableSpec = deleteOneParams->variableSpec;
 	pgbson *variableSpecBson = variableSpec != NULL ?
 							   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
-	bool applyVariableSpec = EnableLetForWriteCommands &&
+	bool applyVariableSpec = EnableVariablesSupportForWriteCommands &&
 							 variableSpecBson != NULL && queryHasNonIdFilters;
 
 	if (applyVariableSpec)

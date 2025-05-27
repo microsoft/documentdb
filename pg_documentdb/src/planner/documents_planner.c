@@ -105,7 +105,7 @@ static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundP
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
 extern bool EnableLetAndCollationForQueryMatch;
-extern bool EnableLetForWriteCommands;
+extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
@@ -872,7 +872,7 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 		}
 
 		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
-												EnableLetForWriteCommands;
+												EnableVariablesSupportForWriteCommands;
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{

@@ -5,7 +5,7 @@
 * Support collation with arrays and objects comparisons *[Feature]*
 * Support background index builds *[Bugfix]* (#36)
 * Enable user CRUD by default *[Feature]*
-* Enable let support for delete queries *[Feature]*. Requires `EnableLetForWriteCommands` to be `on`.
+* Enable let support for delete queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
 * Enable rum_enable_index_scan as default on *[Perf]*
 * Add public `documentdb-local` Docker image with gateway to GHCR
 

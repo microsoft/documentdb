@@ -409,12 +409,12 @@ SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 1, "a":"dog"}');
 SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 2, "a":"cat"}');
 SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 3, "a":"$$varRef"}');
 
--- enableLetForWriteCommands GUC off: ignore variableSpec
-SET documentdb.enableLetForWriteCommands TO off;
+-- enableVariablesSupportForWriteCommands GUC off: ignore variableSpec
+SET documentdb.enableVariablesSupportForWriteCommands TO off;
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "cat"} }');
 
--- enableLetForWriteCommands GUC on: user variableSpec
-SET documentdb.enableLetForWriteCommands TO on;
+-- enableVariablesSupportForWriteCommands GUC on: user variableSpec
+SET documentdb.enableVariablesSupportForWriteCommands TO on;
 
 -- variables accessed outside $expr will not evaluate to let variable value
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "$$varRef" }, "limit": 0}], "let": {"varRef": 2}} ');
@@ -489,4 +489,4 @@ SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q
 SELECT document from documentdb_api.collection('db', 'coll_delete');
 ROLLBACK;
 
-RESET documentdb.enableLetForWriteCommands;
+RESET documentdb.enableVariablesSupportForWriteCommands;

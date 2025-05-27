@@ -979,16 +979,16 @@ SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 3, "a":"$$varRef"
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
--- enableLetForWriteCommands GUC off: ignore variableSpec
-SET documentdb.enableLetForWriteCommands TO off;
+-- enableVariablesSupportForWriteCommands GUC off: ignore variableSpec
+SET documentdb.enableVariablesSupportForWriteCommands TO off;
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "cat"} }');
                                                                                                                            delete                                                                                                                            
 ---------------------------------------------------------------------
  ("{ ""n"" : { ""$numberInt"" : ""0"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""118226973"" }, ""errmsg"" : ""Use of undefined variable: varRef"" } ] }",f)
 (1 row)
 
--- enableLetForWriteCommands GUC on: user variableSpec
-SET documentdb.enableLetForWriteCommands TO on;
+-- enableVariablesSupportForWriteCommands GUC on: user variableSpec
+SET documentdb.enableVariablesSupportForWriteCommands TO on;
 -- variables accessed outside $expr will not evaluate to let variable value
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "$$varRef" }, "limit": 0}], "let": {"varRef": 2}} ');
                                          delete                                         
@@ -1233,4 +1233,4 @@ SELECT document from documentdb_api.collection('db', 'coll_delete');
 (0 rows)
 
 ROLLBACK;
-RESET documentdb.enableLetForWriteCommands;
+RESET documentdb.enableVariablesSupportForWriteCommands;
