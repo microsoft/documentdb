@@ -38,6 +38,11 @@ async-trait = "0.1.88"
 dyn-clone = "1.0.19"
 whoami = "1.6.0"
 
+# OpenTelemetry dependencies
+opentelemetry = { version = "0.29.1", features = ["metrics"] }
+opentelemetry_sdk = { version = "0.29.0", features = ["metrics", "rt-tokio"] }
+opentelemetry-otlp = { version = "0.29.0", features = ["metrics", "grpc-tonic"] }
+
 [dependencies.simple_logger]
 version = "4.2.0"
 default-features = false
