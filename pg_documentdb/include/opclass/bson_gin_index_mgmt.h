@@ -182,6 +182,9 @@ Size FillSinglePathSpec(const char *prefix, void *buffer);
 void ValidateSinglePathSpec(const char *prefix);
 Size FillDeprecatedStringSpec(const char *value, void *ptr);
 
+struct IndexOptInfo;
+bool CompositeIndexSupportsOrderByPushdown(struct IndexOptInfo *indexOptInfo);
+
 /* Helper macro to retrieve a length prefixed value in the index options */
 #define Get_Index_Path_Option(options, field, result, resultFieldLength) \
 	const char *pathDefinition = GET_STRING_RELOPTION(options, field); \

@@ -103,10 +103,14 @@ static Query * ExpandAggregationFunction(Query *node, ParamListInfo boundParams,
 										 PlannedStmt **plan);
 static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundParams);
 
+static void ForceExcludeNonIndexPaths(PlannerInfo *root, RelOptInfo *rel,
+									  Index rti, RangeTblEntry *rte);
+
 extern bool ForceRUMIndexScanToBitmapHeapScan;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
+extern bool ForceDisableSeqScan;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -665,6 +669,11 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 			.opExtraState = NULL
 		}
 	};
+
+	if (ForceDisableSeqScan)
+	{
+		ForceExcludeNonIndexPaths(root, rel, rti, rte);
+	}
 
 	/*
 	 * Replace all function operators that haven't been transformed in indexed
@@ -1733,4 +1742,104 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 	}
 
 	return finalQuery;
+}
+
+
+static bool
+IsPrimaryKeyScanOnJustShardKey(Path *path)
+{
+	if (path->pathtype != T_IndexScan)
+	{
+		return false;
+	}
+
+	IndexPath *indexPath = (IndexPath *) path;
+	if (indexPath->indexinfo->relam == BTREE_AM_OID)
+	{
+		if (list_length(indexPath->indexclauses) == 1)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+static List *
+TrimPathListForSeqTypeScans(List *pathList)
+{
+	ListCell *cell;
+	foreach(cell, pathList)
+	{
+		Path *path = (Path *) lfirst(cell);
+
+		if (path->pathtype != T_IndexScan &&
+			path->pathtype != T_BitmapHeapScan)
+		{
+			elog(DEBUG1, "Excluding path non-index path %d for scan",
+				 path->pathtype);
+			pathList = foreach_delete_current(pathList, cell);
+			continue;
+		}
+
+		/*
+		 * Now validate it's not just a scan on the primary key
+		 * with the shard key value.
+		 */
+		if (IsPrimaryKeyScanOnJustShardKey(path))
+		{
+			elog(DEBUG1, "Excluding primary key scan on just shard key %d for scan",
+				 path->pathtype);
+			pathList = foreach_delete_current(pathList, cell);
+			continue;
+		}
+		if (path->pathtype == T_BitmapHeapScan)
+		{
+			BitmapHeapPath *bitmapHeapPath = (BitmapHeapPath *) path;
+			if (bitmapHeapPath->bitmapqual != NULL &&
+				IsPrimaryKeyScanOnJustShardKey(bitmapHeapPath->bitmapqual))
+			{
+				elog(DEBUG1, "Excluding bitmap heap scan on just shard key %d for scan",
+					 path->pathtype);
+				pathList = foreach_delete_current(pathList, cell);
+				continue;
+			}
+		}
+	}
+
+	return pathList;
+}
+
+
+static void
+ForceExcludeNonIndexPaths(PlannerInfo *root, RelOptInfo *rel,
+						  Index rti, RangeTblEntry *rte)
+{
+	if (rel->pathlist == NIL)
+	{
+		return;
+	}
+
+	rel->pathlist = TrimPathListForSeqTypeScans(rel->pathlist);
+	rel->partial_pathlist = TrimPathListForSeqTypeScans(rel->partial_pathlist);
+
+	if (rel->pathlist == NIL)
+	{
+		/* Try a round of planning with no sequential paths and another round of trimming
+		 * before failing.
+		 */
+		create_index_paths(root, rel);
+
+		rel->pathlist = TrimPathListForSeqTypeScans(rel->pathlist);
+		rel->partial_pathlist = TrimPathListForSeqTypeScans(rel->partial_pathlist);
+
+
+		if (rel->pathlist == NIL)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
+							errmsg(
+								"Could not find any valid index to push down for query")));
+		}
+	}
 }

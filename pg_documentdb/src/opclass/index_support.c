@@ -722,6 +722,16 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 			continue;
 		}
 
+		/* Order by pushdown is valid iff:
+		 * 1. The index is not a multi-key index
+		 * 2. The index is multi-key but the order-by term goes from MinKey to MaxKey
+		 *    (We can currently only support that for exists)
+		 */
+		if (!CompositeIndexSupportsOrderByPushdown(indexPath->indexinfo))
+		{
+			continue;
+		}
+
 		IndexPath *newPath = makeNode(IndexPath);
 		memcpy(newPath, indexPath, sizeof(IndexPath));
 

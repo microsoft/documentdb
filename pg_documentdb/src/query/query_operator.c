@@ -112,6 +112,7 @@ extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOperatorBounds;
+extern bool ExpandDollarAllInQueryOperator;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -148,6 +149,10 @@ static Expr * CreateFuncExprForQueryOperator(BsonQueryOperatorContext *context, 
 static Const * CreateConstFromBsonValue(const char *path, const bson_value_t *value, const
 										char *collationString);
 static Expr * CreateExprForDollarAll(const char *path,
+									 bson_iter_t *operatorDocIterator,
+									 BsonQueryOperatorContext *context,
+									 const MongoQueryOperator *operator);
+static Expr * ExpandExprForDollarAll(const char *path,
 									 bson_iter_t *operatorDocIterator,
 									 BsonQueryOperatorContext *context,
 									 const MongoQueryOperator *operator);
@@ -1948,6 +1953,14 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				}
 			}
 
+			if (ExpandDollarAllInQueryOperator &&
+				context->simplifyOperators &&
+				context->inputType == MongoQueryOperatorInputType_Bson)
+			{
+				return ExpandExprForDollarAll(path, operatorDocIterator,
+											  context, operator);
+			}
+
 			return CreateExprForDollarAll(path, operatorDocIterator,
 										  context, operator);
 		}
@@ -2740,6 +2753,178 @@ CreateConstFromBsonValue(const char *path, const bson_value_t *value,
 
 	pgbson *bson = PgbsonWriterGetPgbson(&writer);
 	return MakeBsonConst(bson);
+}
+
+
+/*
+ * For $all, expand it into an AND of the constituent expressions.
+ * This will let the planner do the optimizations for index pushdown and
+ * evaluations.
+ */
+static Expr *
+ExpandExprForDollarAll(const char *path,
+					   bson_iter_t *operatorDocIterator,
+					   BsonQueryOperatorContext *context,
+					   const MongoQueryOperator *operator)
+{
+	bson_iter_t arrayIterator;
+
+	/* open array of elements (or documents in case of $all : [{$elemMatch : {}}...] ) and validate it. */
+	bson_iter_recurse(operatorDocIterator, &arrayIterator);
+	bool foundObject = false;
+	bool foundElement = false;
+	bool foundElemMatch = false;
+
+	List *allElements = NIL;
+	const MongoQueryOperator *equalOp = GetMongoQueryOperatorByQueryOperatorType(
+		QUERY_OPERATOR_EQ,
+		context->
+		inputType);
+
+	const MongoQueryOperator *regexOp = GetMongoQueryOperatorByQueryOperatorType(
+		QUERY_OPERATOR_REGEX,
+		context->
+		inputType);
+	while (bson_iter_next(&arrayIterator))
+	{
+		const bson_value_t *value = bson_iter_value(&arrayIterator);
+
+		if (value->value_type == BSON_TYPE_REGEX)
+		{
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, regexOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+		else if (value->value_type != BSON_TYPE_DOCUMENT)
+		{
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, equalOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+
+		/* We know it's a document at this point */
+		/* if an empty document. Consider it as foundElement. */
+		if (IsBsonValueEmptyDocument(value))
+		{
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, equalOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+
+		pgbsonelement singleElement;
+		if (!TryGetBsonValueToPgbsonElement(value, &singleElement))
+		{
+			/* It's a document but not an operator - treat as element but track that it's not with
+			 * an object
+			 */
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, equalOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+
+		/* it is expression of form {path : value}, Consider it as foundElement. */
+		if (singleElement.pathLength > 0 && singleElement.path[0] != '$')
+		{
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+
+			/* It's an element, treat it as $eq on the value */
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, equalOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+
+		const MongoQueryOperator *keyOp = GetMongoQueryOperatorByMongoOpName(
+			singleElement.path,
+			context->
+			inputType);
+		MongoQueryOperatorType operatorType = keyOp->operatorType;
+
+		if (operatorType == QUERY_OPERATOR_AND || operatorType == QUERY_OPERATOR_OR ||
+			operatorType == QUERY_OPERATOR_NOR || operatorType == QUERY_OPERATOR_NOT)
+		{
+			if (foundObject)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+									"$all/$elemMatch has to be consistent")));
+			}
+			foundElement = true;
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, equalOp, value);
+			allElements = lappend(allElements, allExpr);
+			continue;
+		}
+
+		if (foundElement)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"no $ expressions in $all")));
+		}
+		else if (foundElemMatch && keyOp->operatorType != QUERY_OPERATOR_ELEMMATCH)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"$all/$elemMatch has to be consistent")));
+		}
+		else if (keyOp->operatorType != QUERY_OPERATOR_ELEMMATCH)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+								"no $ expressions in $all")));
+		}
+		else
+		{
+			Expr *allExpr = CreateFuncExprForQueryOperator(context, path, keyOp,
+														   &singleElement.bsonValue);
+			allElements = lappend(allElements, allExpr);
+			foundElemMatch = true;
+		}
+
+		foundObject = true;
+	}
+
+	if (list_length(allElements) == 0)
+	{
+		/* $all of empty array is false */
+		return (Expr *) makeBoolConst(false, false);
+	}
+
+	if (list_length(allElements) == 1)
+	{
+		/* If there is only one element, return it directly */
+		return (Expr *) linitial(allElements);
+	}
+
+	return make_ands_explicit(allElements);
 }
 
 

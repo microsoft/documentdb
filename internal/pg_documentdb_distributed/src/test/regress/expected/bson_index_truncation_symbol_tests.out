@@ -735,20 +735,20 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('
 (12 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('db', 'index_truncation_symbol_tests') WHERE document @@ '{ "ikey": { "$all": [{ "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" }, { "$symbol" : "MTIzNDUxMjM0NQ==" }] } }';
-                                                                                                                                                                QUERY PLAN                                                                                                                                                                 
+                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                              
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM documentdb_data.documents_11700_1170005 collection WHERE (documentdb_api_catalog.bson_dollar_all(document, '{ "ikey" : [ { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" }, { "$symbol" : "MTIzNDUxMjM0NQ==" } ] }'::documentdb_core.bson) AND (shard_key_value OPERATOR(pg_catalog.=) '11700'::bigint))
+         Query: SELECT document FROM documentdb_data.documents_11700_1170005 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "ikey" : { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" } }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "ikey" : { "$symbol" : "MTIzNDUxMjM0NQ==" } }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '11700'::bigint))
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documentdb_data.documents_11700_1170005 collection
                Output: document
-               Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@&=) '{ "ikey" : [ { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" }, { "$symbol" : "MTIzNDUxMjM0NQ==" } ] }'::documentdb_core.bson)
+               Recheck Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$symbol" : "MTIzNDUxMjM0NQ==" } }'::documentdb_core.bson))
                ->  Bitmap Index Scan on ikey_1
-                     Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@&=) '{ "ikey" : [ { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" }, { "$symbol" : "MTIzNDUxMjM0NQ==" } ] }'::documentdb_core.bson)
+                     Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$symbol" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$symbol" : "MTIzNDUxMjM0NQ==" } }'::documentdb_core.bson))
 (12 rows)
 
 -- insert $symbol BSON data in nested documents/arrays with different leaf types

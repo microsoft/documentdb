@@ -746,20 +746,20 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('
 (12 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('db', 'index_truncation_binary_tests') WHERE document @@ '{ "ikey": { "$all": [{ "$binary" : { "base64": "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } }, { "$binary" : { "base64": "MTIzNDUxMjM0NQ==", "subType" : "07" } }] } }';
-                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                  
+                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                               
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM documentdb_data.documents_11500_1150003 collection WHERE (documentdb_api_catalog.bson_dollar_all(document, '{ "ikey" : [ { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } }, { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } ] }'::documentdb_core.bson) AND (shard_key_value OPERATOR(pg_catalog.=) '11500'::bigint))
+         Query: SELECT document FROM documentdb_data.documents_11500_1150003 collection WHERE ((document OPERATOR(documentdb_api_catalog.#=) '{ "ikey" : { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } } }'::documentdb_core.bsonquery) AND (document OPERATOR(documentdb_api_catalog.#=) '{ "ikey" : { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } }'::documentdb_core.bsonquery) AND (shard_key_value OPERATOR(pg_catalog.=) '11500'::bigint))
          Node: host=localhost port=58070 dbname=regression
          ->  Bitmap Heap Scan on documentdb_data.documents_11500_1150003 collection
                Output: document
-               Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@&=) '{ "ikey" : [ { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } }, { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } ] }'::documentdb_core.bson)
+               Recheck Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } }'::documentdb_core.bson))
                ->  Bitmap Index Scan on ikey_1
-                     Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@&=) '{ "ikey" : [ { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } }, { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } ] }'::documentdb_core.bson)
+                     Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$binary" : { "base64" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n", "subType" : "01" } } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "ikey" : { "$binary" : { "base64" : "MTIzNDUxMjM0NQ==", "subType" : "07" } } }'::documentdb_core.bson))
 (12 rows)
 
 /* $bitsAllClear (all terms truncated) */

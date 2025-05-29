@@ -115,6 +115,13 @@ int MaxAllowedCursorIntermediateFileSize = DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_
 #define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
 int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
 
+#define DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR true
+bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR;
+
+#define DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX false
+bool SkipGeneratingArrayTermForCompositeIndex =
+	DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX;
+
 /*
  * SECTION: Top level feature flags
  */
@@ -512,4 +519,20 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &DefaultCursorExpiryTimeLimitSeconds,
 		DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS,
 		1, 3600, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.expandDollarAllInQueryOperator", newGucPrefix),
+		gettext_noop(
+			"Whether or not to expand $all in query operator."),
+		NULL, &ExpandDollarAllInQueryOperator,
+		DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.skipGeneratingArrayTermForCompositeIndex", newGucPrefix),
+		gettext_noop(
+			"Whether or not to skip generating array term for composite index."),
+		NULL, &SkipGeneratingArrayTermForCompositeIndex,
+		DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
 }

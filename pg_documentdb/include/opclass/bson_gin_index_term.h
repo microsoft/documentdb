@@ -79,8 +79,12 @@ typedef struct IndexTermCreateMetadata
 } IndexTermCreateMetadata;
 
 
+bool IsSerializedIndexTermComposite(bytea *indexTermSerialized);
 bool IsSerializedIndexTermTruncated(bytea *indexTermSerialized);
 void InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm);
+
+int32_t InitializeCompositeIndexTerm(bytea *indexTermSerialized, BsonIndexTerm
+									 indexTerm[INDEX_MAX_KEYS]);
 
 BsonIndexTermSerialized SerializeBsonIndexTerm(pgbsonelement *indexElement,
 											   const IndexTermCreateMetadata *
@@ -91,18 +95,10 @@ BsonCompressableIndexTermSerialized SerializeBsonIndexTermWithCompression(
 	IndexTermCreateMetadata
 	*indexMetadata);
 
-BsonIndexTermSerialized SerializeCompositeBsonIndexTerm(pgbsonelement *indexElement,
-														const IndexTermCreateMetadata *
-														indexMetadata, bool
-														hasTruncatedPaths);
+BsonIndexTermSerialized SerializeCompositeBsonIndexTerm(bytea **individualTerms, int32_t
+														numTerms);
 BsonCompressableIndexTermSerialized SerializeCompositeBsonIndexTermWithCompression(
-	pgbsonelement *indexElement,
-	const
-	IndexTermCreateMetadata
-	*
-	indexMetadata,
-	bool
-	hasTruncatedPaths);
+	bytea **individualTerms, int32_t numTerms);
 
 Datum GenerateRootTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);

@@ -21,6 +21,12 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
 -- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
 
+-- if the array terms are skipped, they aren't generated
+BEGIN;
+set documentdb.skipGeneratingArrayTermForCompositeIndex to on;
+SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
+ROLLBACK;
+
 -- create a table and insert some data.
 set documentdb.enableNewCompositeIndexOpClass to on;
 

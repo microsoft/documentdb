@@ -56,8 +56,7 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
  { "$" : [ { "$undefined" : true }, true ] }
  { "$" : [ { "$undefined" : true }, false ] }
  { "" : [  ] }
- { "" : { "$undefined" : true } }
-(5 rows)
+(4 rows)
 
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
                                     gin_bson_get_composite_path_generated_terms                                    
@@ -67,17 +66,29 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
  { "$" : [ { "$numberInt" : "2" }, { "$undefined" : true } ] }
  { "$" : [ { "$numberInt" : "3" }, { "$undefined" : true } ] }
  { "" : [  ] }
- { "" : { "$undefined" : true } }
-(6 rows)
+(5 rows)
 
 -- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
-         gin_bson_get_composite_path_generated_terms          
---------------------------------------------------------------
- { "$" : [ "aaaaaaaa", { "$numberInt" : "1" } ], "t" : true }
+                          gin_bson_get_composite_path_generated_terms                          
+-----------------------------------------------------------------------------------------------
+ { "$" : [ { "$" : "aaaaaaaa", "t" : true }, { "$" : { "$numberInt" : "1" }, "t" : false } ] }
  { "" : { "$maxKey" : 1 }, "t" : true }
 (2 rows)
 
+-- if the array terms are skipped, they aren't generated
+BEGIN;
+set documentdb.skipGeneratingArrayTermForCompositeIndex to on;
+SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
+          gin_bson_get_composite_path_generated_terms          
+---------------------------------------------------------------
+ { "$" : [ { "$numberInt" : "1" }, { "$undefined" : true } ] }
+ { "$" : [ { "$numberInt" : "2" }, { "$undefined" : true } ] }
+ { "$" : [ { "$numberInt" : "3" }, { "$undefined" : true } ] }
+ { "" : [  ] }
+(4 rows)
+
+ROLLBACK;
 -- create a table and insert some data.
 set documentdb.enableNewCompositeIndexOpClass to on;
 SELECT documentdb_api_internal.create_indexes_non_concurrently(

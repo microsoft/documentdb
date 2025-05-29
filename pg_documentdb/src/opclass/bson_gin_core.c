@@ -1331,6 +1331,13 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 			/* path is valid and a match */
 			bson_type_t type = bson_iter_type(bsonIter);
 
+			if (context->skipGenerateTopLevelArrayTerm &&
+				type == BSON_TYPE_ARRAY && !inArrayContext)
+			{
+				/* Skip generating the term for the top level array if required */
+				break;
+			}
+
 			/* Construct the { <path> : <typecode> <value> } BSON and add it to index entries */
 			pgbsonelement element = { 0 };
 			element.path = pathToInsert;

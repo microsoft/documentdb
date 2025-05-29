@@ -32,6 +32,9 @@ extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
 
+bool RumHasMultiKeyPaths = false;
+
+
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
@@ -68,7 +71,7 @@ static bool ValidateMatchForOrderbyQuals(IndexPath *path);
 
 static bool IsTextIndexMatch(IndexPath *path);
 
-static IndexMultiKeyStatus CheckIndexHasArrays(IndexScanDesc scan,
+static IndexMultiKeyStatus CheckIndexHasArrays(Relation indexRelation,
 											   IndexAmRoutine *coreRoutine);
 
 static IndexScanDesc extension_rumbeginscan(Relation rel, int nkeys, int norderbys);
@@ -79,6 +82,17 @@ static int64 extension_amgetbitmap(IndexScanDesc scan,
 								   TIDBitmap *tbm);
 static bool extension_amgettuple(IndexScanDesc scan,
 								 ScanDirection direction);
+static IndexBuildResult * extension_rumbuild(Relation heapRelation,
+											 Relation indexRelation,
+											 struct IndexInfo *indexInfo);
+static bool extension_ruminsert(Relation indexRelation,
+								Datum *values,
+								bool *isnull,
+								ItemPointer heap_tid,
+								Relation heapRelation,
+								IndexUniqueCheck checkUnique,
+								bool indexUnchanged,
+								struct IndexInfo *indexInfo);
 
 inline static void
 EnsureRumLibLoaded(void)
@@ -164,6 +178,8 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 	indexRoutine->amgettuple = extension_amgettuple;
 	indexRoutine->amendscan = extension_rumendscan;
 	indexRoutine->amcostestimate = extension_rumcostestimate;
+	indexRoutine->ambuild = extension_rumbuild;
+	indexRoutine->aminsert = extension_ruminsert;
 
 	return indexRoutine;
 }
@@ -230,6 +246,39 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
 		*indexTotalCost = 0;
 		*indexStartupCost = 0;
 	}
+}
+
+
+/*
+ * Currently orderby pushdown only works for RUM indexes if enabled.
+ * However, orderby also requires that the index is
+ * 1) Not a multi-key index
+ * 2) Or the filters on order by are full range filters.
+ *
+ * Currently we ignore multi-key indexes altogether.
+ * TODO: Support multi-key indexes with order by pushdown if the orderby
+ * matches the [MinKey, MaxKey] range of the path with an equality prefix.
+ */
+bool
+CompositeIndexSupportsOrderByPushdown(IndexOptInfo *indexOptInfo)
+{
+	if (indexOptInfo->relam != RumIndexAmId())
+	{
+		return false;
+	}
+
+	if (!indexOptInfo->amcanorderbyop)
+	{
+		/* No use if the index can't order by operator */
+		return false;
+	}
+
+	bool isMultiKeyIndex = false;
+	Relation indexRel = index_open(indexOptInfo->indexoid, NoLock);
+	isMultiKeyIndex = RumGetMultikeyStatus(indexRel);
+	index_close(indexRel, NoLock);
+
+	return !isMultiKeyIndex;
 }
 
 
@@ -521,14 +570,16 @@ extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 	}
 
 	extension_rumrescan_core(scan, scankey, nscankeys,
-							 orderbys, norderbys, &rum_index_routine);
+							 orderbys, norderbys, &rum_index_routine,
+							 RumGetMultikeyStatus);
 }
 
 
 void
 extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 						 ScanKey orderbys, int norderbys,
-						 IndexAmRoutine *coreRoutine)
+						 IndexAmRoutine *coreRoutine,
+						 GetMultikeyStatusFunc multiKeyStatusFunc)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
@@ -551,7 +602,7 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		/* TODO: We need to check if the index has arrays */
 		if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_Unknown)
 		{
-			outerScanState->multiKeyStatus = CheckIndexHasArrays(scan, coreRoutine);
+			outerScanState->multiKeyStatus = multiKeyStatusFunc(scan->indexRelation);
 		}
 
 		ModifyScanKeysForCompositeScan(scankey, nscankeys,
@@ -703,11 +754,117 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 }
 
 
+static IndexBuildResult *
+extension_rumbuild(Relation heapRelation,
+				   Relation indexRelation,
+				   struct IndexInfo *indexInfo)
+{
+	EnsureRumLibLoaded();
+
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.ambuild(heapRelation, indexRelation, indexInfo);
+	}
+
+	bool amCanBuildParallel = false;
+	return extension_rumbuild_core(heapRelation, indexRelation,
+								   indexInfo, &rum_index_routine,
+								   RumUpdateMultiKeyStatus,
+								   amCanBuildParallel);
+}
+
+
+IndexBuildResult *
+extension_rumbuild_core(Relation heapRelation, Relation indexRelation,
+						struct IndexInfo *indexInfo, IndexAmRoutine *coreRoutine,
+						UpdateMultikeyStatusFunc updateMultikeyStatus,
+						bool amCanBuildParallel)
+{
+	RumHasMultiKeyPaths = false;
+	IndexBuildResult *result = coreRoutine->ambuild(heapRelation, indexRelation,
+													indexInfo);
+
+	/* Update statistics to track that we're a multi-key index:
+	 * Note: We don't use HasMultiKeyPaths here as we want to handle the parallel build
+	 * scenario where we may have multiple workers building the index.
+	 */
+	if (amCanBuildParallel && IsCompositeOpClass(indexRelation))
+	{
+		IndexMultiKeyStatus status = CheckIndexHasArrays(indexRelation, coreRoutine);
+		if (status == IndexMultiKeyStatus_HasArrays)
+		{
+			bool isBuild = true;
+			updateMultikeyStatus(isBuild, indexRelation);
+		}
+	}
+	else if (RumHasMultiKeyPaths)
+	{
+		bool isBuild = true;
+		updateMultikeyStatus(isBuild, indexRelation);
+	}
+
+	return result;
+}
+
+
+static bool
+extension_ruminsert(Relation indexRelation,
+					Datum *values,
+					bool *isnull,
+					ItemPointer heap_tid,
+					Relation heapRelation,
+					IndexUniqueCheck checkUnique,
+					bool indexUnchanged,
+					struct IndexInfo *indexInfo)
+{
+	EnsureRumLibLoaded();
+
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.aminsert(indexRelation, values, isnull,
+										  heap_tid, heapRelation, checkUnique,
+										  indexUnchanged, indexInfo);
+	}
+
+	return extension_ruminsert_core(indexRelation, values, isnull,
+									heap_tid, heapRelation, checkUnique,
+									indexUnchanged, indexInfo,
+									&rum_index_routine, RumUpdateMultiKeyStatus);
+}
+
+
+bool
+extension_ruminsert_core(Relation indexRelation,
+						 Datum *values,
+						 bool *isnull,
+						 ItemPointer heap_tid,
+						 Relation heapRelation,
+						 IndexUniqueCheck checkUnique,
+						 bool indexUnchanged,
+						 struct IndexInfo *indexInfo,
+						 IndexAmRoutine *coreRoutine,
+						 UpdateMultikeyStatusFunc updateMultikeyStatus)
+{
+	RumHasMultiKeyPaths = false;
+	bool result = coreRoutine->aminsert(indexRelation, values, isnull,
+										heap_tid, heapRelation, checkUnique,
+										indexUnchanged, indexInfo);
+
+	if (RumHasMultiKeyPaths)
+	{
+		bool isBuild = false;
+		updateMultikeyStatus(isBuild, indexRelation);
+	}
+
+	return result;
+}
+
+
 static IndexMultiKeyStatus
-CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
+CheckIndexHasArrays(Relation indexRelation, IndexAmRoutine *coreRoutine)
 {
 	/* Start a nested query lookup */
-	IndexScanDesc innerDesc = coreRoutine->ambeginscan(scan->indexRelation, 1, 0);
+	IndexScanDesc innerDesc = coreRoutine->ambeginscan(indexRelation, 1, 0);
 
 	ScanKeyData arrayKey = { 0 };
 	arrayKey.sk_attno = 1;

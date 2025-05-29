@@ -129,11 +129,8 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 								   IndexTermCreateMetadata *metadata,
 								   bool *hasInequalityMatch)
 {
-	pgbson_writer lower_bound_writer;
-	pgbson_array_writer lower_bound_array_writer;
-	PgbsonWriterInit(&lower_bound_writer);
+	bytea *lowerBoundDatums[INDEX_MAX_KEYS] = { 0 };
 
-	PgbsonWriterStartArray(&lower_bound_writer, "$", 1, &lower_bound_array_writer);
 	bool hasTruncation = false;
 	for (int i = 0; i < runData->numIndexPaths; i++)
 	{
@@ -153,9 +150,7 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 							&runData->indexBounds[i].upperBound.bound))
 		{
 			runData->indexBounds[i].isEqualityBound = true;
-			PgbsonArrayWriterWriteValue(&lower_bound_array_writer,
-										&runData->indexBounds[i].lowerBound.
-										processedBoundValue);
+			lowerBoundDatums[i] = runData->indexBounds[i].lowerBound.serializedTerm;
 			continue;
 		}
 
@@ -163,30 +158,23 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD)
 		{
 			/* There exists a lower bound for this key */
-			PgbsonArrayWriterWriteValue(&lower_bound_array_writer,
-										&runData->indexBounds[i].lowerBound.
-										processedBoundValue);
+			lowerBoundDatums[i] = runData->indexBounds[i].lowerBound.serializedTerm;
 		}
 		else
 		{
 			/* All possible values are valid for this key */
-			bson_value_t minValue = { 0 };
-			minValue.value_type = BSON_TYPE_MINKEY;
-			PgbsonArrayWriterWriteValue(&lower_bound_array_writer,
-										&minValue);
+			pgbsonelement termElement = { 0 };
+			termElement.path = "$";
+			termElement.pathLength = 1;
+			termElement.bsonValue.value_type = BSON_TYPE_MINKEY;
+			BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement,
+																		metadata);
+			lowerBoundDatums[i] = serialized.indexTermVal;
 		}
 	}
 
-	PgbsonWriterEndArray(&lower_bound_writer, &lower_bound_array_writer);
-
-	pgbsonelement lower_bound_element = { 0 };
-	lower_bound_element.path = "$";
-	lower_bound_element.pathLength = 1;
-	lower_bound_element.bsonValue = PgbsonArrayWriterGetValue(&lower_bound_array_writer);
-
-	BsonIndexTermSerialized ser = SerializeCompositeBsonIndexTerm(&lower_bound_element,
-																  metadata,
-																  hasTruncation);
+	BsonIndexTermSerialized ser = SerializeCompositeBsonIndexTerm(lowerBoundDatums,
+																  runData->numIndexPaths);
 	return ser.indexTermVal;
 }
 
@@ -748,6 +736,7 @@ ProcessBoundForQuery(CompositeSingleBound *bound, const IndexTermCreateMetadata 
 	termElement.bsonValue = bound->bound;
 	BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement, metadata);
 
+	bound->serializedTerm = serialized.indexTermVal;
 	if (serialized.isIndexTermTruncated)
 	{
 		/* preserve and store the value */
@@ -759,7 +748,6 @@ ProcessBoundForQuery(CompositeSingleBound *bound, const IndexTermCreateMetadata 
 	else
 	{
 		/* Just keep the original */
-		pfree(serialized.indexTermVal);
 		bound->processedBoundValue = bound->bound;
 		bound->isProcessedValueTruncated = false;
 	}
@@ -1053,6 +1041,11 @@ SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
 			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
 			args->queryDatum = (Pointer) state;
 			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH;
+
+			/* $elemMatch at the index can't tell between nested arrays and top level - thunk to
+			 * recheck in the runtime.
+			 */
+			queryBounds->requiresRuntimeRecheck = true;
 			queryBounds->indexRecheckFunctions =
 				lappend(queryBounds->indexRecheckFunctions, args);
 			break;

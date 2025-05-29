@@ -18,7 +18,9 @@
 typedef void *(*CreateIndexArrayTrackerState)(void);
 typedef bool (*IndexArrayTrackerAdd)(void *state, ItemPointer item);
 typedef void (*FreeIndexArrayTrackerState)(void *);
+typedef void (*UpdateMultikeyStatusFunc)(bool isBuild, Relation index);
 
+typedef bool (*GetMultikeyStatusFunc)(Relation indexRelation);
 
 /*
  * Adapter struct that provides function pointers to allow
@@ -50,7 +52,8 @@ IndexScanDesc extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys
 void extension_rumendscan_core(IndexScanDesc scan, IndexAmRoutine *coreRoutine);
 void extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 							  ScanKey orderbys, int norderbys,
-							  IndexAmRoutine *coreRoutine);
+							  IndexAmRoutine *coreRoutine,
+							  GetMultikeyStatusFunc multiKeyStatusFunc);
 int64 extension_rumgetbitmap_core(IndexScanDesc scan, TIDBitmap *tbm,
 								  IndexAmRoutine *coreRoutine);
 bool extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
@@ -64,4 +67,23 @@ void extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double
 							   double *indexCorrelation,
 							   double *indexPages);
 
+IndexBuildResult * extension_rumbuild_core(Relation heapRelation, Relation indexRelation,
+										   struct IndexInfo *indexInfo,
+										   IndexAmRoutine *coreRoutine,
+										   UpdateMultikeyStatusFunc updateMultikeyStatus,
+										   bool amCanBuildParallel);
+
+bool extension_ruminsert_core(Relation indexRelation,
+							  Datum *values,
+							  bool *isnull,
+							  ItemPointer heap_tid,
+							  Relation heapRelation,
+							  IndexUniqueCheck checkUnique,
+							  bool indexUnchanged,
+							  struct IndexInfo *indexInfo,
+							  IndexAmRoutine *coreRoutine,
+							  UpdateMultikeyStatusFunc updateMultikeyStatus);
+
+void RumUpdateMultiKeyStatus(bool isBuild, Relation index);
+bool RumGetMultikeyStatus(Relation indexRelation);
 #endif

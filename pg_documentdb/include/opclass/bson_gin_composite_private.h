@@ -19,6 +19,7 @@ typedef struct CompositeSingleBound
 	bool isBoundInclusive;
 
 	/* The processed bound (post truncation if any) */
+	bytea *serializedTerm;
 	bson_value_t processedBoundValue;
 	bool isProcessedValueTruncated;
 } CompositeSingleBound;

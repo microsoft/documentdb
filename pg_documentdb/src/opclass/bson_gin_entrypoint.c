@@ -914,7 +914,7 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 				strategy, options,
 				filterElement.path,
 				filterElement.pathLength,
-				filterElement.bsonValue.value_type);
+				&filterElement.bsonValue);
 			break;
 		}
 

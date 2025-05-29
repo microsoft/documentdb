@@ -159,6 +159,9 @@ typedef struct
 	/* Whether a root truncation term has already been created for this document */
 	bool hasTruncatedTerms;
 
+	/* Whether or not to skip generating the top level array term */
+	bool skipGenerateTopLevelArrayTerm;
+
 	/*
 	 * Whether or not the path has array ancestors in the pre paths:
 	 * for a path a.b.c
@@ -194,5 +197,5 @@ IndexTraverseOption GetCompositePathIndexTraverseOption(BsonIndexStrategy strate
 														void *contextOptions, const
 														char *currentPath, uint32_t
 														currentPathLength,
-														bson_type_t bsonType);
+														const bson_value_t *bsonValue);
 #endif
