@@ -112,6 +112,9 @@ bool EnableFileBasedPersistedCursors = DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSO
 #define DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE INT_MAX
 int MaxAllowedCursorIntermediateFileSize = DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE;
 
+#define DEFAULT_ENABLE_COMPACT_COMMAND false
+bool EnableCompact = DEFAULT_ENABLE_COMPACT_COMMAND;
+
 #define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
 int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
 
@@ -511,6 +514,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &MaxAllowedCursorIntermediateFileSize,
 		DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE,
 		1024, INT_MAX, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableCompact", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable compact command."),
+		NULL, &EnableCompact,
+		DEFAULT_ENABLE_COMPACT_COMMAND,
+		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomIntVariable(
 		psprintf("%s.defaultCursorExpiryTimeLimitSeconds", newGucPrefix),

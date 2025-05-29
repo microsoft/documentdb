@@ -208,6 +208,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_AGG_CURSOR_FIRST_PAGE] = "command_agg_cursor_first_page",
 	[FEATURE_COMMAND_COLLMOD] = "command_collmod",
 	[FEATURE_COMMAND_COLLSTATS] = "command_collstats",
+	[FEATURE_COMMAND_COMPACT] = "command_compact",
 	[FEATURE_COMMAND_COUNT] = "command_count",
 	[FEATURE_COMMAND_CREATE_COLLECTION] = "command_create_collection",
 	[FEATURE_COMMAND_CREATE_VALIDATION] = "command_create_validation",

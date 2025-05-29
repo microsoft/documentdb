@@ -8,6 +8,7 @@
 * Enable let support for delete queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
 * Enable rum_enable_index_scan as default on *[Perf]*
 * Add public `documentdb-local` Docker image with gateway to GHCR
+* Support `compact` command *[Feature]*. Requires `documentdb.enablecompact` GUC to be `on`.
 
 ### documentdb v0.103-0 (May 09, 2025) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*

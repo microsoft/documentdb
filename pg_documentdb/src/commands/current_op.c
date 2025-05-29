@@ -905,6 +905,12 @@ DetectApiSchemaCommand(const char *topLevelQuery, const char *schemaName,
 							   activity->processedMongoDatabase);
 		return "command";
 	}
+	else if (strstr(query, ".compact(") == query)
+	{
+		PgbsonWriterAppendUtf8(commandWriter, "compact", 7,
+							   activity->processedMongoCollection);
+		return "command";
+	}
 
 	return NULL;
 }
