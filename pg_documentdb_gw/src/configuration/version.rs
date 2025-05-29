@@ -13,6 +13,7 @@ pub enum Version {
     Five,
     Six,
     Seven,
+    Eight,
 }
 
 impl Version {
@@ -22,6 +23,7 @@ impl Version {
             "5.0" => Some(Version::Five),
             "6.0" => Some(Version::Six),
             "7.0" => Some(Version::Seven),
+            "8.0" => Some(Version::Eight),
             _ => None,
         }
     }
@@ -32,6 +34,7 @@ impl Version {
             Version::Five => "5.0.0",
             Version::Six => "6.0.0",
             Version::Seven => "7.0.0",
+            Version::Eight => "8.0.0",
         }
     }
 
@@ -41,6 +44,7 @@ impl Version {
             Version::Five => [5, 0, 0, 0],
             Version::Six => [6, 0, 0, 0],
             Version::Seven => [7, 0, 0, 0],
+            Version::Eight => [8, 0, 0, 0],
         }
     }
 
@@ -59,6 +63,7 @@ impl Version {
             Version::Five => 13,
             Version::Six => 17,
             Version::Seven => 21,
+            Version::Eight => 25,
         }
     }
 }
