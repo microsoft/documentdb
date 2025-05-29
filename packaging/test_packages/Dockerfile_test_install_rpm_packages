@@ -1,11 +1,11 @@
-ARG BASE_IMAGE=redhat/ubi8:latest
+ARG BASE_IMAGE=quay.io/centos/centos:stream8
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
 ARG RPM_PACKAGE_REL_PATH
 
 # Install EPEL and PostgreSQL repository
-RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN yum install -y epel-release
 RUN yum install -y https://download.postgresql.org/pub/repos/yum/repopackages/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 
 # Update package manager

@@ -12,11 +12,15 @@ sed -i '/internal/d' Makefile
 # Create RPM build directories
 mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
+# Get the package name and version from the spec file
+PACKAGE_NAME=$(grep "^Name:" rpm_files/documentdb.spec | awk '{print $2}')
+PACKAGE_VERSION=$(grep "^Version:" rpm_files/documentdb.spec | awk '{print $2}')
+
 # Copy spec file to the appropriate location
 cp rpm_files/documentdb.spec ~/rpmbuild/SPECS/
 
-# Create source tarball
-tar --exclude='.git' --exclude='internal' --exclude='packaging' -czf ~/rpmbuild/SOURCES/documentdb-${DOCUMENTDB_VERSION}.tar.gz -C .. $(basename $(pwd))
+# Create source tarball with the expected name
+tar --exclude='.git' --exclude='internal' --exclude='packaging' -czf ~/rpmbuild/SOURCES/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz -C .. $(basename $(pwd))
 
 # Build the RPM package
 rpmbuild -ba ~/rpmbuild/SPECS/documentdb.spec

@@ -124,12 +124,12 @@ case $OS in
         DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     rhel8)
-        DOCKER_IMAGE="redhat/ubi8:latest"
+        DOCKER_IMAGE="quay.io/centos/centos:stream8"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
     rhel9)
-        DOCKER_IMAGE="redhat/ubi9:latest"
+        DOCKER_IMAGE="quay.io/centos/centos:stream9"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;

@@ -7,7 +7,7 @@ Summary:        DocumentDB is the open-source engine powering vCore-based Azure 
 
 License:        MIT
 URL:            https://github.com/microsoft/documentdb
-Source0:        documentdb-%{version}.tar.gz
+Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -28,7 +28,7 @@ It offers a native implementation of document-oriented NoSQL database, enabling 
 CRUD operations on BSON data types within a PostgreSQL framework.
 
 %prep
-%setup -q -n documentdb-%{version}
+%setup -q
 
 %build
 # Keep the internal directory out of the RPM package
