@@ -295,13 +295,7 @@ Datum
 bson_unique_index_term_equal(PG_FUNCTION_ARGS)
 {
 	/* In this case, we presume that the index is correct (for recheck purposes) */
-	if (IsClusterVersionAtleast(DocDB_V0, 24, 0))
-	{
-		PG_RETURN_BOOL(true);
-	}
-
-	ereport(ERROR, errmsg(
-				"Unique index term equal operator class function is not supported."));
+	PG_RETURN_BOOL(true);
 }
 
 

@@ -17,6 +17,10 @@ int64 ComputeShardKeyHashForDocument(pgbson *shardKey, uint64_t collectionId,
 									 pgbson *document);
 bool ComputeShardKeyHashForQuery(pgbson *shardKey, uint64_t collectionId, pgbson *query,
 								 int64 *shardKeyHash, bool *isShardKeyCollationAware);
+bool ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId, const
+									  bson_value_t *query,
+									  int64 *shardKeyHash,
+									  bool *isShardKeyCollationAware);
 
 Expr * ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
 										bson_value_t *queryDocument,

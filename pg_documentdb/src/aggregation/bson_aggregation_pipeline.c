@@ -71,10 +71,8 @@
 #include "api_hooks.h"
 
 extern bool EnableCursorsOnAggregationQueryRewrite;
-extern bool EnableLookupUnwindSupport;
 extern bool EnableCollation;
 extern bool DefaultInlineWriteOperations;
-extern bool EnableSimplifyGroupAccumulators;
 extern bool EnableSortbyIdPushDownToPrimaryKey;
 extern int MaxAggregationStagesAllowed;
 
@@ -1214,6 +1212,8 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 		}
 		else if (StringViewEqualsCString(&keyView, "let"))
 		{
+			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+
 			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
 																	 &aggregationIterator,
 																	 BSON_TYPE_DOCUMENT);
@@ -1334,6 +1334,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 	else if (query->commandType == CMD_MERGE)
 	{
 		/* CMD_MERGE is case when pipeline has output stage ($merge or $out) result will be always single batch. */
+		ThrowIfServerOrTransactionReadOnly();
 		queryData->cursorKind = QueryCursorType_SingleBatch;
 	}
 	else if (queryData->cursorKind == QueryCursorType_Unspecified)
@@ -1536,7 +1537,10 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 				}
 				else if (StringViewEqualsCString(&keyView, "let"))
 				{
+					ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+
 					EnsureTopLevelFieldType("let", &findIterator, BSON_TYPE_DOCUMENT);
+
 					let = *value;
 					continue;
 				}
@@ -3205,16 +3209,6 @@ HandleRedact(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_REDACT);
 
-	/* Check if redact feature is available according to version. */
-	if (!IsClusterVersionAtleast(DocDB_V0, 24, 0))
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg(
-							"Stage $redact is not supported yet in native pipeline"),
-						errdetail_log(
-							"Stage $redact is not supported yet in native pipeline")));
-	}
-
 	Const *redactSpec;
 	Const *redactSpecText;
 
@@ -3331,8 +3325,8 @@ HandleProjectFind(const bson_value_t *existingValue, const bson_value_t *queryVa
 
 	List *args;
 	Oid funcOid = BsonDollarProjectFindFunctionOid();
-	if (IsCollationApplicable(context->collationString) && IsClusterVersionAtleast(
-			DocDB_V0, 102, 0))
+	if (IsCollationApplicable(context->collationString) &&
+		IsClusterVersionAtleast(DocDB_V0, 102, 0))
 	{
 		pgbson *queryDoc = queryValue->value_type == BSON_TYPE_EOD ? PgbsonInitEmpty() :
 						   PgbsonInitFromDocumentBsonValue(queryValue);
@@ -4611,7 +4605,6 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			pgbson *sortDoc = PgbsonElementToPgbson(&element);
 			Const *sortBson = MakeBsonConst(sortDoc);
 			bool isAscending = ValidateOrderbyExpressionAndGetIsAscending(sortDoc);
-			SortByNulls sortByNulls = SORTBY_NULLS_DEFAULT;
 
 			bool hasSortById = strcmp(element.path, "_id") == 0;
 			bool canPushdownSortById = false;
@@ -4627,6 +4620,11 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 				}
 			}
 
+			SortBy *sortBy = makeNode(SortBy);
+			SortByNulls sortByNulls = SORTBY_NULLS_DEFAULT;
+			SortByDir sortByDirection = isAscending ? SORTBY_ASC : SORTBY_DESC;
+			sortBy->location = -1;
+
 			/* If the sort is on _id and we can push it down to the primary key index, use ORDER BY object_id instead. */
 			if (EnableSortbyIdPushDownToPrimaryKey && canPushdownSortById)
 			{
@@ -4637,17 +4635,46 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			else
 			{
 				/* match mongo behavior. */
+				Oid funcOid = BsonOrderByFunctionOid();
+				List *args = NIL;
+
+				/* apply collation to the sort comparison */
+				if (IsCollationApplicable(context->collationString) &&
+					IsClusterVersionAtleast(DocDB_V0, 104, 0))
+				{
+					funcOid = BsonOrderByWithCollationFunctionOid();
+					Const *collationConst = MakeTextConst(context->collationString,
+														  strlen(
+															  context->collationString));
+
+					args = list_make3(sortInput, sortBson, collationConst);
+
+					/*
+					 * For ascending order: ORDER BY <value> USING ApiInternalSchemaNameV2.<<<
+					 * For descending order: ORDER BY <value> USING ApiInternalSchemaNameV2.>>>
+					 */
+					sortByDirection = SORTBY_USING;
+					sortBy->useOp = isAscending ?
+									list_make2(makeString(ApiInternalSchemaNameV2),
+											   makeString("<<<")) :
+									list_make2(makeString(ApiInternalSchemaNameV2),
+											   makeString(">>>"));
+				}
+				else
+				{
+					args = list_make2(sortInput, sortBson);
+				}
+
 				sortByNulls = isAscending ? SORTBY_NULLS_FIRST : SORTBY_NULLS_LAST;
-				expr = (Expr *) makeFuncExpr(BsonOrderByFunctionOid(),
+
+				expr = (Expr *) makeFuncExpr(funcOid,
 											 BsonTypeId(),
-											 list_make2(sortInput, sortBson),
+											 args,
 											 InvalidOid, InvalidOid,
 											 COERCE_EXPLICIT_CALL);
 			}
 
-			SortBy *sortBy = makeNode(SortBy);
-			sortBy->location = -1;
-			sortBy->sortby_dir = isAscending ? SORTBY_ASC : SORTBY_DESC;
+			sortBy->sortby_dir = sortByDirection;
 			sortBy->sortby_nulls = sortByNulls;
 			sortBy->node = (Node *) expr;
 
@@ -4798,6 +4825,12 @@ HandleSortByCount(const bson_value_t *existingValue, Query *query,
 inline static bool
 CanSortByObjectId(Query *query, AggregationPipelineBuildContext *context)
 {
+	/* _id values may be collation-sensitive so do not filter by object_id = */
+	if (IsCollationApplicable(context->collationString))
+	{
+		return false;
+	}
+
 	RangeTblEntry *rte = linitial(query->rtable);
 	if (context->mongoCollection == NULL ||
 		rte->rtekind != RTE_RELATION ||
@@ -4886,11 +4919,6 @@ static Expr *
 GetDocumentExprForGroupAccumulatorValue(const bson_value_t *accumulatorValue,
 										Expr *docExpr)
 {
-	if (!EnableSimplifyGroupAccumulators)
-	{
-		return docExpr;
-	}
-
 	ParseAggregationExpressionContext parseContext = { 0 };
 	AggregationExpressionData expressionData;
 	memset(&expressionData, 0, sizeof(AggregationExpressionData));
@@ -4943,8 +4971,7 @@ AddSimpleGroupAccumulator(Query *query, const bson_value_t *accumulatorValue,
 		functionId, BsonTypeId(), groupArgs, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		accumFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(accumFunc),
@@ -5407,8 +5434,7 @@ AddPercentileMedianGroupAccumulator(Query *query, const bson_value_t *accumulato
 										pFuncArgs, InvalidOid,
 										InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		inputAccumFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(
@@ -5534,8 +5560,7 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		bsonExpressionGetFunction, BsonTypeId(), groupArgs, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
 
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId() &&
-		IsClusterVersionAtleast(DocDB_V0, 24, 0))
+	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
 	{
 		groupFunc = makeFuncExpr(
 			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(groupFunc),
@@ -5986,11 +6011,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$median"))
 		{
-			if (!(IsClusterVersionAtleast(DocDB_V0, 24, 0)))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg("Accumulator $median is not supported yet")));
-			}
 			repathArgs = AddPercentileMedianGroupAccumulator(query,
 															 &accumulatorElement.bsonValue,
 															 repathArgs,
@@ -6002,12 +6022,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		}
 		else if (StringViewEqualsCString(&accumulatorName, "$percentile"))
 		{
-			if (!(IsClusterVersionAtleast(DocDB_V0, 24, 0)))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg(
-									"Accumulator $percentile is not supported yet")));
-			}
 			repathArgs = AddPercentileMedianGroupAccumulator(query,
 															 &accumulatorElement.bsonValue,
 															 repathArgs,
@@ -6486,8 +6500,8 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 	RangeTblEntry *rte = makeNode(RangeTblEntry);
 
 	/* Match spec for ApiSchema.collection() function */
-	List *colNames = list_make4(makeString("shard_key_value"), makeString("object_id"),
-								makeString("document"), makeString("creation_time"));
+	List *colNames = list_make3(makeString("shard_key_value"), makeString("object_id"),
+								makeString("document"));
 
 	const char *collectionAlias = "collection";
 	if (context->numNestedLevels > 0 || context->nestedPipelineLevel > 0)
@@ -6500,6 +6514,8 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 	if (collection == NULL)
 	{
+		colNames = lappend(colNames, makeString("creation_time"));
+
 		/* Here: Special case, if the database is config, try to see if we can create a base
 		 * table out of the system metadata.
 		 */
@@ -6545,6 +6561,11 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 	{
 		rte->rtekind = RTE_RELATION;
 		rte->relid = collection->relationId;
+
+		if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+		{
+			colNames = lappend(colNames, makeString("creation_time"));
+		}
 
 		if (context->allowShardBaseTable)
 		{
@@ -7309,8 +7330,7 @@ TryOptimizeAggregationPipelines(List **aggregationStages,
 			allowShardBaseTable = false;
 		}
 
-		if (definition->stageEnum == Stage_Lookup &&
-			EnableLookupUnwindSupport && IsClusterVersionAtleast(DocDB_V0, 24, 0))
+		if (definition->stageEnum == Stage_Lookup)
 		{
 			/* Optimization for $lookup stage
 			 */

@@ -125,8 +125,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "unknown", "similarity" : "IP", "dimensions" : 3 } } :: caused by :: Invalid search index kind unknown
 -- check dimensions exceeds 2000
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8201 ON documentdb_data.documents_8200 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "similarity" : "COS", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SET documentdb.enableVectorHNSWIndex = off;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": -4, "efConstruction": 16, "similarity": "IP", "dimensions": 3 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : -4, "efConstruction" : 16, "similarity" : "IP", "dimensions" : 3 } } :: caused by :: hnsw index is not supported for this cluster tier
@@ -570,6 +569,43 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 (17 rows)
 
 ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                       document                                                                                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "some sentence", "v" : [ { "$numberInt" : "11" }, { "$numberInt" : "16" }, { "$numberDouble" : "2.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "13.726616969513441902" } } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "some sentence", "v" : [ { "$numberInt" : "12" }, { "$numberInt" : "17" }, { "$numberDouble" : "3.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "15.225636516225479866" } } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "some sentence", "v" : [ { "$numberInt" : "13" }, { "$numberInt" : "18" }, { "$numberDouble" : "4.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "16.769615416601034497" } } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "some sentence", "v" : [ { "$numberInt" : "14" }, { "$numberInt" : "19" }, { "$numberDouble" : "5.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "18.347206738825054373" } } }
+ { "_id" : { "$numberInt" : "5" }, "a" : "some sentence", "v" : [ { "$numberInt" : "15" }, { "$numberInt" : "20" }, { "$numberDouble" : "6.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "19.950439081164354604" } } }
+(5 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, (public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT collection.document FROM documentdb_data.documents_8201_8200016 collection WHERE ((collection.shard_key_value OPERATOR(pg_catalog.=) '8201'::bigint) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)) ORDER BY (public.vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true)) LIMIT '5'::bigint) agg_stage_0
+         Node: host=localhost port=58070 dbname=regression
+         ->  Subquery Scan on agg_stage_0
+               Output: documentdb_api_internal.bson_document_add_score_field(agg_stage_0.document, (vector(documentdb_api_internal.bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+               ->  Limit
+                     Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+                     ->  Custom Scan (DocumentDBApiQueryScan)
+                           Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+                           CosmosSearch Custom Params: { "efSearch" : 40 }
+                           ->  Index Scan using foo_1 on documentdb_data.documents_8201_8200016 collection
+                                 Output: collection.document
+                                 Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+(17 rows)
+
+ROLLBACK;
 -- more than 10000 and less than 1M documents, use default efSearch 40
 -- generate 9000 documents and insert into collection
 select batch_insert_testing_vector_documents('aggregation_pipeline_hnsw_efsearch', 1151, 9000, 2000);
@@ -584,6 +620,43 @@ ANALYZE;
 BEGIN;
 SET LOCAL enable_seqscan to off;
 SET LOCAL documentdb.enableVectorPreFilter = on;
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                       document                                                                                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "some sentence", "v" : [ { "$numberInt" : "11" }, { "$numberInt" : "16" }, { "$numberDouble" : "2.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "13.726616969513441902" } } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "some sentence", "v" : [ { "$numberInt" : "12" }, { "$numberInt" : "17" }, { "$numberDouble" : "3.1000000000000000888" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "15.225636516225479866" } } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "some sentence", "v" : [ { "$numberInt" : "13" }, { "$numberInt" : "18" }, { "$numberDouble" : "4.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "16.769615416601034497" } } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "some sentence", "v" : [ { "$numberInt" : "14" }, { "$numberInt" : "19" }, { "$numberDouble" : "5.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "18.347206738825054373" } } }
+ { "_id" : { "$numberInt" : "5" }, "a" : "some sentence", "v" : [ { "$numberInt" : "15" }, { "$numberInt" : "20" }, { "$numberDouble" : "6.0999999999999996447" } ], "__cosmos_meta__" : { "score" : { "$numberDouble" : "19.950439081164354604" } } }
+(5 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_internal.bson_document_add_score_field(document, (public.vector(documentdb_api_internal.bson_extract_vector(document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true))) AS document FROM (SELECT collection.document FROM documentdb_data.documents_8201_8200016 collection WHERE ((collection.shard_key_value OPERATOR(pg_catalog.=) '8201'::bigint) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)) ORDER BY (public.vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) OPERATOR(public.<->) public.vector(documentdb_api_internal.bson_extract_vector('{ "k" : { "$numberInt" : "5" }, "path" : "v", "vector" : [ { "$numberDouble" : "3.0" }, { "$numberDouble" : "4.9000000000000003553" }, { "$numberDouble" : "1.0" } ] }'::documentdb_core.bson, 'vector'::text), 3, true)) LIMIT '5'::bigint) agg_stage_0
+         Node: host=localhost port=58070 dbname=regression
+         ->  Subquery Scan on agg_stage_0
+               Output: documentdb_api_internal.bson_document_add_score_field(agg_stage_0.document, (vector(documentdb_api_internal.bson_extract_vector(agg_stage_0.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+               ->  Limit
+                     Output: collection.document, ((vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector))
+                     ->  Custom Scan (DocumentDBApiQueryScan)
+                           Output: collection.document, (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+                           CosmosSearch Custom Params: { "efSearch" : 40 }
+                           ->  Index Scan using foo_1 on documentdb_data.documents_8201_8200016 collection
+                                 Output: collection.document
+                                 Order By: (vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true) <-> '[3,4.9,1]'::vector)
+(17 rows)
+
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan to off;
+SET LOCAL documentdb.enableVectorPreFilter = on;
+SET LOCAL documentdb.enableVectorCalculateDefaultSearchParam = off;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_efsearch", "pipeline": [ { "$search": { "cosmosSearch": { "k": 5, "path": "v", "vector": [ 3.0, 4.9, 1.0 ] }  } } ], "cursor": {} }');
                                                                                                                        document                                                                                                                        
 ---------------------------------------------------------------------
@@ -921,7 +994,7 @@ SELECT set_config('documentdb' || '.next_collection_id', '' || :vector__next_col
 SELECT set_config('documentdb' || '.next_collection_index_id', '' || :vector__next_collection_index_id, FALSE);
  set_config 
 ---------------------------------------------------------------------
- 8218
+ 8217
 (1 row)
 
 ---------------------------------------------------------------------
@@ -965,12 +1038,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- "filter": {"meta": { "a" : [ { "b" : 3 } ] }, match with documentIndex_meta
@@ -1012,12 +1083,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "documentIndex_meta" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "documentIndex_meta"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- "filter": {"meta.a.b": 3 }, match with idx_meta.a.b
@@ -1059,12 +1128,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a.b"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 ---------------------------------------------------------------------
@@ -1107,12 +1174,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter string: with $and, efSearch = 3, match 1 document
@@ -1154,12 +1219,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "3" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter string: with $and, efSearch = 1, match 1 document
@@ -1201,12 +1264,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "1" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<>) '{ "meta.a" : { "min" : "other sentence", "max" : "some sentence", "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter string: with $or, efSearch = 3, match 3 documents
@@ -1470,12 +1531,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "numberIndex_meta.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "numberIndex_meta.b"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter number, with $and, efSearch = 1, match 1 document 
@@ -1569,12 +1628,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "numberIndex_meta.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: ((collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "5" } }'::documentdb_core.bson))
-                                             ->  Bitmap Index Scan on "numberIndex_meta.b"
-                                                   Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "5" } }'::documentdb_core.bson))
-(31 rows)
+                                             Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "5" } }'::documentdb_core.bson))
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter number, with $or, efSearch = 1, match 3 documents
@@ -1670,12 +1727,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "numberIndex_meta.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "numberIndex_meta.b"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.b" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "5" } ] }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter number: with $eq, $gt, $lt, $gte, $lte, $ne, $in, $and, $or
@@ -1792,12 +1847,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "boolIndex_c" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "boolIndex_c"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter boolean, with efSearch = 1, match 2 documents
@@ -1840,12 +1893,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "1" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "boolIndex_c" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "boolIndex_c"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : true }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter boolean, with c = false, efSearch = 1, match 2 document
@@ -1888,12 +1939,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "1" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "boolIndex_c" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "boolIndex_c"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw filter boolean, with c = false, efSearch = 3, match 2 documents
@@ -1936,12 +1985,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "3" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "boolIndex_c" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "boolIndex_c"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw search: filter boolean, with $eq, $ne, $in, $nin, $and, $or
@@ -2166,12 +2213,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a.b"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a.b" : { "$numberInt" : "3" } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw search: with filter and score projection, efSearch = 4, match 1 document
@@ -2217,12 +2262,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "4" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "documentIndex_meta" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "documentIndex_meta"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta" : { "a" : [ { "b" : { "$numberInt" : "3" } } ] } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw search: with filter and score projection, efSearch = 3, match 1 document
@@ -2268,12 +2311,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "3" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : [ { "b" : { "$numberInt" : "3" } } ] }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw search: with filter and score projection, $ne, efSearch = 1, match 3 documents
@@ -2321,12 +2362,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "1" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@!=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@!=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@!=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 BEGIN;
@@ -2372,12 +2411,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "numberIndex_meta.b" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "numberIndex_meta.b"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "meta.b" : { "$numberInt" : "2" } }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 BEGIN;
@@ -2423,12 +2460,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8202_8200036 collection
+                                       ->  Index Scan using "boolIndex_c" on documentdb_data.documents_8202_8200036 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "boolIndex_c"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : false }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- hnsw search: with filter and score projection, $or, multiple filters
@@ -3110,13 +3145,11 @@ EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('
                      ->  Sort
                            Output: collection.document, (l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
                            Sort Key: (l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
-                           ->  Bitmap Heap Scan on documentdb_data.documents_8204_8200073 collection
+                           ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8204_8200073 collection
                                  Output: collection.document, l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector)
-                                 Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.a" : [ "some sentence", "other sentence" ] }'::documentdb_core.bson)
+                                 Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.a" : [ "some sentence", "other sentence" ] }'::documentdb_core.bson)
                                  Filter: (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)
-                                 ->  Bitmap Index Scan on "idx_meta.a"
-                                       Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "meta.a" : [ "some sentence", "other sentence" ] }'::documentdb_core.bson)
-(20 rows)
+(18 rows)
 
 EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_hnsw_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$and": [ { "meta.a": { "eq": "other sentence" } }, { "meta.b": { "$lt": 10 } } ] }, "exact": true, "efSearch": 1 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
@@ -3135,13 +3168,11 @@ EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('
                      ->  Sort
                            Output: collection.document, (l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
                            Sort Key: (l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
-                           ->  Bitmap Heap Scan on documentdb_data.documents_8204_8200073 collection
+                           ->  Index Scan using "numberIndex_meta.b" on documentdb_data.documents_8204_8200073 collection
                                  Output: collection.document, l2_distance(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector)
-                                 Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "10" } }'::documentdb_core.bson)
+                                 Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "10" } }'::documentdb_core.bson)
                                  Filter: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : { "eq" : "other sentence" } }'::documentdb_core.bson) AND (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL))
-                                 ->  Bitmap Index Scan on "numberIndex_meta.b"
-                                       Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<) '{ "meta.b" : { "$numberInt" : "10" } }'::documentdb_core.bson)
-(20 rows)
+(18 rows)
 
 EXPLAIN (VERBOSE on, COSTS off) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_hnsw_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v", "filter": {"$or": [ { "meta.a": { "$gt": "other sentence" } }, { "meta.b": { "$gt": 1 } } ] }, "exact": true, "efSearch": 1 }  } }, { "$project": {"searchScore": {"$round": [ {"$multiply": ["$__cosmos_meta__.score", 100000]}]} } } ], "cursor": {} }');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
@@ -3267,11 +3298,7 @@ ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001, "compression": ["half"] } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001, "compression" : [ "half" ] } } :: caused by :: compression must be a string not array
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8249 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2001 } } ] }', true);
-ERROR:  column cannot have more than 2000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8250 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.vector(2001)) public.vector_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 2001 } } :: caused by :: field cannot have more than 2000 dimensions for vector index
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 2000 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
@@ -3289,8 +3316,7 @@ CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_h
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4001, "compression": "half" } } ] }', true);
-ERROR:  column cannot have more than 4000 dimensions for hnsw index
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8252 ON documentdb_data.documents_8205 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'v'::text) AS public.halfvec(4001)) public.halfvec_l2_ops) WITH (m = 4, ef_construction = 16) WHERE documentdb_api_internal.bson_extract_vector(document, 'v'::text) IS NOT NULL"
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "half_index", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : 16, "similarity" : "L2", "dimensions" : 4001, "compression" : "half" } } :: caused by :: field cannot have more than 4000 dimensions for vector index
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": 16, "similarity": "L2", "dimensions": 4000, "compression": "half" } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
@@ -3599,12 +3625,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_hnsw_halfvec", "index": "half_index"}');
@@ -3661,12 +3685,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- oversampling = 1.5
@@ -3710,12 +3732,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                                    Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                        ->  Materialize
                                              Output: collection.ctid
-                                             ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                                             ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                                    Output: collection.ctid
-                                                   Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                                   ->  Bitmap Index Scan on "idx_meta.a"
-                                                         Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(33 rows)
+                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(31 rows)
 
 ROLLBACK;
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_hnsw_halfvec", "index": "half_index"}');
@@ -3757,13 +3777,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      ->  Sort
                            Output: collection.document, (vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
                            Sort Key: (vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
-                           ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                           ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                  Output: collection.document, vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector)
-                                 Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+                                 Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
                                  Filter: (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)
-                                 ->  Bitmap Index Scan on "idx_meta.a"
-                                       Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(20 rows)
+(18 rows)
 
 ROLLBACK;
 -- oversampling failed with exact search
@@ -3799,13 +3817,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      ->  Sort
                            Output: collection.document, (vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
                            Sort Key: (vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector))
-                           ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                           ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                  Output: collection.document, vector_negative_inner_product(vector(documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text), 3, true), '[3,4.9,1]'::vector)
-                                 Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+                                 Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
                                  Filter: (documentdb_api_internal.bson_extract_vector(collection.document, 'v'::text) IS NOT NULL)
-                                 ->  Bitmap Index Scan on "idx_meta.a"
-                                       Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(20 rows)
+(18 rows)
 
 ROLLBACK;
 -- filter
@@ -3849,12 +3865,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                                              Filter: documentdb_api_internal.bson_search_param(collection_1.document, '{ "efSearch" : { "$numberInt" : "100" }, "iterativeScan" : "relaxed_order" }'::documentdb_core.bson)
                                  ->  Materialize
                                        Output: collection.ctid
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_8207_8200135 collection
+                                       ->  Index Scan using "idx_meta.a" on documentdb_data.documents_8207_8200135 collection
                                              Output: collection.ctid
-                                             Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-                                             ->  Bitmap Index Scan on "idx_meta.a"
-                                                   Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
-(31 rows)
+                                             Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@<=) '{ "meta.a" : "some sentence" }'::documentdb_core.bson)
+(29 rows)
 
 ROLLBACK;
 -- check value of vector is out of range
@@ -3867,7 +3881,7 @@ SELECT documentdb_api.insert_one('db', 'aggregation_pipeline_hnsw_halfvec', '{ "
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 3, "compression": "half" } } ] }', true);
 ERROR:  "2.2222222e+13" is out of range for type halfvec
-CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8262 ON documentdb_data.documents_8207 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
+CONTEXT:  SQL statement "CREATE INDEX documents_rum_index_8258 ON documentdb_data.documents_8207 USING hnsw(CAST(documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) AS public.halfvec(3)) public.halfvec_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE documentdb_api_internal.bson_extract_vector(document, 'larage_vector'::text) IS NOT NULL"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_hnsw_halfvec", "indexes": [ { "key": { "larage_vector": "cosmosSearch" }, "name": "large_half_index", "cosmosSearchOptions": { "kind": "vector-hnsw", "similarity": "COS", "dimensions": 3 } } ] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------

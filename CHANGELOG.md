@@ -1,17 +1,21 @@
 ### documentdb v0.104-0 (Unreleased) ###
 * Add string case support for `$toDate` operator
+* Support `sort` with collation in runtime*[Feature]*
 * Support collation with `$indexOfArray` aggregation operator. *[Feature]*
 * Support collation with arrays and objects comparisons *[Feature]*
 * Support background index builds *[Bugfix]* (#36)
 * Enable user CRUD by default *[Feature]*
+* Enable let support for delete queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
+* Enable rum_enable_index_scan as default on *[Perf]*
+* Add public `documentdb-local` Docker image with gateway to GHCR
 
-### documentdb v0.103-0 (Unreleased) ###
+### documentdb v0.103-0 (May 09, 2025) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*
 * Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
 * Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
 * Support half-precision vector indexing, vectors can have up to 4,000 dimensions *[Feature]*
 * Support ARM64 architecture when building docker container *[Preview]*
-* Support collation with `$documents` and `$replceWith` stage of the aggregation pipeline *[Feature]*
+* Support collation with `$documents` and `$replaceWith` stage of the aggregation pipeline *[Feature]*
 * Push pg_documentdb_gw for documentdb connections *[Feature]*
 
 ### documentdb v0.102-0 (March 26, 2025) ###

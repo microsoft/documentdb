@@ -8,8 +8,7 @@
 
 use crate::context::ConnectionContext;
 use crate::protocol::header::Header;
-use crate::requests::compute_request_tracker::ComputeRequestTracker;
-use crate::requests::Request;
+use crate::requests::{Request, RequestInfo};
 use crate::responses::{CommandError, Response};
 use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
@@ -27,7 +26,7 @@ pub trait TelemetryProvider: Send + Sync + DynClone {
         _: Option<&Request<'_>>,
         _: Either<&Response, (&CommandError, usize)>,
         _: String,
-        _: &mut ComputeRequestTracker,
+        _: &mut RequestInfo<'_>,
     );
 }
 

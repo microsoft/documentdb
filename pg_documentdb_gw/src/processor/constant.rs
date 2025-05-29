@@ -160,7 +160,7 @@ struct CommandInfo {
     secondary_override_ok: Option<bool>,
 }
 
-static SUPPORTED_COMMANDS : [CommandInfo; 55] = [
+static SUPPORTED_COMMANDS : [CommandInfo; 56] = [
     CommandInfo {
 		command_name: "abortTransaction",
 		admin_only: true,
@@ -237,6 +237,14 @@ static SUPPORTED_COMMANDS : [CommandInfo; 55] = [
 		command_name: "create",
 		admin_only: false,
 		help: "explicitly creates a collection or view\n{\n  create: <string: collection or view name> [,\n  capped: <bool: capped collection>,\n  autoIndexId: <bool: automatic creation of _id index>,\n  idIndex: <document: _id index specification>,\n  size: <int: size in bytes of the capped collection>,\n  max: <int: max number of documents in the capped collection>,\n  storageEngine: <document: storage engine configuration>,\n  validator: <document: validation rules>,\n  validationLevel: <string: validation level>,\n  validationAction: <string: validation action>,\n  indexOptionDefaults: <document: default configuration for indexes>,\n  viewOn: <string: name of source collection or view>,\n  pipeline: <array<object>: aggregation pipeline stage>,\n  collation: <document: default collation for the collection or view>,\n  writeConcern: <document: write concern expression for the operation>]\n}",
+		secondary_ok: false,
+		requires_auth: true,
+        secondary_override_ok: None,
+	},
+	CommandInfo {
+		command_name: "createIndex",
+		admin_only: false,
+		help: "no help defined",
 		secondary_ok: false,
 		requires_auth: true,
         secondary_override_ok: None,

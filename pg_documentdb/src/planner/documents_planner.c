@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/planner/planner.c
+ * src/planner/documents_planner.c
  *
  * Implementation of the documentdb_api planner hook.
  *
@@ -104,8 +104,8 @@ static Query * ExpandAggregationFunction(Query *node, ParamListInfo boundParams,
 static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundParams);
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
-extern bool AllowNestedAggregationFunctionInQueries;
 extern bool EnableLetAndCollationForQueryMatch;
+extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
@@ -146,8 +146,7 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 			}
 		}
 
-		if (AllowNestedAggregationFunctionInQueries &&
-			queryFlags & HAS_NESTED_AGGREGATION_FUNCTION)
+		if (queryFlags & HAS_NESTED_AGGREGATION_FUNCTION)
 		{
 			parse = (Query *) ExpandNestedAggregationFunction(parse, boundParams);
 		}
@@ -831,7 +830,7 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 
 			if (IsAggregationFunction(funcExpr->funcid))
 			{
-				if (queryFlags->queryDepth > 1 && AllowNestedAggregationFunctionInQueries)
+				if (queryFlags->queryDepth > 1)
 				{
 					queryFlags->mongoQueryFlags |= HAS_NESTED_AGGREGATION_FUNCTION;
 				}
@@ -872,7 +871,9 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 			}
 		}
 
-		if (EnableLetAndCollationForQueryMatch &&
+		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+												EnableVariablesSupportForWriteCommands;
+		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{
 			queryFlags->mongoQueryFlags |= HAS_QUERY_MATCH_FUNCTION;
@@ -1676,8 +1677,7 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 
 	pgbson *pipeline = DatumGetPgBson(aggregationConst->constvalue);
 
-	QueryData queryData = { 0 };
-	queryData.batchSize = 101;
+	QueryData queryData = GenerateFirstPageQueryData();
 	bool enableCursorParam = false;
 	bool setStatementTimeout = false;
 	Query *finalQuery;

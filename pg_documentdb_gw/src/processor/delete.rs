@@ -16,7 +16,7 @@ use crate::{
     configuration::DynamicConfiguration,
     context::ConnectionContext,
     error::Result,
-    postgres::{self, Client, PgDocument, Timeout},
+    postgres::{self, Connection, PgDocument, Timeout},
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo},
     responses::{PgResponse, RawResponse, Response},
@@ -24,62 +24,60 @@ use crate::{
 };
 
 async fn run_readonly_if_needed<F, Fut>(
-    client: Arc<Client>,
+    conn: Arc<Connection>,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
     query_catalog: &QueryCatalog,
     f: F,
 ) -> Result<Vec<Row>>
 where
-    F: FnOnce(Arc<Client>) -> Fut,
+    F: FnOnce(Arc<Connection>) -> Fut,
     Fut: Future<Output = Result<Vec<Row>>>,
 {
-    if !client.in_transaction && dynamic_config.is_read_only_for_disk_full().await {
+    if !conn.in_transaction && dynamic_config.is_read_only_for_disk_full().await {
         log::trace!("Executing delete operation in readonly state.");
         let mut transaction =
-            postgres::Transaction::start(client, tokio_postgres::IsolationLevel::RepeatableRead)
+            postgres::Transaction::start(conn, tokio_postgres::IsolationLevel::RepeatableRead)
                 .await?;
 
         // Allow write for this transaction
-        let client = transaction.get_client();
-        client
-            .batch_execute(query_catalog.set_allow_write())
-            .await?;
+        let conn = transaction.get_connection();
+        conn.batch_execute(query_catalog.set_allow_write()).await?;
 
-        let result = f(client).await?;
+        let result = f(conn).await?;
         transaction.commit().await?;
         Ok(result)
     } else {
-        f(client).await
+        f(conn).await
     }
 }
 
 pub async fn process_drop_database(
     _request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
-    context: &ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
+    conn_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
-    let db = request_info.db()?;
+    let db = request_info.db()?.to_string();
 
     // Invalidate cursors
-    context
+    conn_context
         .service_context
-        .invalidate_cursors_by_database(db)
+        .invalidate_cursors_by_database(&db)
         .await;
 
     run_readonly_if_needed(
-        context.pg().await?,
+        conn_context.pull_connection().await?,
         dynamic_config,
-        context.service_context.query_catalog(),
-        move |client| async move {
-            client
-                .query(
-                    context.service_context.query_catalog().drop_database(),
-                    &[Type::TEXT],
-                    &[&db],
-                    Timeout::transaction(request_info.max_time_ms),
-                )
-                .await
+        conn_context.service_context.query_catalog(),
+        move |conn| async move {
+            conn.query(
+                conn_context.service_context.query_catalog().drop_database(),
+                &[Type::TEXT],
+                &[&request_info.db()?.to_string()],
+                Timeout::transaction(request_info.max_time_ms),
+                request_info,
+            )
+            .await
         },
     )
     .await?;
@@ -92,34 +90,37 @@ pub async fn process_drop_database(
 
 pub async fn process_drop_collection(
     _request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
-    let coll = request_info.collection()?;
+    let coll = request_info.collection()?.to_string();
 
     // Invalidate cursors
     connection_context
         .service_context
-        .invalidate_cursors_by_collection(request_info.db()?, coll)
+        .invalidate_cursors_by_collection(request_info.db()?, request_info.collection()?)
         .await;
 
     run_readonly_if_needed(
-        connection_context.pg().await?,
+        connection_context.pull_connection().await?,
         dynamic_config,
         connection_context.service_context.query_catalog(),
-        move |client| async move {
-            client
-                .query(
-                    connection_context
-                        .service_context
-                        .query_catalog()
-                        .drop_collection(),
-                    &[Type::TEXT, Type::TEXT],
-                    &[&request_info.db()?, &coll],
-                    Timeout::transaction(request_info.max_time_ms),
-                )
-                .await
+        move |conn| async move {
+            conn.query(
+                connection_context
+                    .service_context
+                    .query_catalog()
+                    .drop_collection(),
+                &[Type::TEXT, Type::TEXT],
+                &[
+                    &request_info.db()?.to_string(),
+                    &request_info.collection()?.to_string(),
+                ],
+                Timeout::transaction(request_info.max_time_ms),
+                request_info,
+            )
+            .await
         },
     )
     .await?;
@@ -132,27 +133,27 @@ pub async fn process_drop_collection(
 
 pub async fn process_delete(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
     let results = run_readonly_if_needed(
-        connection_context.pg().await?,
+        connection_context.pull_connection().await?,
         dynamic_config,
         connection_context.service_context.query_catalog(),
-        move |client| async move {
-            client
-                .query(
-                    connection_context.service_context.query_catalog().delete(),
-                    &[Type::TEXT, Type::BYTEA, Type::BYTEA],
-                    &[
-                        &request_info.db()?,
-                        &PgDocument(request.document()),
-                        &request.extra(),
-                    ],
-                    Timeout::transaction(request_info.max_time_ms),
-                )
-                .await
+        move |conn| async move {
+            conn.query(
+                connection_context.service_context.query_catalog().delete(),
+                &[Type::TEXT, Type::BYTEA, Type::BYTEA],
+                &[
+                    &request_info.db()?.to_string(),
+                    &PgDocument(request.document()),
+                    &request.extra(),
+                ],
+                Timeout::transaction(request_info.max_time_ms),
+                request_info,
+            )
+            .await
         },
     )
     .await?;

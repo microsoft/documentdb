@@ -1179,8 +1179,8 @@ GetMongoDataCreationTimeVarAttrNumber(Oid collectionOid)
 
 	if (!HeapTupleIsValid(tuple))
 	{
-		/* If collection doesn't exist, we'll arrive here */
-		return (AttrNumber) 4;
+		/* creation_time column is not present */
+		return (AttrNumber) - 1;
 	}
 
 	Form_pg_attribute targetatt = (Form_pg_attribute) GETSTRUCT(tuple);

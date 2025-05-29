@@ -1,8 +1,8 @@
 SET search_path TO documentdb_api_catalog;
 
 SET citus.next_shard_id TO 498000;
-SET documentdb.next_collection_id TO 4980;
-SET documentdb.next_collection_index_id TO 4980;
+SET documentdb.next_collection_id TO 49800;
+SET documentdb.next_collection_index_id TO 49800;
 
 SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 1, "a": { "b": [ 0, 0]} }', NULL);
 SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 2, "a": { "b": [ 1.1, 1.1]} }', NULL);
@@ -62,7 +62,40 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.b" } }] }');
 
+-- Test whether we can push $geonear to runtime based on the GUC
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "agg_geonear", "indexes": [{"key": {"a.b": 1}, "name": "ab_idx" }, {"key": {"a.geo": 1}, "name": "a_geo_idx" }, {"key": {"a.geo.type": 1}, "name": "a_geo_type_idx" }]}', true);
+BEGIN;
+SET LOCAL documentdb.enable_force_push_geonear_index to off;
+SET LOCAL enable_seqscan to off; -- the seqscan cost is lower than the bitmap heap index scan at this point
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b", "query": { "a.b": { "$gte": 4 } } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.geo", "query": { "a.geo.type": "MultiPoint" } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b", "query": { "a.b": { "$gte": 4 } } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.geo", "query": { "a.geo.type": "MultiPoint" } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+ROLLBACK;
+
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "agg_geonear", "indexes": [{"key": {"a.b": "2d"}, "name": "my_2d_ab_idx" }, {"key": {"a.b": "2dsphere"}, "name": "my_2ds_ab_idx" }, {"key": {"a.geo": "2dsphere"}, "name": "my_2ds_ageo_idx" }, {"key": {"a.c": "2d"}, "name": "my_2d_ac_idx" }]}', true);
+
+-- Also test multiple indexes when geospatial indexes are available
+BEGIN;
+SET LOCAL documentdb.enable_force_push_geonear_index to off;
+SET LOCAL enable_seqscan to off; -- the seqscan cost is lower than the bitmap heap index scan at this point
+
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b", "query": { "a.b": { "$gte": 4 } } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.geo", "query": { "a.geo.type": "MultiPoint" } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b", "query": { "a.b": { "$gte": 4 } } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
+    '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.geo", "query": { "a.geo.type": "MultiPoint" } } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } }] }');
+ROLLBACK;
+
 SELECT documentdb_distributed_test_helpers.drop_primary_key('db','agg_geonear');
 SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', 'agg_geonear') ORDER BY collection_id, index_id;
 \d documentdb_data.documents_4980

@@ -25,6 +25,7 @@
 #include "commands/commands_common.h"
 #include "configs/config_initialization.h"
 #include "index_am/documentdb_rum.h"
+#include "infrastructure/cursor_store.h"
 
 /* --------------------------------------------------------- */
 /* Data Types & Enum values */
@@ -96,6 +97,8 @@ InstallDocumentDBApiPostgresHooks(void)
 
 	/* Load the rum routine in the shared_preload_libraries to avoid LoadLibrary calls all the time */
 	LoadRumRoutine();
+
+	SetupCursorStorage();
 }
 
 

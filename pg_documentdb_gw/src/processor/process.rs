@@ -5,6 +5,7 @@
  *
  *-------------------------------------------------------------------------
  */
+#![allow(clippy::unnecessary_to_owned)]
 
 use std::{
     sync::Arc,
@@ -37,7 +38,7 @@ enum Retry {
 
 pub async fn process_request(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &mut ConnectionContext,
 ) -> Result<Response> {
     let dynamic_config = connection_context.dynamic_configuration();
@@ -57,7 +58,7 @@ pub async fn process_request(
             RequestType::ConnectionStatus => constant::process_connection_status(),
             RequestType::Count => process_count(request, request_info, connection_context).await,
             RequestType::Create => process_create(request, request_info, connection_context).await,
-            RequestType::CreateIndexes => {
+            RequestType::CreateIndex | RequestType::CreateIndexes => {
                 indexing::process_create_indexes(
                     request,
                     request_info,
@@ -272,45 +273,47 @@ async fn retry_policy(
 
 async fn process_find(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
+    let conn = context.pull_connection().await?;
 
-    let results = client
+    let results = conn
         .query_db_bson(
             context
                 .service_context
                 .query_catalog()
                 .find_cursor_first_page(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::command(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 async fn process_insert(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
 ) -> Result<Response> {
     let results = connection_context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             connection_context.service_context.query_catalog().insert(),
             &[Type::TEXT, Type::BYTEA, Type::BYTEA],
             &[
-                &request_info.db()?,
+                &request_info.db()?.to_string(),
                 &PgDocument(request.document()),
                 &request.extra(),
             ],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
@@ -321,34 +324,35 @@ async fn process_insert(
 
 async fn process_aggregate(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
-    let results = client
+    let conn = context.pull_connection().await?;
+    let results = conn
         .query_db_bson(
             context
                 .service_context
                 .query_catalog()
                 .aggregate_cursor_first_page(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::command(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 async fn process_update(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
 ) -> Result<Response> {
     let results = connection_context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             connection_context
@@ -357,11 +361,12 @@ async fn process_update(
                 .process_update(),
             &[Type::TEXT, Type::BYTEA, Type::BYTEA],
             &[
-                &request_info.db()?,
+                &request_info.db()?.to_string(),
                 &PgDocument(request.document()),
                 &request.extra(),
             ],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
@@ -372,7 +377,7 @@ async fn process_update(
 
 async fn process_list_databases(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     // TODO: Handle the case where !nameOnly - the legacy gateway simply returns 0s in the appropriate format
@@ -386,26 +391,28 @@ async fn process_list_databases(
     let results = match filter {
         None => {
             context
-                .pg()
+                .pull_connection()
                 .await?
                 .query(
                     &query,
                     &[],
                     &[],
                     Timeout::transaction(request_info.max_time_ms),
+                    request_info,
                 )
                 .await?
         }
         Some(filter) => {
             let doc = PgDocument(filter);
             context
-                .pg()
+                .pull_connection()
                 .await?
                 .query(
                     &query,
                     &[Type::BYTEA],
                     &[&doc],
                     Timeout::transaction(request_info.max_time_ms),
+                    request_info,
                 )
                 .await?
         }
@@ -416,38 +423,40 @@ async fn process_list_databases(
 
 async fn process_list_collections(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
-    let client = context.pg().await?;
+    let conn = context.pull_connection().await?;
 
-    let results = client
+    let results = conn
         .query_db_bson(
             context.service_context.query_catalog().list_collections(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
     let response = PgResponse::new(results);
-    cursor::save_cursor(context, client, &response, request_info).await?;
+    cursor::save_cursor(context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 async fn process_validate(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().validate(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -455,17 +464,18 @@ async fn process_validate(
 
 async fn process_find_and_modify(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().find_and_modify(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -473,17 +483,18 @@ async fn process_find_and_modify(
 
 async fn process_distinct(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().distinct_query(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -491,18 +502,19 @@ async fn process_distinct(
 
 async fn process_count(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let _ = request_info.collection()?;
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context.service_context.query_catalog().count_query(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -510,20 +522,21 @@ async fn process_count(
 
 async fn process_create(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query_db_bson(
             context
                 .service_context
                 .query_catalog()
                 .create_collection_view(),
-            request_info.db()?,
+            &request_info.db()?.to_string(),
             &PgDocument(request.document()),
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -550,7 +563,7 @@ fn convert_to_scale(scale: RawBsonRef) -> Result<f64> {
 
 async fn process_coll_stats(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
@@ -560,13 +573,18 @@ async fn process_coll_stats(
         1.0
     };
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().coll_stats(),
             &[Type::TEXT, Type::TEXT, Type::FLOAT8],
-            &[&request_info.db()?, &request_info.collection()?, &scale],
+            &[
+                &request_info.db()?.to_string(),
+                &request_info.collection()?.to_string(),
+                &scale,
+            ],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -574,7 +592,7 @@ async fn process_coll_stats(
 
 async fn process_db_stats(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
@@ -585,13 +603,14 @@ async fn process_db_stats(
     };
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().db_stats(),
             &[Type::TEXT, Type::FLOAT8, Type::BOOL],
-            &[&request_info.db()?, &scale, &false],
+            &[&request_info.db()?.to_string(), &scale, &false],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -599,7 +618,7 @@ async fn process_db_stats(
 
 async fn process_shard_collection(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
     reshard: bool,
 ) -> Result<Response> {
@@ -609,13 +628,19 @@ async fn process_shard_collection(
         .get_document("key")
         .map_err(DocumentDBError::parse_failure())?;
     let _ = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().shard_collection(),
             &[Type::TEXT, Type::TEXT, Type::BYTEA, Type::BOOL],
-            &[&db, &collection, &PgDocument(key), &reshard],
+            &[
+                &db.to_string(),
+                &collection.to_string(),
+                &PgDocument(key),
+                &reshard,
+            ],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::ok())
@@ -623,7 +648,7 @@ async fn process_shard_collection(
 
 async fn process_rename_collection(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let mut source: Option<String> = None;
@@ -680,13 +705,14 @@ async fn process_rename_collection(
     }
 
     let _ = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().rename_collection(),
             &[Type::TEXT, Type::TEXT, Type::TEXT, Type::BOOL],
             &[&source_db, &source_coll, &target_coll, &drop_target],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::ok())
@@ -694,7 +720,7 @@ async fn process_rename_collection(
 
 async fn process_current_op(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let mut filter = RawDocumentBuf::new();
@@ -710,13 +736,14 @@ async fn process_current_op(
     })?;
 
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().current_op(),
             &[Type::BYTEA, Type::BOOL, Type::BOOL],
             &[&PgDocument(&filter), &all, &own_ops],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -724,21 +751,22 @@ async fn process_current_op(
 
 async fn process_coll_mod(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().coll_mod(),
             &[Type::TEXT, Type::TEXT, Type::BYTEA],
             &[
-                &request_info.db()?,
-                &request_info.collection()?,
+                &request_info.db()?.to_string(),
+                &request_info.collection()?.to_string(),
                 &PgDocument(request.document()),
             ],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
     Ok(Response::Pg(PgResponse::new(results)))
@@ -746,19 +774,20 @@ async fn process_coll_mod(
 
 async fn get_parameter(
     context: &ConnectionContext,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     all: bool,
     show_details: bool,
     params: Vec<String>,
 ) -> Result<Response> {
     let results = context
-        .pg()
+        .pull_connection()
         .await?
         .query(
             context.service_context.query_catalog().get_parameter(),
             &[Type::BOOL, Type::BOOL, Type::TEXT_ARRAY],
             &[&all, &show_details, &params],
             Timeout::transaction(request_info.max_time_ms),
+            request_info,
         )
         .await?;
 
@@ -767,7 +796,7 @@ async fn get_parameter(
 
 async fn process_get_parameter(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
+    request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
 ) -> Result<Response> {
     let mut all_parameters = false;

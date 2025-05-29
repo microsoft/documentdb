@@ -89,6 +89,31 @@ BsonValueHoldsNumberArray(const bson_value_t *currentValue, int32_t *numElements
 }
 
 
+List *
+BsonValueDocumentDecomposeFields(const bson_value_t *document)
+{
+	if (document->value_type != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("BsonValueDocumentDecomposeFields expects a document"
+							   " not %s", BsonTypeName(document->value_type))));
+	}
+
+	List *documents = NIL;
+
+	bson_iter_t iter;
+	BsonValueInitIterator(document, &iter);
+	while (bson_iter_next(&iter))
+	{
+		pgbsonelement element;
+		BsonIterToPgbsonElement(&iter, &element);
+		documents = lappend(documents, PgbsonElementToPgbson(&element));
+	}
+
+	return documents;
+}
+
+
 /*
  * PgbsonDecomposeFields takes a bson object and splits its fields into
  * individual (single-element) bson objects.
@@ -99,18 +124,8 @@ BsonValueHoldsNumberArray(const bson_value_t *currentValue, int32_t *numElements
 List *
 PgbsonDecomposeFields(const pgbson *document)
 {
-	List *documents = NIL;
-
-	bson_iter_t iter;
-	PgbsonInitIterator(document, &iter);
-	while (bson_iter_next(&iter))
-	{
-		pgbsonelement element;
-		BsonIterToPgbsonElement(&iter, &element);
-		documents = lappend(documents, PgbsonElementToPgbson(&element));
-	}
-
-	return documents;
+	bson_value_t docValue = ConvertPgbsonToBsonValue(document);
+	return BsonValueDocumentDecomposeFields(&docValue);
 }
 
 

@@ -305,8 +305,9 @@ static void HandleSetOnInsertUpdateTree(BsonIntermediatePathNode *tree,
 static uint32_t ArrayFiltersKeyHash(const void *key, Size keysize);
 static int ArrayFiltersKeyCompare(const void *obj1, const void *obj2, Size objsize);
 static void WriteCurrentArrayFilterValue(pgbson_writer *writer, bson_value_t *entryValue);
-static HTAB * BuildExpressionForArrayFilters(pgbson *arrayFilters);
-static void PostValidateArrayFilters(HTAB *arrayFiltersHash, pgbson *updateSpec);
+static HTAB * BuildExpressionForArrayFilters(const bson_value_t *arrayFilters);
+static void PostValidateArrayFilters(HTAB *arrayFiltersHash, const
+									 bson_value_t *updateSpec);
 
 /* Value writer functions */
 static bool HandleUpdateDocumentId(pgbson_writer *writer,
@@ -615,18 +616,17 @@ RegisterUpdateOperatorExtension(const MongoUpdateOperatorSpec *extensibleDefinit
  * and can be reused in processing document updates.
  */
 const BsonIntermediatePathNode *
-GetOperatorUpdateState(pgbson *updateSpec, pgbson *querySpec,
-					   pgbson *arrayFilters, bool isUpsert)
+GetOperatorUpdateState(const bson_value_t *updateSpec, const bson_value_t *querySpec,
+					   const bson_value_t *arrayFilters, bool isUpsert)
 {
-	bson_iter_t updateIterator;
-	PgbsonInitIteratorAtPath(updateSpec, "", &updateIterator);
-	if (!BSON_ITER_HOLDS_DOCUMENT(&updateIterator) ||
-		!bson_iter_recurse(&updateIterator, &updateIterator))
+	if (updateSpec->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
 							"Update should be a document")));
 	}
 
+	bson_iter_t updateIterator;
+	BsonValueInitIterator(updateSpec, &updateIterator);
 	HTAB *arrayFilterHash = BuildExpressionForArrayFilters(arrayFilters);
 	PositionalUpdateSpec positionalSpec =
 	{
@@ -2318,7 +2318,7 @@ ArrayFiltersKeyCompare(const void *obj1, const void *obj2, Size objsize)
  * a QueryFilterPathAndValue.
  */
 static HTAB *
-BuildExpressionForArrayFilters(pgbson *arrayFilters)
+BuildExpressionForArrayFilters(const bson_value_t *arrayFilters)
 {
 	if (arrayFilters == NULL)
 	{
@@ -2334,11 +2334,8 @@ BuildExpressionForArrayFilters(pgbson *arrayFilters)
 		hash_create("Bson array filter hash table", 32, &hashBuilderInfo,
 					DefaultExtensionHashFlags);
 
-	pgbsonelement arrayFiltersElement;
 	bson_iter_t arrayIterator;
-	PgbsonToSinglePgbsonElement(arrayFilters, &arrayFiltersElement);
-
-	BsonValueInitIterator(&arrayFiltersElement.bsonValue, &arrayIterator);
+	BsonValueInitIterator(arrayFilters, &arrayIterator);
 
 	while (bson_iter_next(&arrayIterator))
 	{
@@ -2502,7 +2499,7 @@ WriteCurrentArrayFilterValue(pgbson_writer *writer, bson_value_t *entryValue)
  * by at least 1 update entry.
  */
 static void
-PostValidateArrayFilters(HTAB *arrayFiltersHash, pgbson *updateSpec)
+PostValidateArrayFilters(HTAB *arrayFiltersHash, const bson_value_t *updateSpec)
 {
 	if (arrayFiltersHash == NULL)
 	{
@@ -2517,10 +2514,7 @@ PostValidateArrayFilters(HTAB *arrayFiltersHash, pgbson *updateSpec)
 	{
 		if (!entry->filterUsed)
 		{
-			bson_iter_t updateSpecIter;
-			PgbsonInitIteratorAtPath(updateSpec, "", &updateSpecIter);
-			const bson_value_t *bsonValue = bson_iter_value(&updateSpecIter);
-			const char *updateSpecStr = FormatBsonValueForShellLogging(bsonValue);
+			const char *updateSpecStr = FormatBsonValueForShellLogging(updateSpec);
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
 								"The array filter for identifier \'%.*s\' was not used in the update %s",

@@ -109,10 +109,6 @@ static bool ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
 static void ValidateShardKey(const pgbson *shardKeyDoc);
 static void FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 											ShardKeyFieldValues *shardKeyValues);
-static bool ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
-											 const bson_value_t *query,
-											 int64 *shardKeyHash,
-											 bool *isShardKeyValueCollationAware);
 static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int
 									 collectionVarno, ShardKeyFieldValues *fieldValues,
 									 bool *isShardKeyValueCollationAware);
@@ -588,7 +584,7 @@ CreateShardKeyValueFilter(int collectionVarno, Const *valueConst)
  * ComputeShardKeyHashForQueryValue returns whether the given query filters all
  * shard key fields by a specific value and computes the hash of the values.
  */
-static bool
+bool
 ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
 								 const bson_value_t *query, int64 *shardKeyHash,
 								 bool *isShardKeyValueCollationAware)
@@ -1124,11 +1120,22 @@ ShardCollectionCore(ShardCollectionArgs *args)
 
 	insertArgValues[1] = UInt64GetDatum(collection->collectionId);
 
-	appendStringInfo(queryInfo,
-					 "INSERT INTO %s (shard_key_value, object_id, document, creation_time)"
-					 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document, creation_time"
-					 " FROM %s",
-					 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		appendStringInfo(queryInfo,
+						 "INSERT INTO %s (shard_key_value, object_id, document, creation_time)"
+						 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document, creation_time"
+						 " FROM %s",
+						 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	}
+	else
+	{
+		appendStringInfo(queryInfo,
+						 "INSERT INTO %s (shard_key_value, object_id, document)"
+						 " SELECT %s.get_shard_key_value($1, $2, document), object_id, document"
+						 " FROM %s",
+						 tmpDataTableName, ApiInternalSchemaName, qualifiedDataTableName);
+	}
 
 	ExtensionExecuteQueryWithArgsViaSPI(queryInfo->data, nargs, insertArgTypes,
 										insertArgValues, insertArgNulls, readOnly,

@@ -26,7 +26,7 @@ pub struct QueryCatalog {
     // version.rs
     pub extension_versions: String,
 
-    // explain
+    // explain/mod.rs
     pub explain: String, // Has 2 params
     pub set_explain_all_tasks_true: String,
     pub find_coalesce: String,
@@ -343,7 +343,7 @@ pub fn create_query_catalog() -> QueryCatalog {
             pg_settings: "SELECT name, setting FROM pg_settings WHERE name LIKE 'documentdb.%' OR name IN ('max_connections', 'default_transaction_read_only')".to_string(),
             pg_is_in_recovery: "SELECT pg_is_in_recovery()".to_string(),
 
-            // explain
+            // explain/mod.rs
             explain: "EXPLAIN (FORMAT JSON, ANALYZE {analyze}, VERBOSE True, BUFFERS {analyze}, TIMING {analyze}) SELECT document FROM documentdb_api_catalog.bson_aggregation_{query_base}($1, $2)".to_string(),
             find_coalesce: "COALESCE(documentdb_api_catalog.bson_array_agg".to_string(),
             find_operator: "OPERATOR(documentdb_api_catalog.@#%)".to_string(),

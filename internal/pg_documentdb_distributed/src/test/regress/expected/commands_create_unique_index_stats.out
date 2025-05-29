@@ -200,6 +200,8 @@ documentdb_rum, for table "documentdb_data.documents_11201"
 
 -- disable the flag - and stats shouldn't be set
 set documentdb.disable_statistics_for_unique_columns to off;
+ERROR:  invalid configuration parameter name "documentdb.disable_statistics_for_unique_columns"
+DETAIL:  "documentdb" is a reserved prefix.
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
   p_database_name=>'ind_db',
   p_arg=>'{
@@ -220,9 +222,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
   Column   | Type  | Key? |                                   Definition                                    | Storage  | Stats target 
 ---------------------------------------------------------------------
  document  | bytea | yes  | document                                                                        | extended | 
- row       | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 
+ row       | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 0
  document1 | bytea | yes  | document                                                                        | extended | 
- row1      | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 
+ row1      | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 0
 documentdb_rum, for table "documentdb_data.documents_11201"
 
 set documentdb.enable_large_unique_index_keys to off;
@@ -247,8 +249,8 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
   Column   | Type  | Key? |                                   Definition                                    | Storage  | Stats target 
 ---------------------------------------------------------------------
  document  | bytea | yes  | document                                                                        | extended | 
- row       | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 
+ row       | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 0
  document1 | bytea | yes  | document                                                                        | extended | 
- row1      | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 
+ row1      | uuid  | yes  | (ROW(shard_key_value, document)::documentdb_api_catalog.shard_key_and_document) | plain    | 0
 documentdb_rum, for table "documentdb_data.documents_11201"
 

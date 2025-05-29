@@ -6,7 +6,7 @@
  *-------------------------------------------------------------------------
  */
 
-pub mod compute_request_tracker;
+pub mod request_tracker;
 
 use std::{
     fmt::{self, Debug},
@@ -14,6 +14,7 @@ use std::{
 };
 
 use bson::{spec::ElementType, Document, RawBsonRef, RawDocument, RawDocumentBuf};
+use request_tracker::RequestTracker;
 use tokio_postgres::IsolationLevel;
 
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
     protocol::opcode::OpCode,
 };
 
-pub use compute_request_tracker::ComputeRequestInterval;
+pub use request_tracker::RequestIntervalKind;
 
 /// The RequestMessage holds ownership to the whole client message
 /// Other objects, like the Request will only hold references to it
@@ -47,15 +48,28 @@ pub struct RequestInfo<'a> {
     db: Option<&'a str>,
     collection: Option<&'a str>,
     pub session_id: Option<&'a [u8]>,
+    pub request_tracker: RequestTracker,
 }
 
 impl RequestInfo<'_> {
+    pub fn new() -> Self {
+        RequestInfo {
+            max_time_ms: None,
+            transaction_info: None,
+            db: None,
+            collection: None,
+            session_id: None,
+            request_tracker: RequestTracker::new(),
+        }
+    }
+
     pub fn collection(&self) -> Result<&str> {
         self.collection.ok_or(DocumentDBError::documentdb_error(
             ErrorCode::InvalidNamespace,
             "Invalid namespace".to_string(),
         ))
     }
+
     pub fn db(&self) -> Result<&str> {
         self.db
             .ok_or(DocumentDBError::bad_value("$db value missing".to_string()))
@@ -73,6 +87,7 @@ pub enum RequestType {
     ConnectionStatus,
     Count,
     Create,
+    CreateIndex,
     CreateIndexes,
     CreateUser,
     CurrentOp,
@@ -149,6 +164,7 @@ impl FromStr for RequestType {
             "connectionStatus" => Ok(RequestType::ConnectionStatus),
             "count" => Ok(RequestType::Count),
             "create" => Ok(RequestType::Create),
+            "createIndex" => Ok(RequestType::CreateIndex),
             "createIndexes" => Ok(RequestType::CreateIndexes),
             "createUser" => Ok(RequestType::CreateUser),
             "currentOp" => Ok(RequestType::CurrentOp),
@@ -308,6 +324,7 @@ impl<'a> Request<'a> {
         let mut start_transaction = false;
         let mut isolation_level = None;
         let mut collection = None;
+        let request_tracker = RequestTracker::new();
 
         let collection_field = self.collection_field();
         for entry in self.document() {
@@ -391,6 +408,7 @@ impl<'a> Request<'a> {
             session_id,
             transaction_info,
             db,
+            request_tracker,
         })
     }
 
@@ -401,6 +419,7 @@ impl<'a> Request<'a> {
             RequestType::CollStats => &["collStats"],
             RequestType::Count => &["count"],
             RequestType::Create => &["create"],
+            RequestType::CreateIndex => &["createIndex"],
             RequestType::CreateIndexes => &["createIndexes"],
             RequestType::Delete => &["delete"],
             RequestType::Distinct => &["distinct"],

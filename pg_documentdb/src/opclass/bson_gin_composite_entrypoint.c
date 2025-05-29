@@ -51,6 +51,7 @@ PG_FUNCTION_INFO_V1(gin_bson_composite_path_compare_partial);
 PG_FUNCTION_INFO_V1(gin_bson_composite_path_consistent);
 PG_FUNCTION_INFO_V1(gin_bson_composite_path_options);
 PG_FUNCTION_INFO_V1(gin_bson_get_composite_path_generated_terms);
+PG_FUNCTION_INFO_V1(gin_bson_composite_ordering_transform);
 
 extern bool EnableCollation;
 extern bool EnableNewCompositeIndexOpclass;
@@ -340,17 +341,23 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 	StrategyNumber strategy = PG_GETARG_UINT16(2);
 	Pointer extraData = PG_GETARG_POINTER(3);
 
+	CompositeQueryRunData *runData = (CompositeQueryRunData *) extraData;
+
+	BsonIndexTerm compareTerm;
+	InitializeBsonIndexTerm(compareValue, &compareTerm);
+
+	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY)
+	{
+		/* use order by key to signal truncation status of ordering */
+		return compareTerm.isIndexTermTruncated ? -1 : 1;
+	}
+
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 						errmsg("Composite index does not support strategy %d",
 							   strategy)));
 	}
-
-	CompositeQueryRunData *runData = (CompositeQueryRunData *) extraData;
-
-	BsonIndexTerm compareTerm;
-	InitializeBsonIndexTerm(compareValue, &compareTerm);
 
 	bson_iter_t compareIter;
 	BsonValueInitIterator(&compareTerm.element.bsonValue, &compareIter);
@@ -654,6 +661,60 @@ gin_bson_get_composite_path_generated_terms(PG_FUNCTION_ARGS)
 	}
 
 	SRF_RETURN_DONE(functionContext);
+}
+
+
+Datum
+gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
+{
+	bytea *compareValue = PG_GETARG_BYTEA_PP(0);
+	pgbson *queryValue = PG_GETARG_PGBSON_PACKED(1);
+
+	/* StrategyNumber strategy = PG_GETARG_UINT16(2); */
+	Datum currentKey = PG_GETARG_DATUM(3);
+
+	if (currentKey != (Datum) 0)
+	{
+		pgbson *currentOrdering = DatumGetPgBsonPacked(currentKey);
+		pfree(currentOrdering);
+	}
+
+	pgbsonelement sortElement;
+	if (!TryGetSinglePgbsonElementFromPgbson(queryValue, &sortElement))
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg(
+							"Invalid query value for ordering transform - only 1 path is supported")));
+	}
+
+	/* For ordering we only support 1 column
+	 * TODO(Orderby) fix this.
+	 */
+	BsonIndexTerm compareTerm;
+	InitializeBsonIndexTerm(compareValue, &compareTerm);
+
+	bson_iter_t compareIter;
+	BsonValueInitIterator(&compareTerm.element.bsonValue, &compareIter);
+
+	/* Match the runtime format of order by */
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+
+	if (bson_iter_next(&compareIter))
+	{
+		const bson_value_t *value = bson_iter_value(&compareIter);
+		PgbsonWriterAppendValue(&writer, sortElement.path, sortElement.pathLength, value);
+	}
+	else
+	{
+		bson_value_t undefinedValue = { 0 };
+		undefinedValue.value_type = BSON_TYPE_UNDEFINED;
+		PgbsonWriterAppendValue(&writer, sortElement.path, sortElement.pathLength,
+								&undefinedValue);
+	}
+
+	PG_FREE_IF_COPY(compareValue, 0);
+	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&writer));
 }
 
 

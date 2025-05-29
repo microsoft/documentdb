@@ -18,7 +18,8 @@ use tokio::sync::RwLock;
 use super::dynamic::{DynamicConfiguration, POSTGRES_RECOVERY_KEY};
 use super::SetupConfiguration;
 use crate::error::{DocumentDBError, Result};
-use crate::postgres::{Client, Pool};
+use crate::postgres::{Connection, ConnectionPool};
+use crate::requests::RequestInfo;
 use crate::QueryCatalog;
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -38,7 +39,7 @@ pub struct PgConfiguration {
 impl PgConfiguration {
     pub fn start_dynamic_configuration_refresh_thread(
         configuration: Arc<PgConfiguration>,
-        pool: Arc<Pool>,
+        system_requests_pool: Arc<ConnectionPool>,
         query_catalog: &QueryCatalog,
         dynamic_config_file: String,
         refresh_interval: u32,
@@ -54,12 +55,12 @@ impl PgConfiguration {
             loop {
                 interval.tick().await;
 
-                match pool.get().await {
-                    Ok(client) => {
+                match system_requests_pool.get_inner_connection().await {
+                    Ok(inner_conn) => {
                         match PgConfiguration::load_configurations(
                             &query_catalog_clone,
                             &dynamic_config_file_clone,
-                            &Client::new(client, false),
+                            &Connection::new(inner_conn, false),
                             &settings_prefix,
                         )
                         .await
@@ -73,7 +74,7 @@ impl PgConfiguration {
                     }
                     Err(e) => {
                         log::error!(
-                            "Failed to acquire refresh client to refresh configuration: {}",
+                            "Failed to acquire postgres connection to refresh configuration: {}",
                             e
                         )
                     }
@@ -85,16 +86,16 @@ impl PgConfiguration {
     pub async fn new(
         query_catalog: &QueryCatalog,
         setup_configuration: &dyn SetupConfiguration,
-        system_pool: &Arc<Pool>,
+        system_requests_pool: &Arc<ConnectionPool>,
         settings_prefix: &str,
     ) -> Result<Arc<Self>> {
-        let client = Client::new(system_pool.get().await?, false);
+        let conn = Connection::new(system_requests_pool.get_inner_connection().await?, false);
         let dynamic_config_file = setup_configuration.dynamic_configuration_file();
         let values = RwLock::new(
             PgConfiguration::load_configurations(
                 query_catalog,
                 &dynamic_config_file,
-                &client,
+                &conn,
                 settings_prefix,
             )
             .await?,
@@ -105,7 +106,7 @@ impl PgConfiguration {
         let refresh_interval = setup_configuration.dynamic_configuration_refresh_interval_secs();
         Self::start_dynamic_configuration_refresh_thread(
             configuration.clone(),
-            system_pool.clone(),
+            system_requests_pool.clone(),
             query_catalog,
             dynamic_config_file,
             refresh_interval,
@@ -126,7 +127,7 @@ impl PgConfiguration {
     async fn load_configurations(
         query_catalog: &QueryCatalog,
         dynamic_config_file: &str,
-        client: &Client,
+        conn: &Connection,
         settings_prefix: &str,
     ) -> Result<HashMap<String, String>> {
         let mut configs = HashMap::new();
@@ -145,14 +146,21 @@ impl PgConfiguration {
             Err(e) => log::warn!("Host Config file not able to be loaded: {}", e),
         }
 
-        let results = client
-            .query(query_catalog.pg_settings(), &[], &[], None)
+        let mut request_info = RequestInfo::new();
+        let pg_config_rows = conn
+            .query(
+                query_catalog.pg_settings(),
+                &[],
+                &[],
+                None,
+                &mut request_info,
+            )
             .await?;
-        for row in results {
-            let key: &str = row.get(0);
+        for pg_config in pg_config_rows {
+            let key: &str = pg_config.get(0);
             let key = key.strip_prefix(settings_prefix).unwrap_or(key);
 
-            let mut value: String = row.get(1);
+            let mut value: String = pg_config.get(1);
             if value == "on" {
                 value = "true".to_string();
             } else if value == "off" {
@@ -161,10 +169,16 @@ impl PgConfiguration {
             configs.insert(key.to_owned(), value);
         }
 
-        let result = client
-            .query(query_catalog.pg_is_in_recovery(), &[], &[], None)
+        let pg_is_in_recovery_row = conn
+            .query(
+                query_catalog.pg_is_in_recovery(),
+                &[],
+                &[],
+                None,
+                &mut request_info,
+            )
             .await?;
-        let in_recovery: bool = result.first().is_some_and(|row| row.get(0));
+        let in_recovery: bool = pg_is_in_recovery_row.first().is_some_and(|row| row.get(0));
         configs.insert(POSTGRES_RECOVERY_KEY.to_string(), in_recovery.to_string());
 
         log::info!("Dynamic configurations loaded: {:?}", configs);

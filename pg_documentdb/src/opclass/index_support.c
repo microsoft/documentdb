@@ -57,7 +57,8 @@ typedef bool (*ModifyTreeToUseAlternatePath)(PlannerInfo *root, RelOptInfo *rel,
 											 ReplaceExtensionFunctionContext *context,
 											 MatchIndexPath matchIndexPath);
 typedef void (*NoIndexFoundHandler)(void);
-
+typedef bool (*EnableForceIndexPushdown)(PlannerInfo *root,
+										 ReplaceExtensionFunctionContext *context);
 
 /*
  * Force index pushdown operator support functions
@@ -92,6 +93,11 @@ typedef struct
 	 * path exist.
 	 */
 	ModifyTreeToUseAlternatePath alternatePath;
+
+	/*
+	 * Control switch to enable/disbale the force index pushdown
+	 */
+	EnableForceIndexPushdown enableForceIndexPushdown;
 
 	/*
 	 * Handler when no applicable index was found
@@ -152,6 +158,10 @@ static void ThrowNoTextIndexFound(void);
 static void ThrowNoVectorIndexFound(void);
 
 static bool MatchIndexPathEquals(IndexPath *path, void *matchContext);
+static bool EnableGeoNearForceIndexPushdown(PlannerInfo *root,
+											ReplaceExtensionFunctionContext *context);
+static bool DefaultTrueForceIndexPushdown(PlannerInfo *root,
+										  ReplaceExtensionFunctionContext *context);
 
 
 static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
@@ -161,7 +171,8 @@ static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
 		.updateIndexes = &UpdateIndexListForGeonear,
 		.matchIndexPath = &MatchIndexPathForGeonear,
 		.alternatePath = &TryUseAlternateIndexGeonear,
-		.noIndexHandler = &ThrowGeoNearUnableToFindIndex
+		.noIndexHandler = &ThrowGeoNearUnableToFindIndex,
+		.enableForceIndexPushdown = &EnableGeoNearForceIndexPushdown
 	},
 	{
 		.operator = ForceIndexOpType_Text,
@@ -169,12 +180,14 @@ static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
 		.matchIndexPath = &MatchIndexPathForText,
 		.noIndexHandler = &ThrowNoTextIndexFound,
 		.alternatePath = &PushTextQueryToRuntime,
+		.enableForceIndexPushdown = &DefaultTrueForceIndexPushdown
 	},
 	{
 		.operator = ForceIndexOpType_VectorSearch,
 		.updateIndexes = &UpdateIndexListForVector,
 		.matchIndexPath = &MatchIndexPathForVector,
 		.noIndexHandler = &ThrowNoVectorIndexFound,
+		.enableForceIndexPushdown = &DefaultTrueForceIndexPushdown
 	}
 };
 
@@ -182,6 +195,7 @@ static const int ForceIndexOperatorsCount = sizeof(ForceIndexOperatorSupport) /
 											sizeof(ForceIndexSupportFuncs);
 
 extern bool EnableVectorForceIndexPushdown;
+extern bool EnableGeonearForceIndexPushdown;
 extern bool EnableIndexOperatorBounds;
 
 /* --------------------------------------------------------- */
@@ -516,12 +530,25 @@ void
 ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 							ReplaceExtensionFunctionContext *context)
 {
-	if (context->forceIndexQueryOpData.type == ForceIndexOpType_None ||
-		(context->forceIndexQueryOpData.type == ForceIndexOpType_GeoNear &&
-		 !TryFindGeoNearOpExpr(root, context)))
+	if (context->forceIndexQueryOpData.type == ForceIndexOpType_None)
 	{
-		/* If no special operator requirement or geonear with no geonear operator (other geo operators)
-		 * then return */
+		/* If no special operator requirement */
+		return;
+	}
+
+	ForceIndexSupportFuncs *forceIndexFuncs = NULL;
+	for (int i = 0; i < ForceIndexOperatorsCount; i++)
+	{
+		if (ForceIndexOperatorSupport[i].operator == context->forceIndexQueryOpData.type)
+		{
+			forceIndexFuncs = (ForceIndexSupportFuncs *) &ForceIndexOperatorSupport[i];
+		}
+	}
+
+	if (forceIndexFuncs == NULL || !forceIndexFuncs->enableForceIndexPushdown(root,
+																			  context))
+	{
+		/* No index support functions !!, or force index pushdown not required then can't do anything */
 		return;
 	}
 
@@ -543,21 +570,6 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 														   path);
 		rel->partial_pathlist = NIL;
 		rel->pathlist = list_make1(matchingPath);
-		return;
-	}
-
-	ForceIndexSupportFuncs *forceIndexFuncs = NULL;
-	for (int i = 0; i < ForceIndexOperatorsCount; i++)
-	{
-		if (ForceIndexOperatorSupport[i].operator == context->forceIndexQueryOpData.type)
-		{
-			forceIndexFuncs = (ForceIndexSupportFuncs *) &ForceIndexOperatorSupport[i];
-		}
-	}
-
-	if (forceIndexFuncs == NULL)
-	{
-		/* No index support functions !!, can't do anything */
 		return;
 	}
 
@@ -1821,6 +1833,32 @@ MatchIndexPathEquals(IndexPath *path, void *matchContext)
 	}
 
 	return path == (IndexPath *) matchedIndexPath;
+}
+
+
+/*
+ * Enables/disables the force index pushdown for geonear query based on the configuruation
+ * setting `enableIndexForGeonear` or checks if the geonear order by clauses are really present
+ * in the query.
+ */
+static bool
+EnableGeoNearForceIndexPushdown(PlannerInfo *root,
+								ReplaceExtensionFunctionContext *context)
+{
+	if (EnableGeonearForceIndexPushdown)
+	{
+		/* Geonear with no geonear operator (other geo operators) should not force geo index */
+		return TryFindGeoNearOpExpr(root, context);
+	}
+
+	return false;
+}
+
+
+static bool
+DefaultTrueForceIndexPushdown(PlannerInfo *root, ReplaceExtensionFunctionContext *context)
+{
+	return true;
 }
 
 

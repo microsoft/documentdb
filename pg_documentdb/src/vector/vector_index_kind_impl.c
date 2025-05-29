@@ -631,6 +631,8 @@ CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows,
 		return searchParamBson;
 	}
 
+	ReportFeatureUsage(FEATURE_STAGE_SEARCH_VECTOR_DEFAULT_NPROBES);
+
 	/* Calculate the default nProbes */
 	int numLists = -1;
 	if (indexOptions == NULL)
@@ -645,27 +647,40 @@ CalculateIVFSearchParamBson(bytea *indexOptions, Cardinality indexRows,
 	}
 
 	int defaultNumProbes = -1;
-	if (numLists < 0)
+	if (numLists <= 0)
 	{
 		defaultNumProbes = IVFFLAT_DEFAULT_NPROBES;
 	}
 	else
 	{
-		/* nProbes
-		 *  < 10000 rows: numLists
-		 *  < 1M rows: rows / 1000
-		 *  >= 1M rows: sqrt(rows) */
-		if (indexRows < VECTOR_SEARCH_SMALL_COLLECTION_ROWS)
+		if (EnableVectorCalculateDefaultSearchParameter)
 		{
-			defaultNumProbes = numLists;
-		}
-		else if (indexRows < VECTOR_SEARCH_1M_COLLECTION_ROWS)
-		{
-			defaultNumProbes = indexRows / 1000;
+			/* nProbes < 10000 rows: numLists */
+			if (indexRows < VECTOR_SEARCH_SMALL_COLLECTION_ROWS)
+			{
+				defaultNumProbes = numLists;
+			}
+			else
+			{
+				/* >= 10000 rows: we calculate nProbes based on estimated rowsPerCluster
+				 * To make sure we don't scan too many rows */
+				double rowsPerCluster = indexRows / numLists;
+				defaultNumProbes = ceil(VECTOR_SEARCH_SMALL_COLLECTION_ROWS /
+										rowsPerCluster);
+				if (defaultNumProbes > numLists)
+				{
+					defaultNumProbes = numLists;
+				}
+
+				if (defaultNumProbes < 1)
+				{
+					defaultNumProbes = 1;
+				}
+			}
 		}
 		else
 		{
-			defaultNumProbes = sqrt(indexRows);
+			defaultNumProbes = IVFFLAT_DEFAULT_NPROBES;
 		}
 	}
 
@@ -700,6 +715,8 @@ CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows,
 		return searchParamBson;
 	}
 
+	ReportFeatureUsage(FEATURE_STAGE_SEARCH_VECTOR_DEFAULT_EFSEARCH);
+
 	/* Calculate the default efSearch */
 	int efConstruction = -1;
 
@@ -721,9 +738,16 @@ CalculateHNSWSearchParamBson(bytea *indexOptions, Cardinality indexRows,
 	}
 	else
 	{
-		if (indexRows < VECTOR_SEARCH_SMALL_COLLECTION_ROWS)
+		if (EnableVectorCalculateDefaultSearchParameter)
 		{
-			defaultEfSearch = efConstruction;
+			if (indexRows < VECTOR_SEARCH_SMALL_COLLECTION_ROWS)
+			{
+				defaultEfSearch = efConstruction;
+			}
+			else
+			{
+				defaultEfSearch = HNSW_DEFAULT_EF_SEARCH;
+			}
 		}
 		else
 		{

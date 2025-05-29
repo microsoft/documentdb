@@ -1845,3 +1845,254 @@ SELECT documentdb_api.update('update', '{ "update": "single", "updates": [ { "q"
 (1 row)
 
 ROLLBACK;
+-- test updateOne with sort
+select documentdb_api.create_collection('update', 'test_update_one_sort');
+NOTICE:  creating collection
+ create_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":1,"a":3,"b":7}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":2,"a":3,"b":5}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                            document                                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "7" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "5" } }
+(2 rows)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                            document                                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "7" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" } }
+(2 rows)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":10}},"multi":false,"upsert":false, "sort": {"_id": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                            document                                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "10" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" } }
+(2 rows)
+
+SELECT documentdb_api.insert_one('update', 'test_update_one_sort', '{"_id":3,"a":3,"b":3}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-1}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                            document                                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "10" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-1" } }
+(3 rows)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-1}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                            document                                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "10" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-1" } }
+(3 rows)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"b":{"$lt":5}},"u":{"$set":{"text":"smaller than 5"}},"multi":false,"upsert":false, "sort": {"b": -1}}, {"q":{"b":{"$gte":5}},"u":{"$set":{"text":"large"}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""2"" }, ""n"" : { ""$numberLong"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                                         document                                                          
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "10" }, "text" : "large" }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" }, "text" : "smaller than 5" }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-1" } }
+(3 rows)
+
+-- negative test case
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"b":{"$lt":5}},"u":{"$set":{"text":"tt"}},"multi":true,"sort": {"b": -1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""Cannot specify sort with multi=true"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                                     document                                                      
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "10" }, "text" : "large" }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" }, "text" : "smaller than 5" }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-1" } }
+(3 rows)
+
+SELECT documentdb_api.insert('update', '{"insert":"test_update_one_sort_ex", "documents":[{"_id":-1,"a":1,"b":"string"}, {"_id":-2,"a":0,"b":1.2}, {"_id":-3,"a":1,"b":[1,2,3]}]}');
+NOTICE:  creating collection
+                                         insert                                         
+---------------------------------------------------------------------
+ ("{ ""n"" : { ""$numberInt"" : ""3"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+select documentdb_api.update('update', '{"update":"test_update_one_sort_ex", "updates":[{"q":{"a":{"$gte":0}},"u":{"$set":{"b":"exception"}},"multi":false,"sort": {"b": -1}},{"q":{"a":{"$gte":0}},"u":{"$set":{"b":[4,5]}},"multi":false,"sort": {"b": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""2"" }, ""n"" : { ""$numberLong"" : ""2"" } }",t)
+(1 row)
+
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":"exception"}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+                                                                                               cursorpage                                                                                               
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "update.test_update_one_sort_ex", "firstBatch" : [ { "a" : { "$numberInt" : "1" }, "b" : "exception" } ] }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":[4,5]}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+                                                                                                                  cursorpage                                                                                                                   
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "update.test_update_one_sort_ex", "firstBatch" : [ { "a" : { "$numberInt" : "1" }, "b" : [ { "$numberInt" : "4" }, { "$numberInt" : "5" } ] } ] }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+WITH generated_data AS (
+    SELECT
+        row_number() OVER () AS _id, 
+        1 AS a,
+        CASE (random()*6)::int
+            WHEN 0 THEN (random()*1000)::int::text
+            WHEN 1 THEN to_char(random()*1000, 'FM999.9999')
+            WHEN 2 THEN 'str_' || floor(random()*10000)::int
+            WHEN 3 THEN (ARRAY['true','false'])[floor(random()*2)+1]
+            WHEN 4 THEN to_char(
+                         now() - (floor(random()*3650)||' days')::interval,
+                         'YYYY-MM-DD'
+                     )
+            WHEN 5 THEN gen_random_uuid()::text
+            ELSE NULL::text
+        END AS b
+    FROM generate_series(1, 1000)
+)
+SELECT documentdb_api.insert(
+    'update'::text,
+    ('{"insert":"test_update_one_sort_ex", "documents":[' ||
+    (SELECT string_agg(row_to_json(g)::text, ',') FROM generated_data g) ||
+    ']}')::bson  
+);
+                                          insert                                           
+---------------------------------------------------------------------
+ ("{ ""n"" : { ""$numberInt"" : ""1000"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+select documentdb_api.update('update', '{"update":"test_update_one_sort_ex", "updates":[{"q":{"a":{"$gte":0}},"u":{"$set":{"b":"exception"}},"multi":false,"sort": {"b": -1}},{"q":{"a":{"$gte":0}},"u":{"$set":{"b":[4,5]}},"multi":false,"sort": {"b": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""2"" }, ""n"" : { ""$numberLong"" : ""2"" } }",t)
+(1 row)
+
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":"exception"}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+                                                                                                                         cursorpage                                                                                                                          
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "update.test_update_one_sort_ex", "firstBatch" : [ { "a" : { "$numberInt" : "1" }, "b" : "exception" }, { "a" : { "$numberInt" : "1" }, "b" : "exception" } ] }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT cursorPage FROM documentdb_api.find_cursor_first_page('update', '{ "find" : "test_update_one_sort_ex", "filter" : {"b":[4,5]}, "limit" : 10, "singleBatch" : true, "batchSize" : 10, "$db" : "update", "projection":{"_id":0} }');
+                                                                                                                                                                cursorpage                                                                                                                                                                 
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "update.test_update_one_sort_ex", "firstBatch" : [ { "a" : { "$numberInt" : "1" }, "b" : [ { "$numberInt" : "4" }, { "$numberInt" : "5" } ] }, { "a" : { "$numberInt" : "1" }, "b" : [ { "$numberInt" : "4" }, { "$numberInt" : "5" } ] } ] }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- sharded collection
+select documentdb_api.shard_collection('update', 'test_update_one_sort', '{"_id": "hashed"}', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+-- expect to fail as updateOne without id filter is not supported on sharded collection
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+                                                                                                                                                                                      update                                                                                                                                                                                       
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50856066"" }, ""errmsg"" : ""A {multi:false} update on a sharded collection must contain an exact match on _id or target a single shard"" } ] }",f)
+(1 row)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"a":3},"u":{"$set":{"b":-10}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                                                                                                                                      update                                                                                                                                                                                       
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50856066"" }, ""errmsg"" : ""A {multi:false} update on a sharded collection must contain an exact match on _id or target a single shard"" } ] }",f)
+(1 row)
+
+-- expect to succeed as updateOne with id filter is supported on sharded collection
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":1, "a":3},"u":{"$set":{"b":0}},"multi":false,"upsert":false, "sort": {"b": 1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":2, "a":3},"u":{"$set":{"b":-10}},"multi":false,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+(1 row)
+
+-- negative test case
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":3, "a":3},"u":{"$set":{"b":-1}},"multi":true,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                                                                                                   update                                                                                                                                                   
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""Cannot specify sort with multi=true"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                                          document                                                           
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-10" }, "text" : "smaller than 5" }
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" }, "text" : "large" }
+(3 rows)
+
+-- expect to throw error but the first one should succeed
+SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":3, "a":3},"u":{"$set":{"b":-10}},"multi":true,"upsert":false},{"q":{"_id":3, "a":3},"u":{"$set":{"b":-2}},"multi":true,"upsert":false, "sort": {"_id": -1}}]}');
+                                                                                                                                                   update                                                                                                                                                   
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""Cannot specify sort with multi=true"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+                                                          document                                                           
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-10" }, "text" : "smaller than 5" }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "-10" } }
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" }, "text" : "large" }
+(3 rows)
+

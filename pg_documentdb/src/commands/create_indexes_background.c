@@ -90,6 +90,7 @@ typedef struct
 
 extern int MaxIndexBuildAttempts;
 extern int IndexQueueEvictionIntervalInSec;
+extern bool SkipCreateIndexesOnCreateCollection;
 
 /* Do not retry the index build if error code belongs to following list. */
 static const SkippableError SkippableErrors[] = {
@@ -234,6 +235,9 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 	if (indexCmdRequest->attemptCount >= MaxIndexBuildAttempts)
 	{
 		/* mark the request as skipped (pruned at a later point) */
+		elog(LOG, "Max attempts reached for index_id: %d and collectionId: "
+			 UINT64_FORMAT,
+			 indexCmdRequest->indexId, collectionId);
 		MarkIndexRequestStatus(indexCmdRequest->indexId,
 							   CREATE_INDEX_COMMAND_TYPE,
 							   IndexCmdStatus_Skippable, indexCmdRequest->comment, NULL,
@@ -358,8 +362,9 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 		errorMessage = edata->message;
 		errorCode = edata->sqlerrcode;
 
-		ereport(DEBUG1, (errmsg("couldn't create some of the (invalid) "
-								"collection indexes")));
+		ereport(LOG, (errcode(errorCode), errmsg("couldn't create some of the (invalid) "
+												 "collection indexes: file %s, line %d",
+												 edata->filename, edata->lineno)));
 
 		/*
 		 * Couldn't complete creating invalid indexes, need to abort the
@@ -579,6 +584,8 @@ command_create_indexes_background(PG_FUNCTION_ARGS)
 
 	text *databaseDatum = PG_GETARG_TEXT_P(0);
 	pgbson *indexSpec = PG_GETARG_PGBSON(1);
+
+	ThrowIfServerOrTransactionReadOnly();
 
 	StringInfo submitIndexBuildRequestQuery = makeStringInfo();
 	appendStringInfo(submitIndexBuildRequestQuery,
@@ -931,6 +938,30 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 	 * Record indexes into metadata as invalid.
 	 */
 	ListCell *indexDefCell = NULL;
+
+	/* If we created the collection in this transaction, just create the indexes
+	 * in the same transaction.
+	 */
+	if (result.createdCollectionAutomatically && !SkipCreateIndexesOnCreateCollection)
+	{
+		ereport(LOG, (errmsg(
+						  "Building indexes inline due to create collection for collection "
+						  UINT64_FORMAT,
+						  collectionId),
+					  errdetail_log(
+						  "Building indexes inline due to create collection for collection "
+						  UINT64_FORMAT,
+						  collectionId)));
+
+		bool uniqueIndexOnly = false;
+		bool skipCheckCollectionCreate = true;
+		CreateIndexesResult innerResult = create_indexes_non_concurrently(dbNameDatum,
+																		  createIndexesArg,
+																		  skipCheckCollectionCreate,
+																		  uniqueIndexOnly);
+		innerResult.createdCollectionAutomatically = true;
+		return innerResult;
+	}
 
 	foreach(indexDefCell, createIndexesArg.indexDefList)
 	{

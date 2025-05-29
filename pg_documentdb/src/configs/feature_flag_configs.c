@@ -11,6 +11,7 @@
 #include <postgres.h>
 #include <miscadmin.h>
 #include <utils/guc.h>
+#include <limits.h>
 #include "configs/config_initialization.h"
 
 
@@ -39,25 +40,32 @@ bool EnableVectorCompressionHalf = DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF;
 #define DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ true
 bool EnableVectorCompressionPQ = DEFAULT_ENABLE_VECTOR_COMPRESSION_PQ;
 
+#define DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM true
+bool EnableVectorCalculateDefaultSearchParameter =
+	DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM;
+
 /*
  * SECTION: Indexing feature flags
  */
+
+/* Remove after v104 */
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
-#define DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS true
-bool DisableStatisticsForUniqueColumns = DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS;
-
+/* Remove after v105 */
 #define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
 bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
 
+/* Remove after v104 */
 #define DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS true
 bool EnableIndexTermTruncationOnNestedObjects =
 	DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS;
 
+/* Remove after v104 */
 #define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
 bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 
+/* Remove after v105 */
 #define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
 bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
 
@@ -67,15 +75,11 @@ bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
 #define DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY false
 bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
 
-#define DEFAULT_ENABLE_RUM_INDEX_SCAN false
+#define DEFAULT_ENABLE_RUM_INDEX_SCAN true
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 
 #define DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN false
 bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
-
-#define DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES true
-bool AllowNestedAggregationFunctionInQueries =
-	DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES;
 
 #define DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY false
 bool EnableSortbyIdPushDownToPrimaryKey =
@@ -85,15 +89,10 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 /*
  * SECTION: Aggregation & Query feature flags
  */
-#define DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION true
-bool EnableLookupUnwindSupport = DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION;
-
 #define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
 bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
 
-#define DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS true
-bool EnableSimplifyGroupAccumulators = DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS;
-
+/* Remove after v104 */
 #define DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP true
 bool EnableMatchWithLetInLookup =
 	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
@@ -103,6 +102,18 @@ bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
 #define DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN true
 bool UseRawExecutorForQueryPlan = DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN;
+
+#define DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS false
+bool UseFileBasedPersistedCursors = DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS;
+
+#define DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS false
+bool EnableFileBasedPersistedCursors = DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS;
+
+#define DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE INT_MAX
+int MaxAllowedCursorIntermediateFileSize = DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE;
+
+#define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
+int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
 
 /*
  * SECTION: Top level feature flags
@@ -120,6 +131,18 @@ bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
 
 
 /*
+ * SECTION: Let support feature flags
+ */
+#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
+bool EnableLetAndCollationForQueryMatch =
+	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
+
+#define DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS false
+bool EnableVariablesSupportForWriteCommands =
+	DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS;
+
+
+/*
  * SECTION: Collation feature flags
  */
 #define DEFAULT_SKIP_FAIL_ON_COLLATION false
@@ -128,10 +151,6 @@ bool SkipFailOnCollation = DEFAULT_SKIP_FAIL_ON_COLLATION;
 #define DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION false
 bool EnableLookupIdJoinOptimizationOnCollation =
 	DEFAULT_ENABLE_LOOKUP_ID_JOIN_OPTIMIZATION_ON_COLLATION;
-
-#define DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH false
-bool EnableLetAndCollationForQueryMatch =
-	DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH;
 
 
 /*
@@ -146,6 +165,7 @@ bool EnableMergeTargetCreation = DEFAULT_ENABLE_MERGE_TARGET_CREATION;
 #define DEFAULT_ENABLE_MERGE_ACROSS_DB true
 bool EnableMergeAcrossDB = DEFAULT_ENABLE_MERGE_ACROSS_DB;
 
+/* Move to system configs after v104 */
 #define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
 bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 
@@ -154,6 +174,18 @@ bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRAD
 
 #define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
 bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
+
+#define DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME false
+bool EnableDataTableWithoutCreationTime =
+	DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME;
+
+/* Remove after v105 */
+#define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
+bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
+
+#define DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION false
+bool SkipCreateIndexesOnCreateCollection =
+	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
 
 /* FEATURE FLAGS END */
 
@@ -195,8 +227,7 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &EnableVectorCompressionHalf, DEFAULT_ENABLE_VECTOR_COMPRESSION_HALF,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
-	DefineCustomBoolVariable
-	(
+	DefineCustomBoolVariable(
 		psprintf("%s.enableVectorCompressionPQ", newGucPrefix),
 		gettext_noop(
 			"Enables support for vector index compression product quantization"),
@@ -204,17 +235,17 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enable_large_unique_index_keys", newGucPrefix),
-		gettext_noop("Whether or not to enable large index keys on unique indexes."),
-		NULL, &DefaultEnableLargeUniqueIndexKeys, DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS,
+		psprintf("%s.enableVectorCalculateDefaultSearchParam", newGucPrefix),
+		gettext_noop(
+			"Enables support for vector index default search parameter calculation"),
+		NULL, &EnableVectorCalculateDefaultSearchParameter,
+		DEFAULT_ENABLE_VECTOR_CALCULATE_DEFAULT_SEARCH_PARAM,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.disable_statistics_for_unique_columns", newGucPrefix),
-		gettext_noop(
-			"Whether or not to disable statistics for unique columns in analyze"),
-		NULL, &DisableStatisticsForUniqueColumns,
-		DEFAULT_DISABLE_STATISTICS_FOR_UNIQUE_COLUMNS,
+		psprintf("%s.enable_large_unique_index_keys", newGucPrefix),
+		gettext_noop("Whether or not to enable large index keys on unique indexes."),
+		NULL, &DefaultEnableLargeUniqueIndexKeys, DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -295,17 +326,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.allowNestedAggregationFunctionInQueries", newGucPrefix),
-		gettext_noop(
-			"Whether or not to support having aggregation queries as nested subqueries or in CTEs"),
-		NULL,
-		&AllowNestedAggregationFunctionInQueries,
-		DEFAULT_ENABLE_ALLOW_NESTED_AGGREGATION_FUNCTION_IN_QUERIES,
-		PGC_USERSET,
-		0,
-		NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.recreate_retry_table_on_shard", prefix),
 		gettext_noop(
 			"Gets whether or not to recreate a retry table to match the main table"),
@@ -317,13 +337,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Determines whether to turn on colocation of tables across all tables (requires enableNativeColocation to be on)"),
 		NULL, &EnableNativeTableColocation, DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableLookupUnwindOptimization", newGucPrefix),
-		gettext_noop(
-			"Determines whether to enable support for the optimizing $unwind with $lookup prefix"),
-		NULL, &EnableLookupUnwindSupport, DEFAULT_ENABLE_LOOKUP_UNWIND_OPTIMIZATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -365,14 +378,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableSimplifyGroupAccumulators", newGucPrefix),
-		gettext_noop(
-			"Whether to enable parse time simplification of group accumulators."),
-		NULL, &EnableSimplifyGroupAccumulators,
-		DEFAULT_ENABLE_SIMPLIFY_GROUP_ACCUMULATORS,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.enableSortbyIdPushDownToPrimaryKey", newGucPrefix),
 		gettext_noop(
 			"Whether to push down sort by id to primary key"),
@@ -394,6 +399,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable collation and let for query match."),
 		NULL, &EnableLetAndCollationForQueryMatch,
 		DEFAULT_ENABLE_LET_AND_COLLATION_FOR_QUERY_MATCH,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableVariablesSupportForWriteCommands", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable let variables and $$NOW support for write (update, delete, findAndModify) commands. Only support for delete is available now."),
+		NULL, &EnableVariablesSupportForWriteCommands,
+		DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -443,4 +456,60 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &EnableUsernamePasswordConstraints,
 		DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.skipEnforceTransactionReadOnly", newGucPrefix),
+		gettext_noop(
+			"Whether or not to skip enforcing transaction read only."),
+		NULL, &SkipEnforceTransactionReadOnly,
+		DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableDataTableWithoutCreationTime", newGucPrefix),
+		gettext_noop(
+			"Create data table without creation_time column."),
+		NULL, &EnableDataTableWithoutCreationTime,
+		DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.skipCreateIndexesOnCreateCollection", newGucPrefix),
+		gettext_noop(
+			"Whether or not to skip creating indexes on create collection."),
+		NULL, &SkipCreateIndexesOnCreateCollection,
+		DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useFileBasedPersistedCursors", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use file based persisted cursors."),
+		NULL, &UseFileBasedPersistedCursors,
+		DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableFileBasedPersistedCursors", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable file based persisted cursors."),
+		NULL, &EnableFileBasedPersistedCursors,
+		DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.maxCursorIntermediateFileSize", newGucPrefix),
+		gettext_noop(
+			"Maximum size of intermediate file for cursor."),
+		NULL, &MaxAllowedCursorIntermediateFileSize,
+		DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE,
+		1024, INT_MAX, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.defaultCursorExpiryTimeLimitSeconds", newGucPrefix),
+		gettext_noop(
+			"Default expiry time limit for cursor."),
+		NULL, &DefaultCursorExpiryTimeLimitSeconds,
+		DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS,
+		1, 3600, PGC_USERSET, 0, NULL, NULL, NULL);
 }

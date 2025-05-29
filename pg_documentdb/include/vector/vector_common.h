@@ -13,6 +13,9 @@
 /* pgvector VECTOR_MAX_DIM: 16000 */
 /* dimensions for type vector cannot exceed 16000 */
 #define VECTOR_MAX_DIMENSIONS 16000
+#define VECTOR_MAX_DIMENSIONS_NON_COMPRESSED 2000
+#define VECTOR_MAX_DIMENSIONS_HALF_COMPRESSED 4000
+#define VECTOR_MAX_DIMENSIONS_PQ_COMPRESSED VECTOR_MAX_DIMENSIONS
 
 /* ivfflat parameters */
 #define IVFFLAT_DEFAULT_NPROBES 1
@@ -51,7 +54,6 @@
 
 /* dynamic calculation of nprobes or efSearch depending on collection size */
 #define VECTOR_SEARCH_SMALL_COLLECTION_ROWS 10000
-#define VECTOR_SEARCH_1M_COLLECTION_ROWS 1000000
 
 /* metadata field names */
 #define VECTOR_METADATA_FIELD_NAME "__cosmos_meta__"
@@ -82,5 +84,10 @@ extern int VectorPreFilterIterativeScanMode;
  */
 extern bool EnableVectorCompressionHalf;
 extern bool EnableVectorCompressionPQ;
+
+/*
+ * GUC to enable vector search default search parameter calculation.
+ */
+extern bool EnableVectorCalculateDefaultSearchParameter;
 
 #endif

@@ -50,6 +50,7 @@ ErrorMapping,ErrorName
 361,CollectionUUIDMismatch
 8000,UserCountLimitExceeded
 10065,Location10065
+10107,NotWritablePrimary
 10334,BsonObjectTooLarge
 11000,DuplicateKey
 12587,BackgroundOperationInProgressForNamespace

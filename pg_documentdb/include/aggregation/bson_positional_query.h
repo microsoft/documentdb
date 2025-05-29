@@ -22,7 +22,7 @@ typedef struct BsonPositionalQueryData
 	List *queryQuals;
 } BsonPositionalQueryData;
 
-BsonPositionalQueryData * GetPositionalQueryData(const pgbson *query);
+BsonPositionalQueryData * GetPositionalQueryData(const bson_value_t *query);
 
 int32_t MatchPositionalQueryAgainstDocument(const BsonPositionalQueryData *data,
 											const pgbson *document);

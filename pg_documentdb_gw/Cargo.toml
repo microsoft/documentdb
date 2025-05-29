@@ -60,6 +60,7 @@ version = "1.12.1"
 features = ["v4",]
 
 [dev-dependencies]
+mongodb = "3.2.0"
 reqwest = "0.12.4"
 
 [profile.release-with-symbols]

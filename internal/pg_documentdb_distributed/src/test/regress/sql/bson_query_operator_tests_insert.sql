@@ -65,6 +65,7 @@ SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 37, "a" : {"$n
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 38, "a" : {"$numberInt": "2147483647"}}', NULL);
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 39, "a" : {"$numberInt": "2147483646"}}', NULL);
 SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 40, "a" : {"$numberInt": "2147483645"}}', NULL);
+SELECT documentdb_api.insert_one('db','queryoperatorIn', '{"_id": 41, "a" : ["abc", "xyz1"]}', NULL);
 
 SELECT 1 FROM documentdb_api.insert_one('db','nullfield', '{"_id": 1, "a" : 1, "b": 1}');
 SELECT 1 FROM documentdb_api.insert_one('db','nullfield', '{"_id": 2, "a" : 2, "b": null}');
@@ -82,3 +83,9 @@ SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 19, "a" : [{ "b"
 SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 20, "a" : [{ "b" : "M", "c": 100, "d" : "Y"}]}', NULL);
 SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 21, "a": [{ "b": [ { "c" : 10 }, { "c" : 15 }, {"c" : 18 } ], "d" : [ { "e" : 10 }, { "e" : 15 }, {"e" : 18 } ]}] }', NULL);
 SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 22, "a": [{ "b": [ { "c" : 11 } ], "d" : [ { "e" : 20 }, { "e" : 25 } ]}] }', NULL);
+
+/* insert NaN and Infinity */
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 23, "a" : NaN}', NULL);
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 24, "a" : Infinity}', NULL);
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 25, "a" : -Infinity}', NULL);
+SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 26, "a" : [NaN, Infinity]}', NULL);

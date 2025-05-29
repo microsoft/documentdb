@@ -184,7 +184,6 @@ extern int IndexTruncationLimitOverride;
 extern int MaxWildcardIndexKeySize;
 extern bool DefaultEnableLargeUniqueIndexKeys;
 extern bool SkipFailOnCollation;
-extern bool DisableStatisticsForUniqueColumns;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
 extern bool DefaultUseCompositeOpClass;
@@ -441,6 +440,7 @@ command_create_indexes_non_concurrently(PG_FUNCTION_ARGS)
 		skip_check_collection_create = PG_GETARG_BOOL(2);
 	}
 
+	ThrowIfServerOrTransactionReadOnly();
 	pgbson *arg = PgbsonDeduplicateFields(PG_GETARG_PGBSON(1));
 	CreateIndexesArg createIndexesArg = ParseCreateIndexesArg(dbNameDatum,
 															  arg);
@@ -2876,6 +2876,42 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 							"vector index must specify dimensions greater than 1")));
 	}
 
+	/* Check max dimensions for non-compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_None &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_NON_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_NON_COMPRESSED)));
+	}
+
+	/* Check max dimensions for half compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_Half &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_HALF_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_HALF_COMPRESSED)));
+	}
+
+	/* Check max dimensions for pq compressed index */
+	if (cosmosSearchOptions->commonOptions.compressionType ==
+		VectorIndexCompressionType_PQ &&
+		cosmosSearchOptions->commonOptions.numDimensions >
+		VECTOR_MAX_DIMENSIONS_PQ_COMPRESSED)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+						errmsg(
+							"field cannot have more than %d dimensions for vector index",
+							VECTOR_MAX_DIMENSIONS_PQ_COMPRESSED)));
+	}
+
 	if (cosmosSearchOptions->commonOptions.distanceMetric ==
 		VectorIndexDistanceMetric_Unknown)
 	{
@@ -5064,8 +5100,7 @@ GenerateIndexExprStr(bool unique, bool sparse, bool enableCompositeOpClass,
 	char indexTermSizeLimitArg[22] = { 0 };
 	bool enableTruncation = enableLargeIndexKeys || ForceIndexTermTruncation;
 
-	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys &&
-									  IsClusterVersionAtleast(DocDB_V0, 24, 0);
+	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys;
 
 	/* For unique with truncation, instead of creating a unique hash for every column, we simply create a single
 	 * value with a new operator that handles unique constraints. That way for a composite unique index, we support
@@ -6085,11 +6120,6 @@ GenerateUniqueProjectionSpec(IndexDefKey *indexDefKey)
 void
 UpdateIndexStatsForPostgresIndex(uint64 collectionId, List *indexIdList)
 {
-	if (!DisableStatisticsForUniqueColumns)
-	{
-		return;
-	}
-
 	StringInfo indexExprStringInfo = makeStringInfo();
 	ListCell *cell;
 	foreach(cell, indexIdList)

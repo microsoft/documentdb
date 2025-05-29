@@ -179,6 +179,16 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE do
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ 0, 1000  ] } }';
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$numberDecimal": "0.0"}, 1000  ] } }';
 SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$numberInt": "2147483647"}, {"$numberLong": "9223372036854775807"},  {"$numberLong": "2147483646"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$in" : [ {"$regex": ".*y.*"}] } }';
+
+-- test $nin
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ 1, 10 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ 1.0, 10 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ NaN, 1000 ] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$numberInt": "2147483647"}, {"$numberLong": "9223372036854775807"},  {"$numberLong": "2147483646"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*y.*"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*a.*"}] } }';
+SELECT document FROM documentdb_api.collection('db', 'queryoperatorIn') WHERE document @@ '{ "a" : { "$nin" : [ {"$regex": ".*a.*"}, {"$regex":"Lets.*"}, 1, 10] } }';
 
 -- matches _id: 12 even though this condition should match none if applied per term.
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$gt": 3, "$lt": 5 }}';
@@ -186,5 +196,14 @@ SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE docu
 
 -- this should evaluate to _id 10/12 even though it should evaluate to false
 SELECT document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$eq": 2, "$lt": 1 }}';
+
+-- test queries with NaN
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gt": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lte": NaN }}' ORDER BY object_id;
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$lt": NaN }}' ORDER BY object_id;
+
+SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a": { "$gte": NaN, "$lte": Infinity }}' ORDER BY object_id;
+
 
 ROLLBACK;

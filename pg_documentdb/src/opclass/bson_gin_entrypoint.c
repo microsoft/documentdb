@@ -830,7 +830,7 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 
 		if (IsCollationValid(collationString))
 		{
-			/* We don't yet support collated index, until then we can't use index is operator has collation */
+			/* We don't yet support collated index, until then we can't use index */
 			return false;
 		}
 	}

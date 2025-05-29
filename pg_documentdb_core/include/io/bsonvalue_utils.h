@@ -63,6 +63,8 @@ bool MultiplyWithFactorAndUpdate(bson_value_t *state, const bson_value_t *mf,
 void InitBsonValueAsEmptyArray(bson_value_t *outValue);
 bool BsonValueHoldsNumberArray(const bson_value_t *value, int32_t *numElements);
 
+List * BsonValueDocumentDecomposeFields(const bson_value_t *document);
+
 bool TryGetTypeFromInt64(int64_t typeCode, bson_type_t *output);
 bson_type_t BsonTypeFromName(const char *name);
 
@@ -148,6 +150,15 @@ inline static bool
 bson_iter_find_string_view(bson_iter_t *iter, const StringView *view)
 {
 	return bson_iter_find_w_len(iter, view->string, view->length);
+}
+
+
+inline static bson_value_t *
+CreateBsonValueCopy(const bson_value_t *other)
+{
+	bson_value_t *value = palloc(sizeof(bson_value_t));
+	*value = *other;
+	return value;
 }
 
 

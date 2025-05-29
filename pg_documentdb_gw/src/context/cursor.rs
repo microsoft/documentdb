@@ -15,7 +15,7 @@ use std::{
 use bson::RawDocumentBuf;
 use tokio::{sync::RwLock, task::JoinHandle};
 
-use crate::{configuration::SetupConfiguration, postgres::Client};
+use crate::{configuration::SetupConfiguration, postgres::Connection};
 
 #[derive(Debug)]
 pub struct Cursor {
@@ -24,7 +24,7 @@ pub struct Cursor {
 }
 
 pub struct CursorStoreEntry {
-    pub client: Option<Arc<Client>>,
+    pub conn: Option<Arc<Connection>>,
     pub cursor: Cursor,
     pub db: String,
     pub collection: String,
