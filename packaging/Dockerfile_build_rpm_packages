@@ -1,0 +1,69 @@
+ARG BASE_IMAGE=redhat/ubi8:latest
+FROM ${BASE_IMAGE}
+
+ARG POSTGRES_VERSION=16
+ARG DOCUMENTDB_VERSION
+
+RUN test -n "$DOCUMENTDB_VERSION" || (echo "DOCUMENTDB_VERSION not set" && false)
+
+# Install EPEL and PostgreSQL repository
+RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/repopackages/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# Update package manager
+RUN yum update -y
+
+# Install build dependencies and PostgreSQL
+RUN yum install -y \
+    wget \
+    ca-certificates \
+    python3 \
+    curl \
+    gcc \
+    gcc-c++ \
+    make \
+    cmake \
+    git \
+    pkg-config \
+    libicu-devel \
+    krb5-devel \
+    postgresql${POSTGRES_VERSION} \
+    postgresql${POSTGRES_VERSION}-server \
+    postgresql${POSTGRES_VERSION}-devel \
+    postgresql${POSTGRES_VERSION}-contrib \
+    postgresql${POSTGRES_VERSION}-plpython3 \
+    rpm-build \
+    rpmlint \
+    rpmdevtools \
+    && yum clean all
+
+# Set up locale
+RUN yum install -y glibc-locale-source glibc-langpack-en
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+COPY scripts /tmp/install_setup
+
+RUN export CLEAN_SETUP=1 && \
+    export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
+    MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \
+    /tmp/install_setup/install_setup_pcre2.sh && \
+    /tmp/install_setup/install_setup_intel_decimal_math_lib.sh && \
+    /tmp/install_setup/install_citus_indent.sh
+
+# Set the working directory inside the container
+WORKDIR /build
+
+# Copy the source code into the container
+COPY . /build
+
+# Setup the RPM packaging
+COPY packaging/rpm_files /build/rpm_files
+RUN sed -i "s/POSTGRES_VERSION/${POSTGRES_VERSION}/g" /build/rpm_files/documentdb.spec
+RUN sed -i "s/DOCUMENTDB_VERSION/${DOCUMENTDB_VERSION}/g" /build/rpm_files/documentdb.spec
+
+COPY packaging/packaging-entrypoint-rpm.sh /usr/local/bin/packaging-entrypoint-rpm.sh
+RUN chmod +x /usr/local/bin/packaging-entrypoint-rpm.sh
+
+# Set the entrypoint
+ENTRYPOINT ["packaging-entrypoint-rpm.sh"]
