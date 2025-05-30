@@ -9,6 +9,7 @@
 * Enable rum_enable_index_scan as default on *[Perf]*
 * Add public `documentdb-local` Docker image with gateway to GHCR
 * Support `compact` command *[Feature]*. Requires `documentdb.enablecompact` GUC to be `on`.
+* Enable role privileges for `usersInfo` command *[Feature]* 
 
 ### documentdb v0.103-0 (May 09, 2025) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*

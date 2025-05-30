@@ -16,6 +16,27 @@
 
 
 /*
+ * SECTION: Top level feature flags
+ */
+#define DEFAULT_ENABLE_SCHEMA_VALIDATION false
+bool EnableSchemaValidation =
+	DEFAULT_ENABLE_SCHEMA_VALIDATION;
+
+#define DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION false
+bool EnableBypassDocumentValidation =
+	DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION;
+
+#define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
+bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
+
+#define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
+bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
+
+#define DEFAULT_ENABLE_USERS_INFO_PRIVILEGES true
+bool EnableUsersInfoPrivileges = DEFAULT_ENABLE_USERS_INFO_PRIVILEGES;
+
+
+/*
  * SECTION: Vector Search flags
  */
 
@@ -125,20 +146,6 @@ bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATO
 bool SkipGeneratingArrayTermForCompositeIndex =
 	DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX;
 
-/*
- * SECTION: Top level feature flags
- */
-#define DEFAULT_ENABLE_SCHEMA_VALIDATION false
-bool EnableSchemaValidation =
-	DEFAULT_ENABLE_SCHEMA_VALIDATION;
-
-#define DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION false
-bool EnableBypassDocumentValidation =
-	DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION;
-
-#define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
-bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
-
 
 /*
  * SECTION: Let support feature flags
@@ -181,9 +188,6 @@ bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
-
-#define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
-bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
 
 #define DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME false
 bool EnableDataTableWithoutCreationTime =
@@ -545,5 +549,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to skip generating array term for composite index."),
 		NULL, &SkipGeneratingArrayTermForCompositeIndex,
 		DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableUsersInfoPrivileges", newGucPrefix),
+		gettext_noop(
+			"Determines whether the usersInfo command returns privileges."),
+		NULL, &EnableUsersInfoPrivileges,
+		DEFAULT_ENABLE_USERS_INFO_PRIVILEGES,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
