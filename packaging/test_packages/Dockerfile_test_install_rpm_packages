@@ -1,22 +1,21 @@
-ARG BASE_IMAGE=quay.io/centos/centos:stream8
+ARG BASE_IMAGE=fedora:38
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
 ARG RPM_PACKAGE_REL_PATH
 
-# Install EPEL and PostgreSQL repository
-RUN yum install -y epel-release
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/repopackages/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+# Install PostgreSQL repository
+RUN dnf install -y https://download.postgresql.org/pub/repos/yum/repopackages/F-38-x86_64/pgdg-fedora-repo-latest.noarch.rpm
 
 # Update package manager
-RUN yum update -y
+RUN dnf update -y
 
 # Install PostgreSQL
-RUN yum install -y \
+RUN dnf install -y \
     postgresql${POSTGRES_VERSION} \
     postgresql${POSTGRES_VERSION}-server \
     postgresql${POSTGRES_VERSION}-contrib \
-    && yum clean all
+    && dnf clean all
 
 # Copy the package to test
 COPY ${RPM_PACKAGE_REL_PATH} /tmp/documentdb.rpm

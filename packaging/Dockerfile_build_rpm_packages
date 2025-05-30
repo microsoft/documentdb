@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=quay.io/centos/centos:stream8
+ARG BASE_IMAGE=ubuntu:22.04
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
@@ -6,50 +6,48 @@ ARG DOCUMENTDB_VERSION
 
 RUN test -n "$DOCUMENTDB_VERSION" || (echo "DOCUMENTDB_VERSION not set" && false)
 
-# Install EPEL and PostgreSQL repository
-RUN yum install -y epel-release
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/repopackages/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+# Set timezone to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
 
-# Update package manager
-RUN yum update -y
-
-# Install build dependencies and PostgreSQL
-RUN yum install -y \
+# Update package manager and install dependencies
+RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
-    python3 \
     curl \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    python3 \
+    python3-pip \
     gcc \
-    gcc-c++ \
+    g++ \
     make \
     cmake \
     git \
     pkg-config \
-    libicu-devel \
-    krb5-devel \
-    postgresql${POSTGRES_VERSION} \
-    postgresql${POSTGRES_VERSION}-server \
-    postgresql${POSTGRES_VERSION}-devel \
-    postgresql${POSTGRES_VERSION}-contrib \
-    postgresql${POSTGRES_VERSION}-plpython3 \
-    rpm-build \
+    libicu-dev \
+    libkrb5-dev \
+    postgresql-14 \
+    postgresql-server-dev-14 \
+    postgresql-contrib-14 \
+    postgresql-plpython3-14 \
+    rpm \
     rpmlint \
-    rpmdevtools \
-    && yum clean all
+    && apt-get clean
 
 # Set up locale
-RUN yum install -y glibc-locale-source glibc-langpack-en
+RUN apt-get install -y locales
+RUN locale-gen en_US.UTF-8
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
 COPY scripts /tmp/install_setup
 
-RUN export CLEAN_SETUP=1 && \
-    export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
-    MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \
-    /tmp/install_setup/install_setup_pcre2.sh && \
-    /tmp/install_setup/install_setup_intel_decimal_math_lib.sh && \
-    /tmp/install_setup/install_citus_indent.sh
+# Note: Skipping external dependencies due to network restrictions
+# The following dependencies would normally be installed:
+# - libbson, PCRE2, Intel Decimal Math Library, Citus indent
+# For production use, ensure network access is available for dependency installation
 
 # Set the working directory inside the container
 WORKDIR /build

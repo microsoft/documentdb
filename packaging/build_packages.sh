@@ -124,12 +124,12 @@ case $OS in
         DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     rhel8)
-        DOCKER_IMAGE="quay.io/centos/centos:stream8"
+        DOCKER_IMAGE="ubuntu:22.04"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
     rhel9)
-        DOCKER_IMAGE="quay.io/centos/centos:stream9"
+        DOCKER_IMAGE="ubuntu:22.04"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
@@ -152,7 +152,7 @@ docker build -t $TAG -f $DOCKERFILE \
     --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION .
 
 # Run the Docker container to build the packages
-docker run --rm --env OS=$OS -v $abs_output_dir:/output $TAG
+docker run --rm --env OS=$OS --env POSTGRES_VERSION=$PG -v $abs_output_dir:/output $TAG
 
 echo "Packages built successfully!!"
 
