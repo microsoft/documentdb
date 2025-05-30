@@ -1,0 +1,27 @@
+ARG BASE_IMAGE=rockylinux:8
+FROM ${BASE_IMAGE}
+
+ARG POSTGRES_VERSION=16
+ARG RPM_PACKAGE_REL_PATH
+
+# Install EPEL and PostgreSQL repository
+RUN yum install -y epel-release
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-8-x86_64/pgdg-redhat-repo-42.0-52PGDG.noarch.rpm
+
+# Update package manager
+RUN yum update -y
+
+# Install PostgreSQL
+RUN yum install -y \
+    postgresql${POSTGRES_VERSION} \
+    postgresql${POSTGRES_VERSION}-server \
+    postgresql${POSTGRES_VERSION}-contrib \
+    && yum clean all
+
+# Copy the package to test
+COPY ${RPM_PACKAGE_REL_PATH} /tmp/documentdb.rpm
+
+COPY packaging/test_packages/test-install-entrypoint-rpm.sh /usr/local/bin/test-install-entrypoint-rpm.sh
+RUN chmod +x /usr/local/bin/test-install-entrypoint-rpm.sh
+
+ENTRYPOINT ["test-install-entrypoint-rpm.sh"]

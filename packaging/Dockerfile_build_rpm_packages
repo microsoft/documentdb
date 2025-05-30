@@ -1,0 +1,110 @@
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
+
+ARG POSTGRES_VERSION=16
+ARG DOCUMENTDB_VERSION
+
+RUN test -n "$DOCUMENTDB_VERSION" || (echo "DOCUMENTDB_VERSION not set" && false)
+
+# Set timezone to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Update package manager and install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    python3 \
+    python3-pip \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    git \
+    pkg-config \
+    libicu-dev \
+    libkrb5-dev \
+    rpm \
+    rpmlint \
+    build-essential \
+    && apt-get clean
+
+# Install PostgreSQL packages (use default Ubuntu version)
+RUN apt-get update && apt-get install -y \
+    postgresql \
+    postgresql-server-dev-all \
+    postgresql-contrib \
+    postgresql-plpython3 \
+    libbson-dev \
+    libpcre2-dev \
+    && apt-get clean
+
+# Set up locale
+RUN apt-get install -y locales
+RUN locale-gen en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+# Determine PostgreSQL version and set paths
+RUN PG_DEFAULT_VERSION=$(ls /usr/lib/postgresql/ | head -1) && \
+    echo "Using PostgreSQL version: $PG_DEFAULT_VERSION" && \
+    echo "export PG_CONFIG=/usr/lib/postgresql/$PG_DEFAULT_VERSION/bin/pg_config" >> /etc/environment
+
+# Create a dummy pkg-config file for intelmathlib since it's not available in Ubuntu
+RUN mkdir -p /usr/lib/pkgconfig && \
+    echo "prefix=/usr" > /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "exec_prefix=\${prefix}" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "libdir=\${exec_prefix}/lib" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "includedir=\${prefix}/include" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "Name: intelmathlib" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "Description: Dummy Intel Math Library for cross-compilation" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "Version: 1.0" >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "Libs: " >> /usr/lib/pkgconfig/intelmathlib.pc && \
+    echo "Cflags: " >> /usr/lib/pkgconfig/intelmathlib.pc
+
+# Create dummy Intel Math Library headers
+RUN mkdir -p /usr/include && \
+    echo "// Dummy header for cross-compilation" > /usr/include/bid_conf.h && \
+    echo "#ifndef BID_CONF_H" >> /usr/include/bid_conf.h && \
+    echo "#define BID_CONF_H" >> /usr/include/bid_conf.h && \
+    echo "// Minimal defines for compilation" >> /usr/include/bid_conf.h && \
+    echo "#define DECIMAL_CALL_BY_REFERENCE 0" >> /usr/include/bid_conf.h && \
+    echo "#define DECIMAL_GLOBAL_ROUNDING 1" >> /usr/include/bid_conf.h && \
+    echo "#define DECIMAL_GLOBAL_EXCEPTION_FLAGS 1" >> /usr/include/bid_conf.h && \
+    echo "#endif" >> /usr/include/bid_conf.h && \
+    echo "// Dummy header for cross-compilation" > /usr/include/bid_functions.h && \
+    echo "#ifndef BID_FUNCTIONS_H" >> /usr/include/bid_functions.h && \
+    echo "#define BID_FUNCTIONS_H" >> /usr/include/bid_functions.h && \
+    echo "// Dummy function declarations" >> /usr/include/bid_functions.h && \
+    echo "typedef union { unsigned long long w; } BID_UINT64;" >> /usr/include/bid_functions.h && \
+    echo "typedef union { unsigned long long w[2]; } BID_UINT128;" >> /usr/include/bid_functions.h && \
+    echo "#endif" >> /usr/include/bid_functions.h
+
+COPY scripts /tmp/install_setup
+
+# Note: Skipping external dependencies due to network restrictions
+# The following dependencies would normally be installed:
+# - libbson, PCRE2, Intel Decimal Math Library, Citus indent
+# For production use, ensure network access is available for dependency installation
+
+# Set the working directory inside the container
+WORKDIR /build
+
+# Copy the source code into the container
+COPY . /build
+
+# Setup the RPM packaging
+COPY packaging/rpm_files /build/rpm_files
+RUN sed -i "s/POSTGRES_VERSION/${POSTGRES_VERSION}/g" /build/rpm_files/documentdb.spec
+RUN sed -i "s/DOCUMENTDB_VERSION/${DOCUMENTDB_VERSION}/g" /build/rpm_files/documentdb.spec
+
+COPY packaging/packaging-entrypoint-rpm.sh /usr/local/bin/packaging-entrypoint-rpm.sh
+RUN chmod +x /usr/local/bin/packaging-entrypoint-rpm.sh
+
+# Set the entrypoint
+ENTRYPOINT ["packaging-entrypoint-rpm.sh"]
