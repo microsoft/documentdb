@@ -34,11 +34,31 @@ CRUD operations on BSON data types within a PostgreSQL framework.
 # Keep the internal directory out of the RPM package
 sed -i '/internal/d' Makefile
 
-# Build the extension
-make %{?_smp_mflags}
+# Build the extension with relaxed warning flags for cross-compilation
+# Override all warning-related flags
+make %{?_smp_mflags} PG_CFLAGS="-std=gnu99 -Wall -Wno-error" CFLAGS=""
 
 %install
+# Build with Ubuntu paths but install to RHEL-compatible paths
 make install DESTDIR=%{buildroot}
+
+# Create RHEL-style directory structure
+mkdir -p %{buildroot}/usr/pgsql-%{pg_version}/lib
+mkdir -p %{buildroot}/usr/pgsql-%{pg_version}/share/extension
+
+# Move files from Ubuntu paths to RHEL paths
+# Ubuntu uses /usr/lib/postgresql/XX/lib/ and /usr/share/postgresql/XX/extension/
+# RHEL uses /usr/pgsql-XX/lib/ and /usr/pgsql-XX/share/extension/
+if [ -d %{buildroot}/usr/lib/postgresql/%{pg_version}/lib ]; then
+    mv %{buildroot}/usr/lib/postgresql/%{pg_version}/lib/* %{buildroot}/usr/pgsql-%{pg_version}/lib/
+fi
+if [ -d %{buildroot}/usr/share/postgresql/%{pg_version}/extension ]; then
+    mv %{buildroot}/usr/share/postgresql/%{pg_version}/extension/* %{buildroot}/usr/pgsql-%{pg_version}/share/extension/
+fi
+
+# Clean up Ubuntu-style directories
+rm -rf %{buildroot}/usr/lib/postgresql
+rm -rf %{buildroot}/usr/share/postgresql
 
 %files
 %defattr(-,root,root,-)

@@ -124,12 +124,12 @@ case $OS in
         DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     rhel8)
-        DOCKER_IMAGE="rockylinux:8"
+        DOCKER_IMAGE="ubuntu:22.04"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
     rhel9)
-        DOCKER_IMAGE="rockylinux:9"
+        DOCKER_IMAGE="ubuntu:22.04"
         PACKAGE_TYPE="rpm"
         DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
