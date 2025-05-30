@@ -37,6 +37,7 @@
 #include "vector/vector_spec.h"
 #include "utils/version_utils.h"
 #include "query/bson_compare.h"
+#include "index_am/index_am_utils.h"
 
 typedef struct
 {
@@ -707,9 +708,9 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		}
 
 		IndexPath *indexPath = (IndexPath *) path;
-		if (indexPath->indexinfo->relam != RumIndexAmId() ||
-			indexPath->indexinfo->nkeycolumns != 1 ||
-			indexPath->indexinfo->opfamily[0] != BsonRumCompositeIndexOperatorFamily())
+		if (indexPath->indexinfo->nkeycolumns != 1 ||
+			!IsOrderBySupportedOnOpClass(indexPath->indexinfo->relam,
+										 indexPath->indexinfo->opfamily[0]))
 		{
 			continue;
 		}
@@ -1222,7 +1223,7 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 				}
 			}
 
-			if (indexPath->indexinfo->relam == RumIndexAmId())
+			if (IsBsonRegularIndexAm(indexPath->indexinfo->relam))
 			{
 				indexPath->indexclauses = OptimizeIndexExpressionsForRange(
 					indexPath->indexclauses);
@@ -1680,7 +1681,8 @@ UpdateIndexListForText(List *existingIndex, ReplaceExtensionFunctionContext *con
 	foreach(indexCell, existingIndex)
 	{
 		IndexOptInfo *index = lfirst_node(IndexOptInfo, indexCell);
-		if (index->relam == RumIndexAmId() && index->nkeycolumns > 0)
+		if (IsBsonRegularIndexAm(index->relam) &&
+			index->nkeycolumns > 0)
 		{
 			for (int i = 0; i < index->nkeycolumns; i++)
 			{
@@ -1879,7 +1881,7 @@ DefaultTrueForceIndexPushdown(PlannerInfo *root, ReplaceExtensionFunctionContext
 static bool
 MatchIndexPathForText(IndexPath *indexPath, void *matchContext)
 {
-	if (indexPath->indexinfo->relam == RumIndexAmId() &&
+	if (IsBsonRegularIndexAm(indexPath->indexinfo->relam) &&
 		indexPath->indexinfo->ncolumns > 0)
 	{
 		for (int ind = 0; ind < indexPath->indexinfo->ncolumns; ind++)

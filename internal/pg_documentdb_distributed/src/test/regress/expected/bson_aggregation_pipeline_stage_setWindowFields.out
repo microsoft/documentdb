@@ -2,10 +2,10 @@ SET search_path TO documentdb_api_catalog;
 SET citus.next_shard_id TO 455000;
 SET documentdb.next_collection_id TO 4550;
 SET documentdb.next_collection_index_id TO 4550;
-SELECT documentdb_api.drop_collection('db','setWindowFields');
- drop_collection 
+SELECT 1 from documentdb_api.drop_collection('db','setWindowFields');
+ ?column? 
 ---------------------------------------------------------------------
- t
+        1
 (1 row)
 
 -- Add error and validation tests for setWindowFields stage
@@ -334,12 +334,12 @@ SELECT documentdb_api.shard_collection('db', 'setWindowFields_sharded', '{"a": "
 (1 row)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
-    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$cost", "output": {"total": { "$sum": 1}}}}]}');
+    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$cost", "output": {"total": { "$sum": 1}}}}, {"$sort": { "a": 1, "_id": 1 }}]}');
                                                                                                         document                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "total" : { "$numberInt" : "1" } }
- { "_id" : { "$numberInt" : "2" }, "a" : "def", "cost" : { "$numberInt" : "8" }, "quantity" : { "$numberInt" : "502" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "total" : { "$numberInt" : "1" } }
  { "_id" : { "$numberInt" : "1" }, "a" : "abc", "cost" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "total" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "def", "cost" : { "$numberInt" : "8" }, "quantity" : { "$numberInt" : "502" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "total" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "total" : { "$numberInt" : "1" } }
 (3 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
@@ -374,11 +374,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson
 (25 rows)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
-    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$a", "output": {"total": { "$sum": 1}}}}]}');
+    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$a", "output": {"total": { "$sum": 1}}}}, { "$sort" : {"a" : 1, "_id" : 1}}]}');
                                                                                                         document                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "2" }, "a" : "def", "cost" : { "$numberInt" : "8" }, "quantity" : { "$numberInt" : "502" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "total" : { "$numberInt" : "1" } }
  { "_id" : { "$numberInt" : "1" }, "a" : "abc", "cost" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "total" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "def", "cost" : { "$numberInt" : "8" }, "quantity" : { "$numberInt" : "502" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "total" : { "$numberInt" : "1" } }
  { "_id" : { "$numberInt" : "3" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "total" : { "$numberInt" : "1" } }
 (3 rows)
 
@@ -3025,105 +3025,105 @@ SELECT documentdb_api.shard_collection('db', 'window_col', '{ "type": "hashed" }
  
 (1 row)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                    document                                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : null }
- { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
- { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
- { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covariancePop" : null }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
  { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
  { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : null }
+ { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
+ { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
+ { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                    document                                                                                                                    
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : null }
- { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covarianceSamp" : null }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
- { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
- { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covarianceSamp" : null }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covarianceSamp" : null }
  { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : null }
+ { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covarianceSamp" : null }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
+ { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
+ { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                    document                                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
- { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
- { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covariancePop" : { "$numberDouble" : "2.9166666666666665186" } }
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
  { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
  { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covariancePop" : { "$numberDouble" : "2.9166666666666665186" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covariancePop" : { "$numberDouble" : "0.25" } }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "0.66666666666666662966" } }
+ { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covariancePop" : { "$numberDouble" : "1.25" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "2.0" } }
+ { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covariancePop" : { "$numberDouble" : "2.9166666666666665186" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                    document                                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : null }
- { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
- { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covarianceSamp" : { "$numberDouble" : "3.5" } }
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covarianceSamp" : null }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
  { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
  { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covarianceSamp" : { "$numberDouble" : "3.5" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : null }
+ { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covarianceSamp" : { "$numberDouble" : "0.5" } }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "1.0" } }
+ { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covarianceSamp" : { "$numberDouble" : "1.6666666666666667407" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "2.5" } }
+ { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covarianceSamp" : { "$numberDouble" : "3.5" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                    document                                                                                                                   
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covariancePop" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covariancePop" : { "$numberDouble" : "2.6666666666666665186" } }
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : { "$numberDouble" : "5.0" } }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "8.0" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "11.666666666666666075" } }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covariancePop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covariancePop" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covariancePop" : { "$numberDouble" : "1.0" } }
+ { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covariancePop" : { "$numberDouble" : "2.6666666666666665186" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covariancePop" : { "$numberDouble" : "2.6666666666666665186" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covariancePop" : { "$numberDouble" : "5.0" } }
  { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covariancePop" : { "$numberDouble" : "5.0" } }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covariancePop" : { "$numberDouble" : "8.0" } }
  { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covariancePop" : { "$numberDouble" : "8.0" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covariancePop" : { "$numberDouble" : "11.666666666666666075" } }
  { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covariancePop" : { "$numberDouble" : "11.666666666666666075" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
                                                                                                                   document                                                                                                                  
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "0" }, "x" : { "$numberInt" : "1" }, "y" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "covarianceSamp" : null }
- { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covarianceSamp" : { "$numberDouble" : "2.0" } }
- { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covarianceSamp" : { "$numberDouble" : "4.0" } }
- { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : { "$numberDouble" : "6.6666666666666669627" } }
- { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "10.0" } }
- { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "14.0" } }
  { "_id" : { "$numberInt" : "1" }, "x" : { "$numberInt" : "2" }, "y" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "covarianceSamp" : null }
+ { "_id" : { "$numberInt" : "2" }, "x" : { "$numberInt" : "3" }, "y" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "covarianceSamp" : { "$numberDouble" : "2.0" } }
  { "_id" : { "$numberInt" : "3" }, "x" : { "$numberInt" : "4" }, "y" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "covarianceSamp" : { "$numberDouble" : "2.0" } }
+ { "_id" : { "$numberInt" : "4" }, "x" : { "$numberInt" : "5" }, "y" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "covarianceSamp" : { "$numberDouble" : "4.0" } }
  { "_id" : { "$numberInt" : "5" }, "x" : { "$numberInt" : "6" }, "y" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "covarianceSamp" : { "$numberDouble" : "4.0" } }
+ { "_id" : { "$numberInt" : "6" }, "x" : { "$numberInt" : "7" }, "y" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "covarianceSamp" : { "$numberDouble" : "6.6666666666666669627" } }
  { "_id" : { "$numberInt" : "7" }, "x" : { "$numberInt" : "8" }, "y" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "covarianceSamp" : { "$numberDouble" : "6.6666666666666669627" } }
+ { "_id" : { "$numberInt" : "8" }, "x" : { "$numberInt" : "9" }, "y" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "covarianceSamp" : { "$numberDouble" : "10.0" } }
  { "_id" : { "$numberInt" : "9" }, "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "covarianceSamp" : { "$numberDouble" : "10.0" } }
+ { "_id" : { "$numberInt" : "10" }, "x" : { "$numberInt" : "11" }, "y" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "covarianceSamp" : { "$numberDouble" : "14.0" } }
  { "_id" : { "$numberInt" : "11" }, "x" : { "$numberInt" : "12" }, "y" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "covarianceSamp" : { "$numberDouble" : "14.0" } }
 (12 rows)
 
@@ -6077,88 +6077,88 @@ SELECT documentdb_api.shard_collection('db', 'window_stddev_col', '{ "type": "ha
  
 (1 row)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", -1]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", -1]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
                                                                                                   document                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : null }
- { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
- { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
- { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
- { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
  { "_id" : { "$numberInt" : "0" }, "num" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "stdDevPop" : null }
  { "_id" : { "$numberInt" : "1" }, "num" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
  { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
  { "_id" : { "$numberInt" : "3" }, "num" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
  { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
  { "_id" : { "$numberInt" : "5" }, "num" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
+ { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : null }
+ { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
+ { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
+ { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
+ { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
                                                                                                   document                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
- { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
- { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
- { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
- { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevPop" : { "$numberDouble" : "1.7078251276599329955" } }
  { "_id" : { "$numberInt" : "0" }, "num" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
  { "_id" : { "$numberInt" : "1" }, "num" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
  { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
  { "_id" : { "$numberInt" : "3" }, "num" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
  { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
  { "_id" : { "$numberInt" : "5" }, "num" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "stdDevPop" : { "$numberDouble" : "1.7078251276599329955" } }
+ { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevPop" : { "$numberDouble" : "0.5" } }
+ { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "0.81649658092772603446" } }
+ { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevPop" : { "$numberDouble" : "1.1180339887498949025" } }
+ { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "1.4142135623730951455" } }
+ { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevPop" : { "$numberDouble" : "1.7078251276599329955" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
                                                                                                    document                                                                                                   
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevSamp" : null }
- { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevSamp" : { "$numberDouble" : "0.70710678118654757274" } }
- { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevSamp" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevSamp" : { "$numberDouble" : "1.2909944487358055998" } }
- { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevSamp" : { "$numberDouble" : "1.5811388300841897614" } }
- { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevSamp" : { "$numberDouble" : "1.8708286933869706647" } }
  { "_id" : { "$numberInt" : "0" }, "num" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "stdDevSamp" : null }
  { "_id" : { "$numberInt" : "1" }, "num" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "stdDevSamp" : { "$numberDouble" : "0.70710678118654757274" } }
  { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevSamp" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "3" }, "num" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "stdDevSamp" : { "$numberDouble" : "1.2909944487358055998" } }
  { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevSamp" : { "$numberDouble" : "1.5811388300841897614" } }
  { "_id" : { "$numberInt" : "5" }, "num" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "stdDevSamp" : { "$numberDouble" : "1.8708286933869706647" } }
+ { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevSamp" : null }
+ { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevSamp" : { "$numberDouble" : "0.70710678118654757274" } }
+ { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevSamp" : { "$numberDouble" : "1.0" } }
+ { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevSamp" : { "$numberDouble" : "1.2909944487358055998" } }
+ { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevSamp" : { "$numberDouble" : "1.5811388300841897614" } }
+ { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevSamp" : { "$numberDouble" : "1.8708286933869706647" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
                                                                                                   document                                                                                                   
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "0" }, "num" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
- { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevPop" : { "$numberDouble" : "1.0" } }
- { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevPop" : { "$numberDouble" : "1.6329931618554520689" } }
- { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : { "$numberDouble" : "2.2360679774997898051" } }
- { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "2.8284271247461902909" } }
- { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "3.4156502553198659911" } }
  { "_id" : { "$numberInt" : "1" }, "num" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "stdDevPop" : { "$numberDouble" : "0.0" } }
+ { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevPop" : { "$numberDouble" : "1.0" } }
  { "_id" : { "$numberInt" : "3" }, "num" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "stdDevPop" : { "$numberDouble" : "1.0" } }
+ { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevPop" : { "$numberDouble" : "1.6329931618554520689" } }
  { "_id" : { "$numberInt" : "5" }, "num" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "stdDevPop" : { "$numberDouble" : "1.6329931618554520689" } }
+ { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevPop" : { "$numberDouble" : "2.2360679774997898051" } }
  { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevPop" : { "$numberDouble" : "2.2360679774997898051" } }
+ { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevPop" : { "$numberDouble" : "2.8284271247461902909" } }
  { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevPop" : { "$numberDouble" : "2.8284271247461902909" } }
+ { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevPop" : { "$numberDouble" : "3.4156502553198659911" } }
  { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevPop" : { "$numberDouble" : "3.4156502553198659911" } }
 (12 rows)
 
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
                                                                                                    document                                                                                                   
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "0" }, "num" : { "$numberInt" : "2" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841600000" } }, "stdDevSamp" : null }
- { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevSamp" : { "$numberDouble" : "1.4142135623730951455" } }
- { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevSamp" : { "$numberDouble" : "2.0" } }
- { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevSamp" : { "$numberDouble" : "2.5819888974716111996" } }
- { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevSamp" : { "$numberDouble" : "3.1622776601683795228" } }
- { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevSamp" : { "$numberDouble" : "3.7416573867739413295" } }
  { "_id" : { "$numberInt" : "1" }, "num" : { "$numberInt" : "3" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841605000" } }, "stdDevSamp" : null }
+ { "_id" : { "$numberInt" : "2" }, "num" : { "$numberInt" : "4" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841610000" } }, "stdDevSamp" : { "$numberDouble" : "1.4142135623730951455" } }
  { "_id" : { "$numberInt" : "3" }, "num" : { "$numberInt" : "5" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841615000" } }, "stdDevSamp" : { "$numberDouble" : "1.4142135623730951455" } }
+ { "_id" : { "$numberInt" : "4" }, "num" : { "$numberInt" : "6" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841620000" } }, "stdDevSamp" : { "$numberDouble" : "2.0" } }
  { "_id" : { "$numberInt" : "5" }, "num" : { "$numberInt" : "7" }, "type" : "a", "date" : { "$date" : { "$numberLong" : "1718841630000" } }, "stdDevSamp" : { "$numberDouble" : "2.0" } }
+ { "_id" : { "$numberInt" : "6" }, "num" : { "$numberInt" : "8" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841640000" } }, "stdDevSamp" : { "$numberDouble" : "2.5819888974716111996" } }
  { "_id" : { "$numberInt" : "7" }, "num" : { "$numberInt" : "9" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841680000" } }, "stdDevSamp" : { "$numberDouble" : "2.5819888974716111996" } }
+ { "_id" : { "$numberInt" : "8" }, "num" : { "$numberInt" : "10" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841700000" } }, "stdDevSamp" : { "$numberDouble" : "3.1622776601683795228" } }
  { "_id" : { "$numberInt" : "9" }, "num" : { "$numberInt" : "11" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841800000" } }, "stdDevSamp" : { "$numberDouble" : "3.1622776601683795228" } }
+ { "_id" : { "$numberInt" : "10" }, "num" : { "$numberInt" : "12" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718841900000" } }, "stdDevSamp" : { "$numberDouble" : "3.7416573867739413295" } }
  { "_id" : { "$numberInt" : "11" }, "num" : { "$numberInt" : "13" }, "type" : "b", "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "stdDevSamp" : { "$numberDouble" : "3.7416573867739413295" } }
 (12 rows)
 

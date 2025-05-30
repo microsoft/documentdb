@@ -26,7 +26,7 @@
 #include "index_am/documentdb_rum.h"
 #include "metadata/metadata_cache.h"
 #include "opclass/bson_gin_composite_scan.h"
-
+#include "index_am/index_am_utils.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
@@ -472,15 +472,6 @@ IsTextIndexMatch(IndexPath *path)
 	}
 
 	return false;
-}
-
-
-inline static bool
-IsCompositeOpClass(Relation rel)
-{
-	return EnableNewCompositeIndexOpclass &&
-		   IndexRelationGetNumberOfKeyAttributes(rel) == 1 &&
-		   rel->rd_opfamily[0] == BsonRumCompositeIndexOperatorFamily();
 }
 
 

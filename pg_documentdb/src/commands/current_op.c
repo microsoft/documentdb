@@ -31,6 +31,7 @@
 #include "metadata/collection.h"
 #include "metadata/index.h"
 #include "utils/guc_utils.h"
+#include "index_am/index_am_utils.h"
 
 
 /*
@@ -1087,14 +1088,19 @@ static IndexSpec *
 GetIndexSpecForShardedCreateIndexQuery(SingleWorkerActivity *activity)
 {
 	ArrayType *indexAmIdsArray = NULL;
-	int arraySize = 4;
-	Datum indexAmIdsDatum[4] = { 0 };
+	int preloadedIndexAmCount = 4;
+
+	/* Size of indexAmIdsDatum should be = (preloadedIndexAmCount + preloadedIndexAmCount)*/
+	Datum indexAmIdsDatum[9] = { 0 };
 	indexAmIdsDatum[0] = RumIndexAmId();
 	indexAmIdsDatum[1] = PgVectorHNSWIndexAmId();
 	indexAmIdsDatum[2] = PgVectorIvfFlatIndexAmId();
 	indexAmIdsDatum[3] = GIST_AM_OID;
 
 	/* TODO - Add diskann index am id */
+
+	int arraySize = preloadedIndexAmCount + SetDynamicIndexAmOidsAndGetCount(
+		indexAmIdsDatum, preloadedIndexAmCount);
 
 	indexAmIdsArray = construct_array(indexAmIdsDatum, arraySize, OIDOID,
 									  sizeof(Oid), true,

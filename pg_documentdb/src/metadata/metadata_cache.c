@@ -6299,7 +6299,6 @@ BsonRumSinglePathOperatorFamily(void)
 
 	if (Cache.BsonRumSinglePathOperatorFamily == InvalidOid)
 	{
-		/* Handles extension version upgrades */
 		bool missingOk = false;
 		Oid rumAmId = RumIndexAmId();
 		Cache.BsonRumSinglePathOperatorFamily = get_opfamily_oid(
