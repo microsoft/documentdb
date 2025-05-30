@@ -18,8 +18,23 @@ For Red Hat-based distributions, you can build RPM packages:
 ```
 
 Supported RPM distributions:
-- rhel8 (Red Hat Enterprise Linux 8 compatible - uses CentOS Stream 8)
-- rhel9 (Red Hat Enterprise Linux 9 compatible - uses CentOS Stream 9)
+- rhel8 (Red Hat Enterprise Linux 8 compatible)
+- rhel9 (Red Hat Enterprise Linux 9 compatible)
+
+### Network Requirements for RPM Builds
+
+**Important**: RPM builds require network access to external repositories during the Docker build process. The build may fail in environments with restrictive firewalls that block access to:
+
+- Package repository mirrors (e.g., `mirrors.rockylinux.org`, `mirrorlist.centos.org`)
+- PostgreSQL repository downloads
+- External dependency sources
+
+If you encounter network connectivity errors during RPM builds:
+
+1. **Check firewall settings**: Ensure your build environment can access external package repositories
+2. **Use a different network**: Try building from a network with fewer restrictions
+3. **Contact your system administrator**: Request access to the blocked domains
+4. **Alternative**: Use pre-built packages when available or build in an unrestricted environment
 
 ### RPM Build Prerequisites
 
@@ -31,8 +46,8 @@ Before building RPM packages, you can validate your environment:
 
 This script checks:
 - Docker installation and availability
-- Access to CentOS Stream base images
 - Network connectivity for package repositories
+- Access to required base images
 
 ### Example RPM Build Commands
 

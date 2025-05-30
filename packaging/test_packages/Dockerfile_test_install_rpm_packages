@@ -1,21 +1,22 @@
-ARG BASE_IMAGE=fedora:38
+ARG BASE_IMAGE=rockylinux:8
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
 ARG RPM_PACKAGE_REL_PATH
 
-# Install PostgreSQL repository
-RUN dnf install -y https://download.postgresql.org/pub/repos/yum/repopackages/F-38-x86_64/pgdg-fedora-repo-latest.noarch.rpm
+# Install EPEL and PostgreSQL repository
+RUN yum install -y epel-release
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-8-x86_64/pgdg-redhat-repo-42.0-52PGDG.noarch.rpm
 
 # Update package manager
-RUN dnf update -y
+RUN yum update -y
 
 # Install PostgreSQL
-RUN dnf install -y \
+RUN yum install -y \
     postgresql${POSTGRES_VERSION} \
     postgresql${POSTGRES_VERSION}-server \
     postgresql${POSTGRES_VERSION}-contrib \
-    && dnf clean all
+    && yum clean all
 
 # Copy the package to test
 COPY ${RPM_PACKAGE_REL_PATH} /tmp/documentdb.rpm

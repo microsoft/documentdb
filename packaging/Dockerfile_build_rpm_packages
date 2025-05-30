@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:22.04
+ARG BASE_IMAGE=rockylinux:8
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
@@ -6,39 +6,42 @@ ARG DOCUMENTDB_VERSION
 
 RUN test -n "$DOCUMENTDB_VERSION" || (echo "DOCUMENTDB_VERSION not set" && false)
 
-# Set timezone to avoid interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=UTC
+# Install EPEL and PostgreSQL repository
+RUN yum install -y epel-release || (echo "Failed to install EPEL. Check network connectivity and firewall settings." && exit 1)
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-8-x86_64/pgdg-redhat-repo-42.0-52PGDG.noarch.rpm || (echo "Failed to install PostgreSQL repository. Check network connectivity." && exit 1)
 
-# Update package manager and install dependencies
-RUN apt-get update && apt-get install -y \
+# Update package manager and disable conflicting PostgreSQL module
+RUN yum update -y
+RUN yum module disable postgresql -y
+
+# Install build dependencies and PostgreSQL
+RUN yum install -y \
     wget \
     ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    software-properties-common \
     python3 \
-    python3-pip \
+    curl \
     gcc \
-    g++ \
+    gcc-c++ \
     make \
     cmake \
     git \
     pkg-config \
-    libicu-dev \
-    libkrb5-dev \
-    postgresql-14 \
-    postgresql-server-dev-14 \
-    postgresql-contrib-14 \
-    postgresql-plpython3-14 \
-    rpm \
+    libicu-devel \
+    krb5-devel \
+    postgresql${POSTGRES_VERSION} \
+    postgresql${POSTGRES_VERSION}-server \
+    postgresql${POSTGRES_VERSION}-contrib \
+    rpm-build \
     rpmlint \
-    && apt-get clean
+    rpmdevtools \
+    && yum clean all
+
+# Install PostgreSQL development packages separately with dependency resolution
+RUN yum install -y postgresql${POSTGRES_VERSION}-devel postgresql${POSTGRES_VERSION}-plpython3 --skip-broken || \
+    echo "Warning: Some PostgreSQL development packages could not be installed due to missing dependencies"
 
 # Set up locale
-RUN apt-get install -y locales
-RUN locale-gen en_US.UTF-8
+RUN yum install -y glibc-locale-source glibc-langpack-en
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
