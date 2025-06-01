@@ -171,6 +171,12 @@ typedef struct
 	bool hasArrayAncestors;
 
 	/*
+	 * When an array path has subtrees that have terms, and other other subtrees
+	 * that do not have terms, this is marked as true.
+	 */
+	bool hasArrayPartialTermExistence;
+
+	/*
 	 * Whether or not to use the reduced wildcard term generation support.
 	 */
 	bool useReducedWildcardTerms;

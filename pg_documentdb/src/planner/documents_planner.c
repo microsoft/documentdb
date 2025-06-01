@@ -111,6 +111,7 @@ extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
 extern bool ForceDisableSeqScan;
+extern bool EnableExtendedExplainPlans;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -743,6 +744,12 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 		{
 			AddExtensionQueryScanForTextQuery(root, rel, rte, textIndexData);
 		}
+	}
+
+	if (EnableExtendedExplainPlans)
+	{
+		/* Add the custom scan wrapper for explain plans */
+		AddExplainCustomScanWrapper(root, rel, rte);
 	}
 }
 

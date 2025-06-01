@@ -16,6 +16,9 @@
 #include "metadata/metadata_cache.h"
 #include "utils/version_utils.h"
 
+struct IndexScanDescData;
+struct ExplainState;
+
 /*
  * Data structure for an alternative index acess method for indexing bosn.
  * It contains the indexing capability and various utility function.
@@ -31,8 +34,11 @@ typedef struct
 	bool is_order_by_supported;
 	Oid (*get_am_oid)(void);
 	Oid (*get_single_path_op_family_oid)(void);
-	Oid (*get_wildcard_path_op_family_oid)(void);
 	Oid (*get_composite_path_op_family_oid)(void);
+
+	/* optional func to add explain output */
+	void (*add_explain_output)(struct IndexScanDescData *indexScanDesc, struct
+							   ExplainState *explainState);
 	const char *am_name;
 } BsonIndexAmEntry;
 
@@ -48,7 +54,7 @@ int SetDynamicIndexAmOidsAndGetCount(Datum *indexAmArray, int32_t indexAmArraySi
 /*
  * Gets an index AM entry by name.
  */
-BsonIndexAmEntry * GetBsonIndexAmByIndexAmName(const char *index_am_name);
+const BsonIndexAmEntry * GetBsonIndexAmByIndexAmName(const char *index_am_name);
 
 
 /*
@@ -70,4 +76,5 @@ bool IsSinglePathOpFamilyOid(Oid opFamilyOid);
 bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 
 
+void TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es);
 #endif

@@ -131,6 +131,9 @@ int VectorPreFilterIterativeScanMode = DEFAULT_VECTOR_ITERATIVE_SCAN_MODE;
 #define DEFAULT_ENABLE_GEONEAR_FORCE_INDEX_PUSHDOWN true
 bool EnableGeonearForceIndexPushdown = DEFAULT_ENABLE_GEONEAR_FORCE_INDEX_PUSHDOWN;
 
+#define DEFAULT_ENABLE_EXTENDED_EXPLAIN_PLANS false
+bool EnableExtendedExplainPlans = DEFAULT_ENABLE_EXTENDED_EXPLAIN_PLANS;
+
 /* Note that this is explicitly left disabled
  * This is primarily because the operator that sets default_transaction_readonly
  * would want to avoid new writes (perhaps due to high disk usage) and a background
@@ -387,5 +390,13 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop("The default batch size for the first page of a cursor."),
 		NULL, &DefaultCursorFirstPageBatchSize,
 		DEFAULT_CURSOR_FIRST_PAGE_BATCH_SIZE, 1, INT_MAX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableExtendedExplainPlans", newGucPrefix),
+		gettext_noop(
+			"Enables extended explain plans for queries. "
+			"This will include additional information in the explain plans."),
+		NULL, &EnableExtendedExplainPlans, DEFAULT_ENABLE_EXTENDED_EXPLAIN_PLANS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

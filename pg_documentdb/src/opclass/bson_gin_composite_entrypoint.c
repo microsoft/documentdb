@@ -55,7 +55,6 @@ PG_FUNCTION_INFO_V1(gin_bson_composite_ordering_transform);
 
 extern bool EnableCollation;
 extern bool EnableNewCompositeIndexOpclass;
-extern bool SkipGeneratingArrayTermForCompositeIndex;
 
 extern bool RumHasMultiKeyPaths;
 
@@ -391,9 +390,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 					runData->indexBounds[compareIndex].indexRecheckFunctions)
 			{
 				IndexRecheckArgs *recheckStrategy = lfirst(recheckFuncs);
-				if (!IsValidRecheckForIndexValue(compareValue,
-												 compareTerm[compareIndex].
-												 isIndexTermTruncated,
+				if (!IsValidRecheckForIndexValue(&compareTerm[compareIndex],
 												 recheckStrategy))
 				{
 					return -1;
@@ -875,6 +872,69 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 }
 
 
+char *
+SerializeBoundsStringForExplain(bytea *entry, void *extraData, PG_FUNCTION_ARGS)
+{
+	CompositeQueryRunData *runData = (CompositeQueryRunData *) extraData;
+
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) PG_GET_OPCLASS_OPTIONS();
+
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+
+	int numPaths = GetIndexPathsFromOptions(
+		options,
+		indexPaths);
+	if (numPaths != runData->numIndexPaths)
+	{
+		return "";
+	}
+
+	StringInfo s = makeStringInfo();
+	appendStringInfoString(s, "[");
+	for (int i = 0; i < runData->numIndexPaths; i++)
+	{
+		if (i > 0)
+		{
+			appendStringInfoString(s, ", ");
+		}
+
+		appendStringInfo(s, "\"%s\": %s",
+						 indexPaths[i],
+						 runData->indexBounds[i].lowerBound.isBoundInclusive ? "[" : "(");
+		if (runData->indexBounds[i].lowerBound.bound.value_type == BSON_TYPE_EOD ||
+			runData->indexBounds[i].lowerBound.bound.value_type == BSON_TYPE_MINKEY)
+		{
+			appendStringInfoString(s, "MinKey");
+		}
+		else
+		{
+			appendStringInfo(s, "%s", BsonValueToJsonForLogging(
+								 &runData->indexBounds[i].lowerBound.bound));
+		}
+
+		appendStringInfo(s, ", ");
+
+		if (runData->indexBounds[i].upperBound.bound.value_type == BSON_TYPE_EOD ||
+			runData->indexBounds[i].upperBound.bound.value_type == BSON_TYPE_MAXKEY)
+		{
+			appendStringInfoString(s, "MaxKey");
+		}
+		else
+		{
+			appendStringInfo(s, "%s", BsonValueToJsonForLogging(
+								 &runData->indexBounds[i].upperBound.bound));
+		}
+
+		appendStringInfo(s, "%s",
+						 runData->indexBounds[i].upperBound.isBoundInclusive ? "]" : ")");
+	}
+	appendStringInfoString(s, "]");
+
+	return s->data;
+}
+
+
 void
 ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey, bool
 							   hasArrayKeys)
@@ -1098,7 +1158,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		context.generateNotFoundTerm = true;
 		context.skipGeneratedPathUndefinedTermOnLiteralNull = true;
 		context.termMetadata = GetIndexTermMetadata(singlePathOptions);
-		context.skipGenerateTopLevelArrayTerm = SkipGeneratingArrayTermForCompositeIndex;
+		context.skipGenerateTopLevelArrayTerm = true;
 
 		bool addRootTerm = false;
 		GenerateTerms(bson, &context, addRootTerm);
@@ -1139,12 +1199,8 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 				indexTerm.element.bsonValue.value_type == BSON_TYPE_NULL)
 			{
 				/* This is the "path does not exist" term */
-				indexTerm.element.path = "$";
-				indexTerm.element.pathLength = 1;
-				indexTerm.element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
-				BsonIndexTermSerialized nonExistsTerm =
-					SerializeBsonIndexTerm(&indexTerm.element, &overallMetadata);
-				compositeDatums[j] = nonExistsTerm.indexTermVal;
+				compositeDatums[j] = DatumGetByteaPP(GenerateValueUndefinedTerm(
+														 &overallMetadata, "$"));
 			}
 			else
 			{

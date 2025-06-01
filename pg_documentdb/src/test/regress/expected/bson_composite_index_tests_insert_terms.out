@@ -12,73 +12,43 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
 (1 row)
 
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ], "b": 2 }', '[ "a", "b" ]', 2000, false);
-                                   gin_bson_get_composite_path_generated_terms                                    
-------------------------------------------------------------------------------------------------------------------
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "2" } ] }
+         gin_bson_get_composite_path_generated_terms          
+--------------------------------------------------------------
  { "$" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }
  { "$" : [ { "$numberInt" : "2" }, { "$numberInt" : "2" } ] }
  { "$" : [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] }
  { "" : [  ] }
-(5 rows)
+(4 rows)
 
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": 1, "b": [ true, false ] }', '[ "a", "b" ]', 2000, false);
-      gin_bson_get_composite_path_generated_terms      
--------------------------------------------------------
- { "$" : [ { "$numberInt" : "1" }, [ true, false ] ] }
+ gin_bson_get_composite_path_generated_terms 
+---------------------------------------------
  { "$" : [ { "$numberInt" : "1" }, true ] }
  { "$" : [ { "$numberInt" : "1" }, false ] }
  { "" : [  ] }
-(4 rows)
+(3 rows)
 
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ], "b": [ true, false ] }', '[ "a", "b" ]', 2000, false);
-                                gin_bson_get_composite_path_generated_terms                                
------------------------------------------------------------------------------------------------------------
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], [ true, false ] ] }
- { "$" : [ { "$numberInt" : "1" }, [ true, false ] ] }
- { "$" : [ { "$numberInt" : "2" }, [ true, false ] ] }
- { "$" : [ { "$numberInt" : "3" }, [ true, false ] ] }
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], true ] }
+ gin_bson_get_composite_path_generated_terms 
+---------------------------------------------
  { "$" : [ { "$numberInt" : "1" }, true ] }
  { "$" : [ { "$numberInt" : "2" }, true ] }
  { "$" : [ { "$numberInt" : "3" }, true ] }
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], false ] }
  { "$" : [ { "$numberInt" : "1" }, false ] }
  { "$" : [ { "$numberInt" : "2" }, false ] }
  { "$" : [ { "$numberInt" : "3" }, false ] }
  { "" : [  ] }
-(13 rows)
+(7 rows)
 
 -- test when one doesn't exist
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "b": [ true, false ] }', '[ "a", "b" ]', 2000, false);
-      gin_bson_get_composite_path_generated_terms       
---------------------------------------------------------
- { "$" : [ { "$undefined" : true }, [ true, false ] ] }
+ gin_bson_get_composite_path_generated_terms  
+----------------------------------------------
  { "$" : [ { "$undefined" : true }, true ] }
  { "$" : [ { "$undefined" : true }, false ] }
  { "" : [  ] }
-(4 rows)
+(3 rows)
 
-SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
-                                    gin_bson_get_composite_path_generated_terms                                    
--------------------------------------------------------------------------------------------------------------------
- { "$" : [ [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$undefined" : true } ] }
- { "$" : [ { "$numberInt" : "1" }, { "$undefined" : true } ] }
- { "$" : [ { "$numberInt" : "2" }, { "$undefined" : true } ] }
- { "$" : [ { "$numberInt" : "3" }, { "$undefined" : true } ] }
- { "" : [  ] }
-(5 rows)
-
--- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
-SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
-                          gin_bson_get_composite_path_generated_terms                          
------------------------------------------------------------------------------------------------
- { "$" : [ { "$" : "aaaaaaaa", "t" : true }, { "$" : { "$numberInt" : "1" }, "t" : false } ] }
- { "" : { "$maxKey" : 1 }, "t" : true }
-(2 rows)
-
--- if the array terms are skipped, they aren't generated
-BEGIN;
-set documentdb.skipGeneratingArrayTermForCompositeIndex to on;
 SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": [ 1, 2, 3 ] }', '[ "a", "b" ]', 2000, false);
           gin_bson_get_composite_path_generated_terms          
 ---------------------------------------------------------------
@@ -88,7 +58,14 @@ SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_term
  { "" : [  ] }
 (4 rows)
 
-ROLLBACK;
+-- test when one gets truncated (a has 29 letters, truncation limit is 50 /2 so 25 per path)
+SELECT * FROM documentdb_test_helpers.gin_bson_get_composite_path_generated_terms('{ "a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "b": 1 }', '[ "a", "b" ]', 50, true);
+                          gin_bson_get_composite_path_generated_terms                          
+-----------------------------------------------------------------------------------------------
+ { "$" : [ { "$" : "aaaaaaaa", "t" : true }, { "$" : { "$numberInt" : "1" }, "t" : false } ] }
+ { "" : { "$maxKey" : 1 }, "t" : true }
+(2 rows)
+
 -- create a table and insert some data.
 set documentdb.enableNewCompositeIndexOpClass to on;
 SELECT documentdb_api_internal.create_indexes_non_concurrently(

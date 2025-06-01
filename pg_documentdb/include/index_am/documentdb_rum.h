@@ -86,4 +86,9 @@ bool extension_ruminsert_core(Relation indexRelation,
 
 void RumUpdateMultiKeyStatus(bool isBuild, Relation index);
 bool RumGetMultikeyStatus(Relation indexRelation);
+
+struct ExplainState;
+void ExplainCompositeScan(IndexScanDesc scan, struct ExplainState *es);
+
+void ExplainRegularIndexScan(IndexScanDesc scan, struct ExplainState *es);
 #endif

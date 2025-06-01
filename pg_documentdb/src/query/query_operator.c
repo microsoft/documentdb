@@ -1858,6 +1858,14 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				}
 			}
 
+			if (numValues == 0 && context->simplifyOperators)
+			{
+				/* $in: [] is alwaysFalse; $nin: [] is alwaysTrue */
+				bool isNull = false;
+				return (Expr *) makeBoolConst(
+					operator->operatorType == QUERY_OPERATOR_IN ? false : true, isNull);
+			}
+
 			if (numValues == 1 && context->simplifyOperators &&
 				!hasRegex)
 			{

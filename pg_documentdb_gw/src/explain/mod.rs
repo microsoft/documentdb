@@ -934,6 +934,7 @@ fn get_stage_from_plan(
                             ("SHARD_MERGE".to_owned(), None)
                         }
                     }
+                    "DocumentDBApiExplainQueryScan" => ("ExplainWrapper".to_owned(), None),
                     scan_type if query_catalog.scan_types().contains(&scan_type.to_string()) => {
                         ("FETCH".to_owned(), None)
                     }
@@ -1351,6 +1352,32 @@ fn query_planner(
                 }
             }
 
+            if plan.index_details.is_some() {
+                let mut arr = RawArrayBuf::new();
+                for detail in plan.index_details.as_ref().unwrap() {
+                    let mut index_doc = rawdoc! {};
+                    if let Some(index_name) = detail.index_name.as_deref() {
+                        index_doc.append("indexName", index_name);
+                    }
+
+                    if let Some(multi_key_val) = detail.is_multi_key {
+                        index_doc.append("isMultiKey", multi_key_val);
+                    }
+
+                    if let Some(index_bounds) = detail.index_bounds.as_ref() {
+                        let mut bounds_arr = RawArrayBuf::new();
+                        index_bounds.iter().for_each(|key| {
+                            bounds_arr.push(key.as_str());
+                        });
+                        index_doc.append("bounds", bounds_arr);
+                    }
+
+                    arr.push(index_doc);
+                }
+
+                doc.append("indexUsage", arr);
+            }
+
             if stage_name != "EOF" {
                 let rows: i64 = plan
                     .plan_rows
@@ -1456,6 +1483,33 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
         if let Some(v) = plan.workers_launched {
             doc.append("parallelWorkers", smallest_from_i64(v))
         }
+
+        if plan.index_details.is_some() {
+            let mut arr = RawArrayBuf::new();
+            for detail in plan.index_details.as_ref().unwrap() {
+                let mut index_doc = rawdoc! {};
+                if let Some(index_name) = detail.index_name.as_deref() {
+                    index_doc.append("indexName", index_name);
+                }
+
+                if let Some(inner_scan_loops) = detail.inner_scan_loops {
+                    index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
+                }
+
+                if let Some(scan_key_details) = detail.scan_key_details.as_ref() {
+                    let mut scan_key_arr = RawArrayBuf::new();
+                    scan_key_details.iter().for_each(|key| {
+                        scan_key_arr.push(key.as_str());
+                    });
+                    index_doc.append("scanKeys", scan_key_arr);
+                }
+
+                arr.push(index_doc);
+            }
+
+            doc.append("indexUsage", arr);
+        }
+
         doc
     });
     rawdoc! {
@@ -1479,6 +1533,13 @@ fn skip_stage(plan: ExplainPlan, query_catalog: &QueryCatalog) -> ExplainPlan {
         let mut p = plan.inner_plans.expect("Checked").remove(0);
         p.alias = plan.alias;
         p
+    } else if plan.node_type == "Custom Scan"
+        && plan.custom_plan_provider.as_deref() == Some("DocumentDBApiExplainQueryScan")
+        && plan.inner_plans.as_ref().is_some_and(|ip| ip.len() == 1)
+    {
+        let mut new_plan = plan.inner_plans.expect("Checked").remove(0);
+        new_plan.index_details = plan.index_details;
+        new_plan
     } else {
         plan
     }

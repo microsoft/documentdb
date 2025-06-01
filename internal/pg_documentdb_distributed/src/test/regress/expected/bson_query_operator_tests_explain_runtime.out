@@ -1521,7 +1521,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (17 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$in": [ ]} }' ORDER BY object_id;
-                                                     QUERY PLAN                                                     
+                        QUERY PLAN                         
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
    Task Count: 1
@@ -1533,14 +1533,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Sort (actual rows=0 loops=1)
                Sort Key: object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=0 loops=1)
-                     Recheck Cond: (shard_key_value = '1300'::bigint)
-                     Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [  ] }'::documentdb_core.bson)
-                     Rows Removed by Filter: 27
-                     Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
-                           Index Cond: (shard_key_value = '1300'::bigint)
-(17 rows)
+               ->  Result (actual rows=0 loops=1)
+                     One-Time Filter: false
+(12 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$in": [ 1, 2 ]} }' ORDER BY object_id;
                                                                             QUERY PLAN                                                                            
@@ -1587,7 +1582,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (17 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$nin": [ ]} }' ORDER BY object_id;
-                                                     QUERY PLAN                                                      
+                                            QUERY PLAN                                            
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=27 loops=1)
    Task Count: 1
@@ -1601,11 +1596,10 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
                Sort Method: quicksort  Memory: 28kB
                ->  Bitmap Heap Scan on documents_1300_1300002 collection (actual rows=27 loops=1)
                      Recheck Cond: (shard_key_value = '1300'::bigint)
-                     Filter: (document OPERATOR(documentdb_api_catalog.@!*=) '{ "a" : [  ] }'::documentdb_core.bson)
                      Heap Blocks: exact=1
                      ->  Bitmap Index Scan on _id_ (actual rows=27 loops=1)
                            Index Cond: (shard_key_value = '1300'::bigint)
-(16 rows)
+(15 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$nin": [ 1, 2 ]} }' ORDER BY object_id;
                                                                             QUERY PLAN                                                                             

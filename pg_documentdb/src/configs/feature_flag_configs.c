@@ -142,10 +142,6 @@ int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECON
 #define DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR true
 bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR;
 
-#define DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX false
-bool SkipGeneratingArrayTermForCompositeIndex =
-	DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX;
-
 
 /*
  * SECTION: Let support feature flags
@@ -541,14 +537,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to expand $all in query operator."),
 		NULL, &ExpandDollarAllInQueryOperator,
 		DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.skipGeneratingArrayTermForCompositeIndex", newGucPrefix),
-		gettext_noop(
-			"Whether or not to skip generating array term for composite index."),
-		NULL, &SkipGeneratingArrayTermForCompositeIndex,
-		DEFAULT_SKIP_GENERATING_ARRAY_TERM_FOR_COMPOSITE_INDEX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

@@ -270,10 +270,19 @@ SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [30, 30], "distanceField": "dist.calculated", "key": "a.c", "spherical": true } } , { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ]}');
 
+ROLLBACK;
+
+BEGIN;
+set citus.enable_local_execution TO OFF;
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 16, "a": { "c": [[10, 10], [20, 20], [30, 30], [40, 40]]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 17, "a": { "c": [{"x": 10, "y": 10}, {"x": 20, "y": 20}, {"x": 30, "y": 30}, {"x": 40, "y": 40}]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 18, "a": { "c": [[]]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 19, "a": { "c": [{}]} }', NULL);
+
 EXPLAIN VERBOSE SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [10, 10], "distanceField": "dist.calculated", "key": "a.c" } } , { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ]}');
-
 ROLLBACK;
+
 
 SELECT documentdb_api.insert_one('db','boundstest','{ "_id": 1, "geo": [ 0, 0]}', NULL);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "boundstest", "indexes": [{"key": {"geo": "2d"}, "name": "2d_bounds_idx", "max": 1, "min": -1 }]}', true);

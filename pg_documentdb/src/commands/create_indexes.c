@@ -449,7 +449,8 @@ GetIndexAmHandlerName(IndexDef *indexDef)
 {
 	if (AlternateIndexHandler != NULL)
 	{
-		BsonIndexAmEntry *indexAm = GetBsonIndexAmByIndexAmName(AlternateIndexHandler);
+		const BsonIndexAmEntry *indexAm = GetBsonIndexAmByIndexAmName(
+			AlternateIndexHandler);
 
 		if ((IsUniqueIndex(indexDef) && indexAm->is_unique_index_supported) ||
 			(IsWildCardIndex(indexDef) && indexAm->is_wild_card_supported) ||

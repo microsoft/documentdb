@@ -61,10 +61,24 @@ typedef struct CompositeRegexData
 
 static void ProcessBoundForQuery(CompositeSingleBound *bound, const
 								 IndexTermCreateMetadata *metadata);
-static void SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
-											 BsonIndexStrategy queryStrategy,
-											 CompositeIndexBounds *queryBounds,
-											 bool isNegationOp);
+static void SetEqualityBound(const bson_value_t *queryValue,
+							 CompositeIndexBounds *queryBounds);
+static void SetArrayEqualityBound(const bson_value_t *queryValue,
+								  CompositeIndexBounds *bounds);
+static void SetGreaterThanBounds(const bson_value_t *queryValue,
+								 BsonIndexStrategy queryStrategy,
+								 CompositeIndexBounds *queryBounds);
+static void SetLessThanBounds(const bson_value_t *queryValue,
+							  BsonIndexStrategy queryStrategy,
+							  CompositeIndexBounds *queryBounds);
+static void SetBoundsExistsTrue(CompositeIndexBounds *queryBounds);
+static void SetSingleBoundsDollarType(const bson_value_t *queryValue,
+									  CompositeIndexBounds *queryBounds);
+static void SetSingleBoundsDollarRegex(const bson_value_t *queryValue,
+									   CompositeIndexBounds *queryBounds,
+									   bool isNegationOp);
+static void SetBoundsForNotEqual(const bson_value_t *queryValue,
+								 CompositeIndexBounds *queryBounds);
 
 
 static void SetUpperBound(CompositeSingleBound *currentBoundValue, const
@@ -72,9 +86,6 @@ static void SetUpperBound(CompositeSingleBound *currentBoundValue, const
 static void SetLowerBound(CompositeSingleBound *currentBoundValue, const
 						  CompositeSingleBound *lowerBound);
 
-static void AddMultiBoundaryForDollarAll(int32_t indexAttribute,
-										 pgbsonelement *queryElement,
-										 VariableIndexBounds *indexBounds);
 static void AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 										pgbsonelement *queryElement,
 										VariableIndexBounds *indexBounds);
@@ -335,6 +346,40 @@ UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
 }
 
 
+inline static CompositeIndexBoundsSet *
+CreateAndRegisterSingleIndexBoundsSet(VariableIndexBounds *indexBounds, int
+									  indexAttribute)
+{
+	const int numTerms = 1;
+	CompositeIndexBoundsSet *set = palloc0(offsetof(CompositeIndexBoundsSet,
+													bounds) +
+										   numTerms * sizeof(CompositeIndexBounds));
+	set->indexAttribute = indexAttribute;
+	set->numBounds = numTerms;
+	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
+											  set);
+	return set;
+}
+
+
+static bool
+GetFirstElementFromQueryArray(const bson_value_t *arrayValue, bson_value_t *firstElement)
+{
+	/* Empty array defaults to NULL */
+	firstElement->value_type = BSON_TYPE_NULL;
+	bson_iter_t arrayIter;
+	BsonValueInitIterator(arrayValue, &arrayIter);
+
+	if (bson_iter_next(&arrayIter))
+	{
+		*firstElement = *bson_iter_value(&arrayIter);
+		return true;
+	}
+
+	return false;
+}
+
+
 void
 ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 					  pgbsonelement *queryElement,
@@ -367,24 +412,140 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 	{
 		/* Single bound operators */
 		case BSON_INDEX_STRATEGY_DOLLAR_EQUAL:
+		{
+			if (queryElement->bsonValue.value_type == BSON_TYPE_ARRAY)
+			{
+				int numterms = 2;
+				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
+				SetArrayEqualityBound(&queryElement->bsonValue, &set->bounds[0]);
+				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
+														  set);
+			}
+			else
+			{
+				CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+					indexBounds, i);
+				SetEqualityBound(&queryElement->bsonValue, &set->bounds[0]);
+			}
+
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL:
 		case BSON_INDEX_STRATEGY_DOLLAR_GREATER:
+		{
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			SetGreaterThanBounds(&queryElement->bsonValue, queryStrategy,
+								 &set->bounds[0]);
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_LESS:
 		case BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL:
+		{
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			SetLessThanBounds(&queryElement->bsonValue, queryStrategy, &set->bounds[0]);
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_EXISTS:
+		{
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			int existsValue = BsonValueAsInt32(&queryElement->bsonValue);
+			if (existsValue == 1)
+			{
+				/* { exists: true } */
+				SetBoundsExistsTrue(&set->bounds[0]);
+			}
+			else
+			{
+				/* Exists false is counted as > MinKey && <= NULL */
+				CompositeSingleBound minKeyBounds = { 0 };
+				minKeyBounds.bound.value_type = BSON_TYPE_MINKEY;
+				minKeyBounds.isBoundInclusive = false;
+				SetLowerBound(&set->bounds[0].lowerBound, &minKeyBounds);
+
+				CompositeSingleBound nullBounds = { 0 };
+				nullBounds.bound.value_type = BSON_TYPE_NULL;
+				nullBounds.isBoundInclusive = true;
+				SetUpperBound(&set->bounds[0].upperBound, &nullBounds);
+
+				bool *existsValue = (bool *) palloc(sizeof(bool));
+				*existsValue = false;
+				IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
+				args->queryDatum = (Pointer) existsValue;
+				args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_EXISTS;
+				set->bounds[0].indexRecheckFunctions =
+					lappend(set->bounds[0].indexRecheckFunctions, args);
+			}
+
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
+		{
+			/* TODO(Composite): Push this to actually filter on the current index */
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			SetBoundsExistsTrue(&set->bounds[0]);
+			set->bounds[0].requiresRuntimeRecheck = true;
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
+		{
+			/*
+			 * $size can't be pushed to the index, so we convert
+			 * to an exists query with runtime recheck.
+			 */
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			int sizeValue = BsonValueAsInt32(&queryElement->bsonValue);
+			if (sizeValue == 0)
+			{
+				/* This is an empty scan with a runtime recheck */
+				bson_value_t undefinedValue = { 0 };
+				undefinedValue.value_type = BSON_TYPE_NULL;
+				SetEqualityBound(&undefinedValue, &set->bounds[0]);
+			}
+			else
+			{
+				SetBoundsExistsTrue(&set->bounds[0]);
+			}
+
+			/* Needs a runtime recheck since we don't know about arrays */
+			set->bounds[0].requiresRuntimeRecheck = true;
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
+		{
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_DOUBLE);
+			SetLowerBound(&set->bounds[0].lowerBound, &bounds);
+
+			bounds = GetTypeUpperBound(BSON_TYPE_DOUBLE);
+			SetUpperBound(&set->bounds[0].upperBound, &bounds);
+
+			bson_value_t *modFilter = palloc(sizeof(bson_value_t));
+			*modFilter = queryElement->bsonValue;
+			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
+			args->queryDatum = (Pointer) modFilter;
+			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_MOD;
+			set->bounds[0].indexRecheckFunctions =
+				lappend(set->bounds[0].indexRecheckFunctions, args);
+			break;
+		}
+
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL:
 		{
-			int numterms = 1;
-			CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
-			isNegationOp = queryStrategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL;
-			SetSingleRangeBoundsFromStrategy(queryElement,
-											 queryStrategy, set->bounds,
-											 isNegationOp);
-			indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
-													  set);
+			CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+				indexBounds, i);
+			SetBoundsForNotEqual(&queryElement->bsonValue, &set->bounds[0]);
 			break;
 		}
 
@@ -398,13 +559,11 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 			else
 			{
 				/* Regex with a string - single strategy */
-				int numterms = 1;
-				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
-				SetSingleRangeBoundsFromStrategy(queryElement,
-												 queryStrategy, set->bounds,
-												 isNegationOp);
-				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
-														  set);
+				CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+					indexBounds, i);
+				SetSingleBoundsDollarRegex(&queryElement->bsonValue,
+										   set->bounds,
+										   isNegationOp);
 			}
 
 			break;
@@ -424,21 +583,11 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 			}
 			else
 			{
-				int numterms = 1;
-				CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(numterms, i);
-				SetSingleRangeBoundsFromStrategy(queryElement,
-												 queryStrategy, set->bounds,
-												 isNegationOp);
-				indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList,
-														  set);
+				CompositeIndexBoundsSet *set = CreateAndRegisterSingleIndexBoundsSet(
+					indexBounds, i);
+				SetSingleBoundsDollarType(&queryElement->bsonValue, set->bounds);
 			}
 
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
-		{
-			AddMultiBoundaryForDollarAll(i, queryElement, indexBounds);
 			break;
 		}
 
@@ -498,6 +647,7 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 			break;
 		}
 
+		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
 		case BSON_INDEX_STRATEGY_DOLLAR_TEXT:
 		case BSON_INDEX_STRATEGY_DOLLAR_GEOINTERSECTS:
 		case BSON_INDEX_STRATEGY_DOLLAR_GEOWITHIN:
@@ -517,15 +667,14 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 
 
 bool
-IsValidRecheckForIndexValue(const bson_value_t *compareValue,
-							bool hasTruncation,
+IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 							IndexRecheckArgs *recheckArgs)
 {
 	switch (recheckArgs->queryStrategy)
 	{
 		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
 		{
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -533,7 +682,7 @@ IsValidRecheckForIndexValue(const bson_value_t *compareValue,
 
 			CompositeRegexData *compositeRegexData =
 				(CompositeRegexData *) recheckArgs->queryDatum;
-			bool result = CompareRegexTextMatch(compareValue,
+			bool result = CompareRegexTextMatch(&compareTerm->element.bsonValue,
 												compositeRegexData->regexData);
 			return compositeRegexData->isNegationOperator ? !result : result;
 		}
@@ -543,143 +692,93 @@ IsValidRecheckForIndexValue(const bson_value_t *compareValue,
 			bool *exists = (bool *) recheckArgs->queryDatum;
 			if (!*exists)
 			{
-				/* exists: false, check that it's not undefined */
-				return compareValue->value_type == BSON_TYPE_UNDEFINED;
+				/* exists: false, matches all values except that are defined */
+				return compareTerm->isValueUndefined;
 			}
 			else
 			{
-				/* exists true, matches all values except that */
-				return compareValue->value_type != BSON_TYPE_UNDEFINED;
+				/* exists: true, check that it's not undefined */
+				return !compareTerm->isValueUndefined;
 			}
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
-		{
-			if (hasTruncation)
-			{
-				/* don't bother, let the runtime check on this */
-				return true;
-			}
-
-			bool compareResult = false;
-			BsonElemMatchIndexExprState *exprState =
-				(BsonElemMatchIndexExprState *) recheckArgs->queryDatum;
-			if (exprState->isEmptyExpression)
-			{
-				compareResult = false;
-				bson_iter_t arrayIter;
-				BsonValueInitIterator(compareValue, &arrayIter);
-				while (bson_iter_next(&arrayIter))
-				{
-					if (bson_iter_type(&arrayIter) == BSON_TYPE_DOCUMENT ||
-						bson_iter_type(&arrayIter) == BSON_TYPE_ARRAY)
-					{
-						compareResult = true;
-						break;
-					}
-				}
-			}
-			else
-			{
-				compareResult = EvalBooleanExpressionAgainstArray(exprState->expression,
-																  compareValue);
-			}
-
-			return compareResult;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
-		{
-			int64_t arraySize = *(int64_t *) recheckArgs->queryDatum;
-			bson_iter_t arrayIter;
-			bson_iter_init_from_data(&arrayIter,
-									 compareValue->value.v_doc.data,
-									 compareValue->value.v_doc.data_len);
-			int64_t actualArraySize = 0;
-			while (bson_iter_next(&arrayIter) && actualArraySize <= arraySize)
-			{
-				actualArraySize++;
-			}
-
-			if (hasTruncation && actualArraySize < arraySize)
-			{
-				/* There may be more terms that have been truncated out
-				 * let runtime recheck handle this
-				 */
-				return true;
-			}
-
-			return actualArraySize == arraySize;
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
 		{
 			bson_value_t *modQuery = (bson_value_t *) recheckArgs->queryDatum;
-			return CompareModOperator(compareValue, modQuery);
+			return CompareModOperator(&compareTerm->element.bsonValue, modQuery);
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL:
 		{
 			bson_value_t *notEqualQuery = (bson_value_t *) recheckArgs->queryDatum;
 
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
 			}
 
-			return !BsonValueEquals(compareValue, notEqualQuery);
+			/* In the case of NULL and if we see undefined, we don't know if it's literal
+			 * undefined or an empty array - thunk to runtime
+			 * TODO(Composite): Can we differentiate between empty array and literal null?
+			 */
+			if (notEqualQuery->value_type == BSON_TYPE_NULL)
+			{
+				return true;
+			}
+
+			return !BsonValueEquals(&compareTerm->element.bsonValue, notEqualQuery);
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_CLEAR:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
 			}
 
-			return CompareBitwiseOperator(compareValue,
+			return CompareBitwiseOperator(&compareTerm->element.bsonValue,
 										  bitsQuery, CompareArrayForBitsAllClear);
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_CLEAR:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
 			}
 
-			return CompareBitwiseOperator(compareValue,
+			return CompareBitwiseOperator(&compareTerm->element.bsonValue,
 										  bitsQuery, CompareArrayForBitsAnyClear);
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_SET:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
 			}
 
-			return CompareBitwiseOperator(compareValue,
+			return CompareBitwiseOperator(&compareTerm->element.bsonValue,
 										  bitsQuery, CompareArrayForBitsAllSet);
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_SET:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (hasTruncation)
+			if (compareTerm->isIndexTermTruncated)
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
 			}
 
-			return CompareBitwiseOperator(compareValue,
+			return CompareBitwiseOperator(&compareTerm->element.bsonValue,
 										  bitsQuery, CompareArrayForBitsAnySet);
 		}
 
@@ -734,8 +833,8 @@ ProcessBoundForQuery(CompositeSingleBound *bound, const IndexTermCreateMetadata 
 	termElement.path = "$";
 	termElement.pathLength = 1;
 	termElement.bsonValue = bound->bound;
-	BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement, metadata);
 
+	BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement, metadata);
 	bound->serializedTerm = serialized.indexTermVal;
 	if (serialized.isIndexTermTruncated)
 	{
@@ -833,460 +932,369 @@ SetBoundsExistsTrue(CompositeIndexBounds *queryBounds)
 	bounds.isBoundInclusive = true;
 	SetUpperBound(&queryBounds->upperBound, &bounds);
 
+	bool *existsValue = (bool *) palloc(sizeof(bool));
+	*existsValue = true;
+	IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
+	args->queryDatum = (Pointer) existsValue;
+	args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_EXISTS;
+	queryBounds->indexRecheckFunctions =
+		lappend(queryBounds->indexRecheckFunctions, args);
+}
+
+
+static void
+SetArrayEqualityBound(const bson_value_t *queryValue,
+					  CompositeIndexBounds *bounds)
+{
+	/* This is a special case for $eq on an array, since we don't index top level arrays
+	 * We need to push this as 2 bounds:
+	 * - One that is equality on the first entry of the top level array
+	 * - One that is equality on the array as a whole (to match nested arrays).
+	 */
+
+	/* Equality on the array itself */
+	SetEqualityBound(queryValue, &bounds[0]);
+
+	/* Equality on the first element of the array */
+	bson_value_t firstElement = { 0 };
+	GetFirstElementFromQueryArray(queryValue, &firstElement);
+
+	SetEqualityBound(&firstElement, &bounds[1]);
+
+	/* Add a runtime recheck */
+	bounds[1].requiresRuntimeRecheck = true;
+}
+
+
+static void
+SetEqualityBound(const bson_value_t *queryValue, CompositeIndexBounds *queryBounds)
+{
+	CompositeSingleBound equalsBounds = { 0 };
+	equalsBounds.bound = *queryValue;
+	equalsBounds.isBoundInclusive = true;
+
+	if (queryValue->value_type == BSON_TYPE_NULL)
+	{
+		/* For null we set the lower bound to be > MinKey so we capture undefined values as well. */
+		CompositeSingleBound minNullBound = { 0 };
+		minNullBound.bound.value_type = BSON_TYPE_MINKEY;
+		minNullBound.isBoundInclusive = false;
+		SetLowerBound(&queryBounds->lowerBound, &minNullBound);
+	}
+	else
+	{
+		SetLowerBound(&queryBounds->lowerBound, &equalsBounds);
+	}
+
+	SetUpperBound(&queryBounds->upperBound, &equalsBounds);
+
+	if (queryValue->value_type == BSON_TYPE_NULL)
+	{
+		/* TODO(Composite): See if this is needed
+		 * Special case, requires runtime recheck always
+		 */
+		queryBounds->requiresRuntimeRecheck = true;
+	}
+}
+
+
+static void
+SetGreaterThanBounds(const bson_value_t *queryValue,
+					 BsonIndexStrategy queryStrategy,
+					 CompositeIndexBounds *queryBounds)
+{
+	bool isMinBoundInclusive = queryStrategy == BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL;
+	if (queryValue->value_type == BSON_TYPE_MINKEY)
+	{
+		/* Special case, minKey is always inclusive */
+		SetBoundsExistsTrue(queryBounds);
+
+		/*
+		 * If it's the case of $gt: MinKey, we need to include MinKey and add a recheck
+		 * since an array with MinKey as the first element is a valid match.
+		 * TODO(Composite): This can be improved if we had the recheck flag capable of being set at
+		 * a term level or split it into two bounds - equality on MinKey with recheck and
+		 * > Minkey without recheck.
+		 */
+		queryBounds->requiresRuntimeRecheck = !isMinBoundInclusive;
+		return;
+	}
+
+	bool skipTypeBracketing = false;
+	bson_value_t compareValue = *queryValue;
+	if (compareValue.value_type == BSON_TYPE_ARRAY)
+	{
+		/* Arrays require runtime recheck on the greater than value */
+		queryBounds->requiresRuntimeRecheck = true;
+
+		/* Arrays need to skip typebracketing - it'll be all values until maxKey */
+		skipTypeBracketing = true;
+
+		/* Now the value to use for the $gt bounds is the MIN(Array, firstElement) */
+		bson_value_t firstElement = { 0 };
+		if (!GetFirstElementFromQueryArray(&compareValue, &firstElement))
+		{
+			/* If the array is empty, we need to compare against all elements >= []
+			 * In this case, that includes arrays whose first value can be MinKey.
+			 * The lower bound becomes minkey
+			 */
+			firstElement.value_type = BSON_TYPE_MINKEY;
+		}
+
+		bool isComparisonValidIgnore = false;
+		int compareResult = CompareBsonValueAndType(&compareValue, &firstElement,
+													&isComparisonValidIgnore);
+		if (compareResult > 0)
+		{
+			/* Use the first element as the compare value
+			 * In this case, the lower bound is always inclusive
+			 */
+			compareValue = firstElement;
+			isMinBoundInclusive = true;
+		}
+	}
+
+	/* Special case for $gte null */
+	CompositeSingleBound bounds = { 0 };
+	if (compareValue.value_type == BSON_TYPE_NULL &&
+		isMinBoundInclusive && !skipTypeBracketing)
+	{
+		bounds.bound.value_type = BSON_TYPE_MINKEY;
+		bounds.isBoundInclusive = false;
+	}
+	else
+	{
+		bounds.bound = compareValue;
+		bounds.isBoundInclusive = isMinBoundInclusive;
+	}
+
+	SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+	/* Apply type bracketing unless requested to skip */
+	if (compareValue.value_type == BSON_TYPE_MINKEY || skipTypeBracketing)
+	{
+		bounds = GetTypeUpperBound(BSON_TYPE_MAXKEY);
+		SetUpperBound(&queryBounds->upperBound, &bounds);
+	}
+	else if (IsBsonValueNaN(queryValue))
+	{
+		/* Range should just be [ > NaN, < NaN ] */
+		SetUpperBound(&queryBounds->upperBound, &bounds);
+	}
+	else
+	{
+		bounds = GetTypeUpperBound(queryValue->value_type);
+		SetUpperBound(&queryBounds->upperBound, &bounds);
+	}
+
+	if (queryValue->value_type == BSON_TYPE_NULL)
+	{
+		/* Special case, requires runtime recheck always */
+		queryBounds->requiresRuntimeRecheck = true;
+	}
+}
+
+
+static void
+SetLessThanBounds(const bson_value_t *queryValue,
+				  BsonIndexStrategy queryStrategy,
+				  CompositeIndexBounds *queryBounds)
+{
+	bson_value_t compareValue = *queryValue;
+	bool skipTypeBracketing = false;
+	bool isUpperBoundInclusive =
+		queryStrategy == BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL;
+	if (compareValue.value_type == BSON_TYPE_ARRAY)
+	{
+		/* Arrays require runtime recheck on the greater than value */
+		queryBounds->requiresRuntimeRecheck = true;
+
+		/* Arrays need to skip typebracketing - it'll be all values until maxKey */
+		skipTypeBracketing = true;
+
+		/* Now the value to use for the $gt bounds is the MAX(Array, firstElement) */
+		bson_value_t firstElement = { 0 };
+		GetFirstElementFromQueryArray(&compareValue, &firstElement);
+
+		bool isComparisonValidIgnore = false;
+		int compareResult = CompareBsonValueAndType(&compareValue, &firstElement,
+													&isComparisonValidIgnore);
+		if (compareResult < 0)
+		{
+			/* Use the first element as the compare value
+			 * In this case, the upper bound is always inclusive.
+			 */
+			compareValue = firstElement;
+			isUpperBoundInclusive = true;
+		}
+	}
+
+	/* In the case where we have $lt: MaxKey, the Value MaxKey is valid since
+	 * an array with the first element MaxKey is a valid match.
+	 * Consider this an exists true with runtime recheck - since this ONLY excludes
+	 * literal MaxKey.
+	 * TODO(Composite): This could be improved by saying that the recheck is per compare partial
+	 * or breaking this down into 2 bounds - one for MaxKey with recheck and the rest is exact.
+	 */
+	if (compareValue.value_type == BSON_TYPE_MAXKEY && !isUpperBoundInclusive)
+	{
+		/* Special case, maxKey is always inclusive */
+		SetBoundsExistsTrue(queryBounds);
+		queryBounds->requiresRuntimeRecheck = true;
+		return;
+	}
+
+	CompositeSingleBound bounds = { 0 };
+	bounds.bound = compareValue;
+	bounds.isBoundInclusive = isUpperBoundInclusive;
+	SetUpperBound(&queryBounds->upperBound, &bounds);
+
+	/* Apply type bracketing */
+	if (compareValue.value_type == BSON_TYPE_MAXKEY || skipTypeBracketing)
+	{
+		bounds = GetTypeLowerBound(BSON_TYPE_MINKEY);
+		SetLowerBound(&queryBounds->lowerBound, &bounds);
+	}
+	else if (IsBsonValueNaN(&compareValue))
+	{
+		/* Range should just be [NaN, NaN]. */
+		SetLowerBound(&queryBounds->lowerBound, &bounds);
+	}
+	else if (compareValue.value_type == BSON_TYPE_NULL &&
+			 queryStrategy == BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL)
+	{
+		/* Special case, null is always inclusive */
+		bounds.bound.value_type = BSON_TYPE_MINKEY;
+		bounds.isBoundInclusive = false;
+		SetLowerBound(&queryBounds->lowerBound, &bounds);
+	}
+	else
+	{
+		bounds = GetTypeLowerBound(compareValue.value_type);
+		SetLowerBound(&queryBounds->lowerBound, &bounds);
+	}
+
+	if (compareValue.value_type == BSON_TYPE_NULL)
+	{
+		/* Special case, requires runtime recheck always */
+		queryBounds->requiresRuntimeRecheck = true;
+	}
+}
+
+
+static void
+SetBoundsForNotEqual(const bson_value_t *queryValue,
+					 CompositeIndexBounds *queryBounds)
+{
+	CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_MINKEY);
+	SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+	bounds = GetTypeUpperBound(BSON_TYPE_MAXKEY);
+	SetUpperBound(&queryBounds->upperBound, &bounds);
+
+	bson_value_t *equalsValue = palloc0(sizeof(bson_value_t));
+	*equalsValue = *queryValue;
+	IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
+	args->queryDatum = (Pointer) equalsValue;
+	args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL;
+	queryBounds->indexRecheckFunctions =
+		lappend(queryBounds->indexRecheckFunctions, args);
+
+	/*
+	 * For $ne (and other negation scenarios), we need to revalidate
+	 * in the runtime since you could have a: [ 1, 2, 3 ]
+	 * a != 2 will match for the 3rd term.
+	 */
 	queryBounds->requiresRuntimeRecheck = true;
 }
 
 
 static void
-SetSingleRangeBoundsFromStrategy(pgbsonelement *queryElement,
-								 BsonIndexStrategy queryStrategy,
-								 CompositeIndexBounds *queryBounds,
-								 bool isNegationOp)
+SetSingleBoundsDollarRegex(const bson_value_t *queryValue,
+						   CompositeIndexBounds *queryBounds,
+						   bool isNegationOp)
 {
-	/* Now that we have the index path, add or update the bounds */
-	switch (queryStrategy)
+	CompositeSingleBound bounds = GetTypeLowerBound(isNegationOp ?
+													BSON_TYPE_MINKEY :
+													BSON_TYPE_UTF8);
+	SetLowerBound(&queryBounds->lowerBound, &bounds);
+
+	bounds = GetTypeUpperBound(isNegationOp ? BSON_TYPE_MAXKEY : BSON_TYPE_UTF8);
+	SetUpperBound(&queryBounds->upperBound, &bounds);
+
+	RegexData *regexData = (RegexData *) palloc0(sizeof(RegexData));
+	CompositeRegexData *compositeRegexData = (CompositeRegexData *) palloc0(
+		sizeof(CompositeRegexData));
+	if (queryValue->value_type == BSON_TYPE_REGEX)
 	{
-		case BSON_INDEX_STRATEGY_DOLLAR_EQUAL:
-		{
-			CompositeSingleBound equalsBounds = { 0 };
-			equalsBounds.bound = queryElement->bsonValue;
-			equalsBounds.isBoundInclusive = true;
-			SetLowerBound(&queryBounds->lowerBound, &equalsBounds);
-			SetUpperBound(&queryBounds->upperBound, &equalsBounds);
-
-
-			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
-			{
-				/* Special case, requires runtime recheck always */
-				queryBounds->requiresRuntimeRecheck = true;
-			}
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_GREATER_EQUAL:
-		{
-			if (queryElement->bsonValue.value_type == BSON_TYPE_MINKEY)
-			{
-				/* This is similar to $exists: true */
-				SetBoundsExistsTrue(queryBounds);
-				break;
-			}
-
-			CompositeSingleBound bounds = { 0 };
-			bounds.bound = queryElement->bsonValue;
-			bounds.isBoundInclusive = true;
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-
-			if (IsBsonValueNaN(&queryElement->bsonValue))
-			{
-				/* NaN is not comparable, so it should just match NaN */
-				SetUpperBound(&queryBounds->upperBound, &bounds);
-				break;
-			}
-
-			/* Apply type bracketing */
-			bounds = GetTypeUpperBound(queryElement->bsonValue.value_type);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
-			{
-				/* Special case, requires runtime recheck always */
-				queryBounds->requiresRuntimeRecheck = true;
-			}
-
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_GREATER:
-		{
-			CompositeSingleBound bounds = { 0 };
-			bounds.bound = queryElement->bsonValue;
-			bounds.isBoundInclusive = false;
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			if (IsBsonValueNaN(&queryElement->bsonValue))
-			{
-				/* Range should just be [ > NaN, < NaN ] */
-				SetUpperBound(&queryBounds->upperBound, &bounds);
-				break;
-			}
-
-			/* Apply type bracketing */
-			if (queryElement->bsonValue.value_type == BSON_TYPE_MINKEY)
-			{
-				bounds = GetTypeUpperBound(BSON_TYPE_MAXKEY);
-				SetUpperBound(&queryBounds->upperBound, &bounds);
-			}
-			else
-			{
-				bounds = GetTypeUpperBound(queryElement->bsonValue.value_type);
-				SetUpperBound(&queryBounds->upperBound, &bounds);
-			}
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_LESS:
-		case BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL:
-		{
-			CompositeSingleBound bounds = { 0 };
-			bounds.bound = queryElement->bsonValue;
-			bounds.isBoundInclusive = queryStrategy ==
-									  BSON_INDEX_STRATEGY_DOLLAR_LESS_EQUAL;
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			if (IsBsonValueNaN(&queryElement->bsonValue))
-			{
-				/* Range should just be [NaN, NaN]. */
-				SetLowerBound(&queryBounds->lowerBound, &bounds);
-				break;
-			}
-
-			/* Apply type bracketing */
-			if (queryElement->bsonValue.value_type == BSON_TYPE_MAXKEY)
-			{
-				bounds = GetTypeLowerBound(BSON_TYPE_MINKEY);
-				SetLowerBound(&queryBounds->lowerBound, &bounds);
-			}
-			else
-			{
-				bounds = GetTypeLowerBound(queryElement->bsonValue.value_type);
-				SetLowerBound(&queryBounds->lowerBound, &bounds);
-			}
-
-			if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
-			{
-				/* Special case, requires runtime recheck always */
-				queryBounds->requiresRuntimeRecheck = true;
-			}
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(isNegationOp ?
-															BSON_TYPE_MINKEY :
-															BSON_TYPE_UTF8);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(isNegationOp ? BSON_TYPE_MAXKEY : BSON_TYPE_UTF8);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			RegexData *regexData = (RegexData *) palloc0(sizeof(RegexData));
-			CompositeRegexData *compositeRegexData = (CompositeRegexData *) palloc0(
-				sizeof(RegexData));
-			if (queryElement->bsonValue.value_type == BSON_TYPE_REGEX)
-			{
-				regexData->regex = queryElement->bsonValue.value.v_regex.regex;
-				regexData->options = queryElement->bsonValue.value.v_regex.options;
-			}
-			else
-			{
-				regexData->regex = queryElement->bsonValue.value.v_utf8.str;
-				regexData->options = NULL;
-			}
-
-			regexData->pcreData = RegexCompile(regexData->regex,
-											   regexData->options);
-
-			compositeRegexData->regexData = regexData;
-			compositeRegexData->isNegationOperator = isNegationOp;
-
-			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) compositeRegexData;
-			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_REGEX;
-			queryBounds->indexRecheckFunctions =
-				lappend(queryBounds->indexRecheckFunctions, args);
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_EXISTS:
-		{
-			int existsValue = BsonValueAsInt32(&queryElement->bsonValue);
-			if (existsValue == 1)
-			{
-				/* { exists: true } */
-				SetBoundsExistsTrue(queryBounds);
-			}
-			else
-			{
-				CompositeSingleBound equalsBounds = { 0 };
-				equalsBounds.bound.value_type = BSON_TYPE_NULL;
-				equalsBounds.isBoundInclusive = true;
-				SetLowerBound(&queryBounds->lowerBound, &equalsBounds);
-				SetUpperBound(&queryBounds->upperBound, &equalsBounds);
-
-				/* TODO: Should we replace this with index eval function? */
-				queryBounds->requiresRuntimeRecheck = true;
-			}
-
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_ARRAY);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(BSON_TYPE_ARRAY);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			BsonElemMatchIndexExprState *state =
-				(BsonElemMatchIndexExprState *) palloc0(
-					sizeof(BsonElemMatchIndexExprState));
-			state->expression = GetExpressionEvalState(
-				&queryElement->bsonValue,
-				CurrentMemoryContext);
-			state->isEmptyExpression = IsBsonValueEmptyDocument(&queryElement->bsonValue);
-			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) state;
-			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH;
-
-			/* $elemMatch at the index can't tell between nested arrays and top level - thunk to
-			 * recheck in the runtime.
-			 */
-			queryBounds->requiresRuntimeRecheck = true;
-			queryBounds->indexRecheckFunctions =
-				lappend(queryBounds->indexRecheckFunctions, args);
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_SIZE:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_ARRAY);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(BSON_TYPE_ARRAY);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			int64_t *size = palloc(sizeof(int64_t));
-			*size = BsonValueAsInt64(&queryElement->bsonValue);
-			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) size;
-			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_SIZE;
-			queryBounds->indexRecheckFunctions =
-				lappend(queryBounds->indexRecheckFunctions, args);
-
-			/* Needs a runtime recheck since we don't know about nested arrays of arrays */
-			queryBounds->requiresRuntimeRecheck = true;
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_MOD:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_DOUBLE);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(BSON_TYPE_DOUBLE);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			bson_value_t *modFilter = palloc(sizeof(bson_value_t));
-			*modFilter = queryElement->bsonValue;
-			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) modFilter;
-			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_MOD;
-			queryBounds->indexRecheckFunctions =
-				lappend(queryBounds->indexRecheckFunctions, args);
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_TYPE:
-		{
-			bson_type_t typeValue = BSON_TYPE_EOD;
-			if (queryElement->bsonValue.value_type == BSON_TYPE_UTF8)
-			{
-				/* Single $type */
-				typeValue = GetBsonTypeNameFromStringForDollarType(
-					queryElement->bsonValue.value.v_utf8.str);
-			}
-			else if (BsonValueIsNumberOrBool(&queryElement->bsonValue))
-			{
-				int64_t typeCode = BsonValueAsInt64(&queryElement->bsonValue);
-
-				/* TryGetTypeFromInt64 should be successful as this was already validated in the planner when walking the query. */
-				if (!TryGetTypeFromInt64(typeCode, &typeValue))
-				{
-					ereport(ERROR,
-							(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							 errmsg("Invalid $type value: %ld", typeCode)));
-				}
-			}
-			else
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"Invalid $type value for composite index: %s",
-									BsonValueToJsonForLogging(
-										&queryElement->bsonValue))));
-			}
-
-			CompositeSingleBound bounds = GetTypeLowerBound(typeValue);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(typeValue);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			/* TODO: Why does this need a runtime recheck */
-			queryBounds->requiresRuntimeRecheck = true;
-
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
-		{
-			DollarRangeParams *params = ParseQueryDollarRange(queryElement);
-			CompositeSingleBound bounds = { 0 };
-			if (params->minValue.value_type == BSON_TYPE_MINKEY &&
-				params->isMinInclusive)
-			{
-				SetBoundsExistsTrue(queryBounds);
-			}
-			else if (params->minValue.value_type != BSON_TYPE_EOD)
-			{
-				bounds.bound = params->minValue;
-				bounds.isBoundInclusive = params->isMinInclusive;
-				SetLowerBound(&queryBounds->lowerBound, &bounds);
-			}
-
-			if (params->maxValue.value_type != BSON_TYPE_EOD)
-			{
-				bounds.bound = params->maxValue;
-				bounds.isBoundInclusive = params->isMaxInclusive;
-				SetUpperBound(&queryBounds->upperBound, &bounds);
-			}
-
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL:
-		{
-			CompositeSingleBound bounds = GetTypeLowerBound(BSON_TYPE_MINKEY);
-			SetLowerBound(&queryBounds->lowerBound, &bounds);
-
-			bounds = GetTypeUpperBound(BSON_TYPE_MAXKEY);
-			SetUpperBound(&queryBounds->upperBound, &bounds);
-
-			bson_value_t *equalsValue = palloc0(sizeof(bson_value_t));
-			*equalsValue = queryElement->bsonValue;
-			IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
-			args->queryDatum = (Pointer) equalsValue;
-			args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL;
-			queryBounds->indexRecheckFunctions =
-				lappend(queryBounds->indexRecheckFunctions, args);
-
-			/*
-			 * For $ne (and other negation scenarios), we need to revalidate
-			 * in the runtime since you could have a: [ 1, 2, 3 ]
-			 * a != 2 will match for the 3rd term.
-			 */
-			queryBounds->requiresRuntimeRecheck = true;
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_ALL:
-		case BSON_INDEX_STRATEGY_DOLLAR_IN:
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_IN:
-		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_CLEAR:
-		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_CLEAR:
-		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_SET:
-		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_SET:
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_GT:
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_GTE:
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LT:
-		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LTE:
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(
-								"Unsupported strategy for single range strategy composite index: %d",
-								queryStrategy)));
-			break;
-		}
-
-		case BSON_INDEX_STRATEGY_DOLLAR_TEXT:
-		case BSON_INDEX_STRATEGY_DOLLAR_GEOINTERSECTS:
-		case BSON_INDEX_STRATEGY_DOLLAR_GEOWITHIN:
-		case BSON_INDEX_STRATEGY_GEONEAR:
-		case BSON_INDEX_STRATEGY_GEONEAR_RANGE:
-		case BSON_INDEX_STRATEGY_COMPOSITE_QUERY:
-		case BSON_INDEX_STRATEGY_UNIQUE_EQUAL:
-		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
-		default:
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(
-								"Unsupported strategy for composite index: %d",
-								queryStrategy)));
-			break;
-		}
+		regexData->regex = queryValue->value.v_regex.regex;
+		regexData->options = queryValue->value.v_regex.options;
 	}
+	else
+	{
+		regexData->regex = queryValue->value.v_utf8.str;
+		regexData->options = NULL;
+	}
+
+	regexData->pcreData = RegexCompile(regexData->regex,
+									   regexData->options);
+
+	compositeRegexData->regexData = regexData;
+	compositeRegexData->isNegationOperator = isNegationOp;
+
+	IndexRecheckArgs *args = palloc0(sizeof(IndexRecheckArgs));
+	args->queryDatum = (Pointer) compositeRegexData;
+	args->queryStrategy = BSON_INDEX_STRATEGY_DOLLAR_REGEX;
+	queryBounds->indexRecheckFunctions =
+		lappend(queryBounds->indexRecheckFunctions, args);
 }
 
 
 static void
-AddMultiBoundaryForDollarAll(int32_t indexAttribute,
-							 pgbsonelement *queryElement,
-							 VariableIndexBounds *indexBounds)
+SetSingleBoundsDollarType(const bson_value_t *queryValue,
+						  CompositeIndexBounds *queryBounds)
 {
-	if (queryElement->bsonValue.value_type != BSON_TYPE_ARRAY)
+	bson_type_t typeValue = BSON_TYPE_EOD;
+	if (queryValue->value_type == BSON_TYPE_UTF8)
+	{
+		/* Single $type */
+		typeValue = GetBsonTypeNameFromStringForDollarType(
+			queryValue->value.v_utf8.str);
+	}
+	else if (BsonValueIsNumberOrBool(queryValue))
+	{
+		int64_t typeCode = BsonValueAsInt64(queryValue);
+
+		/* TryGetTypeFromInt64 should be successful as this was already validated in the planner when walking the query. */
+		if (!TryGetTypeFromInt64(typeCode, &typeValue))
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+					 errmsg("Invalid $type value: %ld", typeCode)));
+		}
+	}
+	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$all should have an array of values")));
+							"Invalid $type value for composite index: %s",
+							BsonValueToJsonForLogging(queryValue))));
 	}
 
-	bson_iter_t arrayIter;
-	bson_iter_init_from_data(&arrayIter, queryElement->bsonValue.value.v_doc.data,
-							 queryElement->bsonValue.value.v_doc.data_len);
-
-	int32_t allArraySize = 0;
-	while (bson_iter_next(&arrayIter))
+	if (typeValue == BSON_TYPE_ARRAY)
 	{
-		allArraySize++;
+		SetBoundsExistsTrue(queryBounds);
+		queryBounds->requiresRuntimeRecheck = true;
+		return;
 	}
 
-	bson_iter_init_from_data(&arrayIter, queryElement->bsonValue.value.v_doc.data,
-							 queryElement->bsonValue.value.v_doc.data_len);
+	CompositeSingleBound bounds = GetTypeLowerBound(typeValue);
+	SetLowerBound(&queryBounds->lowerBound, &bounds);
 
-	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(allArraySize,
-																 indexAttribute);
+	bounds = GetTypeUpperBound(typeValue);
+	SetUpperBound(&queryBounds->upperBound, &bounds);
 
-	bool isNegationOp = false;
-	int index = 0;
-	while (bson_iter_next(&arrayIter))
-	{
-		if (index >= allArraySize)
-		{
-			ereport(ERROR, (errmsg(
-								"Index is not expected to be greater than size - code defect")));
-		}
-
-		pgbsonelement innerDocumentElement;
-		pgbsonelement element;
-		element.path = queryElement->path;
-		element.pathLength = queryElement->pathLength;
-		element.bsonValue = *bson_iter_value(&arrayIter);
-
-		if (element.bsonValue.value_type == BSON_TYPE_REGEX)
-		{
-			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_REGEX,
-											 &set->bounds[index], isNegationOp);
-		}
-		else if (element.bsonValue.value_type == BSON_TYPE_DOCUMENT &&
-				 TryGetBsonValueToPgbsonElement(&element.bsonValue,
-												&innerDocumentElement) &&
-				 strcmp(innerDocumentElement.path, "$elemMatch") == 0)
-		{
-			SetSingleRangeBoundsFromStrategy(&innerDocumentElement,
-											 BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH,
-											 &set->bounds[index], isNegationOp);
-		}
-		else
-		{
-			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_EQUAL,
-											 &set->bounds[index], isNegationOp);
-		}
-
-		/* TODO: Since we represet $all as a $in at the index layer, we need runtime recheck */
-		set->bounds[index].requiresRuntimeRecheck = allArraySize > 1;
-		index++;
-	}
-	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
+	/* TODO(Composite): Why does this need a runtime recheck */
+	queryBounds->requiresRuntimeRecheck = true;
 }
 
 
@@ -1324,6 +1332,12 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 			inArraySize++;
 		}
 
+		if (arrayValue->value_type == BSON_TYPE_ARRAY)
+		{
+			/* array equals has 2 boundaries */
+			inArraySize++;
+		}
+
 		arrayHasNull = arrayHasNull || arrayValue->value_type == BSON_TYPE_NULL;
 	}
 
@@ -1358,10 +1372,15 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 			set->bounds[index + 1] = regexSet->bounds[1];
 			index += 2;
 		}
+		else if (element.bsonValue.value_type == BSON_TYPE_ARRAY)
+		{
+			/* Array equality has 2 boundaries */
+			SetArrayEqualityBound(&element.bsonValue, &set->bounds[index]);
+			index += 2;
+		}
 		else
 		{
-			SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_EQUAL,
-											 &set->bounds[index], isNegationOp);
+			SetEqualityBound(&element.bsonValue, &set->bounds[index]);
 			index++;
 		}
 	}
@@ -1450,10 +1469,8 @@ AddMultiBoundaryForDollarNotIn(int32_t indexAttribute, pgbsonelement *queryEleme
 		}
 		else
 		{
-			SetSingleRangeBoundsFromStrategy(&element,
-											 BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL,
-											 &set->bounds[index],
-											 isNegationOp);
+			SetBoundsForNotEqual(&element.bsonValue,
+								 &set->bounds[index]);
 			index++;
 		}
 	}
@@ -1469,9 +1486,7 @@ AddMultiBoundaryForDollarRegex(int32_t indexAttribute, pgbsonelement *queryEleme
 	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(2,
 																 indexAttribute);
 
-	SetSingleRangeBoundsFromStrategy(queryElement,
-									 BSON_INDEX_STRATEGY_DOLLAR_REGEX, &set->bounds[0],
-									 isNegationOp);
+	SetSingleBoundsDollarRegex(&queryElement->bsonValue, &set->bounds[0], isNegationOp);
 
 	/* For not operator we need to recheck because of array terms. ["ab", "ca"] we would match a regex like "c*.*" for the second term however for the first we wouldn't, so we need to go to the runtime. */
 	set->bounds[0].requiresRuntimeRecheck = isNegationOp;
@@ -1545,6 +1560,16 @@ AddMultiBoundaryForNotGreater(int32_t indexAttribute, pgbsonelement *queryElemen
 	bound.isBoundInclusive = !isEquals;
 	SetUpperBound(&set->bounds[0].upperBound, &bound);
 
+	/* Upper bound here is the type value and not equals. However, for null,
+	 * not equal to null also excludes undefined values which has empty arrays.
+	 * Consequently, we set this to recheck for only this bound.
+	 */
+	if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
+	{
+		set->bounds[0].requiresRuntimeRecheck = true;
+		set->bounds[0].upperBound.isBoundInclusive = true;
+	}
+
 	/* Second bound is (TypeMax -> MaxKey ] */
 	bound = GetTypeUpperBound(queryElement->bsonValue.value_type);
 
@@ -1584,6 +1609,13 @@ AddMultiBoundaryForNotLess(int32_t indexAttribute, pgbsonelement *queryElement,
 	bound = GetTypeLowerBound(queryElement->bsonValue.value_type);
 	bound.isBoundInclusive = false;
 	SetUpperBound(&set->bounds[0].upperBound, &bound);
+
+	/* If this first bound is NULL, we need to recheck due to empty arrays */
+	if (queryElement->bsonValue.value_type == BSON_TYPE_NULL)
+	{
+		set->bounds[0].upperBound.isBoundInclusive = true;
+		set->bounds[0].requiresRuntimeRecheck = true;
+	}
 
 	/* Second bound is (maxBound -> MaxKey ] */
 	bound.bound = queryElement->bsonValue;
@@ -1629,7 +1661,6 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 	CompositeIndexBoundsSet *set = CreateCompositeIndexBoundsSet(typeArraySize,
 																 indexAttribute);
 
-	bool isNegationOp = false;
 	int index = 0;
 	while (bson_iter_next(&arrayIter))
 	{
@@ -1644,8 +1675,7 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 		element.pathLength = queryElement->pathLength;
 		element.bsonValue = *bson_iter_value(&arrayIter);
 
-		SetSingleRangeBoundsFromStrategy(&element, BSON_INDEX_STRATEGY_DOLLAR_TYPE,
-										 &set->bounds[index], isNegationOp);
+		SetSingleBoundsDollarType(&element.bsonValue, &set->bounds[index]);
 		index++;
 	}
 	indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
@@ -1657,7 +1687,6 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 							   pgbsonelement *queryElement,
 							   VariableIndexBounds *indexBounds)
 {
-	const bool isNegationOp = false;
 	DollarRangeParams *params = ParseQueryDollarRange(queryElement);
 
 	pgbsonelement boundElement = { 0 };
@@ -1672,8 +1701,8 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 		boundElement.bsonValue = params->minValue;
 		boundElement.path = queryElement->path;
 		boundElement.pathLength = queryElement->pathLength;
-		SetSingleRangeBoundsFromStrategy(&boundElement,
-										 queryStrategy, &set->bounds[0], isNegationOp);
+		SetGreaterThanBounds(&boundElement.bsonValue,
+							 queryStrategy, &set->bounds[0]);
 		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 	}
 
@@ -1687,8 +1716,7 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 		boundElement.bsonValue = params->maxValue;
 		boundElement.path = queryElement->path;
 		boundElement.pathLength = queryElement->pathLength;
-		SetSingleRangeBoundsFromStrategy(&boundElement,
-										 queryStrategy, &set->bounds[0], isNegationOp);
+		SetLessThanBounds(&boundElement.bsonValue, queryStrategy, &set->bounds[0]);
 		indexBounds->variableBoundsList = lappend(indexBounds->variableBoundsList, set);
 	}
 }

@@ -99,8 +99,7 @@ CreateCompositeIndexBoundsSet(int32_t numTerms, int32_t indexAttribute)
 }
 
 
-bool IsValidRecheckForIndexValue(const bson_value_t *compareValue,
-								 bool indexTermHasTruncation,
+bool IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 								 IndexRecheckArgs *recheckArgs);
 
 bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,

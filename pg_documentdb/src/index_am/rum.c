@@ -19,6 +19,8 @@
 #include <access/relscan.h>
 #include <utils/rel.h>
 #include "math.h"
+#include <commands/explain.h>
+#include <access/gin.h>
 
 #include "api_hooks.h"
 #include "planner/mongo_query_operator.h"
@@ -27,6 +29,7 @@
 #include "metadata/metadata_cache.h"
 #include "opclass/bson_gin_composite_scan.h"
 #include "index_am/index_am_utils.h"
+#include "opclass/bson_gin_index_term.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
@@ -63,6 +66,8 @@ typedef struct DocumentDBRumIndexState
 
 	void *indexArrayState;
 } DocumentDBRumIndexState;
+
+extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
 
 static bool IsIndexIsValidForQuery(IndexPath *path);
 static bool MatchClauseWithIndexForFuncExpr(IndexPath *path, int32_t indexcol,
@@ -867,4 +872,66 @@ CheckIndexHasArrays(Relation indexRelation, IndexAmRoutine *coreRoutine)
 	bool hasArrays = coreRoutine->amgettuple(innerDesc, ForwardScanDirection);
 	coreRoutine->amendscan(innerDesc);
 	return hasArrays ? IndexMultiKeyStatus_HasArrays : IndexMultiKeyStatus_HasNoArrays;
+}
+
+
+void
+ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
+{
+	if (IsCompositeOpClass(scan->indexRelation))
+	{
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+
+		ExplainPropertyBool("isMultiKey",
+							outerScanState->multiKeyStatus ==
+							IndexMultiKeyStatus_HasArrays, es);
+
+		/* From the composite keys, get the lower bounds of the scans */
+		/* Call extract_query to get the index details */
+		uint32_t nentries = 0;
+		bool *partialMatch = NULL;
+		Pointer *extraData = NULL;
+
+		LOCAL_FCINFO(fcinfo, 5);
+		fcinfo->flinfo = palloc(sizeof(FmgrInfo));
+		fmgr_info_copy(fcinfo->flinfo,
+					   index_getprocinfo(scan->indexRelation, 1, GIN_EXTRACTQUERY_PROC),
+					   CurrentMemoryContext);
+
+		fcinfo->args[0].value = outerScanState->compositeKey.sk_argument;
+		fcinfo->args[1].value = PointerGetDatum(&nentries);
+		fcinfo->args[2].value = Int16GetDatum(BSON_INDEX_STRATEGY_COMPOSITE_QUERY);
+		fcinfo->args[3].value = PointerGetDatum(&partialMatch);
+		fcinfo->args[4].value = PointerGetDatum(&extraData);
+
+		Datum *entryRes = (Datum *) gin_bson_composite_path_extract_query(fcinfo);
+
+		/* Now write out the result for explain */
+		List *boundsList = NIL;
+		for (uint32_t i = 0; i < nentries; i++)
+		{
+			bytea *entry = DatumGetByteaPP(entryRes[i]);
+
+			char *serializedBound = SerializeBoundsStringForExplain(entry, extraData[i],
+																	fcinfo);
+			boundsList = lappend(boundsList, serializedBound);
+		}
+
+		ExplainPropertyList("indexBounds", boundsList, es);
+
+		/* Explain the inner scan using underlying am */
+		TryExplainByIndexAm(outerScanState->innerScan, es);
+	}
+}
+
+
+void
+ExplainRegularIndexScan(IndexScanDesc scan, struct ExplainState *es)
+{
+	if (IsBsonRegularIndexAm(scan->indexRelation->rd_rel->relam))
+	{
+		/* See if there's a hook to explain more in this index */
+		TryExplainByIndexAm(scan, es);
+	}
 }

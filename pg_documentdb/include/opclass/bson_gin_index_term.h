@@ -24,6 +24,12 @@ typedef struct BsonIndexTerm
 	/* Whether or not it's a metadata term */
 	bool isIndexTermMetadata;
 
+	/* Whether or not an undefined term is due to the
+	 * value being undefined (as opposed to the listeral
+	 * undefined).
+	 */
+	bool isValueUndefined;
+
 	/* The index term element */
 	pgbsonelement element;
 } BsonIndexTerm;
@@ -105,6 +111,8 @@ Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootNonExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootTruncatedTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootMultiKeyTerm(const IndexTermCreateMetadata *);
+Datum GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData, const
+								 char *path);
 int32_t CompareBsonIndexTerm(BsonIndexTerm *left, BsonIndexTerm *right,
 							 bool *isComparisonValid);
 
