@@ -1225,7 +1225,7 @@ fn is_aggregation_stage_skippable(
         }
 
         // no filters, no output, no inner plan - ignorable.
-        if plan.output.as_ref().map_or(true, |o| o.is_empty()) {
+        if plan.output.as_ref().is_none_or(|o| o.is_empty()) {
             return true;
         }
 
