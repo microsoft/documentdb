@@ -206,6 +206,9 @@ bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY
 bool SkipCreateIndexesOnCreateCollection =
 	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
 
+#define DEFAULT_USE_NEW_SHARD_KEY_CALCULATION true
+bool UseNewShardKeyCalculation = DEFAULT_USE_NEW_SHARD_KEY_CALCULATION;
+
 #define DEFAULT_ENABLE_BUCKET_AUTO_STAGE true
 bool EnableBucketAutoStage = DEFAULT_ENABLE_BUCKET_AUTO_STAGE;
 
@@ -557,6 +560,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Determines whether the usersInfo command returns privileges."),
 		NULL, &EnableUsersInfoPrivileges,
 		DEFAULT_ENABLE_USERS_INFO_PRIVILEGES,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useNewShardKeyCalculation", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use the new shard key calculation logic."),
+		NULL, &UseNewShardKeyCalculation,
+		DEFAULT_USE_NEW_SHARD_KEY_CALCULATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
