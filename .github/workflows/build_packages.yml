@@ -100,6 +100,8 @@ jobs:
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: .
           push: true
@@ -110,3 +112,7 @@ jobs:
             BASE_IMAGE=${{ env.BASE_IMAGE }}
             POSTGRES_VERSION=${{ matrix.pg_version }}
             DEB_PACKAGE_REL_PATH=${{ env.PACKAGE_NAME }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/microsoft/documentdb
+            org.opencontainers.image.description="Documentdb prebuild build image"
+            org.opencontainers.image.licenses=MIT
