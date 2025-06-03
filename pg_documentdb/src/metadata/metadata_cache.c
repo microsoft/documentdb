@@ -961,6 +961,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_expression_partition_get function */
 	Oid BsonExpressionPartitionByFieldsGetFunctionOid;
 
+	/* OID of the ApiInternalSchemaName.bson_dollar_bucket_auto function */
+	Oid BsonDollarBucketAutoFunctionOid;
+
 	/* Postgis box2df type id */
 	Oid Box2dfTypeId;
 
@@ -4498,6 +4501,26 @@ BsonDistinctUnwindFunctionOid(void)
 	return GetBinaryOperatorFunctionId(&Cache.BsonDistinctUnwindFunctionOid,
 									   "bson_distinct_unwind",
 									   BsonTypeId(), TEXTOID);
+}
+
+
+Oid
+BsonDollarBucketAutoFunctionOid(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonDollarBucketAutoFunctionOid == InvalidOid)
+	{
+		List *functionNameList = list_make2(makeString(DocumentDBApiInternalSchemaName),
+											makeString("bson_dollar_bucket_auto"));
+		Oid paramOids[2] = { BsonTypeId(), BsonTypeId() };
+		bool missingOK = false;
+
+		Cache.BsonDollarBucketAutoFunctionOid =
+			LookupFuncName(functionNameList, 2, paramOids, missingOK);
+	}
+
+	return Cache.BsonDollarBucketAutoFunctionOid;
 }
 
 

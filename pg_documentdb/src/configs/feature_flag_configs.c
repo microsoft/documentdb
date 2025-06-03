@@ -206,6 +206,9 @@ bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY
 bool SkipCreateIndexesOnCreateCollection =
 	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
 
+#define DEFAULT_ENABLE_BUCKET_AUTO_STAGE true
+bool EnableBucketAutoStage = DEFAULT_ENABLE_BUCKET_AUTO_STAGE;
+
 /* FEATURE FLAGS END */
 
 void
@@ -578,5 +581,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to use the new elemMatch index pushdown logic."),
 		NULL, &UseNewElemMatchIndexPushdown,
 		DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableBucketAutoStage", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the $bucketAuto stage."),
+		NULL, &EnableBucketAutoStage,
+		DEFAULT_ENABLE_BUCKET_AUTO_STAGE,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

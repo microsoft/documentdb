@@ -58,6 +58,7 @@
 #include "aggregation/bson_query.h"
 
 #include "aggregation/bson_aggregation_pipeline_private.h"
+#include "aggregation/bson_bucket_auto.h"
 #include "api_hooks.h"
 #include "vector/vector_common.h"
 #include "aggregation/bson_project.h"
@@ -316,7 +317,7 @@ static const AggregationStageDefinition StageDefinitions[] =
 	},
 	{
 		.stage = "$bucketAuto",
-		.mutateFunc = NULL,
+		.mutateFunc = &HandleBucketAuto,
 		.requiresPersistentCursor = &RequiresPersistentCursorTrue,
 		.canInlineLookupStageFunc = NULL,
 		.preservesStableSortOrder = false,
