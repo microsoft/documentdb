@@ -159,27 +159,55 @@ where
 
 ### Context Propagation
 
-To maintain consistent context across service boundaries, we'll implement:
+To maintain consistent context across service boundaries, we'll implement a multi-layered approach inspired by [FerretDB's OpenTelemetry context propagation strategy](https://blog.ferretdb.io/otel-context-propagation-in-ferretdb/):
 
-1. **W3C Trace Context**: Standard headers for HTTP/gRPC communications
-2. **MongoDB Protocol Extensions**: Custom protocol extensions for propagating context in MongoDB wire protocol
-3. **Local Context**: In-process context propagation for async tasks
+1. **W3C Trace Context**: Standard headers for HTTP/gRPC communications where applicable
+2. **MongoDB Comment Field Propagation**: Leverage MongoDB's `comment` field to propagate trace context through the wire protocol
+3. **PostgreSQL Query Comments**: Extend context propagation to the backend using SQL comments (SQLCommenter-style)
+4. **Local Context**: In-process context propagation for async tasks
 
-```rust
-/// Extract trace context from MongoDB request
-fn extract_context_from_request(header: &Header) -> Context {
-    // Check for trace context in MongoDB request metadata
-    if let Some(traceparent) = header.get_metadata("traceparent") {
-        if let Ok(ctx) = global::get_text_map_propagator().extract(&HeaderExtractor(vec![
-            ("traceparent", traceparent)
-        ])) {
-            return ctx;
-        }
-    }
-    
-    Context::current()
-}
-```
+#### MongoDB Wire Protocol Context Propagation
+
+Since the MongoDB wire protocol doesn't support HTTP-style trace headers, we'll follow FerretDB's approach of using the `comment` field in MongoDB operations to carry trace context.
+
+#### Implementation Strategy
+
+Our gateway will implement a sophisticated context propagation strategy that bridges MongoDB wire protocol limitations:
+
+**1. Client-to-Gateway Propagation:**
+- Parse MongoDB `comment` fields for embedded trace context
+- Support both string and JSON comment formats for broader client compatibility
+- Use a standardized JSON structure: `{"documentdb": {"traceID": "...", "spanID": "..."}}`
+
+**2. Gateway-to-Backend Propagation:**
+- Inject trace context into PostgreSQL queries using SQL comments (SQLCommenter approach)
+- Maintain trace correlation across the MongoDB-to-SQL translation layer
+- Enable PostgreSQL query log analysis with trace correlation
+
+**3. Bi-directional Context Flow:**
+- Extract context from incoming MongoDB requests
+- Propagate context through internal gateway operations
+- Inject context into outgoing PostgreSQL queries
+- Correlate response processing back to original trace
+
+#### Limitations and Considerations
+
+Following FerretDB's analysis, our implementation acknowledges several limitations:
+
+1. **Comment Field Support**: Not all MongoDB operations support comment fields (e.g., `insert`, `listCollections`)
+2. **Driver Compatibility**: Some MongoDB drivers handle comments as strings only, requiring careful JSON encoding/decoding
+3. **Protocol Extensions**: No standardized approach exists for database context propagation (W3C Trace Context Protocols Registry gap)
+
+#### Future-Proofing
+
+To address these limitations, our implementation will:
+
+- **Graceful Degradation**: Continue functioning when comment-based context is unavailable
+- **Multiple Propagation Methods**: Support various context injection strategies as they become available
+- **Standards Compliance**: Ready to adopt future W3C standards for database context propagation
+- **Extensible Design**: Architecture allows for additional propagation mechanisms
+
+This approach ensures comprehensive trace correlation while acknowledging the practical constraints of MongoDB wire protocol context propagation.
 
 ### Logging Integration
 
