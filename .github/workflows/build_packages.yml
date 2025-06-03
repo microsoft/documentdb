@@ -100,7 +100,7 @@ jobs:
           push: true
           platforms: linux/${{ matrix.arch }}
           file: .github/containers/Build-Ubuntu/Dockerfile_prebuild
-          tags: ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
+          tags: documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
             POSTGRES_VERSION=${{ matrix.pg_version }}
