@@ -112,6 +112,7 @@ typedef struct TraverseOrderByValidateState
 	bson_value_t orderByValue;
 	CustomOrderByOptions options;
 	const char *collationString;
+	int32_t nestedArrayCount;
 } TraverseOrderByValidateState;
 
 /* State for comparison operations of simple dollar operators
@@ -258,6 +259,8 @@ typedef struct TraverseElemMatchValidateState
 typedef bool (*IsQueryFilterNullFunc)(const TraverseValidateState *state);
 extern bool EnableCollation;
 extern bool EnableNowSystemVariable;
+extern bool UseLegacyOrderByBehavior;
+extern bool UseLegacyNullEqualityBehavior;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -297,7 +300,7 @@ static bool CompareArrayTypeMatch(const pgbsonelement *documentIterator,
 static bool CompareAllMatch(const pgbsonelement *documentIterator,
 							TraverseValidateState *validationState, bool
 							isFirstArrayTerm);
-static void CompareForOrderBy(const pgbsonelement *documentIterator,
+static void CompareForOrderBy(const bson_value_t *documentIterator,
 							  TraverseOrderByValidateState *validationState);
 static bool CompareBitsAllClearMatch(const pgbsonelement *documentIterator,
 									 TraverseValidateState *traverseState, bool
@@ -362,13 +365,22 @@ static bool CompareVisitTopLevelField(pgbsonelement *element, const
 static bool CompareVisitArrayField(pgbsonelement *element, const StringView *filterPath,
 								   int arrayIndex, void *state);
 static void CompareSetTraverseResult(void *state, TraverseBsonResult compareResult);
+static void CompareSetTraverseResultForNulls(void *state,
+											 TraverseBsonResult compareResult);
 static bool CompareContinueProcessIntermediateArray(void *state, const
 													bson_value_t *value);
 static bool OrderByVisitTopLevelField(pgbsonelement *element, const
 									  StringView *filterPath,
 									  void *state);
+static bool OrderByContinueProcessIntermediateArray(void *state, const
+													bson_value_t *value);
+static void OrderByHandleIntermediateArrayPathNotFound(void *state,
+													   int32_t arrayIndex, const
+													   StringView *remainingPath);
+static void OrderBySetIntermediateArrayStartEnd(void *state, bool isStart);
 static bool OrderByVisitArrayField(pgbsonelement *element, const StringView *filterPath,
 								   int arrayIndex, void *state);
+static void OrderBySetTraverseResult(void *state, TraverseBsonResult compareResult);
 static bool DollarRangeVisitTopLevelField(pgbsonelement *element, const
 										  StringView *filterPath,
 										  void *state);
@@ -387,18 +399,38 @@ static const TraverseBsonExecutionFuncs CompareExecutionFuncs = {
 	.SetTraverseResult = CompareSetTraverseResult,
 	.VisitArrayField = CompareVisitArrayField,
 	.VisitTopLevelField = CompareVisitTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
+
+
+/*
+ * Standard execution functions for traversing bson and evaluating queries for $ops.
+ * This is specifically tailored for querying against nulls.
+ */
+static const TraverseBsonExecutionFuncs CompareNullExecutionFuncs = {
+	.ContinueProcessIntermediateArray = CompareContinueProcessIntermediateArray,
+	.SetTraverseResult = CompareSetTraverseResultForNulls,
+	.VisitArrayField = CompareVisitArrayField,
+	.VisitTopLevelField = CompareVisitTopLevelField,
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
+};
+
 
 /*
  * Execution functions for traversing bson and evaluating queries for order by.
  */
 static const TraverseBsonExecutionFuncs OrderByExecutionFuncs = {
-	.ContinueProcessIntermediateArray = CompareContinueProcessIntermediateArray,
-	.SetTraverseResult = CompareSetTraverseResult,
+	.ContinueProcessIntermediateArray = OrderByContinueProcessIntermediateArray,
+	.SetTraverseResult = OrderBySetTraverseResult,
 	.VisitArrayField = OrderByVisitArrayField,
 	.VisitTopLevelField = OrderByVisitTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = OrderByHandleIntermediateArrayPathNotFound,
+	.SetIntermediateArrayStartEnd = OrderBySetIntermediateArrayStartEnd,
 };
 
 
@@ -412,6 +444,8 @@ static const TraverseBsonExecutionFuncs CompareTopLevelFieldExecutionFuncs = {
 	.VisitArrayField = NULL,
 	.VisitTopLevelField = CompareVisitTopLevelField,
 	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 
@@ -424,7 +458,9 @@ static const TraverseBsonExecutionFuncs CompareDollarRangeExecutionFuncs = {
 	.SetTraverseResult = CompareSetTraverseResult,
 	.VisitArrayField = DollarRangeVisitArrayField,
 	.VisitTopLevelField = DollarRangeVisitTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 
@@ -2487,7 +2523,7 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	bson_iter_t documentIterator;
 	pgbsonelement filterElement;
 	TraverseOrderByValidateState state = {
-		{ 0 }, NULL, { 0 }, options, collationString
+		{ 0 }, NULL, { 0 }, options, collationString, 0
 	};
 
 	pgbson_writer writer;
@@ -2616,8 +2652,20 @@ CompareBsonAgainstQuery(const pgbson *element,
 	filterElement.pathLength = 0;
 	state.filter = &filterElement;
 	state.traverseState.matchFunc = compareFunc;
-	TraverseBson(&documentIterator, filterElement.path, &state.traverseState,
-				 &CompareExecutionFuncs);
+	bool isFilterNull = isQueryFilterNull != NULL && isQueryFilterNull(
+		&state.traverseState);
+	const TraverseBsonExecutionFuncs *execFuncs = &CompareExecutionFuncs;
+	if (isFilterNull && !UseLegacyNullEqualityBehavior)
+	{
+		/* if the filter is null, start by assuming path mismatch. If we find
+		 * pathNotFound, it'll get overwritten. This way we can track explicitly
+		 * that we got pathNotFound.
+		 */
+		state.traverseState.compareResult = CompareResult_Mismatch;
+		execFuncs = &CompareNullExecutionFuncs;
+	}
+
+	TraverseBson(&documentIterator, filterElement.path, &state.traverseState, execFuncs);
 	return ProcessQueryResultAndGetMatch(isQueryFilterNull, &state.traverseState);
 }
 
@@ -3030,12 +3078,12 @@ CompareAllMatch(const pgbsonelement *documentIterator,
  * than the one selected so far.
  */
 static void
-CompareForOrderBy(const pgbsonelement *element,
+CompareForOrderBy(const bson_value_t *element,
 				  TraverseOrderByValidateState *validationState)
 {
 	if (validationState->orderByValue.value_type == BSON_TYPE_EOD)
 	{
-		validationState->orderByValue = element->bsonValue;
+		validationState->orderByValue = *element;
 	}
 	else
 	{
@@ -3044,25 +3092,25 @@ CompareForOrderBy(const pgbsonelement *element,
 		if (IsCollationApplicable(validationState->collationString))
 		{
 			sortOrderCmp =
-				CompareBsonValueAndTypeWithCollation(&element->bsonValue,
+				CompareBsonValueAndTypeWithCollation(element,
 													 &validationState->orderByValue,
 													 &isComparisonValidIgnore,
 													 validationState->collationString);
 		}
 		else
 		{
-			sortOrderCmp = CompareBsonValueAndType(&element->bsonValue,
+			sortOrderCmp = CompareBsonValueAndType(element,
 												   &validationState->orderByValue,
 												   &isComparisonValidIgnore);
 		}
 
 		if (sortOrderCmp > 0 && !validationState->isOrderByMin)
 		{
-			validationState->orderByValue = element->bsonValue;
+			validationState->orderByValue = *element;
 		}
 		else if (sortOrderCmp < 0 && validationState->isOrderByMin)
 		{
-			validationState->orderByValue = element->bsonValue;
+			validationState->orderByValue = *element;
 		}
 	}
 }
@@ -3855,6 +3903,35 @@ CompareVisitArrayField(pgbsonelement *element, const StringView *filterPath, int
 }
 
 
+static void
+CompareSetTraverseResultForNulls(void *state, TraverseBsonResult traverseResult)
+{
+	TraverseValidateState *validateState = (TraverseValidateState *) state;
+	switch (traverseResult)
+	{
+		case TraverseBsonResult_PathNotFound:
+		{
+			validateState->compareResult = CompareResult_PathNotFound;
+			break;
+		}
+
+		case TraverseBsonResult_TypeMismatch:
+		{
+			/* The state starts out as mismatch and we would reset it to either
+			 * Match or PathNotFound - ignore new TypeMismatch requests (since
+			 * PathNotFound wins over Mismatch).
+			 */
+			break;
+		}
+
+		default:
+		{
+			ereport(ERROR, (errmsg("Unexpected traverse result %d", traverseResult)));
+		}
+	}
+}
+
+
 /*
  * Updates the comparison logic with the traverse result for path not found/mismatches.
  */
@@ -3951,7 +4028,7 @@ OrderByVisitTopLevelField(pgbsonelement *element, const
 		return true;
 	}
 
-	CompareForOrderBy(element, validateState);
+	CompareForOrderBy(&element->bsonValue, validateState);
 	return true;
 }
 
@@ -3964,8 +4041,82 @@ OrderByVisitArrayField(pgbsonelement *element, const StringView *filterPath,
 					   int arrayIndex, void *state)
 {
 	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
-	CompareForOrderBy(element, validateState);
+	CompareForOrderBy(&element->bsonValue, validateState);
 	return true;
+}
+
+
+static bool
+OrderByContinueProcessIntermediateArray(void *state, const
+										bson_value_t *value)
+{
+	/* Orderby needs to continue traversing even after a match to see if there's better options */
+	return true;
+}
+
+
+static void
+OrderByHandleIntermediateArrayPathNotFound(void *state,
+										   int32_t arrayIndex, const
+										   StringView *remainingPath)
+{
+	/* If an intermediate field is not traversable, it gets marked as null */
+	if (UseLegacyOrderByBehavior)
+	{
+		return;
+	}
+
+	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
+	if (validateState->nestedArrayCount > 0 &&
+		validateState->orderByValue.value_type != BSON_TYPE_EOD)
+	{
+		return;
+	}
+
+	bson_value_t nullValue = { 0 };
+	nullValue.value_type = BSON_TYPE_NULL;
+	CompareForOrderBy(&nullValue, validateState);
+}
+
+
+static void
+OrderBySetIntermediateArrayStartEnd(void *state, bool isStart)
+{
+	if (UseLegacyOrderByBehavior)
+	{
+		return;
+	}
+
+	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
+	if (isStart)
+	{
+		validateState->nestedArrayCount++;
+	}
+	else
+	{
+		validateState->nestedArrayCount--;
+	}
+}
+
+
+static void
+OrderBySetTraverseResult(void *state, TraverseBsonResult compareResult)
+{
+	TraverseOrderByValidateState *validateState =
+		(TraverseOrderByValidateState *) state;
+	if (compareResult == TraverseBsonResult_PathNotFound &&
+		validateState->nestedArrayCount > 0 &&
+		!UseLegacyOrderByBehavior)
+	{
+		/* This is the path where we request a.b.c (which means we expect b to be an object or array)
+		 * but b is a primitive type. This gets compared as null.
+		 */
+		bson_value_t nullValue = { 0 };
+		nullValue.value_type = BSON_TYPE_NULL;
+		CompareForOrderBy(&nullValue, validateState);
+	}
+
+	CompareSetTraverseResult(state, compareResult);
 }
 
 

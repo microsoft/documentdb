@@ -724,7 +724,10 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 			 */
 			if (notEqualQuery->value_type == BSON_TYPE_NULL)
 			{
-				return true;
+				/* if the value is *maybe* undefined then there's another value that's defined
+				 * let the other value determine matched-ness
+				 */
+				return !compareTerm->isValueMaybeUndefined;
 			}
 
 			return !BsonValueEquals(&compareTerm->element.bsonValue, notEqualQuery);

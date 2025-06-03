@@ -68,6 +68,8 @@ bool IsBsonRegularIndexAm(Oid indexAm);
  */
 bool IsCompositeOpClass(Relation indexRelation);
 
+bool IsCompositeOpFamilyOid(Oid relam, Oid opFamilyOid);
+
 /*
  * Whether the Oid of the oprator family points to a single path operator family.
  */

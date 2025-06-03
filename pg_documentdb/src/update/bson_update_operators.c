@@ -1203,6 +1203,8 @@ RenameSourceGetValue(const pgbson *sourceDocument, const char *sourcePathString)
 		.SetTraverseResult = RenameSetTraverseErrorResult,
 		.ContinueProcessIntermediateArray = RenameProcessIntermediateArray,
 		.SetIntermediateArrayIndex = NULL,
+		.HandleIntermediateArrayPathNotFound = NULL,
+		.SetIntermediateArrayStartEnd = NULL,
 	};
 
 	bson_value_t renameSourceValue = { 0 };

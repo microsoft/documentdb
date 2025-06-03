@@ -1111,6 +1111,21 @@ GenerateTerms(pgbson *bson, GenerateTermsContext *context, bool addRootTerm)
 		AddTerm(context, GeneratePathUndefinedTerm(context->options));
 	}
 
+	if (context->generatePathBasedUndefinedTerms)
+	{
+		if (hasNoTerms)
+		{
+			/* Add the path not exists value term */
+			AddTerm(context, GenerateValueUndefinedTerm(&context->termMetadata));
+		}
+
+		if (context->hasArrayPartialTermExistence)
+		{
+			/* Add the path not exists value term for array ancestors */
+			AddTerm(context, GenerateValueMaybeUndefinedTerm(&context->termMetadata));
+		}
+	}
+
 	if (addRootTerm)
 	{
 		/* GUC to preserve back-compat behavior. */
@@ -1147,7 +1162,7 @@ GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 				  uint32_t pathtoInsertLength, bool inArrayContext,
 				  bool isArrayTerm, GenerateTermsContext *context,
 				  bool isCheckForArrayTermsWithNestedDocument,
-				  bool generateOnlyArrayPathTerms)
+				  bool isPathMatchedRecursively)
 {
 	check_stack_depth();
 	CHECK_FOR_INTERRUPTS();
@@ -1166,12 +1181,15 @@ GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 	initStringInfo(&pathBuilderBuffer);
 	EnsureTermCapacity(context, arrayCapacityEstimate);
 
+	bool someArrayPathsHaveTerms = false;
+	bool someArrayPathsHaveNoTerms = false;
 	while (bson_iter_next(&containerIter))
 	{
 		bson_iter_t containerCopy = containerIter;
 		bool inArrayContextInner = true;
 		bool isArrayTermInner = false;
 		bool isCheckForArrayTermsWithNestedDocumentInner = false;
+		int32_t termCount = context->index;
 
 		/* For wildcard indexes if there's a match, any path that is a.0, a.2 etc
 		 * can also be reached from 'a'.
@@ -1181,8 +1199,7 @@ GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 		 * i.e. for a [ [ { b: 10 } ] ] we need to generate a.0.b
 		 */
 		if (context->useReducedWildcardTerms &&
-			generateOnlyArrayPathTerms &&
-			!inArrayContext)
+			isPathMatchedRecursively && !inArrayContext)
 		{
 			if (BSON_ITER_HOLDS_ARRAY(&containerIter))
 			{
@@ -1209,11 +1226,27 @@ GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 		 */
 		inArrayContextInner = true;
 		isArrayTermInner = true;
-		isCheckForArrayTermsWithNestedDocumentInner = inArrayContext;
+		isCheckForArrayTermsWithNestedDocumentInner = inArrayContext &&
+													  !context->
+													  skipGenerateTopLevelArrayTerm;
 		GenerateTermPath(&containerCopy, pathToInsert, pathtoInsertLength,
 						 inArrayContextInner, isArrayTermInner, context,
 						 isCheckForArrayTermsWithNestedDocumentInner,
 						 &pathBuilderBuffer);
+		if (context->index > termCount)
+		{
+			someArrayPathsHaveTerms = true;
+		}
+		else
+		{
+			someArrayPathsHaveNoTerms = true;
+		}
+	}
+
+	/* Track that these arrays have partial term existence */
+	if (someArrayPathsHaveTerms && someArrayPathsHaveNoTerms)
+	{
+		context->hasArrayPartialTermExistence = true;
 	}
 
 	if (pathBuilderBuffer.data != NULL)
@@ -1338,7 +1371,7 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 			element.bsonValue = *bson_iter_value(bsonIter);
 
 			if (context->skipGenerateTopLevelArrayTerm &&
-				element.bsonValue.value_type == BSON_TYPE_ARRAY && !inArrayContext)
+				element.bsonValue.value_type == BSON_TYPE_ARRAY && !isArrayTerm)
 			{
 				/*
 				 * If this is an empty array, mark it as *literal* undefined so
@@ -1437,11 +1470,11 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 				context->hasArrayAncestors = true;
 			}
 
-			bool generateOnlyArrayPathTerms = option == IndexTraverse_MatchAndRecurse;
+			bool isPathMatchedRecursively = option == IndexTraverse_MatchAndRecurse;
 			GenerateArrayPath(bsonIter, pathToInsert, pathtoInsertLength,
 							  inArrayContext, isArrayTerm, context,
 							  isCheckForArrayTermsWithNestedDocument,
-							  generateOnlyArrayPathTerms);
+							  isPathMatchedRecursively);
 		}
 	}
 }

@@ -202,6 +202,25 @@ IsCompositeOpClass(Relation indexRelation)
 }
 
 
+bool
+IsCompositeOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return false;
+	}
+
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->get_composite_path_op_family_oid() == opFamilyOid;
+}
+
+
 /*
  * Whether order by is supported for a opclass of an index Am.
  */

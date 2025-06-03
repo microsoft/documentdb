@@ -30,6 +30,11 @@ typedef struct BsonIndexTerm
 	 */
 	bool isValueUndefined;
 
+	/* Special case of an undefined value in an array that
+	 * has a defined value.
+	 */
+	bool isValueMaybeUndefined;
+
 	/* The index term element */
 	pgbsonelement element;
 } BsonIndexTerm;
@@ -111,8 +116,8 @@ Datum GenerateRootExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootNonExistsTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootTruncatedTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootMultiKeyTerm(const IndexTermCreateMetadata *);
-Datum GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData, const
-								 char *path);
+Datum GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData);
+Datum GenerateValueMaybeUndefinedTerm(const IndexTermCreateMetadata *termData);
 int32_t CompareBsonIndexTerm(BsonIndexTerm *left, BsonIndexTerm *right,
 							 bool *isComparisonValid);
 

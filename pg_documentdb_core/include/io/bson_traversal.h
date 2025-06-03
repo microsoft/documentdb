@@ -70,6 +70,18 @@ typedef struct TraverseBsonExecutionFuncs
 	 * being traversed.
 	 */
 	void (*SetIntermediateArrayIndex)(void *state, int32_t arrayIndex);
+
+	/*
+	 * An optional function: On an intermediate array visit, notifies that the current array index cannot
+	 * be traversed to get to the dotted path requested.
+	 */
+	void (*HandleIntermediateArrayPathNotFound)(void *state, int32_t arrayIndex, const
+												StringView *remainingPath);
+
+	/*
+	 * An optional function: On an intermediate array visit, sets the start/end of the array
+	 */
+	void (*SetIntermediateArrayStartEnd)(void *state, bool isStart);
 } TraverseBsonExecutionFuncs;
 
 void TraverseBson(bson_iter_t *documentIterator, const char *traversePath,

@@ -162,6 +162,9 @@ typedef struct
 	/* Whether or not to skip generating the top level array term */
 	bool skipGenerateTopLevelArrayTerm;
 
+	/* Whether or not to generate path based undefined terms (used in composite indexes) */
+	bool generatePathBasedUndefinedTerms;
+
 	/*
 	 * Whether or not the path has array ancestors in the pre paths:
 	 * for a path a.b.c

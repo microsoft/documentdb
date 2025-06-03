@@ -106,6 +106,9 @@ bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
 bool EnableSortbyIdPushDownToPrimaryKey =
 	DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY;
 
+#define DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN false
+bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
+
 
 /*
  * SECTION: Aggregation & Query feature flags
@@ -141,6 +144,12 @@ int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECON
 
 #define DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR true
 bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR;
+
+#define DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR false
+bool UseLegacyOrderByBehavior = DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR;
+
+#define DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR false
+bool UseLegacyNullEqualityBehavior = DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR;
 
 
 /*
@@ -545,5 +554,29 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Determines whether the usersInfo command returns privileges."),
 		NULL, &EnableUsersInfoPrivileges,
 		DEFAULT_ENABLE_USERS_INFO_PRIVILEGES,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyOrderByBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use legacy order by behavior."),
+		NULL, &UseLegacyOrderByBehavior,
+		DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyNullEqualityBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use legacy null equality behavior."),
+		NULL, &UseLegacyNullEqualityBehavior,
+		DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useNewElemMatchIndexPushdown", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use the new elemMatch index pushdown logic."),
+		NULL, &UseNewElemMatchIndexPushdown,
+		DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

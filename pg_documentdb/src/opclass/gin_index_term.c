@@ -27,6 +27,8 @@
  * the point of conversion, the binaries using the first 2 bits were
  * not upgraded, so the code uses 0x04 and 0x08 until the next release.
  * Note that subsequent metadata values can use intermediate values.
+ * IndexTermPartialUndefinedValue uses 2 flags that were not used earlier
+ * and so is safe to use as a new value.
  */
 typedef enum IndexTermMetadata
 {
@@ -39,6 +41,8 @@ typedef enum IndexTermMetadata
 	IndexTermComposite = 0x04,
 
 	IndexTermUndefinedValue = 0x08,
+
+	IndexTermPartialUndefinedValue = 12,
 } IndexTermMetadata;
 
 extern bool EnableIndexTermTruncationOnNestedObjects;
@@ -229,6 +233,13 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 			   (int32_t) leftTerm->isValueUndefined;
 	}
 
+	if (leftTerm->isValueMaybeUndefined ^ rightTerm->isValueMaybeUndefined)
+	{
+		/* If one of them is maybe undefined, it is less than the other */
+		return (int32_t) rightTerm->isValueMaybeUndefined -
+			   (int32_t) leftTerm->isValueMaybeUndefined;
+	}
+
 	/* Both terms are equal by value - compare for truncation */
 	if (leftTerm->isIndexTermTruncated ^ rightTerm->isIndexTermTruncated)
 	{
@@ -287,6 +298,7 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	indexTerm->isIndexTermTruncated = false;
 	indexTerm->isIndexTermMetadata = false;
 	indexTerm->isValueUndefined = false;
+	indexTerm->isValueMaybeUndefined = false;
 	switch ((IndexTermMetadata) buffer[0])
 	{
 		case IndexTermTruncated:
@@ -304,6 +316,12 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 		case IndexTermUndefinedValue:
 		{
 			indexTerm->isValueUndefined = true;
+			break;
+		}
+
+		case IndexTermPartialUndefinedValue:
+		{
+			indexTerm->isValueMaybeUndefined = true;
 			break;
 		}
 
@@ -1236,15 +1254,28 @@ GenerateRootTerm(const IndexTermCreateMetadata *termData)
 
 
 Datum
-GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData, const char *path)
+GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData)
 {
 	pgbsonelement element = { 0 };
-	element.path = path;
-	element.pathLength = strlen(path);
+	element.path = termData->pathPrefix.string;
+	element.pathLength = termData->pathPrefix.length;
 	element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
 
-	/* Can't mark this as metadata due to back-compat. This is okay coz this is legacy. */
 	IndexTermMetadata termMetadata = IndexTermUndefinedValue;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
+}
+
+
+Datum
+GenerateValueMaybeUndefinedTerm(const IndexTermCreateMetadata *termData)
+{
+	pgbsonelement element = { 0 };
+	element.path = termData->pathPrefix.string;
+	element.pathLength = termData->pathPrefix.length;
+	element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
+
+	IndexTermMetadata termMetadata = IndexTermPartialUndefinedValue;
 	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
 													  termMetadata).indexTermVal);
 }

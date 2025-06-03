@@ -966,7 +966,16 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 		PgbsonWriterGetPgbson(&querySpecWriter));
 
 	/* Now update all the scan keys */
-	memcpy(targetScanKey, scankey, sizeof(ScanKeyData));
+	if (nscankeys > 0)
+	{
+		memcpy(targetScanKey, scankey, sizeof(ScanKeyData));
+	}
+	else
+	{
+		memset(targetScanKey, 0, sizeof(ScanKeyData));
+		targetScanKey->sk_attno = 1;
+	}
+
 	targetScanKey->sk_argument = finalDatum;
 	targetScanKey->sk_strategy = BSON_INDEX_STRATEGY_COMPOSITE_QUERY;
 }
@@ -1155,7 +1164,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 		context.options = (void *) singlePathOptions;
 		context.traverseOptionsFunc = &GetSinglePathIndexTraverseOption;
-		context.generateNotFoundTerm = true;
+		context.generatePathBasedUndefinedTerms = true;
 		context.skipGeneratedPathUndefinedTermOnLiteralNull = true;
 		context.termMetadata = GetIndexTermMetadata(singlePathOptions);
 		context.skipGenerateTopLevelArrayTerm = true;
@@ -1195,17 +1204,8 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 			{
 				hasTruncation = true;
 			}
-			if (indexTerm.element.pathLength == 0 &&
-				indexTerm.element.bsonValue.value_type == BSON_TYPE_NULL)
-			{
-				/* This is the "path does not exist" term */
-				compositeDatums[j] = DatumGetByteaPP(GenerateValueUndefinedTerm(
-														 &overallMetadata, "$"));
-			}
-			else
-			{
-				compositeDatums[j] = DatumGetByteaPP(term);
-			}
+
+			compositeDatums[j] = DatumGetByteaPP(term);
 		}
 
 		BsonCompressableIndexTermSerialized serializedTerm =
