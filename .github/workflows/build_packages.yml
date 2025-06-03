@@ -24,8 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu22.04, ubuntu24.04, deb11, deb12]
-        os: [ubuntu22.04, deb12]
+        os: [ubuntu22.04, ubuntu24.04, deb11, deb12]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -34,7 +33,7 @@ jobs:
             runner: ubuntu-24.04-arm
         pg_version:
           - 16
-          # - 17
+          - 17
 
     steps:
       - name: Checkout repository
@@ -107,7 +106,7 @@ jobs:
           push: true
           platforms: linux/${{ matrix.arch }}
           file: .github/containers/Build-Ubuntu/Dockerfile_prebuild
-          tags: ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ env.DOCUMENTDB_VERSION }}
+          tags: ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
             POSTGRES_VERSION=${{ matrix.pg_version }}
