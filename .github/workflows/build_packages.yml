@@ -54,3 +54,32 @@ jobs:
           retention-days: 7
           if-no-files-found: error
           compression-level: 0
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and Push ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.pg_version }} Image
+        run: |
+          case ${{ matrix.os }} in
+              deb11)
+                  DOCKER_IMAGE="debian:bullseye"
+                  ;;
+              deb12)
+                  DOCKER_IMAGE="debian:bookworm"
+                  ;;
+              ubuntu22.04)
+                  DOCKER_IMAGE="ubuntu:22.04"
+                  ;;
+              ubuntu24.04)
+                  DOCKER_IMAGE="ubuntu:24.04"
+                  ;;
+          esac
+          PACKAGE_NAME=$(ls packaging/*.deb)
+          docker build \
+            -t ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} \
+            --platform=linux/${{ matrix.arch }} \
+            --build-arg BASE_IMAGE=$DOCKER_IMAGE \
+            --build-arg POSTGRES_VERSION=${{ matrix.pg_version }} \
+            --build-arg DEB_PACKAGE_REL_PATH=$PACKAGE_NAME \
+            -f .github/containers/Build-Ubuntu/Dockerfile_prebuild .
+          docker push ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
