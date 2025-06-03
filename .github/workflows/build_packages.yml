@@ -67,7 +67,7 @@ jobs:
       - name: Extract image build metadata
         id: image_metadata
         run: |
-          PACKAGE_NAME=$(ls packaging/*.deb)
+          PACKAGE_NAME=$(ls packaging/*.deb | grep -v dbgsym | head -n1)
           echo "PACKAGE NAME: $PACKAGE_NAME"
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
 
