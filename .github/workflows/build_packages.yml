@@ -58,28 +58,71 @@ jobs:
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build and Push ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.pg_version }} Image
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image build metadata
+        id: image_metadata
         run: |
+          PACKAGE_NAME=$(ls packaging/*.deb)
+          echo "PACKAGE NAME: $PACKAGE_NAME"
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
           case ${{ matrix.os }} in
               deb11)
-                  DOCKER_IMAGE="debian:bullseye"
+                  BASE_IMAGE="debian:bullseye"
                   ;;
               deb12)
-                  DOCKER_IMAGE="debian:bookworm"
+                  BASE_IMAGE="debian:bookworm"
                   ;;
               ubuntu22.04)
-                  DOCKER_IMAGE="ubuntu:22.04"
+                  BASE_IMAGE="ubuntu:22.04"
                   ;;
               ubuntu24.04)
-                  DOCKER_IMAGE="ubuntu:24.04"
+                  BASE_IMAGE="ubuntu:24.04"
                   ;;
           esac
-          PACKAGE_NAME=$(ls packaging/*.deb)
-          docker build \
-            -t ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} \
-            --platform=linux/${{ matrix.arch }} \
-            --build-arg BASE_IMAGE=$DOCKER_IMAGE \
-            --build-arg POSTGRES_VERSION=${{ matrix.pg_version }} \
-            --build-arg DEB_PACKAGE_REL_PATH=$PACKAGE_NAME \
-            -f .github/containers/Build-Ubuntu/Dockerfile_prebuild .
-          docker push ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
+          echo "BASE_IMAGE NAME: $BASE_IMAGE"
+          echo "BASE_IMAGE=$BASE_IMAGE" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          platforms: linux/${{ matrix.arch }}
+          tags: ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+            POSTGRES_VERSION=${{ matrix.pg_version }}
+            DEB_PACKAGE_REL_PATH=${{ env.PACKAGE_NAME }}
+
+      # - name: Build and Push ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.pg_version }} Image
+      #   run: |
+      #     case ${{ matrix.os }} in
+      #         deb11)
+      #             DOCKER_IMAGE="debian:bullseye"
+      #             ;;
+      #         deb12)
+      #             DOCKER_IMAGE="debian:bookworm"
+      #             ;;
+      #         ubuntu22.04)
+      #             DOCKER_IMAGE="ubuntu:22.04"
+      #             ;;
+      #         ubuntu24.04)
+      #             DOCKER_IMAGE="ubuntu:24.04"
+      #             ;;
+      #     esac
+      #     PACKAGE_NAME=$(ls packaging/*.deb)
+
+      #     docker build \
+      #       --platform=linux/${{ matrix.arch }} \
+      #       --build-arg BASE_IMAGE=$DOCKER_IMAGE \
+      #       --build-arg POSTGRES_VERSION=${{ matrix.pg_version }} \
+      #       --build-arg DEB_PACKAGE_REL_PATH=$PACKAGE_NAME \
+      #       -t ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} \
+      #       -f .github/containers/Build-Ubuntu/Dockerfile_prebuild .
+      #     docker push ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
