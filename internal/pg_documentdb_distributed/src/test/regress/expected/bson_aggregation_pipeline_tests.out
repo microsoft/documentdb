@@ -2056,3 +2056,58 @@ SELECT check_lookup_stages_limit(1, 1000);
 (1 row)
 
 RESET documentdb.aggregation_stages_limit;
+-- $lookup and $unwind stage combined when null results need to be preserved
+SELECT documentdb_api.insert_one('db','lookup_author','{ "_id": 1, "name": "Jane Austen" }', NULL);
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 1, "title" : "Pride and prejudice", "author": "Jane Austen" }', NULL);
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 2, "title" : "Emma", "author": "Jane Austen" }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+                                                                          document                                                                           
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "title" : "Emma", "author" : "Jane Austen", "author-names" : { "_id" : { "$numberInt" : "1" }, "name" : "Jane Austen" } }
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'author-names'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "author" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_4118_411123 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4118'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_4117_411107 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '4117'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'name'::text)) "lookupRight_stage_1" ON (true))) agg_stage_1 WHERE (document OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Emma" }'::documentdb_core.bsonquery)
+         Node: host=localhost port=58070 dbname=regression
+         ->  Nested Loop Left Join
+               Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'author-names'::text)
+               Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "author" }'::documentdb_core.bson), 'name'::text)
+               Filter: (documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'author-names'::text) OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Emma" }'::documentdb_core.bsonquery)
+               ->  Bitmap Heap Scan on documentdb_data.documents_4118_411123 collection
+                     Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                     Recheck Cond: (collection.shard_key_value = '4118'::bigint)
+                     ->  Bitmap Index Scan on _id_
+                           Index Cond: (collection.shard_key_value = '4118'::bigint)
+               ->  Materialize
+                     Output: collection_0_1.document
+                     ->  Bitmap Heap Scan on documentdb_data.documents_4117_411107 collection_0_1
+                           Output: collection_0_1.document
+                           Recheck Cond: (collection_0_1.shard_key_value = '4117'::bigint)
+                           ->  Bitmap Index Scan on _id_
+                                 Index Cond: (collection_0_1.shard_key_value = '4117'::bigint)
+(23 rows)
+

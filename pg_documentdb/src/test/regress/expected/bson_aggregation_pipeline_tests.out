@@ -1676,3 +1676,49 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
  { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : [ "x", { "$numberInt" : "1" }, { "$numberDouble" : "2.0" }, true ] } }
 (1 row)
 
+-- $lookup and $unwind stage combined when null results need to be preserved
+SELECT documentdb_api.insert_one('db','lookup_author','{ "_id": 1, "name": "Jane Austen" }', NULL);
+NOTICE:  creating collection
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 1, "title" : "Pride and prejudice", "author": "Jane Austen" }', NULL);
+NOTICE:  creating collection
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 2, "title" : "Emma", "author": "Jane Austen" }', NULL);
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+                                                                          document                                                                           
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "title" : "Emma", "author" : "Jane Austen", "author-names" : { "_id" : { "$numberInt" : "1" }, "name" : "Jane Austen" } }
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+                                                                                                               QUERY PLAN                                                                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join
+   Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::bson), 'author-names'::text)
+   Filter: (documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::bson), 'author-names'::text) #= '{ "title" : "Emma" }'::bsonquery)
+   ->  Bitmap Heap Scan on documentdb_data.documents_3507 collection
+         Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+         Recheck Cond: (collection.shard_key_value = '3507'::bigint)
+         ->  Bitmap Index Scan on _id_
+               Index Cond: (collection.shard_key_value = '3507'::bigint)
+   ->  Bitmap Heap Scan on documentdb_data.documents_3506 collection_0_1
+         Output: collection_0_1.document
+         Recheck Cond: (collection_0_1.shard_key_value = '3506'::bigint)
+         Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "author" }'::bson), 'name'::text)
+         ->  Bitmap Index Scan on _id_
+               Index Cond: (collection_0_1.shard_key_value = '3506'::bigint)
+(14 rows)
+
