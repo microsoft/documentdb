@@ -274,7 +274,7 @@ Query *
 HandleBucketAuto(const bson_value_t *existingValue, Query *query,
 				 AggregationPipelineBuildContext *context)
 {
-	if (!(EnableBucketAutoStage && IsClusterVersionAtleast(DocDB_V0, 104, 0)))
+	if (!(EnableBucketAutoStage && IsClusterVersionAtleast(DocDB_V0, 105, 0)))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg("$bucketAuto aggregation stage is not supported yet.")));

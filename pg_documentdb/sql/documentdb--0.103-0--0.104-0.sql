@@ -6,7 +6,6 @@
 #include "udfs/projection/bson_projection--0.104-0.sql"
 #include "udfs/index_mgmt/create_index_background--0.104-0.sql"
 #include "udfs/schema_mgmt/compact--0.104-0.sql"
-#include "udfs/aggregation/bson_bucket_auto--0.104-0.sql"
 
 #include "udfs/schema_mgmt/cursor_support--0.104-0.sql"
 

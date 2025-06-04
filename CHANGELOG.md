@@ -1,3 +1,6 @@
+### documentdb v0.105-0 (Unreleased) ###
+* Support `$bucketAuto` aggregation stage, with granularity types: `POWERSOF2`, `1-2-5`, `R5`, `R10`, `R20`, `R40`, `R80`, `E6`, `E12`, `E24`, `E48`, `E96`, `E192` *[Feature]*
+
 ### documentdb v0.104-0 (Unreleased) ###
 * Add string case support for `$toDate` operator
 * Support `sort` with collation in runtime*[Feature]*
@@ -10,7 +13,6 @@
 * Add public `documentdb-local` Docker image with gateway to GHCR
 * Support `compact` command *[Feature]*. Requires `documentdb.enablecompact` GUC to be `on`.
 * Enable role privileges for `usersInfo` command *[Feature]* 
-* Support `$bucketAuto` aggregation stage, with granularity types: `POWERSOF2`, `1-2-5`, `R5`, `R10`, `R20`, `R40`, `R80`, `E6`, `E12`, `E24`, `E48`, `E96`, `E192` *[Feature]*
 
 ### documentdb v0.103-0 (May 09, 2025) ###
 * Support collation with aggregation and find on sharded collections *[Feature]*
