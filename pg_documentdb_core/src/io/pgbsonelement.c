@@ -114,7 +114,7 @@ PgbsonToSinglePgbsonElementWithCollation(const pgbson *filter, pgbsonelement *el
 	{
 		if (strcmp(bson_iter_key(&iter), "collation") == 0)
 		{
-			collationString = pstrdup(bson_iter_utf8(&iter, NULL));
+			collationString = bson_iter_utf8(&iter, NULL);
 		}
 		else
 		{
