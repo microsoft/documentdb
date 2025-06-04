@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 'main'
+      - "main"
     paths-ignore:
-      - '.devcontainer/**'
-      - '*.md'
+      - ".devcontainer/**"
+      - "*.md"
 
 permissions:
   packages: write
@@ -24,8 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu22.04, ubuntu24.04, deb11, deb12]
-        os: [ubuntu22.04, deb12]
+        os: [ubuntu22.04, ubuntu24.04, deb11, deb12]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -34,7 +33,7 @@ jobs:
             runner: ubuntu-24.04-arm
         pg_version:
           - 16
-          # - 17
+          - 17
 
     steps:
       - name: Checkout repository
@@ -104,7 +103,7 @@ jobs:
           DOCKER_BUILD_SUMMARY: false
         with:
           provenance: false # Disable provenance to avoid unknown/unknown
-          sbom: false       # Disable provenance to avoid unknown/unknown
+          sbom: false # Disable provenance to avoid unknown/unknown
           context: .
           push: true
           platforms: linux/${{ matrix.arch }}
@@ -116,14 +115,16 @@ jobs:
             DEB_PACKAGE_REL_PATH=${{ env.PACKAGE_NAME }}
           labels: |
             org.opencontainers.image.source=https://github.com/microsoft/documentdb
-            org.opencontainers.image.description="Documentdb prebuild build image"
+            org.opencontainers.image.description=Documentdb prebuild image
             org.opencontainers.image.licenses=MIT
 
       - name: Install cosign
         uses: sigstore/cosign-installer@main
+
       - name: Sign manifest (keyless)
         run: |
           cosign sign ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} -y
+      
       - name: Verify manifest signature (keyless)
         run: |
           cosign verify \
