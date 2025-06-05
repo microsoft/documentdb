@@ -44,6 +44,7 @@ pub mod processor;
 pub mod protocol;
 pub mod requests;
 pub mod responses;
+pub mod shutdown_controller;
 pub mod telemetry;
 
 pub const SYSTEM_REQUESTS_MAX_CONNECTIONS: usize = 2;

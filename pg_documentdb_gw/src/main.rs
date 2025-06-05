@@ -14,9 +14,12 @@ use documentdb_gateway::{
     configuration::{DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration},
     get_service_context, populate_ssl_certificates,
     postgres::{create_query_catalog, ConnectionPool},
-    run_server, AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
+    run_server,
+    shutdown_controller::SHUTDOWN_CONTROLLER,
+    AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
 };
-use tokio_util::sync::CancellationToken;
+
+use tokio::signal;
 
 #[ntex::main]
 async fn main() {
@@ -28,7 +31,13 @@ async fn main() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("SetupConfiguration.json")
     };
 
-    let token = CancellationToken::new();
+    let shutdown_token = SHUTDOWN_CONTROLLER.token();
+
+    tokio::spawn(async move {
+        signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+        info!("Ctrl+C received. Shutting down Rust gateway.");
+        SHUTDOWN_CONTROLLER.shutdown();
+    });
 
     let setup_configuration = DocumentDBSetupConfiguration::new(&cfg_file)
         .await
@@ -103,7 +112,7 @@ async fn main() {
         service_context,
         certificate_options,
         None,
-        token.clone(),
+        shutdown_token,
         None,
     )
     .await
