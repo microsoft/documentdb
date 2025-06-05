@@ -910,11 +910,13 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 
 		case IndexOptionsType_Composite:
 		{
+			int32_t compositeColumnIgnore;
 			traverse = GetCompositePathIndexTraverseOption(
 				strategy, options,
 				filterElement.path,
 				filterElement.pathLength,
-				&filterElement.bsonValue);
+				&filterElement.bsonValue,
+				&compositeColumnIgnore);
 			break;
 		}
 

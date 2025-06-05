@@ -1692,6 +1692,12 @@ AddMultiBoundaryForDollarRange(int32_t indexAttribute,
 {
 	DollarRangeParams *params = ParseQueryDollarRange(queryElement);
 
+	if (params->isFullScan)
+	{
+		/* Don't update any bounds */
+		return;
+	}
+
 	pgbsonelement boundElement = { 0 };
 	if (params->minValue.value_type != BSON_TYPE_EOD)
 	{

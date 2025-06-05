@@ -182,8 +182,9 @@ Size FillSinglePathSpec(const char *prefix, void *buffer);
 void ValidateSinglePathSpec(const char *prefix);
 Size FillDeprecatedStringSpec(const char *value, void *ptr);
 
-struct IndexOptInfo;
-bool CompositeIndexSupportsOrderByPushdown(struct IndexOptInfo *indexOptInfo);
+struct IndexPath;
+bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath, Datum
+										   morderbyDatum);
 
 bool PathHasArrayIndexElements(const StringView *path);
 

@@ -76,6 +76,7 @@ extern bool EnableCollation;
 extern bool DefaultInlineWriteOperations;
 extern bool EnableSortbyIdPushDownToPrimaryKey;
 extern int MaxAggregationStagesAllowed;
+extern bool EnableIndexOrderbyPushdown;
 
 /* GUC to config tdigest compression */
 extern int TdigestCompressionAccuracy;
@@ -4493,6 +4494,62 @@ HandleReplaceWith(const bson_value_t *existingValue, Query *query,
 
 
 /*
+ * Checks if a sort can be pushed to an index explicitly. Typically
+ * index selection happens based on filters. But in the case where there
+ * are no filters, sorts can never be pushed to the index:
+ * e.g.
+ * find('collection: foo, sort: { a.b: 1 })'
+ * In this case, given our sort is bson_orderby() it'll never go through picking
+ * the index. However, we do want the ability to push orderby to available indexes
+ * if possible. So we add a fullscan filter *iff* the sort is against a base table
+ * and it has no filters. If there are any filters, we let the filters determine
+ * index pushdown.
+ */
+static bool
+CanPushSortFilterToIndex(Query *query)
+{
+	if (list_length(query->jointree->fromlist) != 1)
+	{
+		return false;
+	}
+
+	RangeTblRef *rtref = linitial(query->jointree->fromlist);
+	RangeTblEntry *entry = rt_fetch(rtref->rtindex, query->rtable);
+	if (entry->rtekind != RTE_RELATION)
+	{
+		return false;
+	}
+
+	/* If there's no quals, we can push a full scan order by */
+	if (query->jointree->quals == NULL)
+	{
+		return true;
+	}
+
+	if (!IsA(query->jointree->quals, OpExpr))
+	{
+		return false;
+	}
+
+	OpExpr *opExpr = (OpExpr *) query->jointree->quals;
+	if (opExpr->opno != BigintEqualOperatorId())
+	{
+		return false;
+	}
+
+	if (IsA(linitial(opExpr->args), Var) &&
+		castNode(Var, linitial(opExpr->args))->varattno ==
+		DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER)
+	{
+		return true;
+	}
+
+	/* Unknown case */
+	return false;
+}
+
+
+/*
  * Handles the $sort stage.
  * Creates a subquery if there's a skip/limit (Since those need to be
  * applied first).
@@ -4581,12 +4638,14 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			nonNaturalCount++;
 			Expr *sortInput = entry->expr;
 			pgbsonelement subOrderingElement;
+			bool isSortByMeta = false;
 			if (element.bsonValue.value_type == BSON_TYPE_DOCUMENT &&
 				TryGetBsonValueToPgbsonElement(&element.bsonValue, &subOrderingElement) &&
 				subOrderingElement.pathLength == 5 &&
 				strncmp(subOrderingElement.path, "$meta", 5) == 0)
 			{
 				RangeTblEntry *rte = linitial(query->rtable);
+				isSortByMeta = true;
 				if (rte->rtekind == RTE_RELATION ||
 					rte->rtekind == RTE_FUNCTION)
 				{
@@ -4612,12 +4671,14 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 
 			if (hasSortById)
 			{
-				ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID);
-
 				if (CanSortByObjectId(query, context))
 				{
 					canPushdownSortById = true;
 					ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID_PUSHDOWNABLE);
+				}
+				else
+				{
+					ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID);
 				}
 			}
 
@@ -4673,6 +4734,27 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 											 args,
 											 InvalidOid, InvalidOid,
 											 COERCE_EXPLICIT_CALL);
+
+				if (EnableIndexOrderbyPushdown && !isSortByMeta)
+				{
+					/*
+					 * If there's an orderby pushdown to the index, add a full scan clause iff
+					 * the query has no filters yet.
+					 */
+					if (CanPushSortFilterToIndex(query) && IsClusterVersionAtleast(
+							DocDB_V0, 105, 0))
+					{
+						List *rangeArgs = list_make2(sortInput, sortBson);
+						Expr *fullScanExpr = (Expr *) makeFuncExpr(
+							BsonFullScanFunctionOid(), BOOLOID, rangeArgs,
+							InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+						List *currentQuals = make_ands_implicit(
+							(Expr *) query->jointree->quals);
+						currentQuals = lappend(currentQuals, fullScanExpr);
+						query->jointree->quals = (Node *) make_ands_explicit(
+							currentQuals);
+					}
+				}
 			}
 
 			sortBy->sortby_dir = sortByDirection;

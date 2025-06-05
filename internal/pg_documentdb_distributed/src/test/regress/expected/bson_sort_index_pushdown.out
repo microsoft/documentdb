@@ -106,9 +106,9 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
 (2 rows)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                             get_feature_counter_pretty                                              
+                                   get_feature_counter_pretty                                    
 ---------------------------------------------------------------------
- {"Feature_usage":[{"limit" : 2}, {"match" : 4}, {"sort" : 4}, {"sort_by_id" : 4}, {"sort_by_id_pushdownable" : 4}]}
+ {"Feature_usage":[{"limit" : 2}, {"match" : 4}, {"sort" : 4}, {"sort_by_id_pushdownable" : 4}]}
 (1 row)
 
 -- filter on _id_
@@ -280,9 +280,9 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
 (5 rows)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                             get_feature_counter_pretty                                              
+                                   get_feature_counter_pretty                                    
 ---------------------------------------------------------------------
- {"Feature_usage":[{"limit" : 7}, {"match" : 9}, {"sort" : 9}, {"sort_by_id" : 9}, {"sort_by_id_pushdownable" : 9}]}
+ {"Feature_usage":[{"limit" : 7}, {"match" : 9}, {"sort" : 9}, {"sort_by_id_pushdownable" : 9}]}
 (1 row)
 
 BEGIN;
@@ -332,9 +332,9 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
 (16 rows)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                             get_feature_counter_pretty                                              
+                                   get_feature_counter_pretty                                    
 ---------------------------------------------------------------------
- {"Feature_usage":[{"limit" : 2}, {"match" : 2}, {"sort" : 2}, {"sort_by_id" : 2}, {"sort_by_id_pushdownable" : 2}]}
+ {"Feature_usage":[{"limit" : 2}, {"match" : 2}, {"sort" : 2}, {"sort_by_id_pushdownable" : 2}]}
 (1 row)
 
 END;

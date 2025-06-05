@@ -30,6 +30,7 @@
 #include "opclass/bson_gin_composite_scan.h"
 #include "index_am/index_am_utils.h"
 #include "opclass/bson_gin_index_term.h"
+#include "opclass/bson_gin_private.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
@@ -65,6 +66,8 @@ typedef struct DocumentDBRumIndexState
 	IndexMultiKeyStatus multiKeyStatus;
 
 	void *indexArrayState;
+
+	int32_t numDuplicates;
 } DocumentDBRumIndexState;
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
@@ -265,25 +268,96 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
  * matches the [MinKey, MaxKey] range of the path with an equality prefix.
  */
 bool
-CompositeIndexSupportsOrderByPushdown(IndexOptInfo *indexOptInfo)
+CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, Datum orderbyDatum)
 {
-	if (indexOptInfo->relam != RumIndexAmId())
+	if (indexPath->indexinfo->relam != RumIndexAmId())
 	{
 		return false;
 	}
 
-	if (!indexOptInfo->amcanorderbyop)
+	if (!indexPath->indexinfo->amcanorderbyop)
 	{
 		/* No use if the index can't order by operator */
 		return false;
 	}
 
+	BsonGinIndexOptionsBase *options =
+		(BsonGinIndexOptionsBase *) indexPath->indexinfo->opclassoptions[0];
+
+	if (options->type != IndexOptionsType_Composite)
+	{
+		return false;
+	}
+
+	pgbsonelement sortElement;
+	PgbsonToSinglePgbsonElementWithCollation(DatumGetPgBson(orderbyDatum), &sortElement);
+
+	int32_t orderbyColumnNumber = -1;
+	IndexTraverseOption orderByOption = GetCompositePathIndexTraverseOption(
+		BSON_INDEX_STRATEGY_DOLLAR_ORDERBY,
+		options,
+		sortElement.path,
+		sortElement.pathLength,
+		&sortElement.bsonValue,
+		&orderbyColumnNumber);
+	if (orderByOption != IndexTraverse_Match &&
+		orderByOption != IndexTraverse_MatchAndRecurse)
+	{
+		/* If the order by path does not match the index, we can't push down */
+		return false;
+	}
+
 	bool isMultiKeyIndex = false;
-	Relation indexRel = index_open(indexOptInfo->indexoid, NoLock);
+	Relation indexRel = index_open(indexPath->indexinfo->indexoid, NoLock);
 	isMultiKeyIndex = RumGetMultikeyStatus(indexRel);
 	index_close(indexRel, NoLock);
 
-	return !isMultiKeyIndex;
+	if (!isMultiKeyIndex && orderbyColumnNumber == 0)
+	{
+		/* Non multi-key index on the first column always supports order by */
+		return true;
+	}
+
+	bool equalityPrefixes[INDEX_MAX_KEYS] = { false };
+	bool hasRangePredicate[INDEX_MAX_KEYS] = { false };
+
+	bool isValid = GetEqualityRangePredicatesForIndexPath(indexPath, options,
+														  equalityPrefixes,
+														  hasRangePredicate);
+	if (!isValid)
+	{
+		return false;
+	}
+
+	/* Now for an orderby walk the index paths and ensure we have sanity to push down
+	 * We can only push orderby to the index if the preceding columns are all equality.
+	 */
+	for (int i = 0; i < orderbyColumnNumber; i++)
+	{
+		if (!equalityPrefixes[i])
+		{
+			return false;
+		}
+	}
+
+	/* For multi-key we may have filters on the order by that restrict rows, but there may be rows
+	 * that do not match the filter, but need to be considered for order by.
+	 * Given 2 document such as
+	 * "a": [ 3, 90, 50 ],  "a": [ 30, 51 ]
+	 * a filter of { "a": { "$gt" 50 }} orderby "a": 1 will walk the index as:
+	 *  "a": [ 30, 51 ], "a": [ 3, 90, 50 ]
+	 * which is incorrect since 3 needs to be ordered first (even though it didn't match the filter).
+	 * Consequently, only support orderby pushdown if the filter doesn't cover the orderby column.
+	 */
+	if (isMultiKeyIndex)
+	{
+		/* Only support pushdown if there's no clauses on the order by column itself */
+		return !hasRangePredicate[orderbyColumnNumber] &&
+			   !equalityPrefixes[orderbyColumnNumber];
+	}
+
+	/* Equality prefix with order by on the column is supported. */
+	return true;
 }
 
 
@@ -735,6 +809,10 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 				{
 					return true;
 				}
+				else
+				{
+					outerScanState->numDuplicates++;
+				}
 
 				/* else, get the next tuple */
 				result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
@@ -919,6 +997,13 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 		}
 
 		ExplainPropertyList("indexBounds", boundsList, es);
+
+		if (outerScanState->numDuplicates > 0)
+		{
+			/* If we have duplicates, explain the number of duplicates */
+			ExplainPropertyInteger("numDuplicates", "entries",
+								   outerScanState->numDuplicates, es);
+		}
 
 		/* Explain the inner scan using underlying am */
 		TryExplainByIndexAm(outerScanState->innerScan, es);

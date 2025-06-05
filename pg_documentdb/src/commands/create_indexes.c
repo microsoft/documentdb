@@ -1945,6 +1945,44 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 	}
 
+	if (indexDef->enableCompositeTerm == BoolIndexOption_True)
+	{
+		ReportFeatureUsage(FEATURE_CREATE_INDEX_COMPOSITE_BASED_TERM);
+
+		if (indexDef->key->isWildcard)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+							errmsg(
+								"enableCompositeTerm is not supported with wildcard indexes.")));
+		}
+
+		ListCell *keyCell;
+		foreach(keyCell, indexDef->key->keyPathList)
+		{
+			IndexDefKeyPath *keyPath = lfirst(keyCell);
+			if (keyPath->indexKind != MongoIndexKind_Regular)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is only supported with regular indexes.")));
+			}
+
+			if (keyPath->isWildcard)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is not supported with wildcard indexes.")));
+			}
+
+			if (keyPath->sortDirection != 1)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is only supported with ascending sort direction.")));
+			}
+		}
+	}
+
 	if (indexDef->key->hasCosmosIndexes &&
 		indexDef->cosmosSearchOptions == NULL)
 	{
@@ -2447,6 +2485,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 		/* determine keypath */
 		char *keyPath = NULL;
 		MongoIndexKind indexKind = MongoIndexKind_Regular;
+		int32_t sortOrder = 0;
 		if (isWildcardKeyPath)
 		{
 			if (wildcardOnWholeDocument)
@@ -2551,6 +2590,12 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
 									"A numeric value in a $** index key pattern must be positive.")));
+			}
+
+			sortOrder = doubleValue < 0 ? -1 : 1;
+			if (sortOrder < 0)
+			{
+				indexDefKey->hasDescendingIndex = true;
 			}
 		}
 		else
@@ -2715,6 +2760,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			indexDefKeyPath->indexKind = indexKind;
 			indexDefKeyPath->path = keyPath;
 			indexDefKeyPath->isWildcard = isWildcardKeyPath;
+			indexDefKeyPath->sortDirection = sortOrder;
 
 			indexDefKey->keyPathList = lappend(indexDefKey->keyPathList, indexDefKeyPath);
 		}
@@ -4555,6 +4601,11 @@ MakeIndexSpecForIndexDef(IndexDef *indexDef)
 		PgbsonWriterAppendInt32(&writer, "enableLargeIndexKeys", 20, 1);
 	}
 
+	if (indexDef->enableCompositeTerm == BoolIndexOption_True)
+	{
+		PgbsonWriterAppendInt32(&writer, "enableCompositeTerm", 19, 1);
+	}
+
 	if (!IsPgbsonWriterEmptyDocument(&writer))
 	{
 		indexSpec.indexOptions = PgbsonWriterGetPgbson(&writer);
@@ -5293,7 +5344,8 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			 enableCompositeOpClass &&
 			 !unique && !indexDefKey->isWildcard &&
 			 !indexDefKey->hasTextIndexes && !indexDefKey->hasHashedIndexes &&
-			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex)
+			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex &&
+			 !indexDefKey->hasDescendingIndex)
 	{
 		if (indexDefWildcardProjTree)
 		{

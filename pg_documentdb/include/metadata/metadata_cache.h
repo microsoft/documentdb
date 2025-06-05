@@ -67,6 +67,7 @@ Oid BsonLessThanEqualMatchRuntimeOperatorId(void);
 Oid BsonLessThanEqualMatchIndexFunctionId(void);
 Oid BsonRangeMatchFunctionId(void);
 Oid BsonRangeMatchOperatorOid(void);
+Oid BsonFullScanFunctionOid(void);
 Oid BsonInMatchFunctionId(void);
 Oid BsonNinMatchFunctionId(void);
 Oid BsonNotEqualMatchFunctionId(void);

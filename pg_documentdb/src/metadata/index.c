@@ -36,6 +36,7 @@
 #include "metadata/metadata_guc.h"
 #include "utils/version_utils.h"
 #include "metadata/metadata_cache.h"
+#include "utils/hashset_utils.h"
 
 extern int MaxNumActiveUsersIndexBuilds;
 extern int IndexBuildScheduleInSec;
@@ -50,6 +51,12 @@ static IndexOptionsEquivalency IndexKeyDocumentEquivalent(pgbson *leftKey,
 														  pgbson *rightKey);
 static void DeleteCollectionIndexRecordCore(uint64 collectionId, int *indexId);
 static ArrayType * ConvertUint64ListToArray(List *collectionIdArray);
+
+static IndexOptionsEquivalency GetOptionsEquivalencyFromIndexOptions(
+	HTAB *bsonElementHash,
+	pgbson *leftIndexSpec,
+	pgbson *
+	rightIndexSpec);
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -333,8 +340,8 @@ IndexSpecOptionsAreEquivalent(const IndexSpec *leftIndexSpec,
 	IndexOptionsEquivalency equivalency = IndexKeyDocumentEquivalent(
 		leftIndexSpec->indexKeyDocument,
 		rightIndexSpec->indexKeyDocument);
-	if (equivalency == IndexOptionsEquivalency_NotEquivalent || equivalency ==
-		IndexOptionsEquivalency_TextEquivalent)
+	if (equivalency == IndexOptionsEquivalency_NotEquivalent ||
+		equivalency == IndexOptionsEquivalency_TextEquivalent)
 	{
 		return equivalency;
 	}
@@ -408,18 +415,21 @@ IndexSpecOptionsAreEquivalent(const IndexSpec *leftIndexSpec,
 	{
 		/* both are NULL, check for other options */
 	}
-	else if (leftIndexSpec->indexOptions == NULL ||
-			 rightIndexSpec->indexOptions == NULL)
-	{
-		/* TODO: update this as more options get thrown into indexOptions */
-		return equivalency == IndexOptionsEquivalency_Equal ?
-			   IndexOptionsEquivalency_Equivalent :
-			   equivalency;
-	}
 	else if (!PgbsonEquals(leftIndexSpec->indexOptions,
 						   rightIndexSpec->indexOptions))
 	{
-		/* TODO: update this as more options get thrown into indexOptions */
+		HTAB *bsonElementHash = CreatePgbsonElementHashSet();
+		IndexOptionsEquivalency optionsEquivalency =
+			GetOptionsEquivalencyFromIndexOptions(bsonElementHash,
+												  leftIndexSpec->indexOptions,
+												  rightIndexSpec->indexOptions);
+		hash_destroy(bsonElementHash);
+
+		if (optionsEquivalency == IndexOptionsEquivalency_NotEquivalent)
+		{
+			return optionsEquivalency;
+		}
+
 		return equivalency == IndexOptionsEquivalency_Equal ?
 			   IndexOptionsEquivalency_Equivalent :
 			   equivalency;
@@ -2251,4 +2261,116 @@ SerializeIndexSpec(const IndexSpec *indexSpec, bool isGetIndexes,
 	}
 
 	return PgbsonWriterGetPgbson(&finalWriter);
+}
+
+
+static bool
+AreIndexOptionsStillEquivalent(const char *path, const bson_value_t *left,
+							   const bson_value_t *right)
+{
+	if (strcmp(path, "enableCompositeTerm") == 0)
+	{
+		if (left == NULL && right == NULL)
+		{
+			return true;
+		}
+
+		bool enableCompositeTermLeft = false;
+		bool enableCompositeTermRight = false;
+
+		if (left != NULL)
+		{
+			enableCompositeTermLeft = BsonValueAsBool(left);
+		}
+		if (right != NULL)
+		{
+			enableCompositeTermRight = BsonValueAsBool(right);
+		}
+
+		return enableCompositeTermLeft == enableCompositeTermRight;
+	}
+	else
+	{
+		/* Other fields do not change index equivalency */
+		return true;
+	}
+}
+
+
+/*
+ * Parses the index options spec and returns if the index specs
+ * are equivalent or not. Uses AreIndexOptionsStillEquivalent to
+ * compare for each field.
+ */
+static IndexOptionsEquivalency
+GetOptionsEquivalencyFromIndexOptions(HTAB *bsonElementHash,
+									  pgbson *leftIndexSpec,
+									  pgbson *rightIndexSpec)
+{
+	if (leftIndexSpec != NULL)
+	{
+		bson_iter_t leftOptionsIter;
+		PgbsonInitIterator(leftIndexSpec, &leftOptionsIter);
+
+		/* First throw all the values from the left options in a hash */
+		while (bson_iter_next(&leftOptionsIter))
+		{
+			pgbsonelement element = { 0 };
+			BsonIterToPgbsonElement(&leftOptionsIter, &element);
+
+			bool found = false;
+			hash_search(bsonElementHash, &element, HASH_ENTER,
+						&found);
+		}
+	}
+
+	/* Now check the right options against the hash */
+	if (rightIndexSpec != NULL)
+	{
+		bson_iter_t rightOptionsIter;
+		PgbsonInitIterator(rightIndexSpec, &rightOptionsIter);
+		while (bson_iter_next(&rightOptionsIter))
+		{
+			pgbsonelement element = { 0 };
+			BsonIterToPgbsonElement(&rightOptionsIter, &element);
+
+			bool found = false;
+			pgbsonelement *foundElement = hash_search(bsonElementHash, &element,
+													  HASH_REMOVE, &found);
+			if (!found)
+			{
+				/* right has a key and left doesn't - call compare function to see what to do */
+				if (!AreIndexOptionsStillEquivalent(element.path, NULL,
+													&element.bsonValue))
+				{
+					return IndexOptionsEquivalency_NotEquivalent;
+				}
+			}
+			else
+			{
+				/* They both exist, compare by value */
+				if (!AreIndexOptionsStillEquivalent(element.path,
+													&foundElement->bsonValue,
+													&element.bsonValue))
+				{
+					return IndexOptionsEquivalency_NotEquivalent;
+				}
+			}
+		}
+	}
+
+	/* Now check any excess values between left & right */
+	HASH_SEQ_STATUS status;
+	pgbsonelement *entry;
+	hash_seq_init(&status, bsonElementHash);
+	while ((entry = (pgbsonelement *) hash_seq_search(&status)) != NULL)
+	{
+		if (!AreIndexOptionsStillEquivalent(entry->path, &entry->bsonValue, NULL))
+		{
+			hash_seq_term(&status);
+			return IndexOptionsEquivalency_NotEquivalent;
+		}
+	}
+
+	return IndexOptionsEquivalency_Equivalent;
 }

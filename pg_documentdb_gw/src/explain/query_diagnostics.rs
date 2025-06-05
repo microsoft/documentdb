@@ -131,6 +131,18 @@ pub fn get_index_conditions(
     )
 }
 
+pub fn get_sort_conditions(input: &str, query_catalog: &QueryCatalog) -> Option<RawDocumentBuf> {
+    Regex::new(query_catalog.single_index_condition_regex())
+        .expect("static input")
+        .captures(input)
+        .and_then(|capture| capture.get(3))
+        .and_then(|opt| {
+            hex::decode(opt.as_str())
+                .ok()
+                .and_then(|f| RawDocumentBuf::from_bytes(f).ok())
+        })
+}
+
 fn get_operator(input: &str) -> &'static str {
     match input {
         "@=" => "$eq",

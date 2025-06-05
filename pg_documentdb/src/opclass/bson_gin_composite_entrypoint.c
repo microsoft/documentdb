@@ -26,6 +26,7 @@
  #include <catalog/pg_type.h>
  #include <funcapi.h>
  #include <lib/stringinfo.h>
+ #include <nodes/pathnodes.h>
 
  #include "io/bson_core.h"
  #include "aggregation/bson_query_common.h"
@@ -726,25 +727,54 @@ gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
 							"Invalid query value for ordering transform - only 1 path is supported")));
 	}
 
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) PG_GET_OPCLASS_OPTIONS();
+
+	/* We need to handle this case for amcostestimate - let
+	 * compare partial and consistent handle failures.
+	 */
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+
+	int numPaths = GetIndexPathsFromOptions(
+		options,
+		indexPaths);
+
+	/* Match the order by column to the index path */
+	int orderbyIndexPath = -1;
+	for (int i = 0; i < numPaths; i++)
+	{
+		if (strcmp(sortElement.path, indexPaths[i]) == 0)
+		{
+			orderbyIndexPath = i;
+			break;
+		}
+	}
+
+	if (orderbyIndexPath < 0)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Order by path '%s' does not match any index path",
+							   sortElement.path)));
+	}
+
 	/* For ordering we only support 1 column
 	 * TODO(Orderby) fix this.
 	 */
 	BsonIndexTerm compareTerm[INDEX_MAX_KEYS] = { 0 };
-	int32_t numPaths = InitializeCompositeIndexTerm(compareValue, compareTerm);
-	if (numPaths < 1)
+	int32_t numPathsInIndex = InitializeCompositeIndexTerm(compareValue, compareTerm);
+	if (numPathsInIndex != numPaths)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 						errmsg("Number of terms in the index term (%d) does not match "
 							   "the number of index paths (%d)",
-							   numPaths, 1)));
+							   numPathsInIndex, numPaths)));
 	}
 
 	/* Match the runtime format of order by */
 	pgbson_writer writer;
 	PgbsonWriterInit(&writer);
-
 	PgbsonWriterAppendValue(&writer, sortElement.path, sortElement.pathLength,
-							&compareTerm->element.bsonValue);
+							&compareTerm[orderbyIndexPath].element.bsonValue);
 	PG_FREE_IF_COPY(compareValue, 0);
 	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&writer));
 }
@@ -818,7 +848,8 @@ IndexTraverseOption
 GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOptions,
 									const char *currentPath,
 									uint32_t currentPathLength,
-									const bson_value_t *bsonValue)
+									const bson_value_t *bsonValue,
+									int32_t *compositeIndexCol)
 {
 	if (!EnableNewCompositeIndexOpclass)
 	{
@@ -851,24 +882,111 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 
 	BsonGinCompositePathOptions *options =
 		(BsonGinCompositePathOptions *) contextOptions;
-	uint32_t pathCount;
-	const char *pathSpecBytes;
-	Get_Index_Path_Option(options, compositePathSpec, pathSpecBytes, pathCount);
 
-	for (uint32_t i = 0; i < pathCount; i++)
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+
+	int numPaths = GetIndexPathsFromOptions(
+		options,
+		indexPaths);
+	for (int32_t i = 0; i < numPaths; i++)
 	{
-		uint32_t indexPathLength = *(uint32_t *) pathSpecBytes;
-		const char *indexPath = pathSpecBytes + sizeof(uint32_t);
-		pathSpecBytes += indexPathLength + sizeof(uint32_t) + 1;
-
-		if (currentPathLength == indexPathLength &&
-			strncmp(currentPath, indexPath, indexPathLength) == 0)
+		if (strcmp(currentPath, indexPaths[i]) == 0)
 		{
+			*compositeIndexCol = i;
 			return IndexTraverse_Match;
 		}
 	}
 
 	return IndexTraverse_Invalid;
+}
+
+
+bool
+GetEqualityRangePredicatesForIndexPath(IndexPath *indexPath, void *options,
+									   bool equalityPrefixes[INDEX_MAX_KEYS],
+									   bool nonEqualityPrefixes[INDEX_MAX_KEYS])
+{
+	/*
+	 * We're a multi-key index, or order by on the nth column.
+	 */
+	ListCell *cell;
+	foreach(cell, indexPath->indexclauses)
+	{
+		IndexClause *indexClause = (IndexClause *) lfirst(cell);
+		ListCell *iclauseCell;
+		foreach(iclauseCell, indexClause->indexquals)
+		{
+			RestrictInfo *qual = (RestrictInfo *) lfirst(iclauseCell);
+			if (IsA(qual->clause, OpExpr))
+			{
+				OpExpr *expr = (OpExpr *) qual->clause;
+				Expr *queryVal = lsecond(expr->args);
+				if (!IsA(queryVal, Const))
+				{
+					/* If the query value is not a constant, we can't push down */
+					return false;
+				}
+
+				Const *queryConst = (Const *) queryVal;
+				pgbson *queryBson = DatumGetPgBson(queryConst->constvalue);
+
+				pgbsonelement queryElement;
+				PgbsonToSinglePgbsonElement(queryBson, &queryElement);
+
+				const MongoIndexOperatorInfo *info =
+					GetMongoIndexOperatorByPostgresOperatorId(expr->opno);
+
+				if (info->indexStrategy == BSON_INDEX_STRATEGY_INVALID)
+				{
+					/* This could be a full scan with $range, check on that */
+					DollarRangeParams rangeParams = { 0 };
+					InitializeQueryDollarRange(&queryElement, &rangeParams);
+					if (rangeParams.isFullScan)
+					{
+						/* This is neither equality nor inequality */
+						continue;
+					}
+				}
+
+				int32_t filterColumn = -1;
+				GetCompositePathIndexTraverseOption(
+					info->indexStrategy,
+					options,
+					queryElement.path,
+					queryElement.pathLength,
+					&queryElement.bsonValue,
+					&filterColumn);
+
+				if (filterColumn < 0 || filterColumn >= INDEX_MAX_KEYS)
+				{
+					return false;
+				}
+
+				switch (info->indexStrategy)
+				{
+					case BSON_INDEX_STRATEGY_DOLLAR_IN:
+					case BSON_INDEX_STRATEGY_DOLLAR_EQUAL:
+					{
+						equalityPrefixes[filterColumn] = true;
+						break;
+					}
+
+					default:
+					{
+						/* Track the filters as being a non-equality (range predicate) */
+						nonEqualityPrefixes[filterColumn] = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 

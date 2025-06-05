@@ -558,6 +558,7 @@ PG_FUNCTION_INFO_V1(bson_dollar_not_gt);
 PG_FUNCTION_INFO_V1(bson_dollar_not_gte);
 PG_FUNCTION_INFO_V1(bson_dollar_not_lt);
 PG_FUNCTION_INFO_V1(bson_dollar_not_lte);
+PG_FUNCTION_INFO_V1(bson_dollar_fullscan);
 
 PG_FUNCTION_INFO_V1(bson_value_dollar_eq);
 PG_FUNCTION_INFO_V1(bson_value_dollar_gt);
@@ -1147,6 +1148,18 @@ bson_dollar_not_gte(PG_FUNCTION_ARGS)
 }
 
 
+Datum
+bson_dollar_fullscan(PG_FUNCTION_ARGS)
+{
+	/*
+	 * This function is a no-op. It is used to indicate that the query
+	 * should be executed as a full scan, without any filters.
+	 * The actual logic for full scan is handled in the query planner.
+	 */
+	ereport(ERROR, (errmsg("This function should be replaced by the planner")));
+}
+
+
 /*
  * bson_dollar_range implements the DocumentDB API's version of the range
  * functionality in the runtime. Note that this is different from MongoDB's
@@ -1178,7 +1191,7 @@ bson_dollar_range(PG_FUNCTION_ARGS)
 		filter);
 
 	DollarRangeParams localState = {
-		{ 0 }, { 0 }, false, false
+		{ 0 }, { 0 }, false, false, false
 	};
 	if (cachedRangeParamsState == NULL)
 	{

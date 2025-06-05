@@ -1312,6 +1312,29 @@ fn query_planner(
                 doc.append("isBitmap", true);
             }
 
+            if let Some(sort_keys) = plan.sort_keys.as_ref() {
+                let mut sort_keys_arr = RawArrayBuf::new();
+                for order_string in sort_keys {
+                    if let Some(order_value) =
+                        query_diagnostics::get_sort_conditions(order_string, query_catalog)
+                    {
+                        sort_keys_arr.push(order_value);
+                    }
+                }
+                if !sort_keys_arr.is_empty() {
+                    doc.append("sortKey", sort_keys_arr);
+                }
+
+                doc.append("sortKeysCount", sort_keys.len() as i32);
+            }
+            if let Some(presorted_keys) = plan.presorted_key.as_ref() {
+                doc.append("presortedKeysCount", presorted_keys.len() as i32);
+            }
+
+            if stage_name != "FETCH" && plan.node_type == "Index Scan" && plan.order_by.is_some() {
+                doc.append("hasOrderBy", true);
+            }
+
             if let Some(vector_search_params) = plan.vector_search_custom_params.as_deref() {
                 let params: std::result::Result<VectorSearchParams, serde_json::Error> =
                     serde_json::from_str(vector_search_params);

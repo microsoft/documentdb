@@ -206,5 +206,6 @@ IndexTraverseOption GetCompositePathIndexTraverseOption(BsonIndexStrategy strate
 														void *contextOptions, const
 														char *currentPath, uint32_t
 														currentPathLength,
-														const bson_value_t *bsonValue);
+														const bson_value_t *bsonValue,
+														int32_t *compositeIndexCol);
 #endif

@@ -136,6 +136,7 @@ static bool IsMatchingPathForQueryOperator(RelOptInfo *rel, Path *path,
 										   ReplaceExtensionFunctionContext *context,
 										   MatchIndexPath matchIndexPath,
 										   void *matchContext);
+static Expr * ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args);
 
 /*-------------------------------*/
 /* Force index support functions */
@@ -647,7 +648,7 @@ void
 ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
 							 Index rti, ReplaceExtensionFunctionContext *context)
 {
-	if (list_length(root->query_pathkeys) != 1)
+	if (list_length(root->query_pathkeys) < 1)
 	{
 		return;
 	}
@@ -727,20 +728,12 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 			continue;
 		}
 
-		if (!ValidateIndexForQualifierValue(
-				indexPath->indexinfo->opclassoptions[0],
-				secondConst->constvalue,
-				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY))
-		{
-			continue;
-		}
-
 		/* Order by pushdown is valid iff:
 		 * 1. The index is not a multi-key index
 		 * 2. The index is multi-key but the order-by term goes from MinKey to MaxKey
 		 *    (We can currently only support that for exists)
 		 */
-		if (!CompositeIndexSupportsOrderByPushdown(indexPath->indexinfo))
+		if (!CompositeIndexSupportsOrderByPushdown(indexPath, secondConst->constvalue))
 		{
 			continue;
 		}
@@ -752,8 +745,8 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 			BsonOrderByIndexOperatorId(), BsonTypeId(), false,
 			firstArg, secondArg, InvalidOid, InvalidOid);
 		newPath->indexorderbys = list_make1(orderElement);
-		newPath->path.pathkeys = root->query_pathkeys;
 		newPath->indexorderbycols = list_make1_int(0);
+		newPath->path.pathkeys = list_make1(pathkey);
 
 		/* Don't modify the list we're enumerating */
 		pathsToAdd = lappend(pathsToAdd, newPath);
@@ -782,7 +775,6 @@ static Expr *
 HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 {
 	/* Input validation */
-
 	List *args;
 	const MongoIndexOperatorInfo *operator = GetMongoIndexQueryOperatorFromNode(req->node,
 																				&args);
@@ -794,6 +786,12 @@ HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 
 	if (operator->indexStrategy == BSON_INDEX_STRATEGY_INVALID)
 	{
+		if (req->funcid == BsonFullScanFunctionOid())
+		{
+			/* Process this separate for orderby */
+			return ProcessFullScanForOrderBy(req, args);
+		}
+
 		return NULL;
 	}
 
@@ -1315,6 +1313,15 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 		{
 			return (Expr *) GetOpExprClauseFromIndexOperator(operator, args,
 															 NULL);
+		}
+		else if (IsA(clause, FuncExpr))
+		{
+			FuncExpr *funcExpr = (FuncExpr *) clause;
+			if (funcExpr->funcid == BsonFullScanFunctionOid() && trimClauses)
+			{
+				/* Trim these */
+				return NULL;
+			}
 		}
 	}
 	else if (IsA(clause, NullTest))
@@ -2068,4 +2075,61 @@ ProcessElemMatchOperator(bytea *options, Datum queryValue, const
 	{
 		return make_ands_explicit(matchedArgs);
 	}
+}
+
+
+static Expr *
+ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
+{
+	Node *operand = lsecond(args);
+	if (!IsA(operand, Const))
+	{
+		return NULL;
+	}
+
+	/* Try to get the index options we serialized for the index.
+	 * If one doesn't exist, we can't handle push downs of this clause */
+	bytea *options = req->index->opclassoptions[req->indexcol];
+	if (options == NULL)
+	{
+		return NULL;
+	}
+
+	Oid operatorFamily = req->index->opfamily[req->indexcol];
+	Datum queryValue = ((Const *) operand)->constvalue;
+
+	if (!IsCompositeOpFamilyOid(req->index->relam, operatorFamily))
+	{
+		return NULL;
+	}
+
+	if (!ValidateIndexForQualifierValue(options, queryValue,
+										BSON_INDEX_STRATEGY_DOLLAR_ORDERBY))
+	{
+		return NULL;
+	}
+
+	/* If the index is valid for the function, convert it to an OpExpr for a
+	 * $range full scan.
+	 */
+	pgbsonelement sourceElement;
+	PgbsonToSinglePgbsonElement(DatumGetPgBson(queryValue), &sourceElement);
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+	pgbson_writer rangeWriter;
+	PgbsonWriterStartDocument(&writer, sourceElement.path, sourceElement.pathLength,
+							  &rangeWriter);
+	PgbsonWriterAppendBool(&rangeWriter, "fullScan", 8, true);
+	PgbsonWriterEndDocument(&writer, &rangeWriter);
+
+	Const *bsonConst = makeConst(BsonTypeId(), -1, InvalidOid, -1, PointerGetDatum(
+									 PgbsonWriterGetPgbson(&writer)), false,
+								 false);
+	OpExpr *opExpr = (OpExpr *) make_opclause(BsonRangeMatchOperatorOid(), BOOLOID,
+											  false,
+											  linitial(args),
+											  (Expr *) bsonConst, InvalidOid,
+											  InvalidOid);
+	opExpr->opfuncid = BsonRangeMatchFunctionId();
+	return (Expr *) opExpr;
 }
