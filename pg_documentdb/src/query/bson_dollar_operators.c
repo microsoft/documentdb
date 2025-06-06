@@ -1237,6 +1237,12 @@ bson_dollar_range(PG_FUNCTION_ARGS)
 	rangeState.isMinConditionSet = false;
 	rangeState.isMaxConditionSet = false;
 
+	if (rangeState.params.isFullScan)
+	{
+		/* if the range is a full scan, we don't need to traverse the document */
+		PG_RETURN_BOOL(true);
+	}
+
 	bson_iter_t documentIterator;
 	PgbsonInitIterator(document, &documentIterator);
 	TraverseBson(&documentIterator, rangeState.elementState.filter->path,

@@ -73,7 +73,8 @@ static bytea * BuildTermForBounds(CompositeQueryRunData *runData,
 								  IndexTermCreateMetadata *singlePathMetadata,
 								  IndexTermCreateMetadata *compositeMetadata,
 								  bool *partialMatch);
-static bool ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement);
+static void ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
+									bool *isMultiKey, bool *isOrderedScan);
 static int32_t RunCompareOnBounds(CompositeIndexBounds *bounds, const
 								  bson_value_t *compareValue,
 								  bool hasEqualityPrefix, bool *priorMatchesEquality);
@@ -182,6 +183,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 
 	/* Default to assuming array paths (we can do better if told otherwise) */
 	bool hasArrayPaths = true;
+	bool isOrderedScan = false;
 
 	/* Round 1, collect fixed index bounds and collect variable index bounds */
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
@@ -200,7 +202,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	else
 	{
 		pgbsonelement singleElement;
-		hasArrayPaths = ParseCompositeQuerySpec(query, &singleElement);
+		ParseCompositeQuerySpec(query, &singleElement, &hasArrayPaths, &isOrderedScan);
 		ParseBoundsForCompositeOperator(&singleElement, indexPaths, numPaths,
 										&variableBounds);
 	}
@@ -214,6 +216,10 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	if (!hasArrayPaths)
 	{
 		MergeSingleVariableBounds(&variableBounds, runData);
+	}
+	else if (isOrderedScan)
+	{
+		PickVariableBoundsForOrderedScan(&variableBounds, runData);
 	}
 
 	/* Tally up the total variable bound counts - this is the permutation of all variable terms
@@ -307,7 +313,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		}
 	}
 
-	if (runData->metaInfo->hasTruncation)
+	if (runData->metaInfo->hasTruncation && !isOrderedScan)
 	{
 		*nentries = totalPathTerms + 1;
 		metaInfo->truncationTermIndex = totalPathTerms;
@@ -358,7 +364,15 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 	{
 		/* use order by key to signal truncation status of ordering */
 		/* TODO(Orderby): Support ordering on subsequent keys */
-		return compareTerm[0].isIndexTermTruncated ? -1 : 1;
+		for (int i = 0; i < runData->numIndexPaths; i++)
+		{
+			if (compareTerm[i].isIndexTermTruncated)
+			{
+				PG_RETURN_INT32(-1);
+			}
+		}
+
+		PG_RETURN_INT32(1);
 	}
 
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
@@ -381,7 +395,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			&priorMatchesEquality);
 		if (compareInBounds != 0)
 		{
-			return compareInBounds;
+			PG_RETURN_INT32(compareInBounds);
 		}
 
 		if (runData->indexBounds[compareIndex].indexRecheckFunctions != NIL)
@@ -394,13 +408,13 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 				if (!IsValidRecheckForIndexValue(&compareTerm[compareIndex],
 												 recheckStrategy))
 				{
-					return -1;
+					PG_RETURN_INT32(-1);
 				}
 			}
 		}
 	}
 
-	return 0;
+	PG_RETURN_INT32(0);
 }
 
 
@@ -844,6 +858,29 @@ IsBsonDollarNinArrayContainsArrays(const bson_value_t *bsonValue)
 }
 
 
+int32_t
+GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions)
+{
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) contextOptions;
+
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+
+	int numPaths = GetIndexPathsFromOptions(
+		options,
+		indexPaths);
+	for (int32_t i = 0; i < numPaths; i++)
+	{
+		if (strcmp(currentPath, indexPaths[i]) == 0)
+		{
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
 IndexTraverseOption
 GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOptions,
 									const char *currentPath,
@@ -964,10 +1001,20 @@ GetEqualityRangePredicatesForIndexPath(IndexPath *indexPath, void *options,
 
 				switch (info->indexStrategy)
 				{
-					case BSON_INDEX_STRATEGY_DOLLAR_IN:
 					case BSON_INDEX_STRATEGY_DOLLAR_EQUAL:
 					{
 						equalityPrefixes[filterColumn] = true;
+						break;
+					}
+
+					case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
+					{
+						DollarRangeParams rangeParams = { 0 };
+						InitializeQueryDollarRange(&queryElement, &rangeParams);
+						if (!rangeParams.isFullScan)
+						{
+							nonEqualityPrefixes[filterColumn] = true;
+						}
 						break;
 					}
 
@@ -1054,8 +1101,8 @@ SerializeBoundsStringForExplain(bytea *entry, void *extraData, PG_FUNCTION_ARGS)
 
 
 void
-ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey, bool
-							   hasArrayKeys)
+ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey,
+							   bool hasArrayKeys, bool hasOrderBys)
 {
 	pgbson_writer querySpecWriter;
 	PgbsonWriterInit(&querySpecWriter);
@@ -1079,6 +1126,7 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 
 	PgbsonWriterEndArray(&querySpecWriter, &queryWriter);
 	PgbsonWriterAppendBool(&querySpecWriter, "m", 1, hasArrayKeys);
+	PgbsonWriterAppendBool(&querySpecWriter, "or", 2, hasOrderBys);
 
 	Datum finalDatum = PointerGetDatum(
 		PgbsonWriterGetPgbson(&querySpecWriter));
@@ -1099,14 +1147,35 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 }
 
 
-static bool
-ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement)
+Datum
+BuildCompositeOrderByScanKeyArgument(bytea *options)
+{
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+
+	GetIndexPathsFromOptions(
+		(BsonGinCompositePathOptions *) options,
+		indexPaths);
+
+	pgbsonelement sortElement = { 0 };
+	sortElement.path = indexPaths[0];
+	sortElement.pathLength = strlen(indexPaths[0]);
+	sortElement.bsonValue.value_type = BSON_TYPE_INT32;
+	sortElement.bsonValue.value.v_int32 = 1;  /* Default value for order by */
+
+	return PointerGetDatum(PgbsonElementToPgbson(&sortElement));
+}
+
+
+static void
+ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
+						bool *isMultiKey, bool *isOrderBy)
 {
 	bson_iter_t queryIter;
 	PgbsonInitIterator(querySpec, &queryIter);
 
 	/* Default assumption is that it's multi-key unless otherwise specified */
-	bool isMultiKey = true;
+	*isMultiKey = true;
+	*isOrderBy = false;
 	while (bson_iter_next(&queryIter))
 	{
 		const char *key = bson_iter_key(&queryIter);
@@ -1118,15 +1187,17 @@ ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement)
 		}
 		else if (strcmp(key, "m") == 0)
 		{
-			isMultiKey = bson_iter_bool(&queryIter);
+			*isMultiKey = bson_iter_bool(&queryIter);
+		}
+		else if (strcmp(key, "or") == 0)
+		{
+			*isOrderBy = bson_iter_bool(&queryIter);
 		}
 		else
 		{
 			ereport(ERROR, (errmsg("Unknown key for composite query %s", key)));
 		}
 	}
-
-	return isMultiKey;
 }
 
 

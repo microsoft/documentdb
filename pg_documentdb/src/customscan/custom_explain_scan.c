@@ -186,6 +186,43 @@ AddExplainCustomPathCore(List *pathList)
 				IndexPath *indexPath = (IndexPath *) bitmapHeapPath->bitmapqual;
 				isValidPath = IsBsonRegularIndexAm(indexPath->indexinfo->relam);
 			}
+			else if (bitmapHeapPath->bitmapqual->pathtype == T_BitmapAnd)
+			{
+				/* BitmapAnd is valid if all its children are valid */
+				BitmapAndPath *bitmapAndPath =
+					(BitmapAndPath *) bitmapHeapPath->bitmapqual;
+				ListCell *bitmapCell;
+				isValidPath = true;
+				foreach(bitmapCell, bitmapAndPath->bitmapquals)
+				{
+					Path *childPath = (Path *) lfirst(bitmapCell);
+					if (childPath->pathtype != T_IndexScan ||
+						!IsBsonRegularIndexAm(
+							((IndexPath *) childPath)->indexinfo->relam))
+					{
+						isValidPath = false;
+						break;
+					}
+				}
+			}
+			else if (bitmapHeapPath->bitmapqual->pathtype == T_BitmapOr)
+			{
+				/* BitmapOr is valid if all its children are valid */
+				BitmapOrPath *bitmapOrPath = (BitmapOrPath *) bitmapHeapPath->bitmapqual;
+				ListCell *bitmapCell;
+				isValidPath = true;
+				foreach(bitmapCell, bitmapOrPath->bitmapquals)
+				{
+					Path *childPath = (Path *) lfirst(bitmapCell);
+					if (childPath->pathtype != T_IndexScan ||
+						!IsBsonRegularIndexAm(
+							((IndexPath *) childPath)->indexinfo->relam))
+					{
+						isValidPath = false;
+						break;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -450,16 +487,25 @@ ExplainIndexScanState(IndexScanDesc indexScan, ExplainState *es)
 static void
 WalkAndExplainScanState(PlanState *scanState, ExplainState *es)
 {
+	check_stack_depth();
+	CHECK_FOR_INTERRUPTS();
 	if (IsA(scanState, IndexScanState))
 	{
 		IndexScanState *indexScanState = (IndexScanState *) scanState;
 		ExplainIndexScanState(indexScanState->iss_ScanDesc, es);
 	}
-
-	if (IsA(scanState, BitmapIndexScanState))
+	else if (IsA(scanState, BitmapIndexScanState))
 	{
 		BitmapIndexScanState *bitmapIndexScanState = (BitmapIndexScanState *) scanState;
 		ExplainIndexScanState(bitmapIndexScanState->biss_ScanDesc, es);
+	}
+	else if (IsA(scanState, BitmapOrState))
+	{
+		BitmapOrState *bitmapOrState = (BitmapOrState *) scanState;
+		for (int i = 0; i < bitmapOrState->nplans; i++)
+		{
+			WalkAndExplainScanState(bitmapOrState->bitmapplans[i], es);
+		}
 	}
 
 	if (scanState->lefttree != NULL)

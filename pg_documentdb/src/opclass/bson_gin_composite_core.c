@@ -316,6 +316,51 @@ MergeSingleVariableBounds(VariableIndexBounds *variableBounds,
 }
 
 
+void
+PickVariableBoundsForOrderedScan(VariableIndexBounds *variableBounds,
+								 CompositeQueryRunData *runData)
+{
+	/*
+	 * For ordered scan, we can only evaluate one predicate per path.
+	 * Trim the others and push to the runtime.
+	 */
+	int variableBoundsIndex[INDEX_MAX_KEYS] = { 0 };
+	memset(variableBoundsIndex, -1, sizeof(variableBoundsIndex));
+	ListCell *cell;
+	foreach(cell, variableBounds->variableBoundsList)
+	{
+		CompositeIndexBoundsSet *set = (CompositeIndexBoundsSet *) lfirst(cell);
+		int32_t currentIndex = variableBoundsIndex[set->indexAttribute];
+		if (currentIndex == -1)
+		{
+			variableBoundsIndex[set->indexAttribute] = foreach_current_index(cell);
+			continue;
+		}
+
+		CompositeIndexBoundsSet *otherSet = list_nth(variableBounds->variableBoundsList,
+													 currentIndex);
+		bool otherSetIsEquality = otherSet->numBounds == 1 &&
+								  otherSet->bounds[0].isEqualityBound;
+		bool currentIsEquality = set->numBounds == 1 && set->bounds[0].isEqualityBound;
+
+		/* There's already a condition on the path - requires runtime recheck */
+		runData->metaInfo->requiresRuntimeRecheck = true;
+
+		if (currentIsEquality && !otherSetIsEquality)
+		{
+			/* Prefer the equality bound: Replace the other with current */
+			list_nth_cell(variableBounds->variableBoundsList, currentIndex)->ptr_value =
+				set;
+			pfree(otherSet);
+		}
+
+		/* Remove the current index */
+		foreach_delete_current(
+			variableBounds->variableBoundsList, cell);
+	}
+}
+
+
 bool
 UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
 						  IndexTermCreateMetadata *metadata)

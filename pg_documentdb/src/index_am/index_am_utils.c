@@ -33,6 +33,7 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
+	.get_text_path_op_family_oid = BsonRumTextPathOperatorFamily,
 	.add_explain_output = NULL, /* No explain output for RUM */
 	.am_name = "rum"
 };
@@ -157,25 +158,28 @@ TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es)
  * Whether the opFamily of an index is a single path index
  */
 bool
-IsSinglePathOpFamilyOid(Oid opFamilyOid)
+IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid)
 {
-	if (opFamilyOid == BsonRumSinglePathOperatorFamily())
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
 	{
-		return true;
-	}
-	else if (IsClusterVersionAtleast(DocDB_V0, 104, 0) &&
-			 BsonNumAlternateAmEntries > 0)
-	{
-		for (int i = 0; i < BsonNumAlternateAmEntries; i++)
-		{
-			if (BsonAlternateAmRegistry[i].get_single_path_op_family_oid() == opFamilyOid)
-			{
-				return true;
-			}
-		}
+		return false;
 	}
 
-	return false;
+	return opFamilyOid == amEntry->get_single_path_op_family_oid();
+}
+
+
+bool
+IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return opFamilyOid == amEntry->get_text_path_op_family_oid();
 }
 
 

@@ -1352,7 +1352,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 (13 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or"  : [{"_id": { "$gt": 1, "$lte" : 5 }}, {"_id":1}]}' ORDER BY object_id;
-                                                                                                                                                                              QUERY PLAN                                                                                                                                                                               
+                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=5 loops=1)
    Task Count: 1
@@ -1364,16 +1364,23 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Sort (actual rows=5 loops=1)
                Sort Key: object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=5 loops=1)
-                     Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@<>) '{ "_id" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : true } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
-                     Filter: (((document OPERATOR(documentdb_api_catalog.@>) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@<=) '{ "_id" : { "$numberInt" : "5" } }'::documentdb_core.bson)) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
-                     Heap Blocks: exact=1
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_ab (actual rows=4 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@<>) '{ "_id" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : true } }'::documentdb_core.bson)
-                           ->  Bitmap Index Scan on queryoperator_ab (actual rows=1 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-(19 rows)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=5 loops=1)
+                     indexName: queryoperator_ab
+                     isMultiKey: true
+                     indexBounds: ["a.b": (MinKey, MaxKey), "_id": (1, Infinity]], ["a.b": (MinKey, MaxKey), "_id": [-Infinity, 5]]
+                     indexName: queryoperator_ab
+                     isMultiKey: true
+                     indexBounds: ["a.b": (MinKey, MaxKey), "_id": [1, 1]]
+                     ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=5 loops=1)
+                           Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@<>) '{ "_id" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : true } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           Filter: (((document OPERATOR(documentdb_api_catalog.@>) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@<=) '{ "_id" : { "$numberInt" : "5" } }'::documentdb_core.bson)) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                           Heap Blocks: exact=1
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_ab (actual rows=4 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@<>) '{ "_id" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : true } }'::documentdb_core.bson)
+                                 ->  Bitmap Index Scan on queryoperator_ab (actual rows=1 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
+(26 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [{"_id":1}, {"_id": { "$gte": 1, "$lte" : 5 }}]}' ORDER BY object_id;
                                                                                                                                                                             QUERY PLAN                                                                                                                                                                            
@@ -1427,7 +1434,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
 
 -- $or gets converted to $in for simple expressions.
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or" : [ { "a": 3 }, { "b": 4 } ] }' ORDER BY object_id;
-                                                                                                                       QUERY PLAN                                                                                                                       
+                                                                                                                          QUERY PLAN                                                                                                                          
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
    Task Count: 1
@@ -1439,17 +1446,24 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Sort (actual rows=0 loops=1)
                Sort Key: object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=0 loops=1)
-                     Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "b" : { "$numberInt" : "4" } }'::documentdb_core.bson))
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "b" : { "$numberInt" : "4" } }'::documentdb_core.bson)
-(17 rows)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=0 loops=1)
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, MaxKey), "a": [3, 3]]
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": [4, 4], "a": (MinKey, MaxKey)]
+                     ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=0 loops=1)
+                           Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@=) '{ "b" : { "$numberInt" : "4" } }'::documentdb_core.bson))
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "b" : { "$numberInt" : "4" } }'::documentdb_core.bson)
+(24 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or" : [ { "a": 3 }, { "a": { "$gte": 4 } } ] }' ORDER BY object_id;
-                                                                                                                       QUERY PLAN                                                                                                                        
+                                                                                                                          QUERY PLAN                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=2 loops=1)
    Task Count: 1
@@ -1461,15 +1475,22 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          ->  Sort (actual rows=2 loops=1)
                Sort Key: object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=2 loops=1)
-                     Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "$numberInt" : "4" } }'::documentdb_core.bson))
-                     Heap Blocks: exact=1
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=2 loops=1)
-                                 Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "$numberInt" : "4" } }'::documentdb_core.bson)
-(18 rows)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=2 loops=1)
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, MaxKey), "a": [3, 3]]
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, MaxKey), "a": [4, Infinity]]
+                     ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=2 loops=1)
+                           Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) OR (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "$numberInt" : "4" } }'::documentdb_core.bson))
+                           Heap Blocks: exact=1
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=2 loops=1)
+                                       Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "a" : { "$numberInt" : "4" } }'::documentdb_core.bson)
+(25 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$or" : [ { "a": 3 }, { "a": 5 } ] }' ORDER BY object_id;
                                                                                     QUERY PLAN                                                                                    
@@ -1621,15 +1642,23 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                Output: object_id, document
                Sort Key: collection.object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=0 loops=1)
                      Output: object_id, document
-                     Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "b" : { "$minKey" : 1 } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "b" : { "$minKey" : 1 } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-(21 rows)
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, null], "a": [3, 3]]
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": [MinKey, MaxKey], "a": [3, 3]]
+                     ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+                           Output: object_id, document
+                           Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "b" : { "$minKey" : 1 } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "b" : { "$minKey" : 1 } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+(29 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [ { "a": 3 }, { "$or": [ { "b": null }, { "c": { "$exists": false }} ] } ] }' ORDER BY object_id;
                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                               
@@ -1647,18 +1676,26 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                Output: object_id, document
                Sort Key: collection.object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=0 loops=1)
                      Output: object_id, document
-                     Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-                           ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-(21 rows)
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, null], "a": [3, 3]]
+                     indexName: queryoperator_a_c
+                     isMultiKey: true
+                     indexBounds: ["a": [3, 3], "c": (MinKey, null]]
+                     ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+                           Output: object_id, document
+                           Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                 ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+(29 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [ { "a": 3 }, { "$or": [ { "b": null }, { "c": null }, { "c": { "$exists": false }} ] } ] }' ORDER BY object_id;
-                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive) (actual rows=0 loops=1)
    Output: remote_scan.object_id, remote_scan.document
@@ -1673,17 +1710,28 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                Output: object_id, document
                Sort Key: collection.object_id
                Sort Method: quicksort  Memory: 25kB
-               ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+               ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=0 loops=1)
                      Output: object_id, document
-                     Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
-                     ->  BitmapOr (actual rows=0 loops=1)
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-                           ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-                           ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
-(23 rows)
+                     indexName: queryoperator_b_a
+                     isMultiKey: true
+                     indexBounds: ["b": (MinKey, null], "a": [3, 3]]
+                     indexName: queryoperator_a_c
+                     isMultiKey: true
+                     indexBounds: ["a": [3, 3], "c": (MinKey, null]]
+                     indexName: queryoperator_a_c
+                     isMultiKey: true
+                     indexBounds: ["a": [3, 3], "c": (MinKey, null]]
+                     ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+                           Output: object_id, document
+                           Recheck Cond: (((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)) OR ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson)))
+                           ->  BitmapOr (actual rows=0 loops=1)
+                                 ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                 ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "c" : null }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                 ->  Bitmap Index Scan on queryoperator_a_c (actual rows=0 loops=1)
+                                       Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@?) '{ "c" : false }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+(34 rows)
 
 -- $in with 1 element gets converted to $eq
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$in": [ 1 ]} }' ORDER BY object_id;

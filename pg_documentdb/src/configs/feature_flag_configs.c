@@ -90,6 +90,9 @@ bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
 #define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
 bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
 
+#define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
+bool ForceRumOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
+
 /*
  * SECTION: Planner feature flags
  */
@@ -600,5 +603,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to enable the $bucketAuto stage."),
 		NULL, &EnableBucketAutoStage,
 		DEFAULT_ENABLE_BUCKET_AUTO_STAGE,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceRumOrderedIndexScan", newGucPrefix),
+		gettext_noop(
+			"Whether to force RUM ordered index scan for rum indexes."),
+		NULL, &ForceRumOrderedIndexScan,
+		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

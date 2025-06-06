@@ -232,14 +232,15 @@ dollar_support(PG_FUNCTION_ARGS)
 		/* Try to convert operator/function call to index conditions */
 		SupportRequestIndexCondition *req =
 			(SupportRequestIndexCondition *) supportRequest;
+
+		/* if we matched the condition to the index, then this function is not lossy -
+		 * The operator is a perfect match for the function.
+		 */
+		req->lossy = false;
+
 		Expr *finalNode = HandleSupportRequestCondition(req);
 		if (finalNode != NULL)
 		{
-			/* if we matched the condition to the index, then this function is not lossy -
-			 * The operator is a perfect match for the function.
-			 */
-			req->lossy = false;
-
 			if (IsA(finalNode, BoolExpr))
 			{
 				BoolExpr *boolExpr = (BoolExpr *) finalNode;
@@ -658,55 +659,68 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		return;
 	}
 
-	PathKey *pathkey = (PathKey *) linitial(root->query_pathkeys);
-	if (pathkey->pk_eclass == NULL &&
-		list_length(pathkey->pk_eclass->ec_members) != 1)
+	ListCell *sortCell;
+	List *sortDetails = NIL;
+	foreach(sortCell, root->query_pathkeys)
 	{
-		return;
-	}
+		PathKey *pathkey = (PathKey *) lfirst(sortCell);
+		if (pathkey->pk_eclass == NULL &&
+			list_length(pathkey->pk_eclass->ec_members) != 1)
+		{
+			return;
+		}
 
-	EquivalenceMember *member = linitial(pathkey->pk_eclass->ec_members);
+		EquivalenceMember *member = linitial(pathkey->pk_eclass->ec_members);
 
-	if (!IsA(member->em_expr, FuncExpr))
-	{
-		return;
-	}
+		if (!IsA(member->em_expr, FuncExpr))
+		{
+			return;
+		}
 
-	FuncExpr *func = (FuncExpr *) member->em_expr;
-	if (func->funcid != BsonOrderByFunctionOid())
-	{
-		return;
-	}
+		FuncExpr *func = (FuncExpr *) member->em_expr;
+		if (func->funcid != BsonOrderByFunctionOid())
+		{
+			return;
+		}
 
-	/* This is an order by function */
-	Expr *firstArg = linitial(func->args);
-	Expr *secondArg = lsecond(func->args);
+		/* This is an order by function */
+		Expr *firstArg = linitial(func->args);
+		Expr *secondArg = lsecond(func->args);
 
-	if (!IsA(firstArg, Var) || !IsA(secondArg, Const))
-	{
-		return;
-	}
+		if (!IsA(firstArg, Var) || !IsA(secondArg, Const))
+		{
+			return;
+		}
 
-	Var *firstVar = (Var *) firstArg;
-	Const *secondConst = (Const *) secondArg;
+		Var *firstVar = (Var *) firstArg;
+		Const *secondConst = (Const *) secondArg;
 
-	if (firstVar->varno != (int) rti ||
-		firstVar->varattno != DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER ||
-		firstVar->vartype != BsonTypeId() ||
-		secondConst->consttype != BsonTypeId() || secondConst->constisnull)
-	{
-		return;
-	}
+		if (firstVar->varno != (int) rti ||
+			firstVar->varattno != DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER ||
+			firstVar->vartype != BsonTypeId() ||
+			secondConst->consttype != BsonTypeId() || secondConst->constisnull)
+		{
+			return;
+		}
 
-	pgbsonelement sortElement;
-	PgbsonToSinglePgbsonElement(
-		DatumGetPgBson(secondConst->constvalue), &sortElement);
+		pgbsonelement sortElement;
+		PgbsonToSinglePgbsonElement(
+			DatumGetPgBson(secondConst->constvalue), &sortElement);
 
-	int32_t sortDirection = BsonValueAsInt32(&sortElement.bsonValue);
-	if (sortDirection != 1)
-	{
-		/* Don't yet handle other sorts */
-		return;
+		int32_t sortDirection = BsonValueAsInt32(&sortElement.bsonValue);
+		if (sortDirection != 1)
+		{
+			/* Don't yet handle other sorts */
+			return;
+		}
+
+		SortIndexInputDetails *sortDetailsInput =
+			palloc0(sizeof(SortIndexInputDetails));
+		sortDetailsInput->sortPath = sortElement.path;
+		sortDetailsInput->sortPathKey = pathkey;
+		sortDetailsInput->sortVar = (Expr *) firstVar;
+		sortDetailsInput->sortDatum = (Expr *) secondConst;
+		sortDetails = lappend(sortDetails, sortDetailsInput);
 	}
 
 	/* Now match the sort to any index paths */
@@ -715,6 +729,17 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 	foreach(cell, rel->pathlist)
 	{
 		Path *path = lfirst(cell);
+
+		if (IsA(path, BitmapHeapPath))
+		{
+			BitmapHeapPath *bitmapPath = (BitmapHeapPath *) path;
+
+			if (IsA(bitmapPath->bitmapqual, IndexPath))
+			{
+				path = (Path *) bitmapPath->bitmapqual;
+			}
+		}
+
 		if (!IsA(path, IndexPath))
 		{
 			continue;
@@ -733,7 +758,9 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		 * 2. The index is multi-key but the order-by term goes from MinKey to MaxKey
 		 *    (We can currently only support that for exists)
 		 */
-		if (!CompositeIndexSupportsOrderByPushdown(indexPath, secondConst->constvalue))
+		int32_t maxPathKeySupported = -1;
+		if (!CompositeIndexSupportsOrderByPushdown(indexPath, sortDetails,
+												   &maxPathKeySupported))
 		{
 			continue;
 		}
@@ -741,12 +768,26 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		IndexPath *newPath = makeNode(IndexPath);
 		memcpy(newPath, indexPath, sizeof(IndexPath));
 
-		Expr *orderElement = make_opclause(
-			BsonOrderByIndexOperatorId(), BsonTypeId(), false,
-			firstArg, secondArg, InvalidOid, InvalidOid);
-		newPath->indexorderbys = list_make1(orderElement);
-		newPath->indexorderbycols = list_make1_int(0);
-		newPath->path.pathkeys = list_make1(pathkey);
+		List *indexOrderBys = NIL;
+		List *indexPathKeys = NIL;
+		List *indexOrderbyCols = NIL;
+		for (int i = 0; i <= maxPathKeySupported; i++)
+		{
+			SortIndexInputDetails *sortDetailsInput =
+				(SortIndexInputDetails *) list_nth(sortDetails, i);
+
+			Expr *orderElement = make_opclause(
+				BsonOrderByIndexOperatorId(), BsonTypeId(), false,
+				(Expr *) sortDetailsInput->sortVar, (Expr *) sortDetailsInput->sortDatum,
+				InvalidOid, InvalidOid);
+			indexOrderBys = lappend(indexOrderBys, orderElement);
+			indexPathKeys = lappend(indexPathKeys, sortDetailsInput->sortPathKey);
+			indexOrderbyCols = lappend_int(indexOrderbyCols, 0);
+		}
+
+		newPath->indexorderbys = indexOrderBys;
+		newPath->indexorderbycols = indexOrderbyCols;
+		newPath->path.pathkeys = indexPathKeys;
 
 		/* Don't modify the list we're enumerating */
 		pathsToAdd = lappend(pathsToAdd, newPath);
@@ -822,7 +863,7 @@ HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 		/* For text, we only match the operator family with the op family
 		 * For the bson text.
 		 */
-		if (operatorFamily != BsonRumTextPathOperatorFamily())
+		if (!IsTextPathOpFamilyOid(req->index->relam, operatorFamily))
 		{
 			return NULL;
 		}
@@ -840,6 +881,7 @@ HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 													   args);
 		if (elemMatchExpr != NULL)
 		{
+			req->lossy = true;
 			return elemMatchExpr;
 		}
 	}
@@ -1191,8 +1233,9 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 				 * with the index options for text. This is used later to process restriction info
 				 * so that we can push down the TSQuery with the appropriate default language settings.
 				 */
-				if (indexPath->indexinfo->opfamily[iclause->indexcol] ==
-					BsonRumTextPathOperatorFamily())
+				if (IsTextPathOpFamilyOid(
+						indexPath->indexinfo->relam,
+						indexPath->indexinfo->opfamily[iclause->indexcol]))
 				{
 					/* If there's no options, set it. Otherwise, fail with "too many paths" */
 					QueryTextIndexData *textIndexData =
@@ -1718,7 +1761,7 @@ UpdateIndexListForText(List *existingIndex, ReplaceExtensionFunctionContext *con
 		{
 			for (int i = 0; i < index->nkeycolumns; i++)
 			{
-				if (index->opfamily[i] == BsonRumTextPathOperatorFamily())
+				if (IsTextPathOpFamilyOid(index->relam, index->opfamily[i]))
 				{
 					isValidTextIndexFound = true;
 					QueryTextIndexData *textIndexData =
@@ -1918,7 +1961,8 @@ MatchIndexPathForText(IndexPath *indexPath, void *matchContext)
 	{
 		for (int ind = 0; ind < indexPath->indexinfo->ncolumns; ind++)
 		{
-			if (indexPath->indexinfo->opfamily[ind] == BsonRumTextPathOperatorFamily())
+			if (IsTextPathOpFamilyOid(indexPath->indexinfo->relam,
+									  indexPath->indexinfo->opfamily[ind]))
 			{
 				return true;
 			}
@@ -2078,6 +2122,12 @@ ProcessElemMatchOperator(bytea *options, Datum queryValue, const
 }
 
 
+/*
+ * When querying a table with no filters and an orderby, there is a full scan
+ * filter applied that allows for index pushdowns. If this is the first key
+ * of a composite index, allow the pushdown to support cases like
+ * SELECT document from table order by a asc
+ */
 static Expr *
 ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
 {
@@ -2106,6 +2156,16 @@ ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
 	if (!ValidateIndexForQualifierValue(options, queryValue,
 										BSON_INDEX_STRATEGY_DOLLAR_ORDERBY))
 	{
+		return NULL;
+	}
+
+	pgbsonelement sortElement;
+	PgbsonToSinglePgbsonElement(DatumGetPgBson(queryValue), &sortElement);
+
+	int32_t pathIndex = GetCompositeOpClassColumnNumber(sortElement.path, options);
+	if (pathIndex != 0)
+	{
+		/* For a full scan, only push the first index */
 		return NULL;
 	}
 

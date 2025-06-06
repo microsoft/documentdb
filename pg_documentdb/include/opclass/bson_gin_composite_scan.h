@@ -19,5 +19,6 @@ bool GetEqualityRangePredicatesForIndexPath(struct IndexPath *indexPath, void *o
 											nonEqualityPrefixes[INDEX_MAX_KEYS]);
 char *SerializeBoundsStringForExplain(bytea * entry, void *extraData, PG_FUNCTION_ARGS);
 void ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
-									targetScanKey, bool hasArrayKeys);
+									targetScanKey, bool hasArrayKeys, bool hasOrderBys);
+Datum BuildCompositeOrderByScanKeyArgument(bytea *options);
  #endif
