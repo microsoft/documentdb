@@ -15,6 +15,6 @@ adduser --system --no-create-home documentdb
 chown -R documentdb:documentdb .
 
 # Switch to the documentdb user and run the tests
-# su documentdb -c "make check"
+su documentdb -c "make check"
 
 echo "Package installation test completed successfully!"
