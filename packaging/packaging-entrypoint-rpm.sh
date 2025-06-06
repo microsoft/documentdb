@@ -1,80 +1,65 @@
 #!/bin/bash
 set -e
 
+# Ensure required environment variables are set
 test -n "$OS" || (echo "OS not set" && false)
+test -n "$POSTGRES_VERSION" || (echo "POSTGRES_VERSION not set" && false)
 
 # Change to the build directory
 cd /build
 
-# Keep the internal directory out of the RPM package
+# Remove 'internal' references from Makefile
 sed -i '/internal/d' Makefile
 
 # Create RPM build directories
 mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
-# Detect the available PostgreSQL version in the build environment
-if [ -d "/usr/lib/postgresql/" ]; then
-    AVAILABLE_PG_VERSION=$(ls /usr/lib/postgresql/ | head -1)
-    echo "Detected PostgreSQL version: $AVAILABLE_PG_VERSION"
-    export PG_CONFIG="/usr/lib/postgresql/$AVAILABLE_PG_VERSION/bin/pg_config"
-else
-    echo "PostgreSQL not found, using default version"
-    AVAILABLE_PG_VERSION="14"
-fi
-
-# Get the PostgreSQL version from the environment or use detected version
-PG_VERSION=${POSTGRES_VERSION:-$AVAILABLE_PG_VERSION}
-
 # Get the package version from the spec file
 PACKAGE_VERSION=$(grep "^Version:" rpm_files/documentdb.spec | awk '{print $2}')
 
-# Construct the actual package name (after variable substitution)
-PACKAGE_NAME="postgresql${PG_VERSION}-documentdb"
+# Construct the package name
+PACKAGE_NAME="postgresql${POSTGRES_VERSION}-documentdb"
+
+# Add PostgreSQL bin directory to PATH to ensure pg_config is found
+export PATH="/usr/pgsql-${POSTGRES_VERSION}/bin:$PATH"
+echo "Using PostgreSQL bin directory: $PATH"
 
 echo "Package name: $PACKAGE_NAME"
 echo "Package version: $PACKAGE_VERSION"
-echo "PostgreSQL version: $PG_VERSION"
+echo "PostgreSQL version: $POSTGRES_VERSION"
 
-# Copy spec file to the appropriate location
+# Copy spec file to the SPECS directory
 cp rpm_files/documentdb.spec ~/rpmbuild/SPECS/
 
-# Create source tarball with the expected name
+# Prepare the source directory
+SOURCE_DIR="/tmp/${PACKAGE_NAME}-${PACKAGE_VERSION}"
+mkdir -p "$SOURCE_DIR"
+
+# Copy source files into the source directory
+# Adjust this as needed to include all necessary files
+cp -r /build/* "$SOURCE_DIR/"
+
+# Create the source tarball
 echo "Creating tarball: ~/rpmbuild/SOURCES/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz"
-# Create a temporary directory with the expected name and copy source files there
-temp_source_dir="/tmp/${PACKAGE_NAME}-${PACKAGE_VERSION}"
-mkdir -p "$temp_source_dir"
-cp -r * "$temp_source_dir/" 2>/dev/null || true
-# Exclude unwanted directories
-rm -rf "$temp_source_dir/.git" "$temp_source_dir/internal" "$temp_source_dir/packaging" 2>/dev/null || true
-tar -czf ~/rpmbuild/SOURCES/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz -C /tmp ${PACKAGE_NAME}-${PACKAGE_VERSION}
-rm -rf "$temp_source_dir"
+tar -czf ~/rpmbuild/SOURCES/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz -C /tmp "${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
 # Build the RPM package
-# Since we're cross-compiling from Ubuntu, skip dependency checks
-rpmbuild -ba --nodeps ~/rpmbuild/SPECS/documentdb.spec
+rpmbuild -ba ~/rpmbuild/SPECS/documentdb.spec
 
-# Change to the RPM output directory
-cd ~/rpmbuild/RPMS/x86_64
-
-# Rename .rpm files to include the OS name prefix
-for f in *.rpm; do
-   mv "$f" "${OS}-${f}";
+# Rename and copy RPMs to the output directory
+mkdir -p /output
+for rpm_file in ~/rpmbuild/RPMS/x86_64/*.rpm; do
+    base_rpm=$(basename "$rpm_file")
+    mv "$rpm_file" "/output/${OS}-${base_rpm}"
 done
 
-# Create the output directory if it doesn't exist
-mkdir -p /output
+# Also handle source RPMs
+# if [ -d ~/rpmbuild/SRPMS ]; then
+#     for srpm_file in ~/rpmbuild/SRPMS/*.rpm; do
+#         base_srpm=$(basename "$srpm_file")
+#         mv "$srpm_file" "/output/${OS}-${base_srpm}"
+#     done
+# fi
 
-# Copy the built packages to the output directory
-cp *.rpm /output/
-
-# Also copy source RPMs if they exist
-if [ -d ~/rpmbuild/SRPMS ] && [ "$(ls -A ~/rpmbuild/SRPMS)" ]; then
-    cd ~/rpmbuild/SRPMS
-    for f in *.rpm; do
-       mv "$f" "${OS}-${f}";
-    done
-    cp *.rpm /output/
-fi
-
-# Change ownership of the output files to match the host user's UID and GID
+# Adjust ownership of the output files
 chown -R $(stat -c "%u:%g" /output) /output

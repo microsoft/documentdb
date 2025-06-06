@@ -1,52 +1,93 @@
-ARG BASE_IMAGE=rockylinux:8
+ARG BASE_IMAGE=rockylinux:9
 FROM ${BASE_IMAGE}
 
 ARG POSTGRES_VERSION=16
 ARG DOCUMENTDB_VERSION
+ARG OS_VERSION_ARG # Expect OS_VERSION_ARG to be 8 or 9
+
+ENV POSTGRES_VERSION=${POSTGRES_VERSION}
+ENV DOCUMENTDB_VERSION=${DOCUMENTDB_VERSION}
+ENV OS_VERSION=${OS_VERSION_ARG}
 
 RUN test -n "$DOCUMENTDB_VERSION" || (echo "DOCUMENTDB_VERSION not set" && false)
+RUN test -n "$OS_VERSION" || (echo "OS_VERSION_ARG (and thus OS_VERSION) not set" && false)
+RUN echo "Building for OS Version: ${OS_VERSION}"
 
-# Install EPEL and PostgreSQL repository
-RUN yum install -y epel-release
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/repopackages/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+# Enable CodeReady Builder (CRB) or PowerTools repository
+RUN dnf install -y dnf-plugins-core
+RUN if [ "${OS_VERSION}" = "9" ]; then \
+        echo "Enabling CRB for RHEL 9" && \
+        dnf config-manager --set-enabled crb; \
+    elif [ "${OS_VERSION}" = "8" ]; then \
+        echo "Enabling PowerTools for RHEL 8" && \
+        dnf config-manager --set-enabled powertools; \
+    else \
+        echo "OS_VERSION ${OS_VERSION} not recognized for CRB/PowerTools setup. Must be 8 or 9." && exit 1; \
+    fi
 
-# Update package manager
-RUN yum update -y
-
-# Install build dependencies and PostgreSQL
-RUN yum install -y \
-    wget \
-    ca-certificates \
-    python3 \
-    curl \
-    gcc \
-    gcc-c++ \
-    make \
-    cmake \
-    git \
-    pkg-config \
-    libicu-devel \
-    krb5-devel \
-    postgresql${POSTGRES_VERSION} \
-    postgresql${POSTGRES_VERSION}-server \
-    postgresql${POSTGRES_VERSION}-devel \
-    postgresql${POSTGRES_VERSION}-contrib \
-    postgresql${POSTGRES_VERSION}-plpython3 \
-    rpm-build \
-    rpmlint \
-    rpmdevtools \
-    && yum clean all
-
-# Set up locale
-RUN yum install -y glibc-locale-source glibc-langpack-en
+# Locale setup
+RUN dnf -y install glibc-langpack-en glibc-common && \
+    localedef -i en_US -f UTF-8 en_US.UTF-8 || true
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
+
+# Install base build tools and dependencies
+RUN dnf -y swap curl-minimal curl && \
+    dnf -y install \
+        dnf-utils \
+        rpm-build \
+        rpmdevtools \
+        wget \
+        curl \
+        git \
+        gcc \
+        gcc-c++ \
+        make \
+        cmake \
+        which \
+        libicu-devel \
+        krb5-devel \
+        python3 \
+        tar && \
+    dnf clean all
+
+# PostgreSQL yum repo setup
+RUN if [ "${OS_VERSION}" = "9" ]; then \
+        echo "Setting up PGDG repo for RHEL 9" && \
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm; \
+    elif [ "${OS_VERSION}" = "8" ]; then \
+        echo "Setting up PGDG repo for RHEL 8" && \
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm; \
+    else \
+        echo "OS_VERSION ${OS_VERSION} not recognized for PGDG repo setup. Must be 8 or 9." && exit 1; \
+    fi && \
+    dnf -qy module disable postgresql && \
+    dnf -y install postgresql${POSTGRES_VERSION} \
+    postgresql${POSTGRES_VERSION}-devel \
+    postgresql${POSTGRES_VERSION}-server
+
+RUN dnf -y install \
+        openssl-devel \
+        cyrus-sasl-devel \
+        snappy-devel \
+        zlib-devel \
+        libcurl-devel \
+        libuuid-devel \
+        lz4-devel \
+        bzip2-devel
+        # postgresql${POSTGRES_VERSION}-postgis \
+        # postgresql${POSTGRES_VERSION}-pgvector \
+        # postgresql${POSTGRES_VERSION}-rum
+
+# Set up the rpmbuild directory structure
+RUN rpmdev-setuptree
+
+# Copy the install scripts
 COPY scripts /tmp/install_setup
 
-# Install external dependencies: libbson, PCRE2, Intel Decimal Math Library, Citus indent
-RUN export CLEAN_SETUP=1 && \
-    export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
+# Install library dependencies
+RUN export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
     MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \
     /tmp/install_setup/install_setup_pcre2.sh && \
     /tmp/install_setup/install_setup_intel_decimal_math_lib.sh && \

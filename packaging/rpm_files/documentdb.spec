@@ -1,4 +1,5 @@
 %global pg_version POSTGRES_VERSION
+%define debug_package %{nil}
 
 Name:           postgresql%{pg_version}-documentdb
 Version:        DOCUMENTDB_VERSION
@@ -20,7 +21,6 @@ BuildRequires:  pkg-config
 
 Requires:       postgresql%{pg_version}
 Requires:       postgresql%{pg_version}-server
-Requires:       postgresql%{pg_version}-contrib
 
 %description
 DocumentDB is the open-source engine powering vCore-based Azure Cosmos DB for MongoDB. 
@@ -34,40 +34,24 @@ CRUD operations on BSON data types within a PostgreSQL framework.
 # Keep the internal directory out of the RPM package
 sed -i '/internal/d' Makefile
 
-# Build the extension with relaxed warning flags for cross-compilation
-# Override all warning-related flags
-make %{?_smp_mflags} PG_CFLAGS="-std=gnu99 -Wall -Wno-error" CFLAGS=""
+# Build the extension
+# Ensure PG_CONFIG points to the correct pg_config for PGDG paths
+make %{?_smp_mflags} PG_CONFIG=/usr/pgsql-%{pg_version}/bin/pg_config PG_CFLAGS="-std=gnu99 -Wall -Wno-error" CFLAGS=""
 
 %install
-# Build with Ubuntu paths but install to RHEL-compatible paths
 make install DESTDIR=%{buildroot}
 
-# Create RHEL-style directory structure
-mkdir -p %{buildroot}/usr/pgsql-%{pg_version}/lib
-mkdir -p %{buildroot}/usr/pgsql-%{pg_version}/share/extension
-
-# Move files from Ubuntu paths to RHEL paths
-# Ubuntu uses /usr/lib/postgresql/XX/lib/ and /usr/share/postgresql/XX/extension/
-# RHEL uses /usr/pgsql-XX/lib/ and /usr/pgsql-XX/share/extension/
-if [ -d %{buildroot}/usr/lib/postgresql/%{pg_version}/lib ]; then
-    mv %{buildroot}/usr/lib/postgresql/%{pg_version}/lib/* %{buildroot}/usr/pgsql-%{pg_version}/lib/
-fi
-if [ -d %{buildroot}/usr/share/postgresql/%{pg_version}/extension ]; then
-    mv %{buildroot}/usr/share/postgresql/%{pg_version}/extension/* %{buildroot}/usr/pgsql-%{pg_version}/share/extension/
-fi
-
-# Clean up Ubuntu-style directories
-rm -rf %{buildroot}/usr/lib/postgresql
-rm -rf %{buildroot}/usr/share/postgresql
+# Remove the bitcode directory if it's not needed in the final package
+rm -rf %{buildroot}/usr/pgsql-%{pg_version}/lib/bitcode
 
 %files
 %defattr(-,root,root,-)
-/usr/pgsql-%{pg_version}/lib/documentdb_core.so
+/usr/pgsql-%{pg_version}/lib/pg_documentdb_core.so
 /usr/pgsql-%{pg_version}/lib/pg_documentdb.so
 /usr/pgsql-%{pg_version}/share/extension/documentdb_core.control
 /usr/pgsql-%{pg_version}/share/extension/documentdb_core--*.sql
-/usr/pgsql-%{pg_version}/share/extension/pg_documentdb.control
-/usr/pgsql-%{pg_version}/share/extension/pg_documentdb--*.sql
+/usr/pgsql-%{pg_version}/share/extension/documentdb.control
+/usr/pgsql-%{pg_version}/share/extension/documentdb--*.sql
 
 %changelog
 * Thu May 29 2025 Shuai Tian <shuaitian@microsoft.com> - DOCUMENTDB_VERSION-1
