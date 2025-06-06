@@ -10,7 +10,7 @@ function show_help {
     echo "  This script builds extension packages using Docker."
     echo ""
     echo "Mandatory Arguments:"
-    echo "  --os                 OS to build packages for. Possible values: [deb11, deb12, ubuntu22.04, ubuntu24.04, rhel8, rhel9]"
+    echo "  --os                 OS to build packages for. Possible values: [deb11, deb12, ubuntu22.04, ubuntu24.04]"
     echo "  --pg                 PG version to build packages for. Possible values: [15, 16, 17]"
     echo ""
     echo "Optional Arguments:"
@@ -34,11 +34,11 @@ while [[ $# -gt 0 ]]; do
         --os)
             shift
             case $1 in
-                deb11|deb12|ubuntu22.04|ubuntu24.04|rhel8|rhel9)
+                deb11|deb12|ubuntu22.04|ubuntu24.04)
                     OS=$1
                     ;;
                 *)
-                    echo "Invalid --os value. Allowed values are [deb11, deb12, ubuntu22.04, ubuntu24.04, rhel8, rhel9]"
+                    echo "Invalid --os value. Allowed values are [deb11, deb12, ubuntu22.04, ubuntu24.04]"
                     ;;
             esac
             ;;
@@ -105,33 +105,15 @@ fi
 case $OS in
     deb11)
         DOCKER_IMAGE="debian:bullseye"
-        PACKAGE_TYPE="deb"
-        DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     deb12)
         DOCKER_IMAGE="debian:bookworm"
-        PACKAGE_TYPE="deb"
-        DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     ubuntu22.04)
         DOCKER_IMAGE="ubuntu:22.04"
-        PACKAGE_TYPE="deb"
-        DOCKERFILE="packaging/Dockerfile_build_deb_packages"
         ;;
     ubuntu24.04)
         DOCKER_IMAGE="ubuntu:24.04"
-        PACKAGE_TYPE="deb"
-        DOCKERFILE="packaging/Dockerfile_build_deb_packages"
-        ;;
-    rhel8)
-        DOCKER_IMAGE="ubuntu:22.04"
-        PACKAGE_TYPE="rpm"
-        DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
-        ;;
-    rhel9)
-        DOCKER_IMAGE="ubuntu:22.04"
-        PACKAGE_TYPE="rpm"
-        DOCKERFILE="packaging/Dockerfile_build_rpm_packages"
         ;;
 esac
 
@@ -148,42 +130,28 @@ echo "Output directory: $abs_output_dir"
 mkdir -p $abs_output_dir
 
 # Build the Docker image while showing the output to the console
-docker build -t $TAG -f $DOCKERFILE \
+docker build -t $TAG -f packaging/Dockerfile_build_deb_packages \
     --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DOCUMENTDB_VERSION=$DOCUMENTDB_VERSION .
 
 # Run the Docker container to build the packages
-docker run --rm --env OS=$OS --env POSTGRES_VERSION=$PG -v $abs_output_dir:/output $TAG
+docker run --rm --env OS=$OS -v $abs_output_dir:/output $TAG
 
 echo "Packages built successfully!!"
 
 if [[ $TEST_CLEAN_INSTALL == true ]]; then
     echo "Testing clean installation in a Docker container..."
 
-    if [[ $PACKAGE_TYPE == "deb" ]]; then
-        deb_package_name=$(ls $abs_output_dir | grep -E "${OS}-postgresql-$PG-documentdb_${DOCUMENTDB_VERSION}.*\.deb" | grep -v "dbg" | head -n 1)
-        package_rel_path="$OUTPUT_DIR/$deb_package_name"
-        
-        echo "Debian package path: $package_rel_path"
-        
-        # Build the Docker image while showing the output to the console
-        docker build -t documentdb-test-packages:latest -f packaging/test_packages/Dockerfile_test_install_deb_packages \
-            --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DEB_PACKAGE_REL_PATH=$package_rel_path .
-            
-        # Run the Docker container to test the packages
-        docker run --rm documentdb-test-packages:latest
-    elif [[ $PACKAGE_TYPE == "rpm" ]]; then
-        rpm_package_name=$(ls $abs_output_dir | grep -E "${OS}-postgresql$PG-documentdb-${DOCUMENTDB_VERSION}.*\.rpm" | head -n 1)
-        package_rel_path="$OUTPUT_DIR/$rpm_package_name"
-        
-        echo "RPM package path: $package_rel_path"
-        
-        # Build the Docker image while showing the output to the console
-        docker build -t documentdb-test-packages:latest -f packaging/test_packages/Dockerfile_test_install_rpm_packages \
-            --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg RPM_PACKAGE_REL_PATH=$package_rel_path .
-            
-        # Run the Docker container to test the packages
-        docker run --rm documentdb-test-packages:latest
-    fi
+    deb_package_name=$(ls $abs_output_dir | grep -E "${OS}-postgresql-$PG-documentdb_${DOCUMENTDB_VERSION}.*\.deb" | grep -v "dbg" | head -n 1)
+    deb_package_rel_path="$OUTPUT_DIR/$deb_package_name"
+
+    echo "Debian package path: $deb_package_rel_path"
+
+    # Build the Docker image while showing the output to the console
+    docker build -t documentdb-test-packages:latest -f packaging/test_packages/Dockerfile_test_install_deb_packages \
+        --build-arg BASE_IMAGE=$DOCKER_IMAGE --build-arg POSTGRES_VERSION=$PG --build-arg DEB_PACKAGE_REL_PATH=$deb_package_rel_path .
+
+    # Run the Docker container to test the packages
+    docker run --rm documentdb-test-packages:latest
 
     echo "Clean installation test successful!!"
 fi
