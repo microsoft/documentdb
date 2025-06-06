@@ -1,0 +1,102 @@
+%global pg_version POSTGRES_VERSION
+%define debug_package %{nil}
+
+Name:           postgresql%{pg_version}-documentdb
+Version:        DOCUMENTDB_VERSION
+Release:        1%{?dist}
+Summary:        DocumentDB is the open-source engine powering vCore-based Azure Cosmos DB for MongoDB
+
+License:        MIT
+URL:            https://github.com/microsoft/documentdb
+Source0:        %{name}-%{version}.tar.gz
+
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  make
+BuildRequires:  cmake
+BuildRequires:  postgresql%{pg_version}-devel
+BuildRequires:  libicu-devel
+BuildRequires:  krb5-devel
+BuildRequires:  pkg-config
+
+Requires:       postgresql%{pg_version}
+Requires:       postgresql%{pg_version}-server
+
+%description
+DocumentDB is the open-source engine powering vCore-based Azure Cosmos DB for MongoDB. 
+It offers a native implementation of document-oriented NoSQL database, enabling seamless 
+CRUD operations on BSON data types within a PostgreSQL framework.
+
+%prep
+%setup -q
+
+%build
+# Keep the internal directory out of the RPM package
+sed -i '/internal/d' Makefile
+
+# Build the extension
+# Ensure PG_CONFIG points to the correct pg_config for PGDG paths
+make %{?_smp_mflags} PG_CONFIG=/usr/pgsql-%{pg_version}/bin/pg_config PG_CFLAGS="-std=gnu99 -Wall -Wno-error" CFLAGS=""
+
+%install
+make install DESTDIR=%{buildroot}
+
+# Remove the bitcode directory if it's not needed in the final package
+rm -rf %{buildroot}/usr/pgsql-%{pg_version}/lib/bitcode
+
+# Install source code and test files for make check
+mkdir -p %{buildroot}/usr/src/documentdb
+cp -r . %{buildroot}/usr/src/documentdb/
+# Remove build artifacts and unnecessary files from source copy
+find %{buildroot}/usr/src/documentdb -name "*.o" -delete
+find %{buildroot}/usr/src/documentdb -name "*.so" -delete
+find %{buildroot}/usr/src/documentdb -name "*.bc" -delete
+rm -rf %{buildroot}/usr/src/documentdb/.git*
+rm -rf %{buildroot}/usr/src/documentdb/build
+
+%files
+%defattr(-,root,root,-)
+/usr/pgsql-%{pg_version}/lib/pg_documentdb_core.so
+/usr/pgsql-%{pg_version}/lib/pg_documentdb.so
+/usr/pgsql-%{pg_version}/share/extension/documentdb_core.control
+/usr/pgsql-%{pg_version}/share/extension/documentdb_core--*.sql
+/usr/pgsql-%{pg_version}/share/extension/documentdb.control
+/usr/pgsql-%{pg_version}/share/extension/documentdb--*.sql
+/usr/src/documentdb
+
+%changelog
+* Thu Jun 06 2025 Shuai Tian <shuaitian@microsoft.com> - DOCUMENTDB_VERSION-1
+- Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
+- Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
+- Support ARM64 architecture when building docker container *[Preview]*
+
+* Wed Apr 09 2025 Shuai Tian <shuaitian@microsoft.com> - 0.102-0
+- Support index pushdown for vector search queries [Bugfix]
+- Support exact search for vector search queries [Feature]
+- Inline $match with let in $lookup pipelines as JOIN Filter [Perf]
+- Support TTL indexes [Bugfix] (#34)
+- Support joining between postgres and documentdb tables [Feature] (#61)
+- Support current_op command [Feature] (#59)
+- Support for list_databases command [Feature] (#45)
+- Disable analyze statistics for unique index uuid columns which improves resource usage [Perf]
+- Support collation with $expr, $in, $cmp, $eq, $ne, $lt, $lte, $gt, $gte comparison operators (Opt-in) [Feature]
+- Support collation in find, aggregation $project, $redact, $set, $addFields, $replaceRoot stages (Opt-in) [Feature]
+- Support collation with $setEquals, $setUnion, $setIntersection, $setDifference, $setIsSubset in the aggregation pipeline (Opt-in) [Feature]
+- Support unique index truncation by default with new operator class [Feature]
+- Top level aggregate command let variables support for $geoNear stage [Feature]
+- Enable Backend Command support for Statement Timeout [Feature]
+- Support type aggregation operator $toUUID [Feature]
+- Support Partial filter pushdown for $in predicates [Perf]
+- Support the $dateFromString operator with full functionality [Feature]
+- Support extended syntax for $getField aggregation operator (field as expression) [Feature]
+
+* Tue Feb 12 2025 Shuai Tian <shuaitian@microsoft.com> - 0.101-0
+- Push $graphlookup recursive CTE JOIN filters to index [Perf]
+- Build pg_documentdb for PostgreSQL 17 [Infra] (#13)
+- Enable support of currentOp aggregation stage, along with collstats, dbstats, and indexStats [Commands] (#52)
+- Allow inlining $unwind with $lookup with preserveNullAndEmptyArrays [Perf]
+- Skip loading documents if group expression is constant [Perf]
+- Fix Merge stage not outputting to target collection [Bugfix] (#20)
+
+* Thu Jan 23 2025 Shuai Tian <shuaitian@microsoft.com> - 0.100-0
+- Initial release
