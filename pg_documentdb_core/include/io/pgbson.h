@@ -36,6 +36,8 @@ typedef struct
 } pgbson;
 
 #define DatumGetPgBson(n) ((pgbson *) PG_DETOAST_DATUM(n))
+#define DatumGetPgBson_MAYBE_NULL(n) (DatumGetPointer(n) == NULL ? NULL : \
+									  (pgbson *) PG_DETOAST_DATUM(n))
 #define PG_GETARG_PGBSON(n) (DatumGetPgBson(PG_GETARG_DATUM(n)))
 #define PG_GETARG_MAYBE_NULL_PGBSON(n) PG_ARGISNULL(n) ? NULL : PG_GETARG_PGBSON(n)
 

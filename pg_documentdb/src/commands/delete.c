@@ -1010,7 +1010,7 @@ CallDeleteWorker(MongoCollection *collection,
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 						errmsg("delete_worker should not return null")));
 	}
-	pgbson *resultPgbson = (pgbson *) DatumGetPointer(resultDatum[0]);
+	pgbson *resultPgbson = DatumGetPgBson(resultDatum[0]);
 
 	return resultPgbson;
 }
@@ -1173,6 +1173,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	argCount += objectIdFilter != NULL ? 1 : 0;
 
 	int nextSqlArgIndex = 1;
+	MemoryContext outerContext = CurrentMemoryContext;
 
 	SPI_connect();
 
@@ -1375,11 +1376,9 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 											&isNull);
 
 		/* copy object ID into outer memory context */
-		bool typeByValue = false;
-		int typeLength = -1;
-		objectIdDatum = SPI_datumTransfer(objectIdDatum, typeByValue, typeLength);
-
-		result->objectId = (pgbson *) DatumGetPointer(objectIdDatum);
+		pgbson *objectId = DatumGetPgBson(objectIdDatum);
+		result->objectId =
+			CopyPgbsonIntoMemoryContext(objectId, outerContext);
 	}
 	else
 	{
@@ -1398,7 +1397,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 												SPI_tuptable->tupdesc, columnNumber,
 												&isNull);
 
-			pgbson *resultDeletedDocument = (pgbson *) DatumGetPointer(documentDatum);
+			pgbson *resultDeletedDocument = DatumGetPgBson(documentDatum);
 
 			if (deleteOneParams->returnFields)
 			{
@@ -1415,11 +1414,8 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 																 projectionState);
 			}
 
-			bool typeByValue = false;
-			int typeLength = -1;
-			result->resultDeletedDocument = (pgbson *) DatumGetPointer(
-				SPI_datumTransfer(PointerGetDatum(resultDeletedDocument),
-								  typeByValue, typeLength));
+			result->resultDeletedDocument =
+				CopyPgbsonIntoMemoryContext(resultDeletedDocument, outerContext);
 		}
 		else
 		{

@@ -3576,7 +3576,7 @@ CheckPartFilterExprOperatorsWalker(Node *node, void *context)
 				}
 
 				Datum existsRhsConstValue = ((Const *) existsRhsArg)->constvalue;
-				pgbson *existsRhsBson = (pgbson *) DatumGetPointer(existsRhsConstValue);
+				pgbson *existsRhsBson = DatumGetPgBson(existsRhsConstValue);
 				pgbsonelement element;
 				PgbsonToSinglePgbsonElement(existsRhsBson, &element);
 				bool existsPositiveMatch = BsonValueAsInt64(&element.bsonValue) != 0;

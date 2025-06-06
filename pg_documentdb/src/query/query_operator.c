@@ -365,7 +365,7 @@ query_match_support(PG_FUNCTION_ARGS)
 				PG_RETURN_POINTER(NULL);
 			}
 
-			pgbson *queryDocument = (pgbson *) DatumGetPointer(constValue->constvalue);
+			pgbson *queryDocument = DatumGetPgBson(constValue->constvalue);
 
 			/* open the Mongo query document */
 			bson_iter_t queryDocIter;
@@ -982,7 +982,7 @@ ExpandBsonQueryOperator(OpExpr *queryOpExpr, Node *queryNode,
 		return (Expr *) queryOpExpr;
 	}
 
-	pgbson *queryDocument = (pgbson *) DatumGetPointer(queryConst->constvalue);
+	pgbson *queryDocument = DatumGetPgBson(queryConst->constvalue);
 
 	/* open the Mongo query document */
 	bson_iter_t queryDocIter;

@@ -1028,7 +1028,7 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 			PgbsonWriterInit(&userWriter);
 
 			/* Convert Datum to a bson_t object */
-			pgbson *bson_doc = (pgbson *) DatumGetPointer(userDatums[i]);
+			pgbson *bson_doc = DatumGetPgBson(userDatums[i]);
 			bson_iter_t getIter;
 			PgbsonInitIterator(bson_doc, &getIter);
 

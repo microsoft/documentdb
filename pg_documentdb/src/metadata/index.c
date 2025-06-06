@@ -1439,7 +1439,7 @@ GetSkippableRequestFromIndexQueue(char cmdType, int expireTimeInSeconds,
 	int indexId = DatumGetInt32(results[1]);
 	int status = DatumGetInt32(results[2]);
 	int16 attemptCount = DatumGetUInt16(results[3]);
-	pgbson *comment = (pgbson *) DatumGetPointer(results[4]);
+	pgbson *comment = DatumGetPgBson_MAYBE_NULL(results[4]);
 	TimestampTz updateTime = DatumGetTimestampTz(results[5]);
 	uint64_t collectionId = (uint64_t) DatumGetInt64(results[7]);
 	if (!isNull[6])
@@ -1534,7 +1534,7 @@ GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
 	int indexId = DatumGetInt32(results[1]);
 	int status = DatumGetInt32(results[2]);
 	int16 attemptCount = DatumGetUInt16(results[3]);
-	pgbson *comment = (pgbson *) DatumGetPointer(results[4]);
+	pgbson *comment = DatumGetPgBson_MAYBE_NULL(results[4]);
 	TimestampTz updateTime = DatumGetTimestampTz(results[5]);
 	if (!isNull[6])
 	{

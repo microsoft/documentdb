@@ -508,7 +508,7 @@ ExtensionQueryScanBeginCustomScan(CustomScanState *node, EState *estate,
 
 	if (queryScanState->inputState->hasVectorSearchData)
 	{
-		pgbson *searchParamBson = (pgbson *) DatumGetPointer(
+		pgbson *searchParamBson = DatumGetPgBson_MAYBE_NULL(
 			queryScanState->inputState->querySearchData.SearchParamBson);
 
 		if (searchParamBson != NULL)
