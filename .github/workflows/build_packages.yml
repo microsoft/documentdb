@@ -1,4 +1,4 @@
-name: Build deb packages
+name: Build deb packages and prebuild images
 concurrency:
   group: build-packages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -7,10 +7,15 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 'main'
+      - "main"
     paths-ignore:
-      - '.devcontainer/**'
-      - '*.md'
+      - ".devcontainer/**"
+      - "*.md"
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
 
 jobs:
   build-deb-packages:
@@ -54,3 +59,75 @@ jobs:
           retention-days: 7
           if-no-files-found: error
           compression-level: 0
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image build metadata
+        id: image_metadata
+        run: |
+          PACKAGE_NAME=$(ls packaging/*.deb | grep -v dbgsym | head -n1)
+          echo "PACKAGE NAME: $PACKAGE_NAME"
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+          case ${{ matrix.os }} in
+              deb11)
+                  BASE_IMAGE="debian:bullseye"
+                  ;;
+              deb12)
+                  BASE_IMAGE="debian:bookworm"
+                  ;;
+              ubuntu22.04)
+                  BASE_IMAGE="ubuntu:22.04"
+                  ;;
+              ubuntu24.04)
+                  BASE_IMAGE="ubuntu:24.04"
+                  ;;
+          esac
+          echo "BASE_IMAGE NAME: $BASE_IMAGE"
+          echo "BASE_IMAGE=$BASE_IMAGE" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6.18.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          provenance: false # Disable provenance to avoid unknown/unknown
+          sbom: false # Disable provenance to avoid unknown/unknown
+          context: .
+          push: true
+          platforms: linux/${{ matrix.arch }}
+          file: .github/containers/Build-Ubuntu/Dockerfile_prebuild
+          tags: ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+            POSTGRES_VERSION=${{ matrix.pg_version }}
+            DEB_PACKAGE_REL_PATH=${{ env.PACKAGE_NAME }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/microsoft/documentdb
+            org.opencontainers.image.description=Documentdb prebuild image
+            org.opencontainers.image.licenses=MIT
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign manifest (keyless)
+        run: |
+          cosign sign ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} -y
+      
+      - name: Verify manifest signature (keyless)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build_packages.yml@refs/heads/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/${{ github.repository }}/documentdb-oss:${{ matrix.os }}-PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }}
