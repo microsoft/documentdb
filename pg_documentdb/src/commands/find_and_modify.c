@@ -485,7 +485,8 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 			.query = spec->query,
 			.returnFields = spec->returnFields,
 			.returnDeletedDocument = true,
-			.sort = spec->sort
+			.sort = spec->sort,
+			.variableSpec = NULL
 		};
 
 		DeleteOneResult deleteOneResult = { 0 };

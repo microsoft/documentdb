@@ -85,6 +85,7 @@ typedef struct BsonExpressionPartitionByFieldsGetState
 
 extern bool EnableCollation;
 extern bool EnableNowSystemVariable;
+extern bool EnableVariablesSupportForWriteCommands;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -3004,10 +3005,14 @@ GetTimeSystemVariables(TimeSystemVariables *timeVariables)
  */
 pgbson *
 ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
-								TimeSystemVariables *timeSystemVariables)
+								TimeSystemVariables *timeSystemVariables,
+								bool isWriteCommand)
 {
 	/* Short circuit here */
-	if (varSpec->value_type == BSON_TYPE_EOD && !EnableNowSystemVariable)
+	bool generateTimeVariables = EnableNowSystemVariable ||
+								 (isWriteCommand &&
+								  EnableVariablesSupportForWriteCommands);
+	if (varSpec->value_type == BSON_TYPE_EOD && !generateTimeVariables)
 	{
 		return PgbsonInitEmpty();
 	}
@@ -3020,7 +3025,7 @@ ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
 	PgbsonWriterInit(&resultWriter);
 
 	/* Write the time system variables */
-	if (EnableNowSystemVariable)
+	if (generateTimeVariables)
 	{
 		bson_value_t nowVariableValue = GetTimeSystemVariables(timeSystemVariables);
 		PgbsonWriterAppendValue(&resultWriter, "now", 3, &nowVariableValue);

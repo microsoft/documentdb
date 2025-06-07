@@ -127,7 +127,9 @@ static void DeleteOneInternal(MongoCollection *collection,
 							  DeleteOneResult *result);
 static void DeleteOneObjectId(MongoCollection *collection,
 							  DeleteOneParams *deleteOneParams,
-							  bson_value_t *objectId, bool forceInlineWrites,
+							  bson_value_t *objectId,
+							  bool queryHasNonIdFilters,
+							  bool forceInlineWrites,
 							  text *transactionId, DeleteOneResult *result);
 static List * ValidateQueryDocuments(BatchDeletionSpec *batchSpec);
 static pgbson * BuildResponseMessage(BatchDeletionResult *batchResult);
@@ -343,7 +345,6 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 			 *  Silently ignore now, so that clients don't break
 			 *  TODO: implement me
 			 *      writeConcern
-			 *      let
 			 */
 		}
 		else
@@ -381,9 +382,14 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 	batchSpec->deletionSequence = deleteDocs;
 
 	/* parse and set let and time system variables */
-	TimeSystemVariables *timeSysVars = NULL;
-	pgbson *parsedVariables = ParseAndGetTopLevelVariableSpec(&let, timeSysVars);
-	batchSpec->variableSpec = ConvertPgbsonToBsonValue(parsedVariables);
+	if (EnableVariablesSupportForWriteCommands)
+	{
+		TimeSystemVariables *timeSysVars = NULL;
+		bool isWriteCommand = true;
+		pgbson *parsedVariables = ParseAndGetTopLevelVariableSpec(&let, timeSysVars,
+																  isWriteCommand);
+		batchSpec->variableSpec = ConvertPgbsonToBsonValue(parsedVariables);
+	}
 
 	return batchSpec;
 }
@@ -740,8 +746,9 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 			 * a sharded collection without specifying a a shard key filter.
 			 */
 			DeleteOneObjectId(collection, &deletionSpec->deleteOneParams,
-							  &idFromQueryDocument, forceInlineWrites, transactionId,
-							  &deleteOneResult);
+							  &idFromQueryDocument, queryHasNonIdFilters,
+							  forceInlineWrites,
+							  transactionId, &deleteOneResult);
 		}
 		else
 		{
@@ -794,11 +801,15 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 						 collectionId);
 	}
 
-	pgbson *variableSpecBson = variableSpec != NULL ?
-							   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
-	bool applyVariableSpec = EnableVariablesSupportForWriteCommands &&
-							 variableSpecBson != NULL && queryHasNonIdFilters;
+	pgbson *variableSpecBson = NULL;
+	if (EnableVariablesSupportForWriteCommands)
+	{
+		variableSpecBson = variableSpec != NULL &&
+						   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
+						   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
+	}
 
+	bool applyVariableSpec = variableSpecBson != NULL && queryHasNonIdFilters;
 	if (applyVariableSpec)
 	{
 		appendStringInfo(&deleteQuery,
@@ -874,13 +885,14 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	argValues[0] = PointerGetDatum(queryDoc);
 	argNulls[0] = ' ';
 
-	/* set variable spec and collation string */
 	if (applyVariableSpec)
 	{
+		/* set the variable spec */
 		argTypes[1] = bsonTypeId;
 		argValues[1] = PointerGetDatum(variableSpecBson);
 		argNulls[1] = ' ';
 
+		/* TODO: set the collation string */
 		argTypes[2] = TEXTOID;
 		argValues[2] = CStringGetTextDatum("");
 		argNulls[2] = 'n';
@@ -1213,11 +1225,15 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	argCount++;
 
 	const bson_value_t *variableSpec = deleteOneParams->variableSpec;
-	pgbson *variableSpecBson = variableSpec != NULL ?
-							   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
-	bool applyVariableSpec = EnableVariablesSupportForWriteCommands &&
-							 variableSpecBson != NULL && queryHasNonIdFilters;
+	pgbson *variableSpecBson = NULL;
+	if (EnableVariablesSupportForWriteCommands)
+	{
+		variableSpecBson = variableSpec != NULL &&
+						   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
+						   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
+	}
 
+	bool applyVariableSpec = variableSpecBson != NULL && queryHasNonIdFilters;
 	if (applyVariableSpec)
 	{
 		planId = QUERY_DELETE_ONE_LET_AND_COLLATION;
@@ -1270,13 +1286,14 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	argValues[1] = PointerGetDatum(query);
 	argNulls[1] = ' ';
 
-	/* set variableSpec and collationString, if applicable */
 	if (applyVariableSpec)
 	{
+		/* set the variable spec */
 		argTypes[2] = bsonTypeId;
 		argValues[2] = PointerGetDatum(variableSpecBson);
 		argNulls[2] = ' ';
 
+		/* TODO: set the collation string */
 		argTypes[3] = TEXTOID;
 		argValues[3] = CStringGetTextDatum("");
 		argNulls[3] = 'n';
@@ -1625,8 +1642,8 @@ DeserializeDeleteWorkerSpecForUnsharded(const bson_value_t *value,
  */
 static void
 DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
-				  bson_value_t *objectId, bool forceInlineWrites, text *transactionId,
-				  DeleteOneResult *result)
+				  bson_value_t *objectId, bool queryHasNonIdFilters,
+				  bool forceInlineWrites, text *transactionId, DeleteOneResult *result)
 {
 	const int maxTries = 5;
 
@@ -1651,7 +1668,8 @@ DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 		int64 shardKeyValue = 0;
 
 		if (!FindShardKeyValueForDocumentId(collection, deleteOneParams->query, objectId,
-											&shardKeyValue))
+											queryHasNonIdFilters, &shardKeyValue,
+											deleteOneParams->variableSpec))
 		{
 			/* no document matches both the query and the object ID */
 			return;
