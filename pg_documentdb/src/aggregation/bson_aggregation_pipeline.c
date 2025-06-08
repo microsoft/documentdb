@@ -4745,8 +4745,10 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 					 * If there's an orderby pushdown to the index, add a full scan clause iff
 					 * the query has no filters yet.
 					 */
-					if (CanPushSortFilterToIndex(query) && IsClusterVersionAtleast(
-							DocDB_V0, 105, 0))
+					if (CanPushSortFilterToIndex(query) && (
+							IsClusterVersionAtLeastPatch(DocDB_V0, 103, 1) ||
+							IsClusterVersionAtLeastPatch(DocDB_V0, 104, 1) ||
+							IsClusterVersionAtleast(DocDB_V0, 105, 0)))
 					{
 						List *rangeArgs = list_make2(sortInput, sortBson);
 						Expr *fullScanExpr = (Expr *) makeFuncExpr(
