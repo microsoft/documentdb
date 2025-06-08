@@ -171,7 +171,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
    ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=9995 loops=1)
          Recheck Cond: ((shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "5" } }'::bson))
          Filter: (document @> '{ "_id" : { "$numberInt" : "5" } }'::bson)
-         Heap Blocks: exact=104
+         Heap Blocks: exact=94
          ->  Bitmap Index Scan on _id_ (actual rows=9995 loops=1)
                Index Cond: ((shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "5" } }'::bson))
 (9 rows)
@@ -185,7 +185,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
    ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=9995 loops=1)
          Recheck Cond: ((shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "5" } }'::bson))
          Filter: (document @> '{ "_id" : { "$numberInt" : "5" } }'::bson)
-         Heap Blocks: exact=104
+         Heap Blocks: exact=94
          ->  Bitmap Index Scan on _id_ (actual rows=9995 loops=1)
                Index Cond: ((shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "5" } }'::bson))
 (9 rows)
@@ -304,7 +304,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
                      Sort Method: top-N heapsort  Memory: 26kB
                      ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=3334 loops=1)
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson)
-                           Heap Blocks: exact=104
+                           Heap Blocks: exact=94
                            ->  Bitmap Index Scan on a_id (actual rows=3334 loops=1)
                                  Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson)
 (16 rows)
@@ -326,7 +326,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
                      Sort Method: top-N heapsort  Memory: 26kB
                      ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=6667 loops=1)
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "12" }, { "$numberInt" : "14" } ] }'::documentdb_core.bson)
-                           Heap Blocks: exact=104
+                           Heap Blocks: exact=94
                            ->  Bitmap Index Scan on a_id (actual rows=6667 loops=1)
                                  Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "12" }, { "$numberInt" : "14" } ] }'::documentdb_core.bson)
 (16 rows)
@@ -372,7 +372,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
          Sort Method: top-N heapsort  Memory: 26kB
          ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=9900 loops=1)
                Recheck Cond: ((document @> '{ "_id" : { "$numberInt" : "100" } }'::bson) AND (shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "100" } }'::bson))
-               Heap Blocks: exact=103
+               Heap Blocks: exact=94
                ->  BitmapAnd (actual rows=0 loops=1)
                      ->  Bitmap Index Scan on a_id (actual rows=9900 loops=1)
                            Index Cond: (document @> '{ "_id" : { "$numberInt" : "100" } }'::bson)
@@ -414,7 +414,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
                      Sort Method: top-N heapsort  Memory: 26kB
                      ->  Bitmap Heap Scan on documents_964001_9640004 collection (actual rows=3334 loops=1)
                            Recheck Cond: ((document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson) AND (shard_key_value = '3904677705083871083'::bigint))
-                           Heap Blocks: exact=104
+                           Heap Blocks: exact=94
                            ->  BitmapAnd (actual rows=0 loops=1)
                                  ->  Bitmap Index Scan on a_id (actual rows=3334 loops=1)
                                        Index Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson)
@@ -442,7 +442,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
                                  Sort Method: top-N heapsort  Memory: 26kB
                                  ->  Bitmap Heap Scan on documents_964001_9640004 collection (actual rows=3333 loops=1)
                                        Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson)
-                                       Heap Blocks: exact=104
+                                       Heap Blocks: exact=94
                                        ->  Bitmap Index Scan on a_id (actual rows=3333 loops=1)
                                              Index Cond: (document OPERATOR(documentdb_api_catalog.@>) '{ "a" : { "$numberInt" : "14" } }'::documentdb_core.bson)
                ->  Task

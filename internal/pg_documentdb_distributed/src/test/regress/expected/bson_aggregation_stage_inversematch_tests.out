@@ -286,7 +286,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
                                ->  Aggregate
                                      Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson)
                                      ->  Bitmap Heap Scan on documentdb_data.documents_963002_9630004 collection_0_1
-                                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                                            Recheck Cond: (collection_0_1.shard_key_value = '963002'::bigint)
                                            Filter: (collection_0_1.document OPERATOR(documentdb_api_catalog.@!=) '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson)
                                            ->  Bitmap Index Scan on _id_
@@ -316,7 +316,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
                          ->  Aggregate
                                Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::documentdb_core.bson)
                                ->  Bitmap Heap Scan on documentdb_data.documents_963002_9630004 collection_0_1
-                                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                                      Recheck Cond: (collection_0_1.shard_key_value = '963002'::bigint)
                                      Filter: (collection_0_1.document OPERATOR(documentdb_api_catalog.@!=) '{ "user_id" : { "$numberInt" : "200" } }'::documentdb_core.bson)
                                      ->  Bitmap Index Scan on _id_

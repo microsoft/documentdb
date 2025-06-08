@@ -14,13 +14,12 @@ NOTICE:  creating collection
 
 -- now we have an index with truncation enabled and 100 chars.
 \d documentdb_data.documents_6400;
-                   Table "documentdb_data.documents_6400"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6400"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6400" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6401" documentdb_rum (document bson_rum_single_path_ops (path=ikey, tl='100'))
@@ -825,13 +824,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_6401
-                   Table "documentdb_data.documents_6401"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6401"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6401" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6403" documentdb_rum (document bson_rum_single_path_ops (path=ikey, tl='60'))
@@ -2573,13 +2571,12 @@ SELECT documentdb_api.shard_collection('db', 'index_truncation_tests', '{ "_id":
 (1 row)
 
 \d documentdb_data.documents_6401
-                   Table "documentdb_data.documents_6401"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6401"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6401" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6404" documentdb_rum (document bson_rum_single_path_ops (path=_id, tl='60'))
@@ -2598,13 +2595,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_6402
-                   Table "documentdb_data.documents_6402"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6402"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6402" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6407" documentdb_rum (document bson_rum_single_path_ops (path='', iswildcard='true', tl='100', wkl='50'))
@@ -2690,13 +2686,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_6403
-                   Table "documentdb_data.documents_6403"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6403"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6403" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6409" documentdb_rum (document bson_rum_single_path_ops (path='a.b', iswildcard='true', tl='60'))
@@ -2978,13 +2973,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_6404
-                   Table "documentdb_data.documents_6404"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6404"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6404" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6411" documentdb_rum (document bson_rum_wildcard_project_path_ops (includeid='false', tl='60', wkl='50', pathspec='[ "a", "b" ]', isexclusion='false'))

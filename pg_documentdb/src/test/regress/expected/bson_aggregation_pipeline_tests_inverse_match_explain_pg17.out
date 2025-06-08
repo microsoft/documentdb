@@ -90,7 +90,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
                    ->  Aggregate
                          Output: COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson)
                          ->  Bitmap Heap Scan on documentdb_data.documents_12302 collection_0_1
-                               Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                               Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                                Recheck Cond: (collection_0_1.shard_key_value = '12302'::bigint)
                                Filter: (collection_0_1.document @!= '{ "user_id" : { "$numberInt" : "200" } }'::bson)
                                ->  Bitmap Index Scan on _id_
@@ -113,7 +113,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document from bson_aggregation_pipeline('
              ->  Aggregate
                    Output: COALESCE(bson_array_agg(collection_0_1.document, 'input'::text), '{ "input" : [  ] }'::bson)
                    ->  Bitmap Heap Scan on documentdb_data.documents_12302 collection_0_1
-                         Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                         Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                          Recheck Cond: (collection_0_1.shard_key_value = '12302'::bigint)
                          Filter: (collection_0_1.document @!= '{ "user_id" : { "$numberInt" : "200" } }'::bson)
                          ->  Bitmap Index Scan on _id_

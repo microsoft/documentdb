@@ -102,13 +102,12 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 
 -- show the indexes
 \d documentdb_data.documents_1200
-                   Table "documentdb_data.documents_1200"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_1200"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_1200" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_1204" documentdb_rum (document bson_rum_composite_path_ops (pathspec='[ "a", "c" ]', tl='2691'))
@@ -1811,7 +1810,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Sort (actual rows=25 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
+               Sort Method: quicksort  Memory: 28kB
                ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=25 loops=1)
                      indexName: queryoperator_b_a
                      isMultiKey: true
@@ -1836,7 +1835,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Sort (actual rows=27 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
+               Sort Method: quicksort  Memory: 28kB
                ->  Bitmap Heap Scan on documents_1200_1200005 collection (actual rows=27 loops=1)
                      Recheck Cond: (shard_key_value = '1200'::bigint)
                      Heap Blocks: exact=1
@@ -1856,7 +1855,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Sort (actual rows=25 loops=1)
                Sort Key: object_id
-               Sort Method: quicksort  Memory: 27kB
+               Sort Method: quicksort  Memory: 28kB
                ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=25 loops=1)
                      indexName: queryoperator_b_a
                      isMultiKey: true

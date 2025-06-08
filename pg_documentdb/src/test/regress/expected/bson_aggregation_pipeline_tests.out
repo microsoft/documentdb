@@ -473,8 +473,8 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 -- Sample after other stage
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unwind": "$a.b" }, { "$sample": { "size": 2 } }], "cursor": {} }');
-                                                            QUERY PLAN                                                             
------------------------------------------------------------------------------------------------------------------------------------
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
  Limit
    Output: agg_stage_1.document, (random())
    ->  Sort
@@ -485,7 +485,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                ->  ProjectSet
                      Output: bson_dollar_unwind(collection.document, '$a.b'::text)
                      ->  Bitmap Heap Scan on documentdb_data.documents_3500 collection
-                           Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                           Output: collection.shard_key_value, collection.object_id, collection.document
                            Recheck Cond: (collection.shard_key_value = '3500'::bigint)
                            ->  Bitmap Index Scan on _id_
                                  Index Cond: (collection.shard_key_value = '3500'::bigint)
@@ -1103,7 +1103,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                ->  Nested Loop Left Join
                      Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)), true)
                      ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection
-                           Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                           Output: collection.shard_key_value, collection.object_id, collection.document
                            Recheck Cond: (collection.shard_key_value = '3502'::bigint)
                            ->  Bitmap Index Scan on _id_
                                  Index Cond: (collection.shard_key_value = '3502'::bigint)
@@ -1128,14 +1128,14 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
    ->  Nested Loop Left Join
          Output: collection.document, (COALESCE(bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson))
          ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection
-               Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+               Output: collection.shard_key_value, collection.object_id, collection.document
                Recheck Cond: (collection.shard_key_value = '3502'::bigint)
                ->  Bitmap Index Scan on _id_
                      Index Cond: (collection.shard_key_value = '3502'::bigint)
          ->  Aggregate
                Output: COALESCE(bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)
                ->  Bitmap Heap Scan on documentdb_data.documents_3503 collection_0_1
-                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                     Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                      Recheck Cond: (collection_0_1.shard_key_value = '3503'::bigint)
                      Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::bson), 'sku'::text)
                      ->  Bitmap Index Scan on _id_
@@ -1710,7 +1710,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
    Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::bson), 'author-names'::text)
    Filter: (documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::bson), 'author-names'::text) #= '{ "title" : "Emma" }'::bsonquery)
    ->  Bitmap Heap Scan on documentdb_data.documents_3507 collection
-         Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+         Output: collection.shard_key_value, collection.object_id, collection.document
          Recheck Cond: (collection.shard_key_value = '3507'::bigint)
          ->  Bitmap Index Scan on _id_
                Index Cond: (collection.shard_key_value = '3507'::bigint)
