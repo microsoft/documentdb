@@ -53,5 +53,6 @@ RUN useradd -ms /bin/bash documentdb -G sudo
 RUN echo "%sudo ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/no-pass-ask
 
 USER documentdb
+ENV PG_VERSION_USED=${POSTGRES_VERSION} 
 
 ENTRYPOINT ["/bin/bash", "-c", "/scripts/start_oss_server.sh \"$@\" & tail -f /dev/null", "--"]
