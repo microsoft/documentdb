@@ -68,6 +68,8 @@ if lsof -i:"$coordinatorPort" -sTCP:LISTEN >/dev/null 2>&1; then
     exit 1
 fi
 
+echo "${PG_VERSION} 11111"
+
 if [ "$distributed" == "true" ]; then
   extensionName="documentdb_distributed"
 else
