@@ -149,8 +149,16 @@ done
 
 # Set default values if not provided
 export OWNER=${OWNER:-$(whoami)}
+export DATA_PATH=${DATA_PATH:-/home/documentdb/postgresql/data}
+export DOCUMENTDB_PORT=${DOCUMENTDB_PORT:-10260}
+export POSTGRESQL_PORT=${POSTGRESQL_PORT:-9712}
+export USERNAME=${USERNAME:-default_user}
+export PASSWORD=${PASSWORD:-Admin100}
+export CREATE_USER=${CREATE_USER:-true}
+export START_POSTGRESQL=${START_POSTGRESQL:-true}
 echo "Using username: $USERNAME"
 echo "Using owner: $OWNER"
+echo "Using data path: $DATA_PATH"
 
 if { [ -n "${CERT_PATH:-}" ] && [ -z "${KEY_FILE:-}" ]; } || \
    { [ -z "${CERT_PATH:-}" ] && [ -n "${KEY_FILE:-}" ]; }; then
@@ -208,12 +216,28 @@ fi
 if [ "$START_POSTGRESQL" = "true" ]; then
     echo "Starting PostgreSQL server on port $POSTGRESQL_PORT..."
     exec > >(tee -a /home/documentdb/gateway_entrypoint.log) 2> >(tee -a /home/documentdb/gateway_entrypoint.log >&2)
+    
+    # Fix permissions on data directory to prevent "Permission denied" errors
+    echo "Ensuring proper permissions on data directory: $DATA_PATH"
+    if [ ! -d "$DATA_PATH" ]; then
+        echo "Creating data directory: $DATA_PATH"
+        sudo mkdir -p "$DATA_PATH"
+    fi
+    
+    # Change ownership to documentdb user to ensure we can write/delete files
+    echo "Setting ownership of $DATA_PATH to documentdb user"
+    sudo chown -R documentdb:documentdb "$DATA_PATH"
+    
+    # Ensure we have full permissions on the directory
+    echo "Setting permissions on $DATA_PATH"
+    sudo chmod -R 750 "$DATA_PATH"
+    
     if ALLOW_EXTERNAL_CONNECTIONS="true"; then
         echo "Allowing external connections to PostgreSQL..."
         export PGOPTIONS="-e"
     fi
     echo "Starting OSS server..."
-    /home/documentdb/gateway/scripts/start_oss_server.sh $PGOPTIONS -c -d $DATA_PATH -p $POSTGRESQL_PORT | tee -a /home/documentdb/oss_server.log
+    /home/documentdb/gateway/scripts/start_oss_server.sh $PGOPTIONS -d $DATA_PATH -p $POSTGRESQL_PORT | tee -a /home/documentdb/oss_server.log
 
     echo "OSS server started."
 

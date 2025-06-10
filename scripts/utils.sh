@@ -105,10 +105,19 @@ function InitDatabaseExtended()
 {
   local _directory=$1
   local _preloadLibraries=$2
+
+  echo "Initializing PostgreSQL database in $_directory with preload libraries: $_preloadLibraries"
+
+  if [ -d "$_directory" ]; then
+    echo "Removing contents of $_directory"
+    rm -rf $_directory/*
+    rm -rf $_directory/.[!.]*
+  fi
   
-  echo "Deleting directory $_directory"
-  rm -rf $_directory
-  mkdir -p $_directory
+  if [ ! -d "$_directory" ]; then
+    echo "Creating directory $_directory"
+    mkdir -p $_directory
+  fi
 
   echo "Calling initdb for $_directory"
   $(GetInitDB) -D $_directory
