@@ -13,18 +13,29 @@ RUN echo "Testing for OS Version: ${OS_VERSION}"
 
 # Enable CodeReady Builder (CRB) or PowerTools repository
 RUN dnf install -y dnf-plugins-core
-RUN if [ "${OS_VERSION}" = "9" ]; then \
+
+# Enable EPEL and CodeReady Builder (CRB) or PowerTools repository
+RUN dnf install -y epel-release && \
+    if [ "${OS_VERSION}" = "9" ]; then \
         dnf config-manager --set-enabled crb; \
     elif [ "${OS_VERSION}" = "8" ]; then \
         dnf config-manager --set-enabled powertools; \
     else \
         echo "OS_VERSION ${OS_VERSION} not recognized for CRB/PowerTools setup. Must be 8 or 9." && exit 1; \
-    fi
+    fi && \
+    dnf clean all # Clean dnf cache to ensure fresh metadata for the next dnf command
+
+# Locale setup
+RUN dnf -y install glibc-langpack-en glibc-common && \
+    localedef -i en_US -f UTF-8 en_US.UTF-8 || true
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 RUN dnf -y swap curl-minimal curl && \
     dnf -y install \
     make \
     wget \
+    git \
     curl \
     gnupg2 \
     ca-certificates \
@@ -42,7 +53,9 @@ RUN dnf -y swap curl-minimal curl && \
     lz4-devel \
     bzip2-devel \
     libicu-devel \
-    krb5-devel
+    krb5-devel \
+    hdf5 \
+    xerces-c
 
 # PostgreSQL yum repo setup
 RUN if [ "${OS_VERSION}" = "9" ]; then \
@@ -57,8 +70,10 @@ RUN if [ "${OS_VERSION}" = "9" ]; then \
     postgresql${POSTGRES_VERSION}-devel \
     postgresql${POSTGRES_VERSION}-server \
     postgresql${POSTGRES_VERSION}-contrib \
-    postgresql${POSTGRES_VERSION}-pgvector \
-    postgis34_${POSTGRES_VERSION}
+    pgvector_${POSTGRES_VERSION} \
+    pg_cron_${POSTGRES_VERSION} \
+    postgis34_${POSTGRES_VERSION} \
+    rum_${POSTGRES_VERSION}
 
 # Install library dependencies needed for make check
 COPY scripts /tmp/install_setup
@@ -71,7 +86,7 @@ RUN export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
 # Create a directory for the source code (if 'make check' needs it)
 # The test-install-entrypoint-rpm.sh script expects source at /usr/src/documentdb
 RUN mkdir -p /usr/src/documentdb
-WORKDIR /usr/src/documentdb # Set WORKDIR after creating it
+WORKDIR /usr/src/documentdb
 
 # Copy the source code into the container (if 'make check' needs it)
 COPY . /usr/src/documentdb

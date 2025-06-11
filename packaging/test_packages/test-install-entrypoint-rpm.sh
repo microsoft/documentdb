@@ -56,6 +56,17 @@ chown -R documentdb:documentdb .
 
 # Switch to the documentdb user and run the tests
 echo "Running make check as documentdb user..."
-su documentdb -c "export PG_CONFIG=/usr/pgsql-${POSTGRES_VERSION}/bin/pg_config && export PATH=/usr/pgsql-${POSTGRES_VERSION}/bin:\$PATH && make check"
+if ! su documentdb -c "export PG_CONFIG=/usr/pgsql-${POSTGRES_VERSION}/bin/pg_config && export PATH=/usr/pgsql-${POSTGRES_VERSION}/bin:\$PATH && make check"; then
+    echo "make check failed. Displaying postmaster.log if it exists:"
+    LOG_FILE="/usr/src/documentdb/pg_documentdb/src/test/regress/log/postmaster.log"
+    if [ -f "$LOG_FILE" ]; then
+        echo "=== Contents of $LOG_FILE ==="
+        cat "$LOG_FILE"
+        echo "==============================="
+    else
+        echo "Log file $LOG_FILE not found."
+    fi
+    exit 1
+fi
 
 echo "Package installation test completed successfully!"
