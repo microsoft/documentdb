@@ -120,16 +120,16 @@ jobs:
             org.opencontainers.image.licenses=MIT
 
       - name: Install cosign
-        # if: matrix.os == 'ubuntu22.04'
+        if: matrix.os == 'ubuntu22.04'
         uses: sigstore/cosign-installer@main
 
       - name: Sign manifest (keyless)
-        # if: matrix.os == 'ubuntu22.04'
+        if: matrix.os == 'ubuntu22.04'
         run: |
           cosign sign ghcr.io/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} -y
       
       - name: Verify manifest signature (keyless)
-        # if: matrix.os == 'ubuntu22.04'
+        if: matrix.os == 'ubuntu22.04'
         run: |
           cosign verify \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build_packages.yml@refs/heads/${{ github.ref_name }}" \
