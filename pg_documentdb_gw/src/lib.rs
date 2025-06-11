@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::context::{ConnectionContext, ServiceContext};
 use crate::error::{DocumentDBError, Result};
-use crate::postgres::ConnectionPool;
+use crate::postgres::{ConnectionPool, DocumentDBDataClient, PgDataClient};
 use crate::requests::RequestType;
 
 pub use crate::postgres::QueryCatalog;
@@ -89,32 +89,20 @@ pub async fn run_server(
     }
 }
 
-pub async fn get_service_context(
+pub fn get_service_context(
     setup_configuration: Box<dyn SetupConfiguration>,
     dynamic: Arc<dyn DynamicConfiguration>,
     query_catalog: QueryCatalog,
     system_requests_pool: Arc<ConnectionPool>,
-    authentication_pool: Arc<ConnectionPool>,
-) -> Result<ServiceContext> {
-    let mut i = 0;
-    let mut interval = tokio::time::interval(Duration::from_secs(30));
-    loop {
-        interval.tick().await;
-        match ServiceContext::new(
-            setup_configuration.clone(),
-            dynamic.clone(),
-            query_catalog.clone(),
-            system_requests_pool.clone(),
-            authentication_pool.clone(),
-        )
-        .await
-        {
-            Ok(sc) => return Ok(sc),
-            Err(e) if i >= 10 => return Err(e),
-            Err(e) => log::debug!("Failed to initialize service context: {}", e),
-        }
-        i += 1;
-    }
+    authentication_pool: ConnectionPool,
+) -> ServiceContext {
+    ServiceContext::new(
+        setup_configuration.clone(),
+        Arc::clone(&dynamic),
+        query_catalog.clone(),
+        Arc::clone(&system_requests_pool),
+        authentication_pool,
+    )
 }
 
 #[cfg(debug_assertions)]
@@ -269,7 +257,7 @@ where
 }
 
 async fn get_response(
-    ctx: &mut ConnectionContext,
+    connection_context: &mut ConnectionContext,
     message: &RequestMessage,
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
@@ -290,25 +278,24 @@ async fn get_response(
         }
     }
 
-    if !ctx.auth_state.authorized || request.request_type().handle_with_auth() {
-        let response = auth::process(ctx, request).await?;
+    if !connection_context.auth_state.authorized || request.request_type().handle_with_auth() {
+        let response = auth::process(connection_context, request).await?;
         return Ok(response);
     }
 
     // Once authorized, make sure that there is a pool of pg clients for the user/password.
-    ctx.allocate_data_pool(
-        ctx.auth_state.username()?,
-        ctx.auth_state
-            .password
-            .as_ref()
-            .ok_or(DocumentDBError::internal_error(
-                "Password missing for connection pool.".to_string(),
-            ))?,
+    connection_context.allocate_data_pool().await?;
+
+    let service_context = Arc::clone(&connection_context.service_context);
+    let data_client = <DocumentDBDataClient as PgDataClient>::new_authorized(
+        &service_context,
+        &connection_context.auth_state,
     )
     .await?;
 
     // Process the actual request
-    let response = processor::process_request(request, request_info, ctx).await?;
+    let response =
+        processor::process_request(request, request_info, connection_context, data_client).await?;
 
     Ok(response)
 }
@@ -325,7 +312,7 @@ where
     let mut request_tracker = RequestTracker::new();
 
     let buffer_read_start = request_tracker.start_timer();
-    let message = protocol::reader::read_request(header, stream, connection_context).await?;
+    let message = protocol::reader::read_request(header, stream).await?;
 
     log::trace!(activity_id = header.activity_id.as_str(); "[{}] Request parsed.", header.request_id);
 
@@ -412,7 +399,7 @@ where
 }
 
 async fn handle_request<R>(
-    ctx: &mut ConnectionContext,
+    connection_context: &mut ConnectionContext,
     header: &Header,
     request: &Request<'_>,
     message: &RequestMessage,
@@ -426,20 +413,20 @@ where
     *collection = request_info.collection().unwrap_or("").to_string();
 
     // Process the response for the message
-    let response = get_response(ctx, message, request, request_info, header).await?;
+    let response = get_response(connection_context, message, request, request_info, header).await?;
 
     let format_response_start = request_info.request_tracker.start_timer();
 
     // Write the response back to the stream
-    if ctx.requires_response {
+    if connection_context.requires_response {
         responses::writer::write(header, &response, stream).await?;
         stream.flush().await?;
     }
 
-    if let Some(telemetry) = ctx.telemetry_provider.as_ref() {
+    if let Some(telemetry) = connection_context.telemetry_provider.as_ref() {
         telemetry
             .emit_request_event(
-                ctx,
+                connection_context,
                 header,
                 Some(request),
                 Left(&response),

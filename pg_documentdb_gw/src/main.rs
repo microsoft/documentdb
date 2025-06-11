@@ -85,28 +85,24 @@ async fn main() {
         populate_ssl_certificates().await.unwrap()
     };
 
-    let authentication_pool = Arc::new(
-        ConnectionPool::new_with_user(
-            &setup_configuration,
-            &query_catalog,
-            &postgres_system_user,
-            None,
-            format!("{}-PreAuthRequests", setup_configuration.application_name()),
-            AUTHENTICATION_MAX_CONNECTIONS,
-        )
-        .expect("Failed to create authentication pool"),
-    );
+    let authentication_pool = ConnectionPool::new_with_user(
+        &setup_configuration,
+        &query_catalog,
+        &postgres_system_user,
+        None,
+        format!("{}-PreAuthRequests", setup_configuration.application_name()),
+        AUTHENTICATION_MAX_CONNECTIONS,
+    )
+    .expect("Failed to create authentication pool");
     log::trace!("Authentication pool initialized");
 
     let service_context = get_service_context(
         Box::new(setup_configuration),
         dynamic_configuration,
         query_catalog,
-        system_requests_pool.clone(),
-        authentication_pool.clone(),
-    )
-    .await
-    .unwrap();
+        system_requests_pool,
+        authentication_pool,
+    );
 
     run_server(
         service_context,

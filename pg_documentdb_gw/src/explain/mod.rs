@@ -16,12 +16,11 @@ use log::{log_enabled, warn};
 use model::*;
 use once_cell::sync::Lazy;
 use serde_json::Value;
-use tokio_postgres::types::Type;
 
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, Result},
-    postgres::{PgDocument, Timeout},
+    postgres::PgDataClient,
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo, RequestType},
     responses::{RawResponse, Response},
@@ -110,11 +109,12 @@ fn write_output_stage(
 /// Processing explain is a bit complicated because the payload can come in two forms:
 /// A command with explain:true, or an explain command wrapping a sub command
 #[async_recursion]
-pub async fn process_explain(
+pub async fn process_explain<'a>(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     verbosity: Option<Verbosity>,
-    context: &ConnectionContext,
+    connection_context: &ConnectionContext,
+    pg_data_client: &impl PgDataClient<'a>,
 ) -> Result<Response> {
     if let Some(result) = request.document().into_iter().next() {
         let result = result?;
@@ -135,7 +135,8 @@ pub async fn process_explain(
                         &Request::Raw(RequestType::Explain, explain_doc, request.extra()),
                         request_info,
                         Some(verbosity),
-                        context,
+                        connection_context,
+                        pg_data_client,
                     )
                     .await
                 } else {
@@ -144,10 +145,50 @@ pub async fn process_explain(
                     ))
                 }
             }
-            "aggregate" => run_explain(request, request_info, "pipeline", verbosity, context).await,
-            "find" => run_explain(request, request_info, "find", verbosity, context).await,
-            "count" => run_explain(request, request_info, "count", verbosity, context).await,
-            "distinct" => run_explain(request, request_info, "distinct", verbosity, context).await,
+            "aggregate" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "pipeline",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "find" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "find",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "count" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "count",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "distinct" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "distinct",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
             _ => Err(DocumentDBError::bad_value(
                 "Unrecognized explain command.".to_string(),
             )),
@@ -188,59 +229,21 @@ async fn run_explain(
     query_base: &str,
     verbosity: Verbosity,
     connection_context: &ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response> {
-    let analyze = if !matches!(
-        verbosity,
-        Verbosity::QueryPlanner | Verbosity::AllShardsQueryPlan
-    ) {
-        "True"
-    } else {
-        "False"
-    };
-    let query = connection_context
-        .service_context
-        .query_catalog()
-        .explain(analyze, query_base);
+    let (explain_rows, query) = pg_data_client
+        .execute_explain(
+            request,
+            request_info,
+            query_base,
+            verbosity,
+            connection_context,
+        )
+        .await?;
 
     let dynamic_config = connection_context.dynamic_configuration();
-    let results = if matches!(
-        verbosity,
-        Verbosity::AllShardsQueryPlan | Verbosity::AllShardsExecution
-    ) {
-        let mut pg = connection_context
-            .pull_connection_without_transaction(false)
-            .await?;
-        let t = pg.get_inner().transaction().await?;
-        let explain_config_query = connection_context
-            .service_context
-            .query_catalog()
-            .set_explain_all_tasks_true();
-        if !explain_config_query.is_empty() {
-            t.batch_execute(explain_config_query).await?;
-        }
-        let stmt = t
-            .prepare_typed_cached(&query, &[Type::TEXT, Type::BYTEA])
-            .await?;
-        t.query(
-            &stmt,
-            &[&request_info.db()?, &PgDocument(request.document())],
-        )
-        .await?
-    } else {
-        connection_context
-            .pull_connection()
-            .await?
-            .query_db_bson(
-                &query,
-                &request_info.db()?.to_string(),
-                &PgDocument(request.document()),
-                Timeout::transaction(request_info.max_time_ms),
-                request_info,
-            )
-            .await?
-    };
 
-    match results.first() {
+    match explain_rows.first() {
         Some(row) => {
             let content: serde_json::Value = row.try_get(0)?;
 
