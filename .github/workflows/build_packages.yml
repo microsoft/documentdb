@@ -55,10 +55,48 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
-          path: packaging/*.deb
+          path: |
+            packaging/*.deb
+            packaging/documentdb-signing-key.asc
           retention-days: 7
           if-no-files-found: error
           compression-level: 0
+
+      - name: Sign DEB packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Install GPG and dpkg-sig for signing DEB packages
+          sudo apt-get update && sudo apt-get install -y gnupg2 dpkg-sig
+          
+          # Generate a temporary signing key for demo purposes
+          # In production, use proper key management with secure key storage
+          cat > /tmp/gpg-batch <<EOF
+          %echo Generating DocumentDB signing key
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: DocumentDB Package Signing
+          Name-Email: packages@documentdb.dev
+          Expire-Date: 1y
+          %no-ask-passphrase
+          %no-protection
+          %commit
+          %echo done
+          EOF
+          
+          gpg --batch --generate-key /tmp/gpg-batch
+          
+          # Sign all DEB packages
+          for deb in packaging/*.deb; do
+            if [[ -f "$deb" ]]; then
+              echo "Signing package: $deb"
+              dpkg-sig --sign builder "$deb"
+            fi
+          done
+          
+          # Export public key for verification
+          gpg --armor --export packages@documentdb.dev > packaging/documentdb-signing-key.asc
 
       - name: Login to GHCR
         uses: docker/login-action@v3
