@@ -142,7 +142,6 @@ static bool ProcessFuncExprForIndexPushdown(FuncExpr *function,
 											BsonElemMatchBoolFilterState *parent,
 											List **elemMatchContextEntries,
 											bytea *indexOptions);
-static bool PathHasArrayIndexElements(const StringView *path);
 static Datum * GinBsonExtractQueryElemMatchForExpression(BsonExtractQueryArgs *args);
 static Datum * GinBsonExtractQueryElemMatchForNestedFilters(List *nestedExpressions,
 															BsonExtractQueryArgs *args);
@@ -748,7 +747,7 @@ GetElemMatchQualConsistentResult(BsonElemMatchBoolFilterState *expression,
  * component is an array index (or deals with array index paths).
  * This is defined as any path that can be an integer type.
  */
-static bool
+bool
 PathHasArrayIndexElements(const StringView *path)
 {
 	StringView subPath = StringViewFindPrefix(path, '.');

@@ -130,6 +130,19 @@ SELECT documentdb_api.create_user('{"createUser":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbb
 
 SELECT current_user as original_user \gset
 
+-- Call usersInfo with showPrivileges set to true
+SELECT documentdb_api.users_info('{"usersInfo":1, "showPrivileges":true}');
+SELECT documentdb_api.users_info('{"usersInfo":"test_user", "showPrivileges":true}');
+SELECT documentdb_api.users_info('{"usersInfo":"test_user", "showPrivileges":false}');
+SELECT documentdb_api.users_info('{"usersInfo":"adminUser", "showPrivileges":true}');
+SELECT documentdb_api.users_info('{"usersInfo":"adminUser", "showPrivileges":false}');
+
+-- Test usersInfo command with enableUserInfoPrivileges set to false
+SET documentdb_api.enableUsersInfoPrivileges TO OFF;
+SELECT documentdb_api.users_info('{"usersInfo":1, "showPrivileges":true}');
+SELECT documentdb_api.users_info('{"usersInfo":"test_user", "showPrivileges":true}');
+SELECT documentdb_api.users_info('{"usersInfo":"adminUser", "showPrivileges":true}');
+
 -- switch to read only user
 \c regression readOnlyUser
 

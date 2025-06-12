@@ -68,6 +68,9 @@ bool ForceWildcardReducedTerm = DEFAULT_FORCE_WILDCARD_REDUCED_TERM;
 
 extern int32 PEC_InternalDocumentSourceDensifyMaxMemoryBytes;
 
+#define DEFAULT_FORCE_DISABLE_SEQ_SCAN false
+bool ForceDisableSeqScan = DEFAULT_FORCE_DISABLE_SEQ_SCAN;
+
 void
 InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -231,4 +234,11 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		PGC_USERSET,
 		GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE,
 		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceDisableSeqScan", newGucPrefix),
+		gettext_noop(
+			"Whether to force disable sequential type scans on the collection."),
+		NULL, &ForceDisableSeqScan, DEFAULT_FORCE_DISABLE_SEQ_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
 }

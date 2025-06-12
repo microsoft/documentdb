@@ -37,6 +37,7 @@
 #include "vector/vector_spec.h"
 #include "utils/version_utils.h"
 #include "query/bson_compare.h"
+#include "index_am/index_am_utils.h"
 
 typedef struct
 {
@@ -162,6 +163,8 @@ static bool EnableGeoNearForceIndexPushdown(PlannerInfo *root,
 											ReplaceExtensionFunctionContext *context);
 static bool DefaultTrueForceIndexPushdown(PlannerInfo *root,
 										  ReplaceExtensionFunctionContext *context);
+static Expr * ProcessElemMatchOperator(bytea *options, Datum queryValue, const
+									   MongoIndexOperatorInfo *operator, List *args);
 
 
 static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
@@ -197,6 +200,7 @@ static const int ForceIndexOperatorsCount = sizeof(ForceIndexOperatorSupport) /
 extern bool EnableVectorForceIndexPushdown;
 extern bool EnableGeonearForceIndexPushdown;
 extern bool EnableIndexOperatorBounds;
+extern bool UseNewElemMatchIndexPushdown;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -234,7 +238,16 @@ dollar_support(PG_FUNCTION_ARGS)
 			 * The operator is a perfect match for the function.
 			 */
 			req->lossy = false;
-			responseNodes = lappend(responseNodes, finalNode);
+
+			if (IsA(finalNode, BoolExpr))
+			{
+				BoolExpr *boolExpr = (BoolExpr *) finalNode;
+				responseNodes = boolExpr->args;
+			}
+			else
+			{
+				responseNodes = list_make1(finalNode);
+			}
 		}
 	}
 
@@ -707,9 +720,9 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		}
 
 		IndexPath *indexPath = (IndexPath *) path;
-		if (indexPath->indexinfo->relam != RumIndexAmId() ||
-			indexPath->indexinfo->nkeycolumns != 1 ||
-			indexPath->indexinfo->opfamily[0] != BsonRumCompositeIndexOperatorFamily())
+		if (indexPath->indexinfo->nkeycolumns != 1 ||
+			!IsOrderBySupportedOnOpClass(indexPath->indexinfo->relam,
+										 indexPath->indexinfo->opfamily[0]))
 		{
 			continue;
 		}
@@ -718,6 +731,16 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 				indexPath->indexinfo->opclassoptions[0],
 				secondConst->constvalue,
 				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY))
+		{
+			continue;
+		}
+
+		/* Order by pushdown is valid iff:
+		 * 1. The index is not a multi-key index
+		 * 2. The index is multi-key but the order-by term goes from MinKey to MaxKey
+		 *    (We can currently only support that for exists)
+		 */
+		if (!CompositeIndexSupportsOrderByPushdown(indexPath->indexinfo))
 		{
 			continue;
 		}
@@ -810,6 +833,19 @@ HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 			(Expr *) GetOpExprClauseFromIndexOperator(operator, args, options);
 		return finalExpression;
 	}
+
+	if (operator->indexStrategy == BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH &&
+		(IsCompositeOpFamilyOid(req->index->relam, operatorFamily) ||
+		 UseNewElemMatchIndexPushdown))
+	{
+		Expr *elemMatchExpr = ProcessElemMatchOperator(options, queryValue, operator,
+													   args);
+		if (elemMatchExpr != NULL)
+		{
+			return elemMatchExpr;
+		}
+	}
+
 	if (operator->indexStrategy != BSON_INDEX_STRATEGY_INVALID)
 	{
 		/* Check if the index is valid for the function */
@@ -1212,7 +1248,7 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 				}
 			}
 
-			if (indexPath->indexinfo->relam == RumIndexAmId())
+			if (IsBsonRegularIndexAm(indexPath->indexinfo->relam))
 			{
 				indexPath->indexclauses = OptimizeIndexExpressionsForRange(
 					indexPath->indexclauses);
@@ -1670,7 +1706,8 @@ UpdateIndexListForText(List *existingIndex, ReplaceExtensionFunctionContext *con
 	foreach(indexCell, existingIndex)
 	{
 		IndexOptInfo *index = lfirst_node(IndexOptInfo, indexCell);
-		if (index->relam == RumIndexAmId() && index->nkeycolumns > 0)
+		if (IsBsonRegularIndexAm(index->relam) &&
+			index->nkeycolumns > 0)
 		{
 			for (int i = 0; i < index->nkeycolumns; i++)
 			{
@@ -1869,7 +1906,7 @@ DefaultTrueForceIndexPushdown(PlannerInfo *root, ReplaceExtensionFunctionContext
 static bool
 MatchIndexPathForText(IndexPath *indexPath, void *matchContext)
 {
-	if (indexPath->indexinfo->relam == RumIndexAmId() &&
+	if (IsBsonRegularIndexAm(indexPath->indexinfo->relam) &&
 		indexPath->indexinfo->ncolumns > 0)
 	{
 		for (int ind = 0; ind < indexPath->indexinfo->ncolumns; ind++)
@@ -1928,4 +1965,107 @@ UpdateIndexListForVector(List *existingIndex,
 		}
 	}
 	return newIndexesListForVector;
+}
+
+
+static List *
+WalkExprAndAddSupportedElemMatchExprs(List *clauses, bytea *options)
+{
+	CHECK_FOR_INTERRUPTS();
+	check_stack_depth();
+
+	List *matchedArgs = NIL;
+	ListCell *elemMatchCell;
+	foreach(elemMatchCell, clauses)
+	{
+		Node *elemMatchExpr = (Node *) lfirst(elemMatchCell);
+
+		if (IsA(elemMatchCell, BoolExpr))
+		{
+			BoolExpr *boolExpr = (BoolExpr *) elemMatchExpr;
+			if (boolExpr->boolop != AND_EXPR)
+			{
+				/* We only support $elemMatch with AND expressions */
+				continue;
+			}
+
+			List *nestedExprs = WalkExprAndAddSupportedElemMatchExprs(
+				boolExpr->args, options);
+			matchedArgs = list_concat(matchedArgs, nestedExprs);
+			continue;
+		}
+
+		List *innerArgs;
+		const MongoIndexOperatorInfo *innerOperator = GetMongoIndexQueryOperatorFromNode(
+			elemMatchExpr,
+			&
+			innerArgs);
+		if (innerOperator == NULL ||
+			innerOperator->indexStrategy == BSON_INDEX_STRATEGY_INVALID)
+		{
+			/* This is not a valid operator for elemMatch */
+			continue;
+		}
+
+		if (innerOperator->indexStrategy == BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH)
+		{
+			/* We don't support negation strategies for nested elemMatch
+			 * TODO(Composite): Can we do this safely?
+			 */
+			continue;
+		}
+
+		Node *operand = lsecond(innerArgs);
+		Datum innerQueryValue = ((Const *) operand)->constvalue;
+
+		/* Check if the index is valid for the function */
+		if (!ValidateIndexForQualifierValue(options, innerQueryValue,
+											innerOperator->indexStrategy))
+		{
+			continue;
+		}
+
+		Expr *finalExpression =
+			(Expr *) GetOpExprClauseFromIndexOperator(innerOperator, innerArgs, options);
+		matchedArgs = lappend(matchedArgs, finalExpression);
+	}
+
+	return matchedArgs;
+}
+
+
+static Expr *
+ProcessElemMatchOperator(bytea *options, Datum queryValue, const
+						 MongoIndexOperatorInfo *operator, List *args)
+{
+	pgbson *queryBson = DatumGetPgBson(queryValue);
+	pgbsonelement argElement = { 0 };
+	PgbsonToSinglePgbsonElement(queryBson, &argElement);
+
+
+	BsonQueryOperatorContext context = { 0 };
+	BsonQueryOperatorContextCommonBuilder(&context);
+	context.documentExpr = linitial(args);
+
+	/* Convert the pgbson query into a query AST that processes bson */
+	Expr *expr = CreateQualForBsonExpression(&argElement.bsonValue,
+											 argElement.path, &context);
+
+	/* Get the underlying list of expressions that are AND-ed */
+	List *clauses = make_ands_implicit(expr);
+
+	List *matchedArgs = WalkExprAndAddSupportedElemMatchExprs(clauses, options);
+	if (matchedArgs == NIL)
+	{
+		return NULL;
+	}
+	else if (list_length(matchedArgs) == 1)
+	{
+		/* If there's only one argument for $elemMatch, return it */
+		return (Expr *) linitial(matchedArgs);
+	}
+	else
+	{
+		return make_ands_explicit(matchedArgs);
+	}
 }

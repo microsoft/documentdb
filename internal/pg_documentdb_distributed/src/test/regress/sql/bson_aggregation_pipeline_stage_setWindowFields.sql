@@ -4,7 +4,7 @@ SET citus.next_shard_id TO 455000;
 SET documentdb.next_collection_id TO 4550;
 SET documentdb.next_collection_index_id TO 4550;
 
-SELECT documentdb_api.drop_collection('db','setWindowFields');
+SELECT 1 from documentdb_api.drop_collection('db','setWindowFields');
 
 -- Add error and validation tests for setWindowFields stage
 
@@ -136,12 +136,12 @@ SELECT documentdb_api.insert_one('db','setWindowFields_sharded','{ "_id": 3, "a"
 SELECT documentdb_api.shard_collection('db', 'setWindowFields_sharded', '{"a": "hashed"}', false);
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
-    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$cost", "output": {"total": { "$sum": 1}}}}]}');
+    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$cost", "output": {"total": { "$sum": 1}}}}, {"$sort": { "a": 1, "_id": 1 }}]}');
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$cost", "output": {"total": { "$sum": 1}}}}]}'); -- different partitionby, not pushed to shards
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
-    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$a", "output": {"total": { "$sum": 1}}}}]}');
+    '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$a", "output": {"total": { "$sum": 1}}}}, { "$sort" : {"a" : 1, "_id" : 1}}]}');
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": { "partitionBy": "$a", "output": {"total": { "$sum": 1}}}}]}'); -- same partitioBy as shardkey, pushed to shards
 
@@ -612,12 +612,12 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 
 -- shard collection
 SELECT documentdb_api.shard_collection('db', 'window_col', '{ "type": "hashed" }', false);
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": { "documents": ["unbounded", -1]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"covariancePop": { "$covariancePop": ["$x", "$y"], "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"covarianceSamp": { "$covarianceSamp": ["$x", "$y"], "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort": { "type": 1, "_id": 1 }}]}');
 
 -----------------------------------------------------------
 -- $rank accumulator tests
@@ -1312,11 +1312,11 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 
 -- shard collection
 SELECT documentdb_api.shard_collection('db', 'window_stddev_col', '{ "type": "hashed" }', false);
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", -1]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}]}');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", -1]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": { "_id": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": "$type", "sortBy": {"_id": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": { "date": 1}, "output": {"stdDevPop": { "$stdDevPop": "$num", "window": { "documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "window_stddev_col", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$cond": [{ "$eq": [{ "$mod": ["$_id", 2] }, 0] }, "even", "odd"] }, "sortBy": {"date": 1}, "output": {"stdDevSamp": { "$stdDevSamp": "$num", "window": {"documents": ["unbounded", "current"]}}}}}, {"$sort" : {"type" : 1, "_id" : 1}}]}');
 
 
 -----------------------------------------------------------

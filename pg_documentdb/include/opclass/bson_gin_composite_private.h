@@ -19,6 +19,7 @@ typedef struct CompositeSingleBound
 	bool isBoundInclusive;
 
 	/* The processed bound (post truncation if any) */
+	bytea *serializedTerm;
 	bson_value_t processedBoundValue;
 	bool isProcessedValueTruncated;
 } CompositeSingleBound;
@@ -98,8 +99,7 @@ CreateCompositeIndexBoundsSet(int32_t numTerms, int32_t indexAttribute)
 }
 
 
-bool IsValidRecheckForIndexValue(const bson_value_t *compareValue,
-								 bool indexTermHasTruncation,
+bool IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 								 IndexRecheckArgs *recheckArgs);
 
 bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,

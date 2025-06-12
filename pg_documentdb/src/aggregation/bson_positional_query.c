@@ -143,6 +143,8 @@ MatchPositionalQueryAgainstDocument(const BsonPositionalQueryData *data, const
 		.VisitArrayField = PositionalQueryVisitArrayField,
 		.VisitTopLevelField = PositionalQueryVisitTopLevelField,
 		.SetIntermediateArrayIndex = PositionalSetIntermediateArrayIndex,
+		.HandleIntermediateArrayPathNotFound = NULL,
+		.SetIntermediateArrayStartEnd = NULL,
 	};
 
 	/* Walk the quals and find a match */

@@ -16,6 +16,27 @@
 
 
 /*
+ * SECTION: Top level feature flags
+ */
+#define DEFAULT_ENABLE_SCHEMA_VALIDATION false
+bool EnableSchemaValidation =
+	DEFAULT_ENABLE_SCHEMA_VALIDATION;
+
+#define DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION false
+bool EnableBypassDocumentValidation =
+	DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION;
+
+#define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
+bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
+
+#define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
+bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
+
+#define DEFAULT_ENABLE_USERS_INFO_PRIVILEGES true
+bool EnableUsersInfoPrivileges = DEFAULT_ENABLE_USERS_INFO_PRIVILEGES;
+
+
+/*
  * SECTION: Vector Search flags
  */
 
@@ -85,6 +106,9 @@ bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
 bool EnableSortbyIdPushDownToPrimaryKey =
 	DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY;
 
+#define DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN false
+bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
+
 
 /*
  * SECTION: Aggregation & Query feature flags
@@ -112,22 +136,20 @@ bool EnableFileBasedPersistedCursors = DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSO
 #define DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE INT_MAX
 int MaxAllowedCursorIntermediateFileSize = DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE;
 
+#define DEFAULT_ENABLE_COMPACT_COMMAND false
+bool EnableCompact = DEFAULT_ENABLE_COMPACT_COMMAND;
+
 #define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
 int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
 
-/*
- * SECTION: Top level feature flags
- */
-#define DEFAULT_ENABLE_SCHEMA_VALIDATION false
-bool EnableSchemaValidation =
-	DEFAULT_ENABLE_SCHEMA_VALIDATION;
+#define DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR true
+bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR;
 
-#define DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION false
-bool EnableBypassDocumentValidation =
-	DEFAULT_ENABLE_BYPASSDOCUMENTVALIDATION;
+#define DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR false
+bool UseLegacyOrderByBehavior = DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR;
 
-#define DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION false
-bool EnableNativeTableColocation = DEFAULT_ENABLE_NATIVE_TABLE_COLOCATION;
+#define DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR false
+bool UseLegacyNullEqualityBehavior = DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR;
 
 
 /*
@@ -172,9 +194,6 @@ bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
-#define DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS true
-bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTRAINTS;
-
 #define DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME false
 bool EnableDataTableWithoutCreationTime =
 	DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME;
@@ -186,6 +205,12 @@ bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY
 #define DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION false
 bool SkipCreateIndexesOnCreateCollection =
 	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
+
+#define DEFAULT_USE_NEW_SHARD_KEY_CALCULATION true
+bool UseNewShardKeyCalculation = DEFAULT_USE_NEW_SHARD_KEY_CALCULATION;
+
+#define DEFAULT_ENABLE_BUCKET_AUTO_STAGE true
+bool EnableBucketAutoStage = DEFAULT_ENABLE_BUCKET_AUTO_STAGE;
 
 /* FEATURE FLAGS END */
 
@@ -505,6 +530,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE,
 		1024, INT_MAX, PGC_USERSET, 0, NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(
+		psprintf("%s.enableCompact", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable compact command."),
+		NULL, &EnableCompact,
+		DEFAULT_ENABLE_COMPACT_COMMAND,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
 	DefineCustomIntVariable(
 		psprintf("%s.defaultCursorExpiryTimeLimitSeconds", newGucPrefix),
 		gettext_noop(
@@ -512,4 +545,60 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &DefaultCursorExpiryTimeLimitSeconds,
 		DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS,
 		1, 3600, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.expandDollarAllInQueryOperator", newGucPrefix),
+		gettext_noop(
+			"Whether or not to expand $all in query operator."),
+		NULL, &ExpandDollarAllInQueryOperator,
+		DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableUsersInfoPrivileges", newGucPrefix),
+		gettext_noop(
+			"Determines whether the usersInfo command returns privileges."),
+		NULL, &EnableUsersInfoPrivileges,
+		DEFAULT_ENABLE_USERS_INFO_PRIVILEGES,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useNewShardKeyCalculation", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use the new shard key calculation logic."),
+		NULL, &UseNewShardKeyCalculation,
+		DEFAULT_USE_NEW_SHARD_KEY_CALCULATION,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyOrderByBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use legacy order by behavior."),
+		NULL, &UseLegacyOrderByBehavior,
+		DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyNullEqualityBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use legacy null equality behavior."),
+		NULL, &UseLegacyNullEqualityBehavior,
+		DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useNewElemMatchIndexPushdown", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use the new elemMatch index pushdown logic."),
+		NULL, &UseNewElemMatchIndexPushdown,
+		DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableBucketAutoStage", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the $bucketAuto stage."),
+		NULL, &EnableBucketAutoStage,
+		DEFAULT_ENABLE_BUCKET_AUTO_STAGE,
+		PGC_USERSET, 0, NULL, NULL, NULL);
 }

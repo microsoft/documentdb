@@ -1,0 +1,273 @@
+SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
+SET citus.next_shard_id TO 661000;
+SET documentdb.next_collection_id TO 6610;
+SET documentdb.next_collection_index_id TO 6610;
+SET documentdb.enableNewCompositeIndexOpClass to on;
+set enable_seqscan TO on;
+set documentdb.forceUseIndexIfAvailable to on;
+set documentdb.forceDisableSeqScan to off;
+SELECT documentdb_api.drop_collection('comp_arrdb', 'composite_array_ops') IS NOT NULL;
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.create_collection('comp_arrdb', 'composite_array_ops') IS NOT NULL;
+NOTICE:  creating collection
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+\i sql/bson_query_operator_array_tests_core.sql
+-- some documents with mixed types
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 1, "a": 1 }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 2, "a": -500 }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 3, "a": { "$numberLong": "1000" } }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 4, "a": true }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 5, "a": "some string" }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 6, "a": { "b": 1 } }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 7, "a": { "$date": {"$numberLong": "123456"} } }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- now insert some documents with arrays with those terms
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 100, "a": [ 1, "some other string", true ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 101, "a": [ true, -500, { "b": 1 }, 4, 5, 6 ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 102, "a": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- now insert some documents with arrays of arrays of those terms
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 200, "a": [ 1, [ true, "some string" ] ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 201, "a": [ true, -500, { "b": 1 }, [ 1, "some other string", true ] ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 202, "a": [ [ true, -500, { "b": 1 }, 4, 5, 6 ] ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- insert empty arrays
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 300, "a": [ ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 301, "a": [ [], "stringValue" ] }');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$eq": [ 1, "some other string", true ] } } }');
+                                                                                 document                                                                                 
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gt": [ 1, "some other string", true ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(6 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gte": [ 1, "some other string", true ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(7 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gt": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+                                                                                           document                                                                                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+(4 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gte": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+(5 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$lt": [ false, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+                                                                                           document                                                                                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+ { "_id" : { "$numberInt" : "300" }, "a" : [  ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(6 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$lte": [ false, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+                                                                                           document                                                                                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "202" }, "a" : [ [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] ] }
+ { "_id" : { "$numberInt" : "300" }, "a" : [  ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(6 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$eq": [ ] } } }');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "300" }, "a" : [  ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$in": [ [ 1, "some other string", true ], [ 1, [ true, "some string" ] ] ]} } }');
+                                                                                 document                                                                                 
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+(3 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$in": [ [ 1, "some other string", true ], [ ] ]} } }');
+                                                                                 document                                                                                 
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+ { "_id" : { "$numberInt" : "300" }, "a" : [  ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(4 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 3 } } }');
+                                             document                                              
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 2 } } }');
+                                            document                                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+ { "_id" : { "$numberInt" : "301" }, "a" : [ [  ], "stringValue" ] }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 0 } } }');
+                     document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "300" }, "a" : [  ] }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ 1, true ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ 1 ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "100" }, "a" : [ { "$numberInt" : "1" }, "some other string", true ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+ { "_id" : { "$numberInt" : "200" }, "a" : [ { "$numberInt" : "1" }, [ true, "some string" ] ] }
+(4 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ { "$elemMatch": { "$gt": 0 } }, { "$elemMatch": { "b": 1 } } ] } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+(2 rows)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ { "$elemMatch": { "$gt": 4, "$lt": 6 } }, { "$elemMatch": { "b": 1 } } ] } } }');
+                                                                                         document                                                                                          
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$elemMatch": { "$gt": 4, "$lt": 6 } } } }');
+                                                                                         document                                                                                          
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+(1 row)
+
+SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$elemMatch": { "b": { "$gt": 0 } } } } }');
+                                                                                                    document                                                                                                    
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "101" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "4" }, { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }
+ { "_id" : { "$numberInt" : "102" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "1" }, { "$numberInt" : "10" }, { "$date" : { "$numberLong" : "123456" } } ] }
+ { "_id" : { "$numberInt" : "201" }, "a" : [ true, { "$numberInt" : "-500" }, { "b" : { "$numberInt" : "1" } }, [ { "$numberInt" : "1" }, "some other string", true ] ] }
+(3 rows)
+

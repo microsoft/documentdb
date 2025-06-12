@@ -52,6 +52,7 @@ static const char *IgnoredCommonSpecFields[] = {
 	"awaitData",
 	"batch_size",
 	"bypassDocumentValidation", /* insert command */
+	"bypassEmptyTsReplacement", /* insert, update, findAndModify and bulkWrite command */
 	"collation",
 	"collstats",
 	"comment", /* insert, createIndex, dropIndex command */

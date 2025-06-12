@@ -49,6 +49,7 @@
 #include "vector/vector_spec.h"
 #include "vector/vector_utilities.h"
 #include "api_hooks.h"
+#include "index_am/index_am_utils.h"
 
 /* --------------------------------------------------------- */
 /* Data-types */
@@ -74,6 +75,7 @@ typedef struct
 	/* The target expression to replace it with */
 	Expr *targetExpr;
 } ReplaceDocumentVarOnSortContext;
+
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -954,7 +956,7 @@ AddPathStringToHashset(List *indexIdList, HTAB *stringHashSet)
 	{
 		Relation indexRelation = RelationIdGetRelation(lfirst_oid(indexId));
 
-		if (indexRelation->rd_rel->relam == RumIndexAmId())
+		if (IsBsonRegularIndexAm(indexRelation->rd_rel->relam))
 		{
 			int numberOfKeyAttributes = IndexRelationGetNumberOfKeyAttributes(
 				indexRelation);
@@ -962,7 +964,7 @@ AddPathStringToHashset(List *indexIdList, HTAB *stringHashSet)
 			{
 				/* Check if the index is a single path index */
 				if (indexRelation->rd_opcoptions[i] != NULL &&
-					indexRelation->rd_opfamily[i] == BsonRumSinglePathOperatorFamily())
+					IsSinglePathOpFamilyOid(indexRelation->rd_opfamily[i]))
 				{
 					bytea *optBytea = indexRelation->rd_opcoptions[i];
 

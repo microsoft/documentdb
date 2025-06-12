@@ -35,6 +35,7 @@
 #include "customscan/bson_custom_scan_private.h"
 #include "api_hooks.h"
 #include "opclass/bson_index_support.h"
+#include "index_am/index_am_utils.h"
 
 #if (PG_VERSION_NUM >= 150000)
 
@@ -342,7 +343,7 @@ UpdatePathsToForceRumIndexScanToBitmapHeapScan(PlannerInfo *root, RelOptInfo *re
 		}
 
 		IndexPath *indexPath = (IndexPath *) inputPath;
-		if (indexPath->indexinfo->relam != RumIndexAmId())
+		if (!IsBsonRegularIndexAm(indexPath->indexinfo->relam))
 		{
 			continue;
 		}
@@ -449,7 +450,7 @@ UpdatePathsWithOptimizedExtensionCustomPlans(PlannerInfo *root, RelOptInfo *rel,
 					}
 
 					IndexPath *andPath = (IndexPath *) andQual;
-					if (andPath->indexinfo->relam != RumIndexAmId())
+					if (!IsBsonRegularIndexAm(andPath->indexinfo->relam))
 					{
 						isAllRumIndexScans = false;
 						break;

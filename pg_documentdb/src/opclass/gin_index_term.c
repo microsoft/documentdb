@@ -21,8 +21,29 @@
 #include "io/bsonvalue_utils.h"
 
 
-#define IndexTermTruncatedFlag 0x1
-#define IndexTermMetadataFlag 0x2
+/*
+ * While this looks like a flags enum, it started out that way
+ * but it's not. Intermediate values are allowed. However, at
+ * the point of conversion, the binaries using the first 2 bits were
+ * not upgraded, so the code uses 0x04 and 0x08 until the next release.
+ * Note that subsequent metadata values can use intermediate values.
+ * IndexTermPartialUndefinedValue uses 2 flags that were not used earlier
+ * and so is safe to use as a new value.
+ */
+typedef enum IndexTermMetadata
+{
+	IndexTermNoMetadata = 0x00,
+
+	IndexTermTruncated = 0x01,
+
+	IndexTermIsMetadata = 0x02,
+
+	IndexTermComposite = 0x04,
+
+	IndexTermUndefinedValue = 0x08,
+
+	IndexTermPartialUndefinedValue = 12,
+} IndexTermMetadata;
 
 extern bool EnableIndexTermTruncationOnNestedObjects;
 extern bool IndexTermUseUnsafeTransform;
@@ -37,8 +58,7 @@ static bool SerializeTermToWriter(pgbson_writer *writer, pgbsonelement *indexEle
 static BsonIndexTermSerialized SerializeBsonIndexTermCore(pgbsonelement *indexElement,
 														  const IndexTermCreateMetadata *
 														  createMetadata,
-														  bool forceTruncated,
-														  bool isMetadataTerm);
+														  IndexTermMetadata termMetadata);
 static bool TruncateDocumentTerm(int32_t dataSize, int32_t softLimit, int32_t hardLimit,
 								 bson_iter_t *documentIterator,
 								 pgbson_writer *documentWriter);
@@ -49,8 +69,9 @@ static bool TruncateArrayTerm(int32_t dataSize, int32_t indexTermSoftLimit, int3
 							  pgbson_array_writer *arrayWriter);
 static bytea * BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 										IndexTermCreateMetadata *createMetadata,
-										bool forceTruncated, bool isMetadataTerm,
+										IndexTermMetadata termMetadata,
 										BsonIndexTerm *indexTerm);
+static int32_t CompareCompositeIndexTerms(bytea *left, bytea *right);
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -71,18 +92,90 @@ gin_bson_compare(PG_FUNCTION_ARGS)
 	bytea *left = PG_GETARG_BYTEA_PP(0);
 	bytea *right = PG_GETARG_BYTEA_PP(1);
 
-	BsonIndexTerm leftTerm;
-	BsonIndexTerm rightTerm;
 
-	InitializeBsonIndexTerm(left, &leftTerm);
-	InitializeBsonIndexTerm(right, &rightTerm);
-	bool isComparisonValidIgnore = false;
-	int32_t compareTerm = CompareBsonIndexTerm(&leftTerm, &rightTerm,
-											   &isComparisonValidIgnore);
+	bool isLeftComposite = IsSerializedIndexTermComposite(left);
+	bool isRightComposite = IsSerializedIndexTermComposite(right);
+	int32_t compareTerm;
+	if (isLeftComposite && isRightComposite)
+	{
+		/* Both are composite terms: Compare as composite */
+		compareTerm = CompareCompositeIndexTerms(left, right);
+	}
+	else if (isLeftComposite || isRightComposite)
+	{
+		/* One of them is composite - composite is greater than non-composite */
+		compareTerm = isLeftComposite ? 1 : -1;
+	}
+	else
+	{
+		BsonIndexTerm leftTerm;
+		BsonIndexTerm rightTerm;
+		InitializeBsonIndexTerm(left, &leftTerm);
+		InitializeBsonIndexTerm(right, &rightTerm);
+		bool isComparisonValidIgnore = false;
+		compareTerm = CompareBsonIndexTerm(&leftTerm, &rightTerm,
+										   &isComparisonValidIgnore);
+	}
 
 	PG_FREE_IF_COPY(left, 0);
 	PG_FREE_IF_COPY(right, 1);
-	return compareTerm;
+	PG_RETURN_INT32(compareTerm);
+}
+
+
+static int32_t
+CompareCompositeIndexTerms(bytea *left, bytea *right)
+{
+	uint32_t leftIndexTermSize = VARSIZE_ANY_EXHDR(left);
+	const uint8_t *leftBuffer = (const uint8_t *) VARDATA_ANY(left);
+
+	uint32_t rightIndexTermSize = VARSIZE_ANY_EXHDR(right);
+	const uint8_t *rightBuffer = (const uint8_t *) VARDATA_ANY(right);
+
+	Assert(leftIndexTermSize > (sizeof(uint8_t) + 5));
+	Assert(rightIndexTermSize > (sizeof(uint8_t) + 5));
+
+	if ((leftBuffer[0] != IndexTermComposite) ||
+		(rightBuffer[0] != IndexTermComposite))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Cannot compare non-composite index terms as composite")));
+	}
+
+	/* Skip the first byte - gets the first terms metadata */
+	leftBuffer++;
+	rightBuffer++;
+	leftIndexTermSize--;
+	rightIndexTermSize--;
+
+	while (leftIndexTermSize > 0 && rightIndexTermSize > 0)
+	{
+		bytea *leftBytes = (bytea *) leftBuffer;
+		bytea *rightBytes = (bytea *) rightBuffer;
+		uint32_t leftSize = VARSIZE(leftBytes);
+		uint32_t rightSize = VARSIZE(rightBytes);
+
+		BsonIndexTerm leftTerm;
+		BsonIndexTerm rightTerm;
+		InitializeBsonIndexTerm(leftBytes, &leftTerm);
+		InitializeBsonIndexTerm(rightBytes, &rightTerm);
+		bool isComparisonValidIgnore = false;
+		int32_t compareTerm = CompareBsonIndexTerm(&leftTerm, &rightTerm,
+												   &isComparisonValidIgnore);
+		if (compareTerm != 0)
+		{
+			return compareTerm;
+		}
+
+		/* Move to the next term */
+		leftBuffer += leftSize;
+		rightBuffer += rightSize;
+		leftIndexTermSize -= leftSize;
+		rightIndexTermSize -= rightSize;
+	}
+
+	return leftIndexTermSize > rightIndexTermSize ? 1 :
+		   leftIndexTermSize < rightIndexTermSize ? -1 : 0;
 }
 
 
@@ -130,6 +223,23 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 		return cmp;
 	}
 
+	/*
+	 * Everything is equal by value - if one of them is undefined, compare at this point
+	 */
+	if (leftTerm->isValueUndefined ^ rightTerm->isValueUndefined)
+	{
+		/* If one of them is undefined, it is less than the other */
+		return (int32_t) rightTerm->isValueUndefined -
+			   (int32_t) leftTerm->isValueUndefined;
+	}
+
+	if (leftTerm->isValueMaybeUndefined ^ rightTerm->isValueMaybeUndefined)
+	{
+		/* If one of them is maybe undefined, it is less than the other */
+		return (int32_t) rightTerm->isValueMaybeUndefined -
+			   (int32_t) leftTerm->isValueMaybeUndefined;
+	}
+
 	/* Both terms are equal by value - compare for truncation */
 	if (leftTerm->isIndexTermTruncated ^ rightTerm->isIndexTermTruncated)
 	{
@@ -138,6 +248,20 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 	}
 
 	return 0;
+}
+
+
+bool
+IsSerializedIndexTermComposite(bytea *indexTermSerialized)
+{
+	const uint8_t *buffer = (const uint8_t *) VARDATA_ANY(indexTermSerialized);
+	uint32_t indexTermSize PG_USED_FOR_ASSERTS_ONLY = VARSIZE_ANY_EXHDR(
+		indexTermSerialized);
+
+	/* size must be bigger than metadata + bson overhead */
+	Assert(indexTermSize > (sizeof(uint8_t) + 5));
+
+	return (IndexTermMetadata) buffer[0] == IndexTermComposite;
 }
 
 
@@ -154,7 +278,7 @@ IsSerializedIndexTermTruncated(bytea *indexTermSerialized)
 	/* size must be bigger than metadata + bson overhead */
 	Assert(indexTermSize > (sizeof(uint8_t) + 5));
 
-	return (buffer[0] & IndexTermTruncatedFlag) != 0;
+	return (IndexTermMetadata) buffer[0] == IndexTermTruncated;
 }
 
 
@@ -171,8 +295,43 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	Assert(indexTermSize > (sizeof(uint8_t) + 5));
 
 	/* First we have the metadata */
-	indexTerm->isIndexTermTruncated = (buffer[0] & IndexTermTruncatedFlag) != 0;
-	indexTerm->isIndexTermMetadata = (buffer[0] & IndexTermMetadataFlag) != 0;
+	indexTerm->isIndexTermTruncated = false;
+	indexTerm->isIndexTermMetadata = false;
+	indexTerm->isValueUndefined = false;
+	indexTerm->isValueMaybeUndefined = false;
+	switch ((IndexTermMetadata) buffer[0])
+	{
+		case IndexTermTruncated:
+		{
+			indexTerm->isIndexTermTruncated = true;
+			break;
+		}
+
+		case IndexTermIsMetadata:
+		{
+			indexTerm->isIndexTermMetadata = true;
+			break;
+		}
+
+		case IndexTermUndefinedValue:
+		{
+			indexTerm->isValueUndefined = true;
+			break;
+		}
+
+		case IndexTermPartialUndefinedValue:
+		{
+			indexTerm->isValueMaybeUndefined = true;
+			break;
+		}
+
+		default:
+		case IndexTermComposite:
+		case IndexTermNoMetadata:
+		{
+			break;
+		}
+	}
 
 	/* Next is the bson data serialized */
 	bson_value_t value;
@@ -188,6 +347,56 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	{
 		BsonValueToPgbsonElement(&value, &indexTerm->element);
 	}
+}
+
+
+int32_t
+InitializeCompositeIndexTerm(bytea *indexTermSerialized, BsonIndexTerm
+							 indexTerm[INDEX_MAX_KEYS])
+{
+	if (!IsSerializedIndexTermComposite(indexTermSerialized))
+	{
+		InitializeBsonIndexTerm(indexTermSerialized, &indexTerm[0]);
+		return 1;
+	}
+
+	uint32_t termSize = VARSIZE_ANY_EXHDR(indexTermSerialized);
+	const uint8_t *buffer = (const uint8_t *) VARDATA_ANY(indexTermSerialized);
+
+	Assert(termSize > (sizeof(uint8_t) + 5));
+
+	if (buffer[0] != IndexTermComposite)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Cannot compare non-composite index terms as composite")));
+	}
+
+	/* Skip the first byte - gets the first terms metadata */
+	buffer++;
+	termSize--;
+
+	int index = 0;
+	while (termSize > 0)
+	{
+		if (index >= INDEX_MAX_KEYS)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg("Index term exceeds maximum number of keys %d",
+								   INDEX_MAX_KEYS)));
+		}
+
+		bytea *bytes = (bytea *) buffer;
+		uint32_t leftSize = VARSIZE(bytes);
+
+		InitializeBsonIndexTerm(bytes, &indexTerm[index]);
+
+		/* Move to the next term */
+		index++;
+		buffer += leftSize;
+		termSize -= leftSize;
+	}
+
+	return index;
 }
 
 
@@ -882,15 +1091,13 @@ SerializeTermToWriter(pgbson_writer *writer, pgbsonelement *indexElement,
 static BsonIndexTermSerialized
 SerializeBsonIndexTermCore(pgbsonelement *indexElement,
 						   const IndexTermCreateMetadata *createMetadata,
-						   bool forceTruncated,
-						   bool isMetadataTerm)
+						   IndexTermMetadata termMetadata)
 {
 	BsonIndexTermSerialized serializedTerm = { 0 };
 	BsonIndexTerm indexTerm = { 0 };
 
 	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
-												   forceTruncated,
-												   isMetadataTerm, &indexTerm);
+												   termMetadata, &indexTerm);
 
 	serializedTerm.indexTermVal = indexTermVal;
 	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
@@ -912,10 +1119,8 @@ SerializeBsonIndexTerm(pgbsonelement *indexElement, const
 {
 	Assert(indexTermSizeLimit != NULL);
 
-	bool forceTruncated = false;
-	bool isMetadataTerm = false;
-	return SerializeBsonIndexTermCore(indexElement, indexTermSizeLimit, forceTruncated,
-									  isMetadataTerm);
+	IndexTermMetadata termMetadata = IndexTermNoMetadata;
+	return SerializeBsonIndexTermCore(indexElement, indexTermSizeLimit, termMetadata);
 }
 
 
@@ -943,15 +1148,12 @@ SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
 {
 	Assert(createMetadata != NULL);
 
-	bool forceTruncated = false;
-	bool isMetadataTerm = false;
-
+	IndexTermMetadata termMetadata = IndexTermNoMetadata;
 	BsonIndexTerm indexTerm = { 0 };
 	BsonCompressableIndexTermSerialized serializedTerm = { 0 };
 
 	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, createMetadata,
-												   forceTruncated,
-												   isMetadataTerm, &indexTerm);
+												   termMetadata, &indexTerm);
 	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTermVal);
 
 	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
@@ -961,42 +1163,71 @@ SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
 
 
 BsonIndexTermSerialized
-SerializeCompositeBsonIndexTerm(pgbsonelement *indexElement,
-								const IndexTermCreateMetadata *indexMetadata, bool
-								hasTruncatedTerms)
+SerializeCompositeBsonIndexTerm(bytea **individualTerms, int32_t numTerms)
 {
 	BsonIndexTermSerialized serializedTerm = { 0 };
-	BsonIndexTerm indexTerm = { 0 };
 
-	bool forceTruncated = hasTruncatedTerms;
-	bool isMetadataTerm = false;
-	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, indexMetadata,
-												   forceTruncated,
-												   isMetadataTerm, &indexTerm);
+	if (numTerms == 1)
+	{
+		/* Special case, it's just 1 term - treat it as a non-composite term */
+		serializedTerm.indexTermVal = individualTerms[0];
+		serializedTerm.isIndexTermTruncated = false;
+		serializedTerm.isRootMetadataTerm = false;
+		return serializedTerm;
+	}
 
-	serializedTerm.indexTermVal = indexTermVal;
-	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
-	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
+	/* First byte is the metadata byte */
+	uint32_t totalSize = VARHDRSZ + 1;
+
+	for (int i = 0; i < numTerms; i++)
+	{
+		/* Take the content size of each (including varhdr size) */
+		totalSize += VARSIZE(individualTerms[i]);
+	}
+
+	/* now the composite term will be a bytea with the concat of the values */
+	bytea *compositeTerm = palloc(totalSize);
+	SET_VARSIZE(compositeTerm, totalSize);
+	char *dataBuffer = VARDATA(compositeTerm);
+
+	dataBuffer[0] = IndexTermComposite;
+	dataBuffer++;
+	for (int i = 0; i < numTerms; i++)
+	{
+		/* Take the content size of each (excluding varhdr size) */
+		uint32_t dataSize = VARSIZE(individualTerms[i]);
+		memcpy(dataBuffer, individualTerms[i], dataSize);
+		dataBuffer += dataSize;
+	}
+
+	serializedTerm.indexTermVal = compositeTerm;
+	serializedTerm.isIndexTermTruncated = false;
+	serializedTerm.isRootMetadataTerm = false;
 	return serializedTerm;
 }
 
 
 BsonCompressableIndexTermSerialized
-SerializeCompositeBsonIndexTermWithCompression(pgbsonelement *indexElement,
-											   const IndexTermCreateMetadata *
-											   indexMetadata, bool hasTruncatedTerms)
+SerializeCompositeBsonIndexTermWithCompression(bytea **individualTerms,
+											   int32_t numTerms)
 {
 	BsonCompressableIndexTermSerialized serializedTerm = { 0 };
-	BsonIndexTerm indexTerm = { 0 };
 
-	bool forceTruncated = hasTruncatedTerms;
-	bool isMetadataTerm = false;
-	bytea *indexTermVal = BuildSerializedIndexTerm(indexElement, indexMetadata,
-												   forceTruncated,
-												   isMetadataTerm, &indexTerm);
-	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTermVal);
+	if (numTerms == 1)
+	{
+		/* Special case, it's just 1 term - treat it as a non-composite term */
+		serializedTerm.indexTermDatum = CompressTermIfNeeded(individualTerms[0]);
+		serializedTerm.isIndexTermTruncated = false;
+		serializedTerm.isRootMetadataTerm = false;
+		return serializedTerm;
+	}
+
+
+	BsonIndexTermSerialized indexTerm =
+		SerializeCompositeBsonIndexTerm(individualTerms, numTerms);
+	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTerm.indexTermVal);
 	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
-	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
+	serializedTerm.isRootMetadataTerm = indexTerm.isRootMetadataTerm;
 	return serializedTerm;
 }
 
@@ -1015,13 +1246,38 @@ GenerateRootTerm(const IndexTermCreateMetadata *termData)
 	element.pathLength = 0;
 	element.bsonValue.value_type = BSON_TYPE_MINKEY;
 
-
-	bool forceTruncated = false;
-
 	/* Can't mark this as metadata due to back-compat. This is okay coz this is legacy. */
-	bool isMetadataTerm = false;
-	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData, forceTruncated,
-													  isMetadataTerm).indexTermVal);
+	IndexTermMetadata termMetadata = IndexTermNoMetadata;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
+}
+
+
+Datum
+GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData)
+{
+	pgbsonelement element = { 0 };
+	element.path = termData->pathPrefix.string;
+	element.pathLength = termData->pathPrefix.length;
+	element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
+
+	IndexTermMetadata termMetadata = IndexTermUndefinedValue;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
+}
+
+
+Datum
+GenerateValueMaybeUndefinedTerm(const IndexTermCreateMetadata *termData)
+{
+	pgbsonelement element = { 0 };
+	element.path = termData->pathPrefix.string;
+	element.pathLength = termData->pathPrefix.length;
+	element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
+
+	IndexTermMetadata termMetadata = IndexTermPartialUndefinedValue;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
 }
 
 
@@ -1039,10 +1295,9 @@ GenerateRootExistsTerm(const IndexTermCreateMetadata *termData)
 	element.pathLength = 0;
 	element.bsonValue.value_type = BSON_TYPE_BOOL;
 	element.bsonValue.value.v_bool = true;
-	bool forceTruncated = false;
-	bool isMetadataTerm = true;
-	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData, forceTruncated,
-													  isMetadataTerm).indexTermVal);
+	IndexTermMetadata termMetadata = IndexTermIsMetadata;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
 }
 
 
@@ -1058,10 +1313,9 @@ GenerateRootNonExistsTerm(const IndexTermCreateMetadata *termData)
 	element.path = "";
 	element.pathLength = 0;
 	element.bsonValue.value_type = BSON_TYPE_UNDEFINED;
-	bool forceTruncated = false;
-	bool isMetadataTerm = true;
-	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData, forceTruncated,
-													  isMetadataTerm).indexTermVal);
+	IndexTermMetadata termMetadata = IndexTermIsMetadata;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
 }
 
 
@@ -1084,10 +1338,9 @@ GenerateRootMultiKeyTerm(const IndexTermCreateMetadata *termData)
 
 	pgbsonelement element = { 0 };
 	BsonIterToSinglePgbsonElement(&iter, &element);
-	bool forceTruncated = false;
-	bool isMetadataTerm = true;
-	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData, forceTruncated,
-													  isMetadataTerm).indexTermVal);
+	IndexTermMetadata termMetadata = IndexTermIsMetadata;
+	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
+													  termMetadata).indexTermVal);
 }
 
 
@@ -1106,34 +1359,38 @@ GenerateRootTruncatedTerm(const IndexTermCreateMetadata *termData)
 
 	/* Use maxKey just so they're differentiated from the Root term */
 	element.bsonValue.value_type = BSON_TYPE_MAXKEY;
-	bool forceTruncated = true;
 
 	/* Can't mark this as metadata due to back-compat. Need to think of how to
 	 * handle this. TODO: When we bump index versions make this a metadata term.
 	 * Note that this isn't bad since we can never get a MAXKEY that is truncated.
 	 */
-	bool isMetadataTerm = termData->indexVersion >= IndexOptionsVersion_V1;
+	uint8_t truncatedMetadata = IndexTermTruncated;
 	return PointerGetDatum(SerializeBsonIndexTermCore(&element, termData,
-													  forceTruncated,
-													  isMetadataTerm).indexTermVal);
+													  truncatedMetadata).indexTermVal);
 }
 
 
 static bytea *
 BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 						 IndexTermCreateMetadata *createMetadata,
-						 bool forceTruncated, bool isMetadataTerm,
+						 IndexTermMetadata termMetadata,
 						 BsonIndexTerm *indexTerm)
 {
 	pgbson_writer writer;
 	PgbsonWriterInit(&writer);
-	indexTerm->isIndexTermTruncated = SerializeTermToWriter(&writer, indexElement,
-															createMetadata);
-	if (forceTruncated)
+	bool isTermTruncated = SerializeTermToWriter(&writer, indexElement,
+												 createMetadata);
+	if (isTermTruncated && (termMetadata == IndexTermNoMetadata))
+	{
+		/* If the term is truncated, we need to mark it as such */
+		termMetadata = IndexTermTruncated;
+	}
+
+	if (termMetadata == IndexTermTruncated)
 	{
 		indexTerm->isIndexTermTruncated = true;
 	}
-	if (isMetadataTerm)
+	else if (termMetadata == IndexTermIsMetadata)
 	{
 		indexTerm->isIndexTermMetadata = true;
 	}
@@ -1161,17 +1418,7 @@ BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 	SET_VARSIZE(indexTermVal, indexTermSize);
 
 	uint8_t *buffer = (uint8_t *) VARDATA(indexTermVal);
-	buffer[0] = 0;
-	if (indexTerm->isIndexTermTruncated)
-	{
-		buffer[0] = buffer[0] | IndexTermTruncatedFlag;
-	}
-
-	if (indexTerm->isIndexTermMetadata)
-	{
-		buffer[0] = buffer[0] | IndexTermMetadataFlag;
-	}
-
+	buffer[0] = termMetadata;
 	PgbsonWriterCopyToBuffer(&writer, &buffer[1], dataSize);
 	return indexTermVal;
 }

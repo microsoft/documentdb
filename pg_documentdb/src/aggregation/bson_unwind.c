@@ -176,6 +176,8 @@ bson_distinct_unwind(PG_FUNCTION_ARGS)
 		.VisitArrayField = DistinctVisitArrayField,
 		.VisitTopLevelField = DistinctVisitTopLevelField,
 		.SetIntermediateArrayIndex = NULL,
+		.HandleIntermediateArrayPathNotFound = NULL,
+		.SetIntermediateArrayStartEnd = NULL,
 	};
 
 	DistinctTraverseState traverseState =

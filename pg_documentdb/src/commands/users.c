@@ -22,9 +22,39 @@
 #include "api_hooks_def.h"
 #include "users.h"
 #include "api_hooks.h"
+#include "utils/hashset_utils.h"
 #include "miscadmin.h"
+#include "utils/list_utils.h"
+#include "utils/string_view.h"
 
 #define SCRAM_MAX_SALT_LEN 64
+
+/* --------------------------------------------------------- */
+/* Type definitions */
+/* --------------------------------------------------------- */
+
+/*
+ * UserPrivilege stores a single user privilege and its actions.
+ */
+typedef struct
+{
+	const char *db;
+	const char *collection;
+	bool isCluster;
+	size_t numActions;
+	const StringView *actions;
+} UserPrivilege;
+
+/*
+ * ConsolidateUserPrivilege consolidates the actions of a user privilege.
+ */
+typedef struct
+{
+	const char *db;
+	const char *collection;
+	bool isCluster;
+	HTAB *actions;
+} ConsolidatedUserPrivilege;
 
 /* GUC to enable user crud operations */
 extern bool EnableUserCrud;
@@ -41,19 +71,148 @@ extern char *BlockedRolePrefixList;
 /* GUC that controls whether we use username/password validation*/
 extern bool EnableUsernamePasswordConstraints;
 
+/* GUC that controls whether the usersInfo command returns privileges*/
+extern bool EnableUsersInfoPrivileges;
+
 PG_FUNCTION_INFO_V1(documentdb_extension_create_user);
 PG_FUNCTION_INFO_V1(documentdb_extension_drop_user);
 PG_FUNCTION_INFO_V1(documentdb_extension_update_user);
 PG_FUNCTION_INFO_V1(documentdb_extension_get_users);
 
-static CreateUserSpec * ParseCreateUserSpec(pgbson *createUserSpec);
+static void ParseCreateUserSpec(pgbson *createUserSpec, CreateUserSpec *spec);
 static char * ParseDropUserSpec(pgbson *dropSpec);
-static UpdateUserSpec * ParseUpdateUserSpec(pgbson *updateSpec);
+static void ParseUpdateUserSpec(pgbson *updateSpec, UpdateUserSpec *spec);
 static Datum UpdateNativeUser(UpdateUserSpec *spec);
-static char * ParseGetUserSpec(pgbson *getSpec);
+static void ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec);
+static void ParseUsersInfoDocument(const bson_value_t *usersInfoBson, GetUserSpec *spec);
 static char * PrehashPassword(const char *password);
 static bool IsCallingUserExternal(void);
 static bool IsPasswordInvalid(const char *username, const char *password);
+static void WriteSinglePrivilegeDocument(const ConsolidatedUserPrivilege *privilege,
+										 pgbson_array_writer *privilegesArrayWriter);
+
+static void ConsolidatePrivileges(List **consolidatedPrivileges,
+								  const UserPrivilege *sourcePrivileges,
+								  size_t sourcePrivilegeCount);
+static void ConsolidatePrivilege(List **consolidatedPrivileges,
+								 const UserPrivilege *sourcePrivilege);
+static bool ComparePrivileges(const ConsolidatedUserPrivilege *privilege1,
+							  const UserPrivilege *privilege2);
+static void DeepFreePrivileges(List *consolidatedPrivileges);
+static void WriteRolePrivileges(const char *roleName,
+								pgbson_array_writer *privilegesArrayWriter);
+static void WritePrivilegeListToArray(List *consolidatedPrivileges,
+									  pgbson_array_writer *privilegesArrayWriter);
+
+
+/*
+ * Static definitions for user privileges and roles
+ * These are used to define the privileges associated with each role
+ */
+static const UserPrivilege readOnlyPrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 7,
+		.actions = (const StringView[]) {
+			{ .string = "changeStream", .length = 12 },
+			{ .string = "collStats", .length = 9 },
+			{ .string = "dbStats", .length = 7 },
+			{ .string = "find", .length = 4 },
+			{ .string = "killCursors", .length = 11 },
+			{ .string = "listCollections", .length = 15 },
+			{ .string = "listIndexes", .length = 11 }
+		}
+	},
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = true,
+		.numActions = 1,
+		.actions = (const StringView[]) {
+			{ .string = "listDatabases", .length = 13 }
+		}
+	}
+};
+
+static const UserPrivilege readWritePrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 14,
+		.actions = (const StringView[]) {
+			{ .string = "changeStream", .length = 12 },
+			{ .string = "collStats", .length = 9 },
+			{ .string = "createCollection", .length = 16 },
+			{ .string = "createIndex", .length = 11 },
+			{ .string = "dbStats", .length = 7 },
+			{ .string = "dropCollection", .length = 14 },
+			{ .string = "dropIndex", .length = 9 },
+			{ .string = "find", .length = 4 },
+			{ .string = "insert", .length = 6 },
+			{ .string = "killCursors", .length = 11 },
+			{ .string = "listCollections", .length = 15 },
+			{ .string = "listIndexes", .length = 11 },
+			{ .string = "remove", .length = 6 },
+			{ .string = "update", .length = 6 }
+		}
+	},
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = true,
+		.numActions = 1,
+		.actions = (const StringView[]) {
+			{ .string = "listDatabases", .length = 13 }
+		}
+	}
+};
+
+static const UserPrivilege clusterAdminPrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 12,
+		.actions = (const StringView[]) {
+			{ .string = "analyzeShardKey", .length = 15 },
+			{ .string = "collStats", .length = 9 },
+			{ .string = "dbStats", .length = 7 },
+			{ .string = "dropDatabase", .length = 12 },
+			{ .string = "enableSharding", .length = 14 },
+			{ .string = "getDatabaseVersion", .length = 18 },
+			{ .string = "getShardVersion", .length = 15 },
+			{ .string = "indexStats", .length = 10 },
+			{ .string = "killCursors", .length = 11 },
+			{ .string = "refineCollectionShardKey", .length = 24 },
+			{ .string = "reshardCollection", .length = 17 },
+			{ .string = "splitVector", .length = 11 }
+		}
+	},
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = true,
+		.numActions = 12,
+		.actions = (const StringView[]) {
+			{ .string = "connPoolStats", .length = 13 },
+			{ .string = "dropConnections", .length = 15 },
+			{ .string = "getClusterParameter", .length = 19 },
+			{ .string = "hostInfo", .length = 8 },
+			{ .string = "killAnyCursor", .length = 13 },
+			{ .string = "killAnySession", .length = 14 },
+			{ .string = "killop", .length = 6 },
+			{ .string = "listDatabases", .length = 13 },
+			{ .string = "listSessions", .length = 12 },
+			{ .string = "serverStatus", .length = 12 },
+			{ .string = "setChangeStreamState", .length = 20 },
+			{ .string = "getChangeStreamState", .length = 20 }
+		}
+	}
+};
+
 
 /*
  * documentdb_extension_create_user implements the
@@ -135,13 +294,14 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	}
 
 	pgbson *createUserBson = PG_GETARG_PGBSON(0);
-	CreateUserSpec *createUserSpec = ParseCreateUserSpec(createUserBson);
+	CreateUserSpec createUserSpec = { 0 };
+	ParseCreateUserSpec(createUserBson, &createUserSpec);
 
-	if (createUserSpec->has_identity_provider)
+	if (createUserSpec.has_identity_provider)
 	{
-		if (!CreateUserWithExternalIdentityProvider(createUserSpec->createUser,
-													createUserSpec->pgRole,
-													createUserSpec->identityProviderData))
+		if (!CreateUserWithExternalIdentityProvider(createUserSpec.createUser,
+													createUserSpec.pgRole,
+													createUserSpec.identityProviderData))
 		{
 			pgbson_writer finalWriter;
 			PgbsonWriterInit(&finalWriter);
@@ -169,8 +329,8 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 		StringInfo createUserInfo = makeStringInfo();
 		appendStringInfo(createUserInfo,
 						 "CREATE ROLE %s WITH LOGIN PASSWORD '%s';",
-						 quote_identifier(createUserSpec->createUser),
-						 PrehashPassword(createUserSpec->pwd));
+						 quote_identifier(createUserSpec.createUser),
+						 PrehashPassword(createUserSpec.pwd));
 
 		readOnly = false;
 		isNull = false;
@@ -181,12 +341,12 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	/* Grant pgRole to user created */
 	readOnly = false;
 	const char *queryGrant = psprintf("GRANT %s TO %s",
-									  quote_identifier(createUserSpec->pgRole),
-									  quote_identifier(createUserSpec->createUser));
+									  quote_identifier(createUserSpec.pgRole),
+									  quote_identifier(createUserSpec.createUser));
 
 	ExtensionExecuteQueryViaSPI(queryGrant, readOnly, SPI_OK_UTILITY, &isNull);
 
-	if (strcmp(createUserSpec->pgRole, ApiReadOnlyRole) == 0)
+	if (strcmp(createUserSpec.pgRole, ApiReadOnlyRole) == 0)
 	{
 		/* This is needed to grant ApiReadOnlyRole */
 		/* read access to all new and existing collections */
@@ -194,7 +354,7 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 		resetStringInfo(grantReadOnlyPermissions);
 		appendStringInfo(grantReadOnlyPermissions,
 						 "GRANT pg_read_all_data TO %s",
-						 quote_identifier(createUserSpec->createUser));
+						 quote_identifier(createUserSpec.createUser));
 		readOnly = false;
 		isNull = false;
 		ExtensionExecuteQueryViaSPI(grantReadOnlyPermissions->data, readOnly,
@@ -213,13 +373,11 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
  * ParseCreateUserSpec parses the wire
  * protocol message createUser() which creates a mongo user
  */
-static CreateUserSpec *
-ParseCreateUserSpec(pgbson *createSpec)
+static void
+ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 {
 	bson_iter_t createIter;
 	PgbsonInitIterator(createSpec, &createIter);
-
-	CreateUserSpec *spec = palloc0(sizeof(CreateUserSpec));
 
 	bool has_user = false;
 	bool has_pwd = false;
@@ -346,8 +504,6 @@ ParseCreateUserSpec(pgbson *createSpec)
 							errmsg("Invalid password, use a different password.")));
 		}
 	}
-
-	return spec;
 }
 
 
@@ -656,9 +812,10 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 	}
 
 	pgbson *updateUserSpec = PG_GETARG_PGBSON(0);
-	UpdateUserSpec *spec = ParseUpdateUserSpec(updateUserSpec);
+	UpdateUserSpec spec = { 0 };
+	ParseUpdateUserSpec(updateUserSpec, &spec);
 
-	if (IsUserExternal(spec->updateUser))
+	if (IsUserExternal(spec.updateUser))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg(
@@ -666,7 +823,7 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		return UpdateNativeUser(spec);
+		return UpdateNativeUser(&spec);
 	}
 }
 
@@ -675,13 +832,11 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
  * ParseUpdateUserSpec parses the wire
  * protocol message updateUser() which drops a mongo user
  */
-static UpdateUserSpec *
-ParseUpdateUserSpec(pgbson *updateSpec)
+static void
+ParseUpdateUserSpec(pgbson *updateSpec, UpdateUserSpec *spec)
 {
 	bson_iter_t updateIter;
 	PgbsonInitIterator(updateSpec, &updateIter);
-
-	UpdateUserSpec *spec = palloc0(sizeof(UpdateUserSpec));
 
 	bool has_user = false;
 
@@ -724,13 +879,11 @@ ParseUpdateUserSpec(pgbson *updateSpec)
 		}
 	}
 
-	if (has_user)
+	if (!has_user)
 	{
-		return spec;
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("'updateUser' is a required field.")));
 	}
-
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("'updateUser' is a required field.")));
 }
 
 
@@ -800,7 +953,10 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 						errmsg("'usersInfo' or 'forAllDBs' must be provided.")));
 	}
 
-	char *userName = ParseGetUserSpec(PG_GETARG_PGBSON(0));
+	GetUserSpec userSpec = { 0 };
+	ParseGetUserSpec(PG_GETARG_PGBSON(0), &userSpec);
+	const char *userName = userSpec.user.length > 0 ? userSpec.user.string : NULL;
+	const bool showPrivileges = userSpec.showPrivileges;
 	const char *cmdStr = NULL;
 	Datum userInfoDatum;
 
@@ -809,7 +965,7 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 		cmdStr = FormatSqlQuery(
 			"WITH r AS (SELECT child.rolname::text AS child_role, parent.rolname::text AS parent_role FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN " \
 			"pg_roles child ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') AND child.rolname NOT IN " \
-			"('%s', '%s')) SELECT ARRAY_AGG(%s.row_get_bson(r)) FROM r;",
+			"('%s', '%s')) SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY child_role) FROM r;",
 			ApiAdminRoleV2, ApiReadOnlyRole, ApiAdminRoleV2, ApiReadOnlyRole,
 			CoreSchemaName);
 		bool readOnly = true;
@@ -849,30 +1005,30 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 		PG_RETURN_POINTER(result);
 	}
 
-	ArrayType *val_array = DatumGetArrayTypeP(userInfoDatum);
-	Datum *val_datums;
-	bool *val_is_null_marker;
-	int val_count;
+	ArrayType *userArray = DatumGetArrayTypeP(userInfoDatum);
+	Datum *userDatums;
+	bool *userIsNullMarker;
+	int userCount;
 
 	bool arrayByVal = false;
 	int elementLength = -1;
-	Oid arrayElementType = ARR_ELEMTYPE(val_array);
-	deconstruct_array(val_array,
+	Oid arrayElementType = ARR_ELEMTYPE(userArray);
+	deconstruct_array(userArray,
 					  arrayElementType, elementLength, arrayByVal,
-					  TYPALIGN_INT, &val_datums, &val_is_null_marker,
-					  &val_count);
+					  TYPALIGN_INT, &userDatums, &userIsNullMarker,
+					  &userCount);
 
-	if (val_count > 0)
+	if (userCount > 0)
 	{
 		pgbson_array_writer userArrayWriter;
 		PgbsonWriterStartArray(&finalWriter, "users", strlen("users"), &userArrayWriter);
-		for (int i = 0; i < val_count; i++)
+		for (int i = 0; i < userCount; i++)
 		{
 			pgbson_writer userWriter;
 			PgbsonWriterInit(&userWriter);
 
 			/* Convert Datum to a bson_t object */
-			pgbson *bson_doc = (pgbson *) DatumGetPointer(val_datums[i]);
+			pgbson *bson_doc = (pgbson *) DatumGetPointer(userDatums[i]);
 			bson_iter_t getIter;
 			PgbsonInitIterator(bson_doc, &getIter);
 
@@ -937,6 +1093,18 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 														   &roleWriter));
 						PgbsonWriterEndArray(&userWriter, &roleArrayWriter);
 					}
+
+					if (EnableUsersInfoPrivileges && showPrivileges)
+					{
+						pgbson_array_writer privilegesArrayWriter;
+						PgbsonWriterStartArray(&userWriter, "privileges",
+											   strlen("privileges"),
+											   &privilegesArrayWriter);
+
+						WriteRolePrivileges(parentRole, &privilegesArrayWriter);
+
+						PgbsonWriterEndArray(&userWriter, &privilegesArrayWriter);
+					}
 				}
 			}
 
@@ -959,24 +1127,26 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 }
 
 
-static char *
-ParseGetUserSpec(pgbson *getSpec)
+static void
+ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 {
 	bson_iter_t getIter;
 	PgbsonInitIterator(getSpec, &getIter);
 
+	spec->user = (StringView) {
+		0
+	};
+	spec->showPrivileges = false;
+	bool requiredFieldFound = false;
 	while (bson_iter_next(&getIter))
 	{
 		const char *key = bson_iter_key(&getIter);
 		if (strcmp(key, "usersInfo") == 0)
 		{
+			requiredFieldFound = true;
 			if (bson_iter_type(&getIter) == BSON_TYPE_INT32)
 			{
-				if (bson_iter_as_int64(&getIter) == 1)
-				{
-					return NULL;
-				}
-				else
+				if (bson_iter_as_int64(&getIter) != 1)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 									errmsg("Unsupported value for 'usersInfo' field.")));
@@ -985,37 +1155,16 @@ ParseGetUserSpec(pgbson *getSpec)
 			else if (bson_iter_type(&getIter) == BSON_TYPE_UTF8)
 			{
 				uint32_t strLength = 0;
-				return (char *) bson_iter_utf8(&getIter, &strLength);
+				const char *userString = bson_iter_utf8(&getIter, &strLength);
+				spec->user = (StringView) {
+					.string = userString,
+					.length = strLength
+				};
 			}
-			else if (bson_iter_type(&getIter) == BSON_TYPE_DOCUMENT)
+			else if (BSON_ITER_HOLDS_DOCUMENT(&getIter))
 			{
 				const bson_value_t usersInfoBson = *bson_iter_value(&getIter);
-				bson_iter_t iter;
-				BsonValueInitIterator(&usersInfoBson, &iter);
-
-				while (bson_iter_next(&iter))
-				{
-					const char *bsonDocKey = bson_iter_key(&iter);
-					if (strcmp(bsonDocKey, "db") == 0 && BSON_ITER_HOLDS_UTF8(&iter))
-					{
-						uint32_t strLength;
-						const char *db = bson_iter_utf8(&iter, &strLength);
-						if (strcmp(db, "admin") != 0)
-						{
-							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg(
-												"Unsupported value specified for 'db' field. Only 'admin' is allowed."),
-											errdetail_log(
-												"Unsupported value specified for 'db' field. Only 'admin' is allowed.")));
-						}
-					}
-					else if (strcmp(bsonDocKey, "user") == 0 && BSON_ITER_HOLDS_UTF8(
-								 &iter))
-					{
-						uint32_t strLength;
-						return (char *) bson_iter_utf8(&getIter, &strLength);
-					}
-				}
+				ParseUsersInfoDocument(&usersInfoBson, spec);
 			}
 			else
 			{
@@ -1025,6 +1174,7 @@ ParseGetUserSpec(pgbson *getSpec)
 		}
 		else if (strcmp(key, "forAllDBs") == 0)
 		{
+			requiredFieldFound = true;
 			if (bson_iter_type(&getIter) == BSON_TYPE_BOOL)
 			{
 				if (bson_iter_as_bool(&getIter) != true)
@@ -1039,14 +1189,30 @@ ParseGetUserSpec(pgbson *getSpec)
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg("Unsupported value specified for 'forAllDBs'")));
 			}
-
-			return NULL;
 		}
 		else if (strcmp(key, "getUser") == 0)
 		{
+			requiredFieldFound = true;
 			EnsureTopLevelFieldType(key, &getIter, BSON_TYPE_UTF8);
 			uint32_t strLength = 0;
-			return (char *) bson_iter_utf8(&getIter, &strLength);
+			const char *userString = bson_iter_utf8(&getIter, &strLength);
+			spec->user = (StringView) {
+				.string = userString,
+				.length = strLength
+			};
+		}
+		else if (strcmp(key, "showPrivileges") == 0)
+		{
+			if (BSON_ITER_HOLDS_BOOL(&getIter))
+			{
+				spec->showPrivileges = bson_iter_as_bool(&getIter);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"'showPrivileges' must be a boolean value")));
+			}
 		}
 		else if (strcmp(key, "lsid") == 0 || strcmp(key, "$db") == 0)
 		{
@@ -1059,8 +1225,11 @@ ParseGetUserSpec(pgbson *getSpec)
 		}
 	}
 
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-						"'usersInfo' or 'forAllDBs' must be provided.")));
+	if (!requiredFieldFound)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"'usersInfo' or 'forAllDBs' must be provided.")));
+	}
 }
 
 
@@ -1182,4 +1351,318 @@ IsCallingUserExternal()
 {
 	const char *currentUser = GetUserNameFromId(GetUserId(), true);
 	return IsUserExternal(currentUser);
+}
+
+
+/*
+ * Consolidates privileges for a role using and
+ * writes them to the provided BSON array writer.
+ */
+static void
+WriteRolePrivileges(const char *roleName, pgbson_array_writer *privilegesArrayWriter)
+{
+	if (roleName == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("Role name cannot be NULL.")));
+	}
+
+	List *consolidatedPrivileges = NIL;
+	size_t sourcePrivilegeCount;
+
+	if (strcmp(roleName, ApiReadOnlyRole) == 0)
+	{
+		sourcePrivilegeCount = sizeof(readOnlyPrivileges) / sizeof(readOnlyPrivileges[0]);
+		ConsolidatePrivileges(&consolidatedPrivileges, readOnlyPrivileges,
+							  sourcePrivilegeCount);
+	}
+	else if (strcmp(roleName, ApiAdminRoleV2) == 0)
+	{
+		sourcePrivilegeCount = sizeof(readWritePrivileges) /
+							   sizeof(readWritePrivileges[0]);
+		ConsolidatePrivileges(&consolidatedPrivileges, readWritePrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(clusterAdminPrivileges) /
+							   sizeof(clusterAdminPrivileges[0]);
+		ConsolidatePrivileges(&consolidatedPrivileges, clusterAdminPrivileges,
+							  sourcePrivilegeCount);
+	}
+	else
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("Unsupported role specified: '%s'.",
+							   roleName)));
+	}
+
+	WritePrivilegeListToArray(consolidatedPrivileges, privilegesArrayWriter);
+	DeepFreePrivileges(consolidatedPrivileges);
+}
+
+
+/*
+ * Takes a list of source privileges and consolidates them into the
+ * provided list of consolidated privileges, merging any duplicate privileges and combining their actions.
+ */
+static void
+ConsolidatePrivileges(List **consolidatedPrivileges,
+					  const UserPrivilege *sourcePrivileges,
+					  size_t sourcePrivilegeCount)
+{
+	if (sourcePrivileges == NULL)
+	{
+		return;
+	}
+
+	for (size_t i = 0; i < sourcePrivilegeCount; i++)
+	{
+		ConsolidatePrivilege(consolidatedPrivileges, &sourcePrivileges[i]);
+	}
+}
+
+
+/*
+ * Consolidates a single source privilege into the list of consolidated privileges.
+ * If a privilege with the same resource target already exists, its actions are merged with the source privilege.
+ * Otherwise, a new privilege is created and added to the list.
+ */
+static void
+ConsolidatePrivilege(List **consolidatedPrivileges, const UserPrivilege *sourcePrivilege)
+{
+	if (sourcePrivilege == NULL || sourcePrivilege->numActions == 0)
+	{
+		return;
+	}
+
+	ListCell *privilege;
+	ConsolidatedUserPrivilege *existingPrivilege = NULL;
+
+	foreach(privilege, *consolidatedPrivileges)
+	{
+		ConsolidatedUserPrivilege *currentPrivilege =
+			(ConsolidatedUserPrivilege *) lfirst(privilege);
+
+		if (ComparePrivileges(currentPrivilege, sourcePrivilege))
+		{
+			existingPrivilege = currentPrivilege;
+			break;
+		}
+	}
+
+	if (existingPrivilege != NULL)
+	{
+		for (size_t i = 0; i < sourcePrivilege->numActions; i++)
+		{
+			bool actionFound;
+
+			/* The consolidated privilege does not free the actual char* in the action HTAB;
+			 * therefore it is safe to pass actions[i]. */
+			hash_search(existingPrivilege->actions,
+						&sourcePrivilege->actions[i], HASH_ENTER,
+						&actionFound);
+		}
+	}
+	else
+	{
+		ConsolidatedUserPrivilege *newPrivilege = palloc0(
+			sizeof(ConsolidatedUserPrivilege));
+		newPrivilege->isCluster = sourcePrivilege->isCluster;
+		newPrivilege->db = pstrdup(sourcePrivilege->db);
+		newPrivilege->collection = pstrdup(sourcePrivilege->collection);
+		newPrivilege->actions = CreateStringViewHashSet();
+
+		for (size_t i = 0; i < sourcePrivilege->numActions; i++)
+		{
+			bool actionFound;
+
+			hash_search(newPrivilege->actions,
+						&sourcePrivilege->actions[i],
+						HASH_ENTER, &actionFound);
+		}
+
+		*consolidatedPrivileges = lappend(*consolidatedPrivileges, newPrivilege);
+	}
+}
+
+
+/*
+ * Checks if two privileges have the same resource (same cluster status and db/collection).
+ */
+static bool
+ComparePrivileges(const ConsolidatedUserPrivilege *privilege1,
+				  const UserPrivilege *privilege2)
+{
+	if (privilege1->isCluster != privilege2->isCluster)
+	{
+		return false;
+	}
+
+	if (privilege1->isCluster)
+	{
+		return true;
+	}
+
+	return (strcmp(privilege1->db, privilege2->db) == 0 &&
+			strcmp(privilege1->collection, privilege2->collection) == 0);
+}
+
+
+/*
+ * Helper function to write a single privilege document.
+ */
+static void
+WriteSinglePrivilegeDocument(const ConsolidatedUserPrivilege *privilege,
+							 pgbson_array_writer *privilegesArrayWriter)
+{
+	pgbson_writer privilegeWriter;
+	PgbsonArrayWriterStartDocument(privilegesArrayWriter, &privilegeWriter);
+
+	pgbson_writer resourceWriter;
+	PgbsonWriterStartDocument(&privilegeWriter, "resource", strlen("resource"),
+							  &resourceWriter);
+	if (privilege->isCluster)
+	{
+		PgbsonWriterAppendBool(&resourceWriter, "cluster", strlen("cluster"),
+							   true);
+	}
+	else
+	{
+		PgbsonWriterAppendUtf8(&resourceWriter, "db", strlen("db"),
+							   privilege->db);
+		PgbsonWriterAppendUtf8(&resourceWriter, "collection", strlen(
+								   "collection"),
+							   privilege->collection);
+	}
+	PgbsonWriterEndDocument(&privilegeWriter, &resourceWriter);
+
+	pgbson_array_writer actionsArrayWriter;
+	PgbsonWriterStartArray(&privilegeWriter, "actions", strlen("actions"),
+						   &actionsArrayWriter);
+
+	if (privilege->actions != NULL)
+	{
+		HASH_SEQ_STATUS status;
+		StringView *privilegeEntry;
+		List *actionList = NIL;
+
+		hash_seq_init(&status, privilege->actions);
+		while ((privilegeEntry = hash_seq_search(&status)) != NULL)
+		{
+			char *actionString = palloc(privilegeEntry->length + 1);
+			memcpy(actionString, privilegeEntry->string, privilegeEntry->length);
+			actionString[privilegeEntry->length] = '\0';
+			actionList = lappend(actionList, actionString);
+		}
+
+		if (actionList != NIL)
+		{
+			SortStringList(actionList);
+			ListCell *cell;
+			foreach(cell, actionList)
+			{
+				PgbsonArrayWriterWriteUtf8(&actionsArrayWriter, (const char *) lfirst(
+											   cell));
+			}
+			list_free_deep(actionList);
+		}
+	}
+
+	PgbsonWriterEndArray(&privilegeWriter, &actionsArrayWriter);
+
+	PgbsonArrayWriterEndDocument(privilegesArrayWriter, &privilegeWriter);
+}
+
+
+/*
+ * Writes the consolidated privileges list to a BSON array.
+ */
+static void
+WritePrivilegeListToArray(List *consolidatedPrivileges,
+						  pgbson_array_writer *privilegesArrayWriter)
+{
+	ListCell *privilege;
+	foreach(privilege, consolidatedPrivileges)
+	{
+		ConsolidatedUserPrivilege *currentPrivilege =
+			(ConsolidatedUserPrivilege *) lfirst(privilege);
+		WriteSinglePrivilegeDocument(currentPrivilege, privilegesArrayWriter);
+	}
+}
+
+
+/*
+ * Frees all memory allocated for the consolidated privileges list,
+ * including strings and hash table entries.
+ */
+static void
+DeepFreePrivileges(List *consolidatedPrivileges)
+{
+	if (consolidatedPrivileges == NIL)
+	{
+		return;
+	}
+
+	ListCell *privilege;
+	foreach(privilege, consolidatedPrivileges)
+	{
+		ConsolidatedUserPrivilege *currentPrivilege =
+			(ConsolidatedUserPrivilege *) lfirst(privilege);
+
+		if (currentPrivilege->db)
+		{
+			pfree((char *) currentPrivilege->db);
+		}
+
+		if (currentPrivilege->collection)
+		{
+			pfree((char *) currentPrivilege->collection);
+		}
+
+		if (currentPrivilege->actions)
+		{
+			hash_destroy(currentPrivilege->actions);
+		}
+	}
+
+	list_free_deep(consolidatedPrivileges);
+}
+
+
+/*
+ * ParseUsersInfoDocument extracts and processes the fields of the BSON document
+ * for the usersInfo command.
+ */
+static void
+ParseUsersInfoDocument(const bson_value_t *usersInfoBson, GetUserSpec *spec)
+{
+	bson_iter_t iter;
+	BsonValueInitIterator(usersInfoBson, &iter);
+
+	while (bson_iter_next(&iter))
+	{
+		const char *bsonDocKey = bson_iter_key(&iter);
+		if (strcmp(bsonDocKey, "db") == 0 && BSON_ITER_HOLDS_UTF8(&iter))
+		{
+			uint32_t strLength;
+			const char *db = bson_iter_utf8(&iter, &strLength);
+			if (strcmp(db, "admin") != 0)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"Unsupported value specified for 'db' field. Only 'admin' is allowed."),
+								errdetail_log(
+									"Unsupported value specified for 'db' field. Only 'admin' is allowed.")));
+			}
+		}
+		else if (strcmp(bsonDocKey, "user") == 0 && BSON_ITER_HOLDS_UTF8(
+					 &iter))
+		{
+			uint32_t strLength;
+			const char *userString = bson_iter_utf8(&iter, &strLength);
+			spec->user = (StringView) {
+				.string = userString,
+				.length = strLength
+			};
+		}
+	}
 }

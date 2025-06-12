@@ -61,6 +61,8 @@ static const TraverseBsonExecutionFuncs HashIndexExecutionFuncs = {
 	.VisitArrayField = HashIndexVisitArrayField,
 	.VisitTopLevelField = HashIndexVisitTopLevelField,
 	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 /* --------------------------------------------------------- */

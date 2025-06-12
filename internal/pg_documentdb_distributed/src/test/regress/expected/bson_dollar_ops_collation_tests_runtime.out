@@ -3509,13 +3509,16 @@ EXPLAIN (COSTS OFF) SELECT document from documentdb_api.collection('db', 'coll_q
                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                              
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
-   Task Count: 8
-   Tasks Shown: One of 8
+   Task Count: 1
+   Tasks Shown: All
    ->  Task
          Node: host=localhost port=58070 dbname=regression
-         ->  Seq Scan on documents_8003_7990280 documents_8003
+         ->  Bitmap Heap Scan on documents_8003_7990284 collection
+               Recheck Cond: (shard_key_value = '-5490684746852247962'::bigint)
                Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : "cat", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : "1", "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" }, "collation" : "en-u-ks-level1" }'::documentdb_core.bson))
-(7 rows)
+               ->  Bitmap Index Scan on _id_
+                     Index Cond: (shard_key_value = '-5490684746852247962'::bigint)
+(10 rows)
 
 SELECT document from documentdb_api.collection('db', 'coll_qm_sharded') WHERE documentdb_api_internal.bson_query_match(document, '{"$or": [{"_id": "CAT", "a": "CAT"}, {"_id": 3, "a": "dog"}] }', NULL, 'en-u-ks-level1');
                     document                     
