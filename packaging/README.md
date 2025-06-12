@@ -21,9 +21,11 @@ Supported RPM distributions:
 - rhel8 (Red Hat Enterprise Linux 8 compatible)
 - rhel9 (Red Hat Enterprise Linux 9 compatible)
 
+Supported PG versions: 16, 17
+
 ### RPM Build Prerequisites
 
-Before building RPM packages, you can validate your environment:
+[Optional] Before building RPM packages, you can validate your environment:
 
 ```sh
 ./packaging/validate_rpm_build.sh
@@ -37,9 +39,6 @@ This script checks:
 ### Example RPM Build Commands
 
 ```sh
-# Build for RHEL 8 with PostgreSQL 17
-./packaging/build_rpm_packages.sh --os rhel8 --pg 17
-
 # Build for RHEL 9 with PostgreSQL 16
 ./packaging/build_rpm_packages.sh --os rhel9 --pg 16
 

@@ -11,6 +11,11 @@ on:
     paths-ignore:
       - '.devcontainer/**'
       - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'packaging/**'
+      - 'scripts/**'
 
 jobs:
   build-deb-packages:
@@ -44,7 +49,7 @@ jobs:
 
       - name: Build Debian Package
         run: |
-          ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
+          ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }} --test-clean-install
 
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4

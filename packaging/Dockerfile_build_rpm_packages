@@ -76,9 +76,6 @@ RUN dnf -y install \
         libuuid-devel \
         lz4-devel \
         bzip2-devel
-        # postgresql${POSTGRES_VERSION}-postgis \
-        # postgresql${POSTGRES_VERSION}-pgvector \
-        # postgresql${POSTGRES_VERSION}-rum
 
 # Set up the rpmbuild directory structure
 RUN rpmdev-setuptree

@@ -11,6 +11,12 @@ on:
     paths-ignore:
       - '.devcontainer/**'
       - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'packaging/**'
+      - 'scripts/**'
+
 
 jobs:
   build-rpm-packages:
@@ -42,12 +48,12 @@ jobs:
 
       - name: Build RPM Package
         run: |
-          ./packaging/build_rpm_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
+          ./packaging/build_rpm_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }} --test-clean-install
 
       - name: Upload RPM Package as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
+          name: ${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
           path: packaging/*.rpm
           retention-days: 7
           if-no-files-found: error
