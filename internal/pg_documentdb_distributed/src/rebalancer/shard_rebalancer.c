@@ -23,6 +23,7 @@
 #include "utils/query_utils.h"
 #include "commands/parse_error.h"
 #include "metadata/metadata_cache.h"
+#include "api_hooks.h"
 
 extern bool EnableShardRebalancer;
 
@@ -92,6 +93,13 @@ command_rebalancer_start(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg("starting the shard rebalancer is not supported yet")));
+	}
+
+	if (IsChangeStreamFeatureAvailableAndCompatible())
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+						errmsg(
+							"starting the shard rebalancer is not supported when change streams is enabled")));
 	}
 
 	pgbson *startArgs = PG_GETARG_PGBSON(0);
