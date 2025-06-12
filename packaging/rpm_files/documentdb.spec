@@ -18,15 +18,9 @@ BuildRequires:  postgresql%{pg_version}-devel
 BuildRequires:  libicu-devel
 BuildRequires:  krb5-devel
 BuildRequires:  pkg-config
-BuildRequires:  pcre2-devel
-# Note: libbson and mongo-c-driver may not be available on all RHEL versions
-# They will be built from source if not available as packages
 
 Requires:       postgresql%{pg_version}
 Requires:       postgresql%{pg_version}-server
-Requires:       pcre2
-# Note: libbson and mongo-c-driver dependencies are satisfied either by
-# system packages (if available) or bundled libraries built from source
 
 %description
 DocumentDB is the open-source engine powering vCore-based Azure Cosmos DB for MongoDB. 
@@ -50,34 +44,6 @@ make install DESTDIR=%{buildroot}
 # Remove the bitcode directory if it's not needed in the final package
 rm -rf %{buildroot}/usr/pgsql-%{pg_version}/lib/bitcode
 
-# Install runtime libraries for dependencies built from source
-# Always create the directories, even if empty
-mkdir -p %{buildroot}/usr/lib/intelmathlib
-mkdir -p %{buildroot}/usr/lib/documentdb
-
-# Intel Decimal Math Library
-if [ -d "/usr/lib/intelmathlib" ]; then
-    cp -r /usr/lib/intelmathlib/* %{buildroot}/usr/lib/intelmathlib/
-fi
-
-# libbson libraries (if built from source)
-if [ -d "/usr/lib" ] && [ -f "/usr/lib/libbson-static-1.0.a" ]; then
-    cp /usr/lib/libbson-static-1.0.a %{buildroot}/usr/lib/documentdb/ 2>/dev/null || true
-    cp /usr/lib/libbson-1.0.so* %{buildroot}/usr/lib/documentdb/ 2>/dev/null || true
-fi
-
-# pcre2 libraries (if built from source)  
-if [ -d "/usr/lib" ] && [ -f "/usr/lib/libpcre2-8.a" ]; then
-    cp /usr/lib/libpcre2-8.a %{buildroot}/usr/lib/documentdb/ 2>/dev/null || true
-    cp /usr/lib/libpcre2-8.so* %{buildroot}/usr/lib/documentdb/ 2>/dev/null || true
-fi
-
-# Install source code and test files for make check
-mkdir -p %{buildroot}/usr/src/documentdb
-# Add a placeholder file to ensure directories are not empty
-echo "# Directory for Intel Decimal Math Library runtime files" > %{buildroot}/usr/lib/intelmathlib/.placeholder
-echo "# Directory for other dependency runtime files" > %{buildroot}/usr/lib/documentdb/.placeholder
-
 # Install source code and test files for make check
 mkdir -p %{buildroot}/usr/src/documentdb
 cp -r . %{buildroot}/usr/src/documentdb/
@@ -97,11 +63,6 @@ rm -rf %{buildroot}/usr/src/documentdb/build
 /usr/pgsql-%{pg_version}/share/extension/documentdb.control
 /usr/pgsql-%{pg_version}/share/extension/documentdb--*.sql
 /usr/src/documentdb
-# Include runtime libraries for dependencies built from source
-%dir /usr/lib/intelmathlib
-/usr/lib/intelmathlib/*
-%dir /usr/lib/documentdb
-/usr/lib/documentdb/*
 
 %changelog
 * Thu Jun 06 2025 Shuai Tian <shuaitian@microsoft.com> - DOCUMENTDB_VERSION-1
