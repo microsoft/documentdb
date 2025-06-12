@@ -83,12 +83,34 @@ RUN rpmdev-setuptree
 # Copy the install scripts
 COPY scripts /tmp/install_setup
 
-# Install library dependencies
+# Install system packages where available, build from source otherwise
 RUN export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
-    MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \
-    /tmp/install_setup/install_setup_pcre2.sh && \
-    /tmp/install_setup/install_setup_intel_decimal_math_lib.sh && \
-    /tmp/install_setup/install_citus_indent.sh
+    # Try to install system packages first (ignore failures due to firewall/network issues)
+    (dnf install -y pcre2-devel 2>/dev/null || echo "pcre2-devel not available, will build from source") && \
+    (dnf install -y libbson-devel mongo-c-driver-devel 2>/dev/null || echo "libbson/mongo-c-driver not available, will build from source") && \
+    (dnf install -y uncrustify 2>/dev/null || echo "uncrustify not available, will build from source") && \
+    # Build remaining dependencies from source if system packages weren't available
+    if ! pkg-config --exists libbson-1.0 2>/dev/null; then \
+        echo "Building libbson from source..." && \
+        MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh; \
+    else \
+        echo "Using system libbson package"; \
+    fi && \
+    if ! pkg-config --exists libpcre2-8 2>/dev/null; then \
+        echo "Building pcre2 from source..." && \
+        /tmp/install_setup/install_setup_pcre2.sh; \
+    else \
+        echo "Using system pcre2 package"; \
+    fi && \
+    if ! which uncrustify > /dev/null 2>&1; then \
+        echo "Building uncrustify from source..." && \
+        /tmp/install_setup/install_citus_indent.sh; \
+    else \
+        echo "Using system uncrustify package"; \
+    fi && \
+    # Intel Decimal Math Library - no system package available, always build from source
+    echo "Building Intel Decimal Math Library from source..." && \
+    /tmp/install_setup/install_setup_intel_decimal_math_lib.sh
 
 # Set the working directory inside the container
 WORKDIR /build
