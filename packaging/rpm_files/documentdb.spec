@@ -18,9 +18,22 @@ BuildRequires:  postgresql%{pg_version}-devel
 BuildRequires:  libicu-devel
 BuildRequires:  krb5-devel
 BuildRequires:  pkg-config
+# The following BuildRequires are for system packages.
+# Libbson and pcre2 development files are provided by scripts
+# in the Dockerfile_build_rpm_packages environment, not by system RPMs.
+# BuildRequires:  libbson-devel
+# BuildRequires:  pcre2-devel
+# BuildRequires: intel-decimal-math-devel # If a devel package exists and is used
 
 Requires:       postgresql%{pg_version}
 Requires:       postgresql%{pg_version}-server
+Requires:       pgvector_%{pg_version}
+Requires:       pg_cron_%{pg_version}
+Requires:       postgis34_%{pg_version}
+Requires:       rum_%{pg_version}
+# Libbson is now bundled, so no runtime Requires for it.
+# pcre2 is statically linked.
+# libbid.a is bundled.
 
 %description
 DocumentDB is the open-source engine powering vCore-based Azure Cosmos DB for MongoDB. 
@@ -44,6 +57,25 @@ make install DESTDIR=%{buildroot}
 # Remove the bitcode directory if it's not needed in the final package
 rm -rf %{buildroot}/usr/pgsql-%{pg_version}/lib/bitcode
 
+# Bundle libbid.a (Intel Decimal Math Library static library)
+# This assumes install_setup_intel_decimal_math_lib.sh has placed libbid.a
+# at /usr/lib/intelmathlib/LIBRARY/libbid.a in the build environment.
+mkdir -p %{buildroot}/usr/lib/intelmathlib/LIBRARY
+cp /usr/lib/intelmathlib/LIBRARY/libbid.a %{buildroot}/usr/lib/intelmathlib/LIBRARY/libbid.a
+
+# Bundle libbson shared library and pkg-config file
+# These are installed by install_setup_libbson.sh into /usr (default INSTALLDESTDIR)
+mkdir -p %{buildroot}%{_libdir}
+mkdir -p %{buildroot}%{_libdir}/pkgconfig
+
+# fully versioned .so file
+cp /usr/%{_lib}/libbson-1.0.so.0.0.0 %{buildroot}%{_libdir}/
+# Copy the main symlinks
+cp -P /usr/%{_lib}/libbson-1.0.so %{buildroot}%{_libdir}/
+cp -P /usr/%{_lib}/libbson-1.0.so.0 %{buildroot}%{_libdir}/
+# static library
+cp /usr/%{_lib}/pkgconfig/libbson-static-1.0.pc %{buildroot}%{_libdir}/pkgconfig/
+
 # Install source code and test files for make check
 mkdir -p %{buildroot}/usr/src/documentdb
 cp -r . %{buildroot}/usr/src/documentdb/
@@ -63,9 +95,15 @@ rm -rf %{buildroot}/usr/src/documentdb/build
 /usr/pgsql-%{pg_version}/share/extension/documentdb.control
 /usr/pgsql-%{pg_version}/share/extension/documentdb--*.sql
 /usr/src/documentdb
+/usr/lib/intelmathlib/LIBRARY/libbid.a
+# Bundled libbson files:
+%{_libdir}/libbson-1.0.so
+%{_libdir}/libbson-1.0.so.0
+%{_libdir}/libbson-1.0.so.0.0.0
+%{_libdir}/pkgconfig/libbson-static-1.0.pc
 
 %changelog
-* Thu Jun 06 2025 Shuai Tian <shuaitian@microsoft.com> - DOCUMENTDB_VERSION-1
+* Fri Jun 06 2025 Shuai Tian <shuaitian@microsoft.com> - DOCUMENTDB_VERSION-1
 - Support `$convert` on `binData` to `binData`, `string` to `binData` and `binData` to `string` (except with `format: auto`) *[Feature]*
 - Fix list_databases for databases with size > 2 GB *[Bugfix]* (#119)
 - Support ARM64 architecture when building docker container *[Preview]*
@@ -90,7 +128,7 @@ rm -rf %{buildroot}/usr/src/documentdb/build
 - Support the $dateFromString operator with full functionality [Feature]
 - Support extended syntax for $getField aggregation operator (field as expression) [Feature]
 
-* Tue Feb 12 2025 Shuai Tian <shuaitian@microsoft.com> - 0.101-0
+* Wed Feb 12 2025 Shuai Tian <shuaitian@microsoft.com> - 0.101-0
 - Push $graphlookup recursive CTE JOIN filters to index [Perf]
 - Build pg_documentdb for PostgreSQL 17 [Infra] (#13)
 - Enable support of currentOp aggregation stage, along with collstats, dbstats, and indexStats [Commands] (#52)

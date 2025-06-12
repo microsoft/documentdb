@@ -34,30 +34,17 @@ ENV LC_ALL=en_US.UTF-8
 RUN dnf -y swap curl-minimal curl && \
     dnf -y install \
     make \
-    wget \
-    git \
-    curl \
-    gnupg2 \
     ca-certificates \
-    python3 \
     gcc \
     gcc-c++ \
-    cmake \
     pkg-config \
     openssl-devel \
-    cyrus-sasl-devel \
-    snappy-devel \
     zlib-devel \
-    libcurl-devel \
     libuuid-devel \
-    lz4-devel \
-    bzip2-devel \
     libicu-devel \
-    krb5-devel \
-    hdf5 \
-    xerces-c
+    krb5-devel
 
-# PostgreSQL yum repo setup
+# install actual dependencies
 RUN if [ "${OS_VERSION}" = "9" ]; then \
         dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm; \
     elif [ "${OS_VERSION}" = "8" ]; then \
@@ -74,14 +61,6 @@ RUN if [ "${OS_VERSION}" = "9" ]; then \
     pg_cron_${POSTGRES_VERSION} \
     postgis34_${POSTGRES_VERSION} \
     rum_${POSTGRES_VERSION}
-
-# Install library dependencies needed for make check
-COPY scripts /tmp/install_setup
-RUN export INSTALL_DEPENDENCIES_ROOT=/tmp/install_setup && \
-    MAKE_PROGRAM=cmake /tmp/install_setup/install_setup_libbson.sh && \
-    /tmp/install_setup/install_setup_pcre2.sh && \
-    /tmp/install_setup/install_setup_intel_decimal_math_lib.sh && \
-    /tmp/install_setup/install_citus_indent.sh
 
 # Create a directory for the source code (if 'make check' needs it)
 # The test-install-entrypoint-rpm.sh script expects source at /usr/src/documentdb
