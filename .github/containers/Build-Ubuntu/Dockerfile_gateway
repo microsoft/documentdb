@@ -1,9 +1,9 @@
 # Define a build argument to choose architecture
 ARG BASE_ARCH=AMD64
-ARG BASE_VERSION=0.103.0
+ARG BASE_VERSION=0.104.0
 
 # Define the base image dynamically
-FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-${BASE_VERSION} AS stage
+FROM ghcr.io/microsoft/documentdb/documentdb-oss:ubuntu22.04-PG17-${BASE_ARCH}-${BASE_VERSION} AS stage
 
 # Install dependencies
 RUN sudo apt-get update && \
@@ -36,8 +36,8 @@ RUN cargo build
 
 # Same logic for the final image
 ARG BASE_ARCH=AMD64
-ARG BASE_VERSION=0.103.0
-FROM mcr.microsoft.com/cosmosdb/ubuntu/documentdb-oss:22.04-PG16-${BASE_ARCH}-${BASE_VERSION} AS final
+ARG BASE_VERSION=0.104.0
+FROM ghcr.io/microsoft/documentdb/documentdb-oss:ubuntu22.04-PG17-${BASE_ARCH}-${BASE_VERSION} AS final
 
 # Set postgres user and group to desired UID/GID
 RUN sudo groupmod -g 103 postgres && sudo usermod -u 105 -g 103 postgres
