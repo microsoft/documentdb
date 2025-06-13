@@ -51,11 +51,52 @@ jobs:
         run: |
           ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
 
+      - name: Sign DEB packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Install GPG and dpkg-sig for signing DEB packages
+          sudo apt-get update && sudo apt-get install -y gnupg2 dpkg-sig
+          
+          # Generate a temporary signing key for demo purposes
+          # In production, use proper key management with secure key storage
+          cat > /tmp/gpg-batch <<EOF
+          %echo Generating DocumentDB signing key
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: DocumentDB Package Signing
+          Name-Email: documentdb@noreply.github.com
+          Expire-Date: 1y
+          %no-ask-passphrase
+          %no-protection
+          %commit
+          %echo done
+          EOF
+          
+          gpg --batch --generate-key /tmp/gpg-batch
+          
+          # Sign all DEB packages
+          # The key ID for dpkg-sig is usually the email or Name-Real used during key generation
+          KEY_ID="DocumentDB Package Signing" 
+          for deb_file in packaging/*.deb; do
+            if [[ -f "$deb_file" ]]; then
+              echo "Signing package: $deb_file with key $KEY_ID"
+              dpkg-sig --sign "$KEY_ID" "$deb_file"
+            fi
+          done
+          
+          # Export public key for verification
+          # Ensure the email/name matches the one used in Name-Email/Name-Real for key generation
+          gpg --armor --export "DocumentDB Package Signing" > packaging/documentdb-signing-key.asc
+
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
-          path: packaging/*.deb
+          path: |
+            packaging/*.deb
+            packaging/documentdb-signing-key.asc
           retention-days: 7
           if-no-files-found: error
           compression-level: 0

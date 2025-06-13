@@ -1,0 +1,79 @@
+ARG BASE_IMAGE=rockylinux:9
+FROM ${BASE_IMAGE}
+
+ARG POSTGRES_VERSION=16
+ARG RPM_PACKAGE_REL_PATH
+ARG OS_VERSION_ARG
+
+ENV POSTGRES_VERSION=${POSTGRES_VERSION}
+ENV OS_VERSION=${OS_VERSION_ARG}
+
+RUN test -n "$OS_VERSION" || (echo "OS_VERSION_ARG (and thus OS_VERSION) not set" && false)
+RUN echo "Testing for OS Version: ${OS_VERSION}"
+
+# Enable CodeReady Builder (CRB) or PowerTools repository
+RUN dnf install -y dnf-plugins-core
+
+# Enable EPEL and CodeReady Builder (CRB) or PowerTools repository
+RUN dnf install -y epel-release && \
+    if [ "${OS_VERSION}" = "9" ]; then \
+        dnf config-manager --set-enabled crb; \
+    elif [ "${OS_VERSION}" = "8" ]; then \
+        dnf config-manager --set-enabled powertools; \
+    else \
+        echo "OS_VERSION ${OS_VERSION} not recognized for CRB/PowerTools setup. Must be 8 or 9." && exit 1; \
+    fi && \
+    dnf clean all # Clean dnf cache to ensure fresh metadata for the next dnf command
+
+# Locale setup
+RUN dnf -y install glibc-langpack-en glibc-common && \
+    localedef -i en_US -f UTF-8 en_US.UTF-8 || true
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+RUN dnf -y swap curl-minimal curl && \
+    dnf -y install \
+    make \
+    ca-certificates \
+    gcc \
+    gcc-c++ \
+    pkg-config \
+    openssl-devel \
+    zlib-devel \
+    libuuid-devel \
+    libicu-devel \
+    krb5-devel
+
+# install actual dependencies
+RUN if [ "${OS_VERSION}" = "9" ]; then \
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm; \
+    elif [ "${OS_VERSION}" = "8" ]; then \
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm; \
+    else \
+        echo "OS_VERSION ${OS_VERSION} not recognized for PGDG repo setup. Must be 8 or 9." && exit 1; \
+    fi && \
+    dnf -qy module disable postgresql && \
+    dnf -y install postgresql${POSTGRES_VERSION} \
+    postgresql${POSTGRES_VERSION}-devel \
+    postgresql${POSTGRES_VERSION}-server \
+    postgresql${POSTGRES_VERSION}-contrib \
+    pgvector_${POSTGRES_VERSION} \
+    pg_cron_${POSTGRES_VERSION} \
+    postgis34_${POSTGRES_VERSION} \
+    rum_${POSTGRES_VERSION}
+
+# Create a directory for the source code (if 'make check' needs it)
+# The test-install-entrypoint-rpm.sh script expects source at /usr/src/documentdb
+RUN mkdir -p /usr/src/documentdb
+WORKDIR /usr/src/documentdb
+
+# Copy the source code into the container (if 'make check' needs it)
+COPY . /usr/src/documentdb
+
+# Copy the package to test
+COPY ${RPM_PACKAGE_REL_PATH} /tmp/documentdb.rpm
+
+COPY packaging/test_packages/test-install-entrypoint-rpm.sh /usr/local/bin/test-install-entrypoint-rpm.sh
+RUN chmod +x /usr/local/bin/test-install-entrypoint-rpm.sh
+
+ENTRYPOINT ["test-install-entrypoint-rpm.sh"]
