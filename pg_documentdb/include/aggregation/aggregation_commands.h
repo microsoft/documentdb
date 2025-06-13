@@ -11,7 +11,9 @@
  #ifndef DOCUMENTDB_AGGREGATION_COMMANDS_H
  #define DOCUMENTDB_AGGREGATION_COMMANDS_H
 
+#include <utils/array.h>
 
+extern Datum delete_cursors(ArrayType *cursorArray);
 extern Datum find_cursor_first_page(text *database, pgbson *findSpec, int64_t cursorId);
 extern Datum aggregate_cursor_first_page(text *database, pgbson *aggregationSpec,
 										 int64_t cursorId);

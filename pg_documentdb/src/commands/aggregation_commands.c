@@ -25,6 +25,7 @@
 #include "commands/parse_error.h"
 #include <aggregation/bson_aggregation_pipeline.h>
 #include "aggregation/aggregation_commands.h"
+#include "infrastructure/cursor_store.h"
 
 
 extern bool EnableNowSystemVariable;
@@ -173,6 +174,7 @@ PG_FUNCTION_INFO_V1(command_distinct_query);
 PG_FUNCTION_INFO_V1(command_cursor_get_more);
 PG_FUNCTION_INFO_V1(command_list_collections_cursor_first_page);
 PG_FUNCTION_INFO_V1(command_list_indexes_cursor_first_page);
+PG_FUNCTION_INFO_V1(command_delete_cursors);
 
 /*
  * Parses an aggregate spec and creates a query, executes it and returns the first page
@@ -596,6 +598,56 @@ command_count_query(PG_FUNCTION_ARGS)
 }
 
 
+Datum
+command_delete_cursors(PG_FUNCTION_ARGS)
+{
+	ArrayType *cursorArray = PG_GETARG_ARRAYTYPE_P(0);
+
+	Datum response = delete_cursors(cursorArray);
+	PG_RETURN_DATUM(response);
+}
+
+
+inline static const char *
+FormatCursorName(StringInfo cursorStringInfo, int64_t cursorId)
+{
+	resetStringInfo(cursorStringInfo);
+	appendStringInfo(cursorStringInfo, "cursor_%ld", cursorId);
+	return cursorStringInfo->data;
+}
+
+
+Datum
+delete_cursors(ArrayType *cursorArray)
+{
+	Datum *cursorIds;
+	bool *nulls;
+	int nelems;
+	if (!UseFileBasedPersistedCursors)
+	{
+		return PointerGetDatum(PgbsonInitEmpty());
+	}
+
+	deconstruct_array(cursorArray, INT8OID, sizeof(int64_t), true, TYPALIGN_INT,
+					  &cursorIds, &nulls, &nelems);
+
+	StringInfo cursorStringInfo = makeStringInfo();
+	for (int i = 0; i < nelems; i++)
+	{
+		if (nulls[i])
+		{
+			continue;
+		}
+
+		int64_t cursorId = DatumGetInt64(cursorIds[i]);
+		const char *cursorName = FormatCursorName(cursorStringInfo, cursorId);
+		DeleteCursorFile(cursorName);
+	}
+
+	return PointerGetDatum(PgbsonInitEmpty());
+}
+
+
 /*
  * Given a pre-built query (for find/aggregate) handles the cursor request
  * and builds a response for the first page.
@@ -699,8 +751,7 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 			cursorId = GenerateCursorId(cursorId);
 
 			StringInfo cursorStringInfo = makeStringInfo();
-			appendStringInfo(cursorStringInfo, "cursor_%ld", cursorId);
-			const char *cursorName = cursorStringInfo->data;
+			const char *cursorName = FormatCursorName(cursorStringInfo, cursorId);
 
 			bool isTopLevel = true;
 			bool isHoldCursor = !IsInTransactionBlock(isTopLevel);

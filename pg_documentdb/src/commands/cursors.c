@@ -649,7 +649,7 @@ BsonStoreDestReceiveCore(pgbson *resultBson,
 			{
 				MemoryContext oldContext = MemoryContextSwitchTo(
 					tupleDestReceiver->writerContext);
-				tupleDestReceiver->cursorFileState = GetCursorFile(
+				tupleDestReceiver->cursorFileState = CreateCursorFile(
 					tupleDestReceiver->cursorName);
 				MemoryContextSwitchTo(oldContext);
 			}
@@ -672,7 +672,7 @@ BsonStoreDestReceiveCore(pgbson *resultBson,
 		PgbsonArrayWriterWriteDocument(tupleDestReceiver->writer, resultBson);
 		MemoryContextSwitchTo(oldContext);
 		tupleDestReceiver->numRowsFetched++;
-		tupleDestReceiver->currentAccumulatedSize += datumSize;
+		tupleDestReceiver->currentAccumulatedSize += (datumSize + perDocOverhead);
 	}
 
 	return true;

@@ -447,7 +447,7 @@ IsHashIndex(IndexDef *indexDef)
 inline static char *
 GetIndexAmHandlerName(IndexDef *indexDef)
 {
-	if (AlternateIndexHandler != NULL)
+	if (AlternateIndexHandler != NULL && strlen(AlternateIndexHandler) > 0)
 	{
 		const BsonIndexAmEntry *indexAm = GetBsonIndexAmByIndexAmName(
 			AlternateIndexHandler);

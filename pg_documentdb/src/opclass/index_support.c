@@ -2049,8 +2049,7 @@ WalkExprAndAddSupportedElemMatchExprs(List *clauses, bytea *options)
 		List *innerArgs;
 		const MongoIndexOperatorInfo *innerOperator = GetMongoIndexQueryOperatorFromNode(
 			elemMatchExpr,
-			&
-			innerArgs);
+			&innerArgs);
 		if (innerOperator == NULL ||
 			innerOperator->indexStrategy == BSON_INDEX_STRATEGY_INVALID)
 		{
@@ -2073,6 +2072,22 @@ WalkExprAndAddSupportedElemMatchExprs(List *clauses, bytea *options)
 		if (!ValidateIndexForQualifierValue(options, innerQueryValue,
 											innerOperator->indexStrategy))
 		{
+			continue;
+		}
+
+		/* Since $eq can fail to traverse array of array paths, elemMatch pushdown cannot handle
+		 * this since we need to skip the recheck.
+		 * TODO: If we can get the recheck skipped here, we can support this here too.
+		 */
+		pgbsonelement queryElement;
+		PgbsonToSinglePgbsonElement(DatumGetPgBson(innerQueryValue), &queryElement);
+		StringView queryPath = {
+			.string = queryElement.path,
+			.length = queryElement.pathLength
+		};
+		if (PathHasArrayIndexElements(&queryPath))
+		{
+			/* We don't support array index elements in elemMatch */
 			continue;
 		}
 

@@ -15,8 +15,14 @@
 typedef struct CursorFileState CursorFileState;
 
 void SetupCursorStorage(void);
+void InitializeFileCursorShmem(void);
+Size FileCursorShmemSize(void);
 
-CursorFileState * GetCursorFile(const char *cursorName);
+void DeletePendingCursorFiles(void);
+void GetCurrentCursorCount(int32_t *currentCursorCount, int32_t *measuredCursorCount,
+						   int64_t *lastCursorSize);
+void DeleteCursorFile(const char *cursorName);
+CursorFileState * CreateCursorFile(const char *cursorName);
 void WriteToCursorFile(CursorFileState *cursorFileState, pgbson *bson);
 pgbson * ReadFromCursorFile(CursorFileState *cursorFileState);
 bytea * CursorFileStateClose(CursorFileState *cursorFileState);

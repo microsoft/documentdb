@@ -34,6 +34,7 @@ ErrorMapping,ErrorName
 115,CommandNotSupported
 118,NamespaceNotSharded
 121,DocumentFailedValidation
+143,CursorInUse
 146,ExceededMemoryLimit
 159,DurationOverflow
 165,ViewDepthLimitExceeded

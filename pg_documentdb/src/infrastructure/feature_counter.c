@@ -384,6 +384,13 @@ get_feature_counter_stats(PG_FUNCTION_ARGS)
 }
 
 
+Size
+SharedFeatureCounterShmemSize(void)
+{
+	return mul_size(sizeof(FeatureCounter), MaxBackends);
+}
+
+
 /*
  * SharedFeatureCounterShmemInit initializes the shared memory used
  * for keeping track of feature counters across backends.
@@ -405,7 +412,7 @@ SharedFeatureCounterShmemInit(void)
 
 	bool found;
 
-	size_t feature_counter_shmem_size = mul_size(sizeof(FeatureCounter), MaxBackends);
+	size_t feature_counter_shmem_size = SharedFeatureCounterShmemSize();
 	FeatureCounterBackendArray = (FeatureCounter *)
 								 ShmemInitStruct("Feature Counter Array",
 												 feature_counter_shmem_size, &found);

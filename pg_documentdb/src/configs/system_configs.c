@@ -143,6 +143,16 @@ bool EnableExtendedExplainPlans = DEFAULT_ENABLE_EXTENDED_EXPLAIN_PLANS;
 #define DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY false
 bool EnableTtlJobsOnReadOnly = DEFAULT_ENABLE_TTL_JOBS_ON_READ_ONLY;
 
+#define DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS 60
+int DefaultCursorExpiryTimeLimitSeconds = DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS;
+
+#define DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE_MB 4 * 1024
+int MaxAllowedCursorIntermediateFileSizeMB =
+	DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE_MB;
+
+#define DEFAULT_MAX_CURSOR_FILE_COUNT 5000
+int MaxCursorFileCount = DEFAULT_MAX_CURSOR_FILE_COUNT;
+
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -398,5 +408,28 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 			"Enables extended explain plans for queries. "
 			"This will include additional information in the explain plans."),
 		NULL, &EnableExtendedExplainPlans, DEFAULT_ENABLE_EXTENDED_EXPLAIN_PLANS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.defaultCursorExpiryTimeLimitSeconds", newGucPrefix),
+		gettext_noop(
+			"Default expiry time limit for cursor."),
+		NULL, &DefaultCursorExpiryTimeLimitSeconds,
+		DEFAULT_CURSOR_EXPIRY_TIME_LIMIT_SECONDS,
+		1, 3600, PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.maxCursorIntermediateFileSizeMB", newGucPrefix),
+		gettext_noop(
+			"Maximum size of intermediate file for cursor."),
+		NULL, &MaxAllowedCursorIntermediateFileSizeMB,
+		DEFAULT_MAX_CURSOR_FILE_INTERMEDIATE_FILE_SIZE_MB,
+		1, INT_MAX, PGC_USERSET, 0, NULL, NULL, NULL);
+	DefineCustomIntVariable(
+		psprintf("%s.maxCursorFileCount", newGucPrefix),
+		gettext_noop(
+			"Maximum number of cursor files allowed. set to 0 to disable cursor file limit."),
+		NULL, &MaxCursorFileCount,
+		DEFAULT_MAX_CURSOR_FILE_COUNT, 0, INT_MAX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

@@ -35,6 +35,13 @@ int FirstMajorVersionOffset = 0;
 static char *VersionRefreshQuery = NULL;
 static char * GetVersionRefreshQuery(void);
 
+Size
+VersionCacheShmemSize(void)
+{
+	return MAXALIGN(sizeof(ExtensionVersion));
+}
+
+
 /*
  * Initializes the version cache in shared memory.
  */
@@ -43,7 +50,7 @@ InitializeVersionCache(void)
 {
 	bool found;
 
-	size_t version_cache_size = MAXALIGN(sizeof(ExtensionVersion));
+	size_t version_cache_size = VersionCacheShmemSize();
 	CurrentVersion = (ExtensionVersion *) ShmemInitStruct("DocumentDB Version Cache",
 														  version_cache_size, &found);
 

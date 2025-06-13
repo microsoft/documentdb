@@ -18,6 +18,9 @@
 #include <port.h>
 #include <utils/timestamp.h>
 #include <utils/resowner.h>
+#include <port/atomics.h>
+#include <storage/lwlock.h>
+#include <storage/shmem.h>
 #if PG_VERSION_NUM >= 170000
 #else
 #include <utils/resowner_private.h>
@@ -37,8 +40,9 @@
 extern char *ApiGucPrefix;
 extern bool UseFileBasedPersistedCursors;
 extern bool EnableFileBasedPersistedCursors;
-extern int MaxAllowedCursorIntermediateFileSize;
+extern int MaxAllowedCursorIntermediateFileSizeMB;
 extern int DefaultCursorExpiryTimeLimitSeconds;
+extern int MaxCursorFileCount;
 
 
 /*
@@ -83,25 +87,35 @@ typedef struct CursorFileState
 	bool cursorComplete;
 } CursorFileState;
 
+typedef struct CursorStoreSharedData
+{
+	int sharedCursorStoreTrancheId;
+	char *sharedCursorStoreTrancheName;
+
+	LWLock sharedCursorStoreLock;
+
+	int32_t currentCursorCount;
+
+	int32_t cleanupCursorFileCount;
+	int64_t cleanupTotalCursorSize;
+} CursorStoreSharedData;
+
+
 PG_FUNCTION_INFO_V1(cursor_directory_cleanup);
 
 
 static void FlushBuffer(CursorFileState *cursorFileState);
 static bool FillBuffer(CursorFileState *cursorFileState, char *buffer, int32_t length);
 
+static void DecrementCursorCount(void);
+static bool IncrementCursorCount(void);
 
-#if PG_VERSION_NUM >= 170000
-static void ResOwnerReleaseCursorFile(Datum res);
-static char * ResOwnerPrintCursorFile(Datum res);
-static const ResourceOwnerDesc file_resowner_desc =
-{
-	.name = "File",
-	.release_phase = RESOURCE_RELEASE_AFTER_LOCKS,
-	.release_priority = RELEASE_PRIO_FILES,
-	.ReleaseResource = ResOwnerReleaseCursorFile,
-	.DebugPrint = ResOwnerPrintCursorFile
-};
-#endif
+static void TryCleanUpAndReserveCursor(void);
+static int64_t TryDeleteCursorFile(struct dirent *de, int64_t expirtyTimeLimitSeconds);
+
+
+static CursorStoreSharedData *CursorStoreSharedState = NULL;
+static char PendingCursorFile[NAMEDATALEN] = { 0 };
 
 /* Whether or not the cursor_set has been initialized during shared startup */
 static bool cursor_set_initialized = false;
@@ -142,7 +156,7 @@ cursor_directory_cleanup(PG_FUNCTION_ARGS)
 	dirdesc = AllocateDir(cursor_directory);
 	if (!dirdesc)
 	{
-		/* Return empty tuplestore if appropriate */
+		/* Skip if dir doesn't exist appropriate */
 		if (errno == ENOENT)
 		{
 			PG_RETURN_VOID();
@@ -150,55 +164,38 @@ cursor_directory_cleanup(PG_FUNCTION_ARGS)
 	}
 
 	Size totalCursorSize = 0;
+	int32_t totalCursorCount = 0;
 	while ((de = ReadDir(dirdesc, cursor_directory)) != NULL)
 	{
-		char path[MAXPGPATH * 2];
-		struct stat attrib;
+		int64_t deleteRes = TryDeleteCursorFile(de, expiryTimeLimitSeconds);
 
-		/* Skip hidden files */
-		if (de->d_name[0] == '.')
+		if (deleteRes == 0)
 		{
+			/* Invalid file or concurrent delete */
 			continue;
 		}
-
-		/* Get the file info */
-		snprintf(path, sizeof(path), "%s/%s", cursor_directory, de->d_name);
-		if (stat(path, &attrib) < 0)
+		else if (deleteRes < 0)
 		{
-			/* Ignore concurrently-deleted files, else complain */
-			if (errno == ENOENT)
-			{
-				continue;
-			}
-
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not stat file \"%s\": %m", path)));
-		}
-
-		/* Ignore anything but regular files */
-		if (!S_ISREG(attrib.st_mode))
-		{
-			continue;
-		}
-
-		TimestampTz lastModified = time_t_to_timestamptz(attrib.st_mtime);
-		TimestampTz currentTime = GetCurrentTimestamp();
-		if (TimestampDifferenceExceeds(lastModified, currentTime, expiryTimeLimitSeconds *
-									   1000))
-		{
-			ereport(LOG, (errmsg("Deleting expired cursor file %s", path)));
-			durable_unlink(path, WARNING);
+			/* Successfully deleted */
+			DecrementCursorCount();
 		}
 		else
 		{
-			totalCursorSize += attrib.st_size;
+			/* Live cursor */
+			totalCursorSize += deleteRes;
 		}
+
+		totalCursorCount++;
 	}
 
 	FreeDir(dirdesc);
 
-	ereport(DEBUG1, (errmsg("Total size of cursor files: %ld", totalCursorSize)));
+	pg_memory_barrier();
+	CursorStoreSharedState->cleanupCursorFileCount = totalCursorCount;
+	CursorStoreSharedState->cleanupTotalCursorSize = totalCursorSize;
+
+	ereport(DEBUG1, (errmsg("Total size of cursor files: %ld, count %d", totalCursorSize,
+							totalCursorCount)));
 	PG_RETURN_VOID();
 }
 
@@ -240,19 +237,6 @@ SetupCursorStorage(void)
 }
 
 
-static inline void
-ResourceOwnerRememberCurrentFile(File file)
-{
-#if PG_VERSION_NUM >= 170000
-	ResourceOwnerEnlarge(CurrentResourceOwner);
-	ResourceOwnerRemember(CurrentResourceOwner, Int32GetDatum(file), &file_resowner_desc);
-#else
-	ResourceOwnerEnlargeFiles(CurrentResourceOwner);
-	ResourceOwnerRememberFile(CurrentResourceOwner, file);
-#endif
-}
-
-
 /*
  * Starts a new query cursor file. This is called
  * on the first page of a query.
@@ -262,7 +246,7 @@ ResourceOwnerRememberCurrentFile(File file)
  * files.
  */
 CursorFileState *
-GetCursorFile(const char *cursorName)
+CreateCursorFile(const char *cursorName)
 {
 	if (!cursor_set_initialized)
 	{
@@ -288,17 +272,42 @@ GetCursorFile(const char *cursorName)
 	snprintf(fileState->cursorState.cursorFileName, NAMEDATALEN, "%s/%s",
 			 cursor_directory, cursorName);
 
-	File cursorFile = PathNameOpenFile(fileState->cursorState.cursorFileName, O_RDWR |
-									   O_CREAT | O_TRUNC | PG_BINARY);
+	File cursorFile = PathNameOpenTemporaryFile(fileState->cursorState.cursorFileName,
+												O_RDWR | O_CREAT | O_EXCL | PG_BINARY);
+	if (cursorFile < 0)
+	{
+		if (errno == EEXIST)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORINUSE),
+							errmsg("Cursor already exists on server: %s", cursorName)));
+		}
+		else
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+					 errmsg("could not open file \"%s\": %m",
+							fileState->cursorState.cursorFileName)));
+		}
+	}
+
+	if (FileSize(cursorFile) != 0)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORINUSE),
+						errmsg("Cursor already exists on server: %s", cursorName)));
+	}
+
+	/* Register the cursor file for transaction abort */
+	strncpy(PendingCursorFile, fileState->cursorState.cursorFileName, NAMEDATALEN);
+
+	/* Ensure we have sufficient space to create cursor files */
+	if (!IncrementCursorCount())
+	{
+		/* We've reached capacity, try to clean up and try again */
+		TryCleanUpAndReserveCursor();
+	}
+
 	fileState->bufFile = cursorFile;
 	fileState->isReadWrite = true;
-
-	/* Track the file in the current resource owner:
-	 * We will explicitly forget the file when we end the query.
-	 * This is so that the file is cleaned if the query fails before
-	 * we drain the whole cursor.
-	 */
-	ResourceOwnerRememberCurrentFile(cursorFile);
 
 	return fileState;
 }
@@ -352,6 +361,69 @@ WriteToCursorFile(CursorFileState *cursorFileState, pgbson *dataBson)
 }
 
 
+void
+GetCurrentCursorCount(int32_t *currentCursorCount, int32_t *measuredCursorCount,
+					  int64_t *lastCursorSize)
+{
+	if (!cursor_set_initialized || !UseFileBasedPersistedCursors ||
+		!EnableFileBasedPersistedCursors)
+	{
+		*currentCursorCount = 0;
+		*measuredCursorCount = 0;
+		*lastCursorSize = 0;
+	}
+
+	*currentCursorCount = CursorStoreSharedState->currentCursorCount;
+	*measuredCursorCount = CursorStoreSharedState->cleanupCursorFileCount;
+	*lastCursorSize = CursorStoreSharedState->cleanupTotalCursorSize;
+}
+
+
+void
+DeletePendingCursorFiles(void)
+{
+	if (!UseFileBasedPersistedCursors || !cursor_set_initialized)
+	{
+		return;
+	}
+
+	if (PendingCursorFile[0] == '\0')
+	{
+		/* No pending cursor file to delete */
+		return;
+	}
+
+	/* Delete the pending cursor file */
+	bool errorOnFailure = false;
+	PathNameDeleteTemporaryFile(PendingCursorFile, errorOnFailure);
+	PendingCursorFile[0] = '\0';
+}
+
+
+void
+DeleteCursorFile(const char *cursorName)
+{
+	if (!cursor_set_initialized)
+	{
+		ereport(ERROR, (errmsg("Cursor storage not initialized")));
+	}
+
+	char cursorFileName[MAXPGPATH];
+	snprintf(cursorFileName, MAXPGPATH, "%s/%s",
+			 cursor_directory, cursorName);
+
+	/* TODO: Should we be ignoring errors here */
+	bool errorOnFailure = true;
+	bool deleted = PathNameDeleteTemporaryFile(cursorFileName, errorOnFailure);
+
+	/* Decrement the count if the result is 0 */
+	if (deleted)
+	{
+		DecrementCursorCount();
+	}
+}
+
+
 /*
  * Given an opaque serialized cursor state as a bytea, creates
  * a CursorFileState object that can be used to read from the
@@ -374,8 +446,8 @@ DeserializeFileState(bytea *cursorFileState)
 
 	CursorFileState *fileState = palloc0(sizeof(CursorFileState));
 	fileState->cursorState = *(SerializedCursorState *) VARDATA(cursorFileState);
-	fileState->bufFile = PathNameOpenFile(fileState->cursorState.cursorFileName,
-										  O_RDONLY | PG_BINARY);
+	fileState->bufFile = PathNameOpenTemporaryFile(fileState->cursorState.cursorFileName,
+												   O_RDONLY | PG_BINARY | O_EXCL);
 	fileState->isReadWrite = false;
 	fileState->next_offset = fileState->cursorState.file_offset;
 
@@ -392,8 +464,8 @@ DeserializeFileState(bytea *cursorFileState)
 						fileState->cursorState.cursorFileName)));
 	}
 
-	/* We now have a file ready, track in the current ResourceOwner */
-	ResourceOwnerRememberCurrentFile(fileState->bufFile);
+	/* Register the cursor file for transaction abort */
+	strncpy(PendingCursorFile, fileState->cursorState.cursorFileName, NAMEDATALEN);
 	return fileState;
 }
 
@@ -508,13 +580,13 @@ FlushBuffer(CursorFileState *cursorFileState)
 		cursorFileState->cursorState.file_offset += cursorFileState->pos;
 		cursorFileState->pos = 0;
 
-		if (cursorFileState->cursorState.file_offset >
-			(uint32_t) MaxAllowedCursorIntermediateFileSize)
+		Size maxFileSize = ((Size) MaxAllowedCursorIntermediateFileSizeMB) * 1024L * 1024;
+		if (cursorFileState->cursorState.file_offset > maxFileSize)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-							errmsg("Cursor file size %u exceeded the limit %d",
+							errmsg("Cursor file size %u exceeded the limit %d MB",
 								   cursorFileState->cursorState.file_offset,
-								   MaxAllowedCursorIntermediateFileSize)));
+								   MaxAllowedCursorIntermediateFileSizeMB)));
 		}
 	}
 }
@@ -538,22 +610,16 @@ CursorFileStateClose(CursorFileState *cursorFileState)
 		pgstat_report_tempfile(cursorFileState->cursorState.file_length);
 	}
 
-#if PG_VERSION_NUM >= 170000
-	ResourceOwnerForget(CurrentResourceOwner, Int32GetDatum(cursorFileState->bufFile),
-						&file_resowner_desc);
-#else
-	ResourceOwnerForgetFile(CurrentResourceOwner, cursorFileState->bufFile);
-#endif
+	PendingCursorFile[0] = '\0';
 	FileClose(cursorFileState->bufFile);
 	if (cursorFileState->cursorComplete)
 	{
 		/* Continuation state is null, delete the file */
-		if (unlink(cursorFileState->cursorState.cursorFileName))
+		bool errorOnFailure = true;
+		if (PathNameDeleteTemporaryFile(cursorFileState->cursorState.cursorFileName,
+										errorOnFailure))
 		{
-			ereport(LOG,
-					(errcode_for_file_access(),
-					 errmsg("could not delete file \"%s\": %m",
-							cursorFileState->cursorState.cursorFileName)));
+			DecrementCursorCount();
 		}
 
 		return NULL;
@@ -568,20 +634,186 @@ CursorFileStateClose(CursorFileState *cursorFileState)
 }
 
 
-#if PG_VERSION_NUM >= 170000
+Size
+FileCursorShmemSize(void)
+{
+	if (!EnableFileBasedPersistedCursors)
+	{
+		return 0;
+	}
+
+	Size size = 0;
+	size = add_size(size, sizeof(CursorStoreSharedData));
+	return size;
+}
+
+
+void
+InitializeFileCursorShmem(void)
+{
+	if (!EnableFileBasedPersistedCursors)
+	{
+		return;
+	}
+
+	bool found = false;
+
+	/*
+	 * make consistent with other extensions running.
+	 */
+	LWLockAcquire(AddinShmemInitLock, LW_EXCLUSIVE);
+	CursorStoreSharedState =
+		(CursorStoreSharedData *) ShmemInitStruct(
+			"Shared Cursor Store Data",
+			sizeof(CursorStoreSharedData),
+			&found);
+
+	if (!found)
+	{
+		CursorStoreSharedState->sharedCursorStoreTrancheId = LWLockNewTrancheId();
+		CursorStoreSharedState->sharedCursorStoreTrancheName = "Cursor Store Tranche";
+		LWLockRegisterTranche(CursorStoreSharedState->sharedCursorStoreTrancheId,
+							  CursorStoreSharedState->sharedCursorStoreTrancheName);
+
+		LWLockInitialize(&CursorStoreSharedState->sharedCursorStoreLock,
+						 CursorStoreSharedState->sharedCursorStoreTrancheId);
+	}
+
+	LWLockRelease(AddinShmemInitLock);
+	Assert(CursorStoreSharedState->sharedCursorStoreTrancheId != 0);
+}
+
+
+static bool
+IncrementCursorCount(void)
+{
+	LWLockAcquire(&CursorStoreSharedState->sharedCursorStoreLock, LW_EXCLUSIVE);
+
+	pg_memory_barrier();
+	if (MaxCursorFileCount > 0 &&
+		CursorStoreSharedState->currentCursorCount + 1 > MaxCursorFileCount)
+	{
+		LWLockRelease(&CursorStoreSharedState->sharedCursorStoreLock);
+		return false;
+	}
+
+	CursorStoreSharedState->currentCursorCount++;
+	LWLockRelease(&CursorStoreSharedState->sharedCursorStoreLock);
+	return true;
+}
+
+
 static void
-ResOwnerReleaseCursorFile(Datum res)
+DecrementCursorCount(void)
 {
-	File file = (File) DatumGetInt32(res);
-	FileClose(file);
+	LWLockAcquire(&CursorStoreSharedState->sharedCursorStoreLock, LW_EXCLUSIVE);
+
+	pg_memory_barrier();
+	CursorStoreSharedState->currentCursorCount--;
+	if (CursorStoreSharedState->currentCursorCount < 0)
+	{
+		CursorStoreSharedState->currentCursorCount = 0;
+	}
+
+	LWLockRelease(&CursorStoreSharedState->sharedCursorStoreLock);
 }
 
 
-static char *
-ResOwnerPrintCursorFile(Datum res)
+static void
+TryCleanUpAndReserveCursor(void)
 {
-	return psprintf("Cursor File %d", DatumGetInt32(res));
+	DIR *dirdesc;
+	struct dirent *de;
+
+	dirdesc = AllocateDir(cursor_directory);
+	if (!dirdesc)
+	{
+		/* Skip if dir doesn't exist appropriate */
+		if (errno == ENOENT)
+		{
+			ereport(ERROR, (errmsg("Cursor directory does not exist")));
+		}
+	}
+
+	/* Clean up expired cursors */
+	bool deleted = false;
+	while ((de = ReadDir(dirdesc, cursor_directory)) != NULL)
+	{
+		int64_t deleteRes = TryDeleteCursorFile(de, DefaultCursorExpiryTimeLimitSeconds);
+		if (deleteRes < 0)
+		{
+			/* Successfully deleted an expired cursor */
+			deleted = true;
+			break;
+		}
+	}
+
+	FreeDir(dirdesc);
+
+	if (deleted)
+	{
+		return;
+	}
+
+	/* Could not delete any cursors - all are valid - fail */
+	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORINUSE),
+					errmsg(
+						"Could not reserve a cursor - all cursors are in use and not expired")));
 }
 
 
-#endif
+static int64_t
+TryDeleteCursorFile(struct dirent *de, int64_t expiryTimeLimitSeconds)
+{
+	char path[MAXPGPATH * 2];
+	struct stat attrib;
+
+	/* Skip hidden files */
+	if (de->d_name[0] == '.')
+	{
+		return 0;
+	}
+
+	/* Get the file info */
+	snprintf(path, sizeof(path), "%s/%s", cursor_directory, de->d_name);
+	if (stat(path, &attrib) < 0)
+	{
+		/* Ignore concurrently-deleted files, else complain */
+		if (errno == ENOENT)
+		{
+			return 0;
+		}
+
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not stat file \"%s\": %m", path)));
+	}
+
+	/* Ignore anything but regular files */
+	if (!S_ISREG(attrib.st_mode))
+	{
+		return 0;
+	}
+
+	TimestampTz lastModified = time_t_to_timestamptz(attrib.st_mtime);
+	TimestampTz currentTime = GetCurrentTimestamp();
+	if (TimestampDifferenceExceeds(lastModified, currentTime, expiryTimeLimitSeconds *
+								   1000))
+	{
+		ereport(LOG, (errmsg("Deleting expired cursor file %s", path)));
+		bool errorOnFailure = false;
+		bool deleted = PathNameDeleteTemporaryFile(path, errorOnFailure);
+		if (deleted)
+		{
+			return -attrib.st_size;
+		}
+		else
+		{
+			return attrib.st_size;
+		}
+	}
+	else
+	{
+		return attrib.st_size;
+	}
+}

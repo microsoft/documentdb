@@ -22,5 +22,6 @@ bool IsClusterVersionAtleast(MajorVersion major, int minor, int patch);
 bool IsClusterVersionAtLeastPatch(MajorVersion major, int minor, int patch);
 void InvalidateVersionCache(void);
 void InitializeVersionCache(void);
+Size VersionCacheShmemSize(void);
 
 #endif

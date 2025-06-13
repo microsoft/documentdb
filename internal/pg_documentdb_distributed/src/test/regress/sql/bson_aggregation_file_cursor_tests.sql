@@ -140,11 +140,19 @@ SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 
 
 -- test smaller batch size(s)
 SELECT * FROM aggregation_cursor_test_file.drain_find_query(loopCount => 2, pageSize => 0, project => '{ "a": 1 }', limitVal => 300000);
+
+-- this will fail (with cursor in use)
 SELECT * FROM aggregation_cursor_test_file.drain_find_query(loopCount => 12, pageSize => 1, project => '{ "a": 1 }', limitVal => 300000);
+
+SELECT documentdb_api_internal.delete_cursors(ARRAY[4294967294::int8]);
+
+-- now this works
 SELECT * FROM aggregation_cursor_test_file.drain_find_query(loopCount => 5, pageSize => 2, project => '{ "a": 1 }', limitVal => 300000);
 SELECT * FROM aggregation_cursor_test_file.drain_find_query(loopCount => 4, pageSize => 3, project => '{ "a": 1 }', limitVal => 300000);
 
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 2, pageSize => 0, pipeline => '{ "": [{ "$project": { "a": 1 } }, { "$limit": 300000 }]}');
+
+SELECT documentdb_api_internal.delete_cursors(ARRAY[4294967294::int8]);
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 12, pageSize => 1, pipeline => '{ "": [{ "$project": { "a": 1 } }, { "$limit": 300000 }]}');
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 5, pageSize => 2, pipeline => '{ "": [{ "$project": { "a": 1 } }, { "$limit": 300000 }]}');
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 4, pageSize => 3, pipeline => '{ "": [{ "$project": { "a": 1 } }, { "$limit": 300000 }]}');
@@ -231,3 +239,43 @@ SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 5, pageSize => 100000, pipeline => '{ "": [{ "$sort": { "_id": -1 } }]}', obfuscate_id => true);
 SELECT * FROM aggregation_cursor_test_file.drain_aggregation_query(loopCount => 5, pageSize => 2, pipeline => '{ "": [{ "$group": { "_id": "$_id", "c": { "$max": "$a" } } }] }', obfuscate_id => true);
 RESET citus.enable_local_execution;
+
+-- start draining first page first (should not persist connection and have a query file)
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967291);
+
+SELECT * FROM pg_ls_dir('pg_documentdb_cursor_files') f WHERE f LIKE '%4294967291%' ORDER BY 1;
+
+-- can't reuse the same cursorId
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967291);
+
+SELECT documentdb_api_internal.delete_cursors(ARRAY[4294967291::int8]);
+SELECT * FROM pg_ls_dir('pg_documentdb_cursor_files') f WHERE f LIKE '%4294967291%' ORDER BY 1;
+
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967291);
+
+-- set max cursors to 5
+set documentdb.maxCursorFileCount to 5;
+
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967292);
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967293);
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967294);
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967295);
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967296);
+
+-- delete a cursor and see that it succeeds one time.
+SELECT * FROM pg_ls_dir('pg_documentdb_cursor_files') f WHERE f LIKE '%429496729%' ORDER BY 1;
+SELECT documentdb_api_internal.delete_cursors(ARRAY[4294967295::int8]);
+SELECT * FROM pg_ls_dir('pg_documentdb_cursor_files') f WHERE f LIKE '%429496729%' ORDER BY 1;
+
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967295);
+SELECT cursorPage, continuation, persistConnection FROM
+    documentdb_api.find_cursor_first_page(database => 'db', commandSpec => '{ "find": "get_aggregation_cursor_test_file", "skip": 1, "batchSize": 2, "projection": { "_id": 1 } }', cursorId => 4294967298);
