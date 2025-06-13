@@ -14,7 +14,7 @@ E.g. to build for Debian 12 and PostgreSQL 16, run:
 For Red Hat-based distributions, you can build RPM packages:
 
 ```sh
-./packaging/build_rpm_packages.sh --os rhel8 --pg 17
+./packaging/build_packages.sh --os rhel8 --pg 17
 ```
 
 Supported RPM distributions:
@@ -40,10 +40,10 @@ This script checks:
 
 ```sh
 # Build for RHEL 9 with PostgreSQL 16
-./packaging/build_rpm_packages.sh --os rhel9 --pg 16
+./packaging/build_packages.sh --os rhel9 --pg 16
 
 # Build with testing enabled
-./packaging/build_rpm_packages.sh --os rhel8 --pg 17 --test-clean-install
+./packaging/build_packages.sh --os rhel8 --pg 17 --test-clean-install
 ```
 
 ## Output
