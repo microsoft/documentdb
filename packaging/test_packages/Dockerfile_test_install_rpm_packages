@@ -42,10 +42,7 @@ RUN dnf -y swap curl-minimal curl && \
     zlib-devel \
     libuuid-devel \
     libicu-devel \
-    krb5-devel && \
-    # Try to install additional packages, ignore failures due to network/firewall issues
-    (dnf install -y pcre2-devel 2>/dev/null || echo "pcre2-devel not available") && \
-    (dnf install -y libbson-devel mongo-c-driver-devel 2>/dev/null || echo "libbson/mongo-c-driver not available")
+    krb5-devel
 
 # install actual dependencies
 RUN if [ "${OS_VERSION}" = "9" ]; then \
