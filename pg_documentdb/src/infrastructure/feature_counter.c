@@ -237,6 +237,9 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_COLLMOD_COLOCATION] = "collMod_colocation",
 	[FEATURE_COMMAND_COLLMOD_VALIDATION] = "collMod_validation",
 
+	/* Feature Connection Status */
+	[FEATURE_CONNECTION_STATUS] = "connection_status",
+
 	/* Feature Mapping region - Create index types */
 	[FEATURE_CREATE_INDEX_2D] = "create_index_2d",
 	[FEATURE_CREATE_INDEX_2DSPHERE] = "create_index_2dsphere",

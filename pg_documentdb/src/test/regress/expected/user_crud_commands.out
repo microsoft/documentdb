@@ -300,6 +300,32 @@ SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
 ERROR:  permission denied to drop role
 -- switch to admin user
 \c regression adminUser
+-- Test connectionStatus command without showPrivileges parameter
+SELECT documentdb_api.connection_status('{"connectionStatus": 1}');
+                                                                                                                    connection_status                                                                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "authInfo" : { "authenticatedUsers" : [ { "user" : "adminUser", "db" : "admin" } ], "authenticatedUserRoles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Test connectionStatus command with showPrivileges set to true/false
+SELECT documentdb_api.connection_status('{"connectionStatus": 1, "showPrivileges":true}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    connection_status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "authInfo" : { "authenticatedUsers" : [ { "user" : "adminUser", "db" : "admin" } ], "authenticatedUserRoles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ], "authenticatedUserPrivileges" : [ { "resource" : { "db" : "", "collection" : "" }, "actions" : [ "analyzeShardKey", "changeStream", "collStats", "createCollection", "createIndex", "dbStats", "dropCollection", "dropDatabase", "dropIndex", "enableSharding", "find", "getDatabaseVersion", "getShardVersion", "indexStats", "insert", "killCursors", "listCollections", "listIndexes", "refineCollectionShardKey", "remove", "reshardCollection", "splitVector", "update" ] }, { "resource" : { "cluster" : true }, "actions" : [ "connPoolStats", "dropConnections", "getChangeStreamState", "getClusterParameter", "hostInfo", "killAnyCursor", "killAnySession", "killop", "listDatabases", "listSessions", "serverStatus", "setChangeStreamState" ] } ] }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.connection_status('{"connectionStatus": 1, "showPrivileges":false}');
+                                                                                                                    connection_status                                                                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "authInfo" : { "authenticatedUsers" : [ { "user" : "adminUser", "db" : "admin" } ], "authenticatedUserRoles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+-- Test connectionStatus command with no parameters, should fail
+SELECT documentdb_api.connection_status();
+ERROR:  function documentdb_api.connection_status() does not exist at character 8
+-- Test connectionStatus command with invalid parameters
+SELECT documentdb_api.connection_status('{"connectionStatus": 0}');
+ERROR:  Unsupported value for 'connectionStatus' field.
 --Create without privileges
 SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
 ERROR:  permission denied to create role

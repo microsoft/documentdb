@@ -70,4 +70,7 @@ char * ValidateAndObtainUserRole(const bson_value_t *rolesDocument);
 /* Method to verify if username is valid */
 bool IsUserNameInvalid(const char *userName);
 
+/* Method to call Connection Status command */
+Datum connection_status(pgbson *showPrivilegesSpec);
+
 #endif

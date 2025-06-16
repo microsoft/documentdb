@@ -155,6 +155,19 @@ SELECT documentdb_api.drop_user('{"dropUser":"test_user"}');
 -- switch to admin user
 \c regression adminUser
 
+-- Test connectionStatus command without showPrivileges parameter
+SELECT documentdb_api.connection_status('{"connectionStatus": 1}');
+
+-- Test connectionStatus command with showPrivileges set to true/false
+SELECT documentdb_api.connection_status('{"connectionStatus": 1, "showPrivileges":true}');
+SELECT documentdb_api.connection_status('{"connectionStatus": 1, "showPrivileges":false}');
+
+-- Test connectionStatus command with no parameters, should fail
+SELECT documentdb_api.connection_status();
+
+-- Test connectionStatus command with invalid parameters
+SELECT documentdb_api.connection_status('{"connectionStatus": 0}');
+
 --Create without privileges
 SELECT documentdb_api.create_user('{"createUser":"newUser", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
 
