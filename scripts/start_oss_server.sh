@@ -55,7 +55,7 @@ if [ "$help" == "true" ]; then
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
     echo "${green}[-e] - optional argument. Allows PostgreSQL access from any IP address"
     echo "${green}[-p <port>] - optional argument. specifies the port for the coordinator"
-    echo "${green}if postgresDir not specified assumed to be /home/documentdb/postgresql/data"
+    echo "${green}if postgresDir not specified assumed to be /data"
     exit 1;
 fi
 
@@ -97,7 +97,7 @@ scriptDir="$( cd -P "$( dirname "$source" )" && pwd )"
 . $scriptDir/utils.sh
 
 if [ -z $postgresDirectory ]; then
-    postgresDirectory="/home/documentdb/postgresql/data"
+    postgresDirectory="/data"
 fi
 
 # Only initialize if directory doesn't exist, is empty, or doesn't contain a valid PostgreSQL data directory
