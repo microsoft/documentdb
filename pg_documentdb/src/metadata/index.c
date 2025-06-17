@@ -1464,7 +1464,7 @@ GetSkippableRequestFromIndexQueue(char cmdType, int expireTimeInSeconds,
  * GetRequestFromIndexQueue gets the exactly one request corresponding to the collectionId to either for CREATE or REINDEX depending on cmdType.
  */
 IndexCmdRequest *
-GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
+GetRequestFromIndexQueue(char cmdType, uint64 collectionId, MemoryContext mcxt)
 {
 	Assert(cmdType == CREATE_INDEX_COMMAND_TYPE || cmdType == REINDEX_COMMAND_TYPE);
 
@@ -1501,8 +1501,8 @@ GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
 					 " FROM %s iq WHERE cmd_type = '%c'",
 					 GetIndexQueueName(), cmdType);
 	appendStringInfo(cmdStr, " AND iq.collection_id = " UINT64_FORMAT, collectionId);
-	appendStringInfo(cmdStr, " AND (index_cmd_status != %d",
-					 IndexCmdStatus_Inprogress);
+	appendStringInfo(cmdStr, " AND (index_cmd_status NOT IN (%d, %d)",
+					 IndexCmdStatus_Inprogress, IndexCmdStatus_Skippable);
 	appendStringInfo(cmdStr, " OR (index_cmd_status = %d", IndexCmdStatus_Inprogress);
 	appendStringInfo(cmdStr,
 					 " AND iq.global_pid IS NOT NULL AND");
@@ -1541,15 +1541,22 @@ GetRequestFromIndexQueue(char cmdType, uint64 collectionId)
 		userOid = DatumGetObjectId(results[6]);
 	}
 
-	IndexCmdRequest *request = palloc(sizeof(IndexCmdRequest));
+	MemoryContext old = MemoryContextSwitchTo(mcxt);
+	IndexCmdRequest *request = palloc0(sizeof(IndexCmdRequest));
 	request->indexId = indexId;
 	request->collectionId = collectionId;
-	request->cmd = cmd;
 	request->attemptCount = attemptCount;
-	request->comment = comment;
 	request->updateTime = updateTime;
 	request->status = status;
 	request->userOid = userOid;
+	request->comment = NULL;
+	request->cmd = pstrdup(cmd);
+	if (comment != NULL)
+	{
+		request->comment = PgbsonCloneFromPgbson(comment);
+	}
+	MemoryContextSwitchTo(old);
+
 	return request;
 }
 
@@ -1596,7 +1603,7 @@ GetCollectionIdsForIndexBuild(char cmdType, List *excludeCollectionIds)
 	 * SELECT array_agg(a.collection_id) FROM
 	 *  (SELECT collection_id
 	 *  FROM ApiCatalogSchemaName.{ExtensionObjectPrefix}_index_queue pq
-	 *  WHERE cmd_type = $1 AND collection_id <> ANY($2)
+	 *  WHERE cmd_type = $1 AND collection_id <> ALL($2)
 	 *  ORDER BY min(pq.index_cmd_status) LIMIT MaxNumActiveUsersIndexBuilds
 	 *  ) a;
 	 */
@@ -1610,7 +1617,7 @@ GetCollectionIdsForIndexBuild(char cmdType, List *excludeCollectionIds)
 
 	if (excludeCollectionIds != NIL)
 	{
-		appendStringInfo(cmdStr, " AND collection_id <> ANY($2) ");
+		appendStringInfo(cmdStr, " AND collection_id <> ALL($2) ");
 	}
 	appendStringInfo(cmdStr,
 					 " ORDER BY index_cmd_status ASC LIMIT %d",
@@ -1706,9 +1713,8 @@ MarkIndexRequestStatus(int indexId, char cmdType, IndexCmdStatus status, pgbson 
 	Assert(cmdType == CREATE_INDEX_COMMAND_TYPE || cmdType == REINDEX_COMMAND_TYPE);
 	StringInfo cmdStr = makeStringInfo();
 	appendStringInfo(cmdStr,
-					 "UPDATE %s SET index_cmd_status = $1, comment = %s.bson_from_bytea($2),"
-					 " update_time = $3, attempt = $4 ", GetIndexQueueName(),
-					 CoreSchemaNameV2);
+					 "UPDATE %s SET index_cmd_status = $1, comment = COALESCE($2, comment),"
+					 " update_time = $3, attempt = $4 ", GetIndexQueueName());
 
 	if (opId != NULL)
 	{
@@ -1724,44 +1730,45 @@ MarkIndexRequestStatus(int indexId, char cmdType, IndexCmdStatus status, pgbson 
 					 " WHERE index_id = $5 AND cmd_type = $6 and index_cmd_status < %d",
 					 IndexCmdStatus_Skippable);
 
-	int argCount = 0;
+	int argCount = 6;
 	Oid argTypes[8];
 	Datum argValues[8];
 	char argNulls[8] = { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' };
 
 	argTypes[0] = INT4OID;
 	argValues[0] = Int32GetDatum(status);
-	argCount++;
 
-	argTypes[1] = BYTEAOID;
-	argValues[1] = PointerGetDatum(CastPgbsonToBytea(comment));
-	argCount++;
+	argTypes[1] = BsonTypeId();
+	if (comment == NULL)
+	{
+		argValues[1] = (Datum) 0; /* NULL value for comment */
+		argNulls[1] = 'n'; /* mark as NULL */
+	}
+	else
+	{
+		argValues[1] = PointerGetDatum(comment);
+	}
 
 	argTypes[2] = TIMESTAMPTZOID;
 	argValues[2] = TimestampTzGetDatum(GetCurrentTimestamp());
-	argCount++;
 
 	argTypes[3] = INT2OID;
 	argValues[3] = Int16GetDatum(attemptCount);
-	argCount++;
 
 	argTypes[4] = INT4OID;
 	argValues[4] = Int32GetDatum(indexId);
-	argCount++;
 
 	argTypes[5] = CHAROID;
 	argValues[5] = CharGetDatum(cmdType);
-	argCount++;
 
 	if (opId != NULL)
 	{
+		argCount = 8;
 		argTypes[6] = INT8OID;
 		argValues[6] = Int64GetDatum(opId->global_pid);
-		argCount++;
 
 		argTypes[7] = TIMESTAMPTZOID;
 		argValues[7] = TimestampTzGetDatum(opId->start_time);
-		argCount++;
 	}
 
 	bool isNull = true;

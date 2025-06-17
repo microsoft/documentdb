@@ -88,9 +88,29 @@ typedef struct
 	char *errMsg;
 } SkippableError;
 
+/*
+ * Private enum tracking status of the index build run (each loop
+ * of the index build store procedure).
+ */
+typedef enum BackgroundIndexRunStatus
+{
+	/* The current loop pruned skippable indexes */
+	RunStatus_PrunedSkippableIndexes = 1,
+
+	/* No valid indexes were found in the current loop */
+	RunStatus_NoValidIndexFound = 2,
+
+	/* An index was marked as skippable (failed permanently) */
+	RunStatus_IndexMarkedSkippable = 3,
+
+	/* An index build was done in the current loop */
+	RunStatus_IndexBuildDone = 4,
+} BackgroundIndexRunStatus;
+
 extern int MaxIndexBuildAttempts;
 extern int IndexQueueEvictionIntervalInSec;
 extern bool SkipCreateIndexesOnCreateCollection;
+extern bool EnableMultipleIndexBuildsPerRun;
 
 /* Do not retry the index build if error code belongs to following list. */
 static const SkippableError SkippableErrors[] = {
@@ -100,6 +120,7 @@ static const SkippableError SkippableErrors[] = {
 	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "column cannot have more than " }, /* max dimension for hnsw and ivf */
 	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "vector cannot have more than " }, /* VECTOR_MAX_DIM in pgvector */
 	{ 2600, "vector dimension cannot be larger than " }, /* max dimension for diskann */
+	{ ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE, "is out of range for type halfvec" },
 	{ 261 /* Postgres ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "index row size " },
 	{ 261 /* ERRCODE_PROGRAM_LIMIT_EXCEEDED */, "memory required is " },
 	{ ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX, "unsupported language: " },
@@ -142,6 +163,8 @@ static Datum ComposeCheckIndexStatusResponse(FunctionCallInfo fcinfo, pgbson *bs
 											 ok, bool finish);
 static void TryDropCollectionIndex(int indexId);
 static bool PruneSkippableIndexes(void);
+static BackgroundIndexRunStatus build_index_concurrently_from_indexqueue_core(
+	MemoryContext stableContext);
 
 /*
  * command_build_index_concurrently is the implementation of the internal logic
@@ -166,12 +189,40 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 		PG_RETURN_VOID();
 	}
 
+	if (EnableMultipleIndexBuildsPerRun)
+	{
+		BackgroundIndexRunStatus runStatus = RunStatus_NoValidIndexFound;
+		MemoryContext createContext = AllocSetContextCreate(fcinfo->flinfo->fn_mcxt,
+															"Create Index Child context",
+															ALLOCSET_DEFAULT_SIZES);
+		do {
+			runStatus = build_index_concurrently_from_indexqueue_core(createContext);
+
+			/* Commit and start before doing another round */
+			PopAllActiveSnapshots();
+			CommitTransactionCommand();
+			StartTransactionCommand();
+			MemoryContextReset(createContext);
+		} while (runStatus == RunStatus_IndexBuildDone);
+	}
+	else
+	{
+		build_index_concurrently_from_indexqueue_core(fcinfo->flinfo->fn_mcxt);
+	}
+
+	PG_RETURN_VOID();
+}
+
+
+static BackgroundIndexRunStatus
+build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
+{
 	/* Prioritize pruning the index queue for old indexes */
 	if (PruneSkippableIndexes())
 	{
 		ereport(LOG, (errmsg(
 						  "Pruned skippable indexes. Retrying index checks in another round.")));
-		PG_RETURN_VOID();
+		return RunStatus_PrunedSkippableIndexes;
 	}
 
 	List *excludeCollectionIds = NIL;
@@ -195,9 +246,18 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 					collectionId) != LOCKACQUIRE_NOT_AVAIL)
 			{
 				indexCmdRequest = GetRequestFromIndexQueue(CREATE_INDEX_COMMAND_TYPE,
-														   collectionId);
+														   collectionId, stableContext);
 				if (!indexCmdRequest)
 				{
+					/* Could not get any index requests for this collection, skip it for this round */
+					uint64 *collectionIdPtr = palloc(sizeof(uint64));
+					*collectionIdPtr = collectionId;
+					excludeCollectionIds = lappend(excludeCollectionIds, collectionIdPtr);
+
+					ereport(DEBUG1,
+							(errmsg("Excluded collectionId "UINT64_FORMAT, collectionId),
+							 errdetail_log("Excluded collectionId "UINT64_FORMAT,
+										   collectionId)));
 					ReleaseAdvisoryExclusiveSessionLockForCreateIndexBackground(
 						collectionId);
 					continue;
@@ -229,7 +289,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 
 	if (!indexCmdRequest)
 	{
-		PG_RETURN_VOID();
+		return RunStatus_NoValidIndexFound;
 	}
 
 	if (indexCmdRequest->attemptCount >= MaxIndexBuildAttempts)
@@ -240,11 +300,11 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 			 indexCmdRequest->indexId, collectionId);
 		MarkIndexRequestStatus(indexCmdRequest->indexId,
 							   CREATE_INDEX_COMMAND_TYPE,
-							   IndexCmdStatus_Skippable, indexCmdRequest->comment, NULL,
+							   IndexCmdStatus_Skippable, NULL, NULL,
 							   indexCmdRequest->attemptCount);
 		DeleteCollectionIndexRecord(indexCmdRequest->collectionId,
 									indexCmdRequest->indexId);
-		PG_RETURN_VOID();
+		return RunStatus_IndexMarkedSkippable;
 	}
 
 	if (indexCmdRequest->status == IndexCmdStatus_Skippable)
@@ -271,7 +331,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 			DeleteCollectionIndexRecord(indexCmdRequest->collectionId,
 										indexCmdRequest->indexId);
 		}
-		PG_RETURN_VOID();
+		return RunStatus_PrunedSkippableIndexes;
 	}
 	ereport(LOG, (errmsg(
 					  "Found one request for CreateIndex with index_id: %d and collectionId: "
@@ -282,14 +342,11 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 					  UINT64_FORMAT,
 					  indexCmdRequest->indexId, collectionId)));
 
-	IndexJobOpId *opId = GetIndexBuildJobOpId();
-
 	/* Mark index inprogress. */
-	pgbson *emptyComment = PgbsonInitEmpty();
-	int16 attemptCount = indexCmdRequest->attemptCount + 1;
-
+	indexCmdRequest->attemptCount++;
 	MarkIndexRequestStatus(indexCmdRequest->indexId, CREATE_INDEX_COMMAND_TYPE,
-						   IndexCmdStatus_Inprogress, emptyComment, opId, attemptCount);
+						   IndexCmdStatus_Inprogress, PgbsonInitEmpty(),
+						   GetIndexBuildJobOpId(), indexCmdRequest->attemptCount);
 
 	StringInfo queryStringInfo = makeStringInfo();
 	appendStringInfo(queryStringInfo,
@@ -357,14 +414,16 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 	PG_CATCH();
 	{
 		/* save error info into right context */
-		MemoryContextSwitchTo(oldMemContext);
+		MemoryContextSwitchTo(stableContext);
 		edata = CopyErrorDataAndFlush();
 		errorMessage = edata->message;
 		errorCode = edata->sqlerrcode;
+		MemoryContextSwitchTo(oldMemContext);
 
 		ereport(LOG, (errcode(errorCode), errmsg("couldn't create some of the (invalid) "
-												 "collection indexes: file %s, line %d",
-												 edata->filename, edata->lineno)));
+												 "collection indexes: file %s, line %d, message_id: '%s'",
+												 edata->filename, edata->lineno,
+												 edata->message_id)));
 
 		/*
 		 * Couldn't complete creating invalid indexes, need to abort the
@@ -379,7 +438,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 	if (!indexCreated && edata != NULL)
 	{
 		/* Try to get a friendlier error message */
-		MemoryContext switchContext = MemoryContextSwitchTo(oldMemContext);
+		MemoryContext switchContext = MemoryContextSwitchTo(stableContext);
 		int errorCodeInternal = 0;
 		char *errorMessageInternal = NULL;
 		if (TryGetErrorMessageAndCode((ErrorData *) edata, &errorCodeInternal,
@@ -450,11 +509,12 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 			RollbackAndReleaseCurrentSubTransaction();
 
 			/* save error info into right context */
-			MemoryContextSwitchTo(oldContext);
+			MemoryContextSwitchTo(stableContext);
 			CurrentResourceOwner = oldOwner;
 			ErrorData *edata = CopyErrorDataAndFlush();
 			errorCode = edata->sqlerrcode;
 			errorMessage = pstrdup("Failure during marking Index valid");
+			MemoryContextSwitchTo(oldContext);
 		}
 		PG_END_TRY();
 	}
@@ -488,7 +548,15 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 						  UINT64_FORMAT,
 						  indexCmdRequest->indexId, collectionId)));
 
-		if (attemptCount >= MaxIndexBuildAttempts)
+		/* Create comment bson */
+		pgbson_writer writer;
+		PgbsonWriterInit(&writer);
+		PgbsonWriterAppendUtf8(&writer, ErrMsgKey, ErrMsgLength,
+							   (char *) errorMessage);
+		PgbsonWriterAppendInt32(&writer, ErrCodeKey, ErrCodeLength, errorCode);
+		pgbson *newComment = PgbsonWriterGetPgbson(&writer);
+
+		if (indexCmdRequest->attemptCount > MaxIndexBuildAttempts)
 		{
 			ereport(LOG, (errmsg(
 							  "Removing request permanently index_id: %d and collectionId: "
@@ -502,22 +570,14 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 			/* mark the request skippable (removed after the TTL window) */
 			MarkIndexRequestStatus(indexCmdRequest->indexId,
 								   CREATE_INDEX_COMMAND_TYPE,
-								   IndexCmdStatus_Skippable, indexCmdRequest->comment,
+								   IndexCmdStatus_Skippable, newComment,
 								   NULL,
-								   attemptCount);
+								   indexCmdRequest->attemptCount);
 			DeleteCollectionIndexRecord(indexCmdRequest->collectionId,
 										indexCmdRequest->indexId);
 		}
 		else
 		{
-			/* Create comment bson */
-			pgbson_writer writer;
-			PgbsonWriterInit(&writer);
-			PgbsonWriterAppendUtf8(&writer, ErrMsgKey, ErrMsgLength,
-								   (char *) errorMessage);
-			PgbsonWriterAppendInt32(&writer, ErrCodeKey, ErrCodeLength, errorCode);
-			pgbson *newComment = PgbsonWriterGetPgbson(&writer);
-
 			if (IsSkippableError(errorCode, (char *) errorMessage))
 			{
 				ereport(LOG, (errmsg(
@@ -531,7 +591,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 				MarkIndexRequestStatus(indexCmdRequest->indexId,
 									   CREATE_INDEX_COMMAND_TYPE,
 									   IndexCmdStatus_Skippable, newComment, NULL,
-									   attemptCount);
+									   indexCmdRequest->attemptCount);
 
 				/* The request will be removed during the next cron job when the time elapsed since the request's last update exceeds the specified IndexQueueEvictionIntervalInSec
 				 * we have to remove this request from index metadata to avoid any conflict if user app immediately tries to submit the same request
@@ -552,7 +612,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 				MarkIndexRequestStatus(indexCmdRequest->indexId,
 									   CREATE_INDEX_COMMAND_TYPE,
 									   IndexCmdStatus_Failed, newComment, NULL,
-									   attemptCount);
+									   indexCmdRequest->attemptCount);
 			}
 		}
 		PopAllActiveSnapshots();
@@ -561,7 +621,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 	}
 
 	ReleaseAdvisoryExclusiveSessionLockForCreateIndexBackground(collectionId);
-	PG_RETURN_VOID();
+	return RunStatus_IndexBuildDone;
 }
 
 
@@ -1234,6 +1294,7 @@ CheckForIndexCmdToFinish(const List *indexIdList, char cmdType)
 	bson_value_t failedIndexComment = { 0 };
 	bool isAnyIndexFailed = false;
 	int numIndexBuilds = 0;
+	int maxCmdStatus = IndexCmdStatus_Unknown;
 	while (bson_iter_next(&arrayIterator))
 	{
 		bson_iter_t docIterator;
@@ -1265,7 +1326,9 @@ CheckForIndexCmdToFinish(const List *indexIdList, char cmdType)
 			isAnyIndexFailed = true;
 		}
 
-		if (attemptCount >= 2)
+		maxCmdStatus = Max(maxCmdStatus, cmdStatus);
+
+		if (attemptCount > MaxIndexBuildAttempts)
 		{
 			if (comment.value_type != BSON_TYPE_EOD)
 			{
@@ -1297,6 +1360,8 @@ CheckForIndexCmdToFinish(const List *indexIdList, char cmdType)
 		if (result->errmsg == NULL)
 		{
 			/* index failed but empty comment in queue. */
+			elog(LOG, "Index creation failed with empty comment in queue, status %d",
+				 maxCmdStatus);
 			result->errmsg = "Index Creation failed";
 			result->errcode = ERRCODE_DOCUMENTDB_INTERNALERROR;
 		}

@@ -314,7 +314,7 @@ DELETE FROM documentdb_api_catalog.documentdb_index_queue;
 
 -- test with attempt > 1
 INSERT INTO documentdb_api_catalog.documentdb_index_queue (index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt) 
-VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 2);
+VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 4);
 -- this should return finish : 1, ok : 0 and error message due to one attempt is failed "Index creation attempt failed"
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101,32102,32103,32104,32105,32106]}}');
 DELETE FROM documentdb_api_catalog.documentdb_index_queue;
@@ -339,3 +339,29 @@ SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_buil
 
 ROLLBACK;
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
+
+
+-- test multiple scheduled builds drain together.
+DELETE FROM documentdb_api_catalog.documentdb_index_queue;
+
+-- insert multiple index requests across multiple collections.
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "a": 1 }, "name": "a_1"}] }');
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "b": 1 }, "name": "b_1"}] }');
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "c": 1 }, "name": "c_1"}] }');
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "a": 1 }, "name": "a_1"}] }');
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "b": 1 }, "name": "b_1"}] }');
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "c": 1 }, "name": "c_1"}] }');
+
+-- we should only have index on "a" since that creates the collection inline and shoul dbe built. The index queue should have b and c indexes.
+SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id FROM documentdb_api_catalog.documentdb_index_queue;
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll1');
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll2');
+
+-- now call build once.
+CALL documentdb_api_internal.build_index_concurrently(1);
+
+--all indexes should be built and queue should be empty.
+SELECT * FROM documentdb_api_catalog.documentdb_index_queue;
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll1');
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll2');

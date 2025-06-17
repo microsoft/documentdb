@@ -318,7 +318,7 @@ DELETE FROM documentdb_api_catalog.documentdb_index_queue;
 
 -- test with attempt > 1
 INSERT INTO documentdb_api_catalog.documentdb_index_queue (index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt) 
-VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 2);
+VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 4);
 -- this should return finish : 1, ok : 0 and error message due to one attempt is failed "Index creation attempt failed"
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101,32102,32103,32104,32105,32106]}}');
 DELETE FROM documentdb_api_catalog.documentdb_index_queue;

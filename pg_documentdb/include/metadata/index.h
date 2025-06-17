@@ -267,7 +267,8 @@ void MarkIndexRequestStatus(int indexId, char cmdType, IndexCmdStatus status,
 							pgbson *comment,
 							IndexJobOpId *opId, int16 attemptCount);
 IndexCmdStatus GetIndexBuildStatusFromIndexQueue(int indexId);
-IndexCmdRequest * GetRequestFromIndexQueue(char cmdType, uint64 collectionId);
+IndexCmdRequest * GetRequestFromIndexQueue(char cmdType, uint64 collectionId,
+										   MemoryContext mcxt);
 IndexCmdRequest * GetSkippableRequestFromIndexQueue(char cmdType, int
 													expireTimeInSeconds,
 													List *skipCollections);

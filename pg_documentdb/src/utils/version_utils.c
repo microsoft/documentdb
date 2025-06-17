@@ -35,6 +35,9 @@ int FirstMajorVersionOffset = 0;
 static char *VersionRefreshQuery = NULL;
 static char * GetVersionRefreshQuery(void);
 
+/* This is not exposed in the header file */
+static ExtensionVersion RefreshCurrentVersion(void);
+
 Size
 VersionCacheShmemSize(void)
 {
@@ -163,18 +166,33 @@ InvalidateVersionCache()
 }
 
 
-ExtensionVersion
+const char *
+GetCurrentVersionForLogging(void)
+{
+	ExtensionVersion version = RefreshCurrentVersion();
+	StringInfo s = makeStringInfo();
+	appendStringInfo(s, "Major = %d, Minor = %d, Patch = %d",
+					 version.Major, version.Minor, version.Patch);
+	return s->data;
+}
+
+
+static ExtensionVersion
 RefreshCurrentVersion(void)
 {
 	ExtensionVersion currentVersion = { 0 };
 
-	pg_memory_barrier();
-	if (CurrentVersion != NULL)
+	if (unlikely(CurrentVersion == NULL))
 	{
-		currentVersion = *CurrentVersion;
+		/* Shared memory is not initialized */
+		return currentVersion;
 	}
 
-	if (currentVersion.Major != 0 || CurrentVersion == NULL)
+	pg_memory_barrier();
+	currentVersion = *CurrentVersion;
+
+	if (currentVersion.Major > DocDB_V0 ||
+		(currentVersion.Major == DocDB_V0 && currentVersion.Minor > 0))
 	{
 		return currentVersion;
 	}

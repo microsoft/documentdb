@@ -195,6 +195,9 @@ bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRAD
 bool EnableDataTableWithoutCreationTime =
 	DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME;
 
+#define DEFAULT_ENABLE_MULTIPLE_INDEX_BUILDS_PER_RUN true
+bool EnableMultipleIndexBuildsPerRun = DEFAULT_ENABLE_MULTIPLE_INDEX_BUILDS_PER_RUN;
+
 /* Remove after v105 */
 #define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
 bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
@@ -494,6 +497,15 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &EnableDataTableWithoutCreationTime,
 		DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME,
 		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableMultipleIndexBuildsPerRun", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable multiple index builds per run."),
+		NULL, &EnableMultipleIndexBuildsPerRun,
+		DEFAULT_ENABLE_MULTIPLE_INDEX_BUILDS_PER_RUN,
+		PGC_USERSET, 0, NULL, NULL, NULL
+		);
 
 	DefineCustomBoolVariable(
 		psprintf("%s.skipCreateIndexesOnCreateCollection", newGucPrefix),

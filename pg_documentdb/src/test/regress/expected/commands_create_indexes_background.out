@@ -804,7 +804,7 @@ SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" 
 DELETE FROM documentdb_api_catalog.documentdb_index_queue;
 -- test with attempt > 1
 INSERT INTO documentdb_api_catalog.documentdb_index_queue (index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt) 
-VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 2);
+VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 4);
 -- this should return finish : 1, ok : 0 and error message due to one attempt is failed "Index creation attempt failed"
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101,32102,32103,32104,32105,32106]}}');
                                                                                      retval                                                                                      | ok | complete 
@@ -863,5 +863,92 @@ SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_buil
 -----------+-------------------------------
  2 seconds | documentdb_index_build_task_1
  2 seconds | documentdb_index_build_task_2
+(2 rows)
+
+-- test multiple scheduled builds drain together.
+DELETE FROM documentdb_api_catalog.documentdb_index_queue;
+-- insert multiple index requests across multiple collections.
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "a": 1 }, "name": "a_1"}] }');
+NOTICE:  creating collection
+                                                                                                                           create_indexes_background                                                                                                                           
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""1"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""2"" }, ""createdCollectionAutomatically"" : true, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ }")
+(1 row)
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "b": 1 }, "name": "b_1"}] }');
+                                                                                                                                                                        create_indexes_background                                                                                                                                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""2"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""3"" }, ""createdCollectionAutomatically"" : false, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ ""indexRequest"" : { ""cmdType"" : ""C"", ""ids"" : [ { ""$numberInt"" : ""32044"" } ] } }")
+(1 row)
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll1", "indexes": [ { "key" : { "c": 1 }, "name": "c_1"}] }');
+                                                                                                                                                                        create_indexes_background                                                                                                                                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""3"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""4"" }, ""createdCollectionAutomatically"" : false, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ ""indexRequest"" : { ""cmdType"" : ""C"", ""ids"" : [ { ""$numberInt"" : ""32045"" } ] } }")
+(1 row)
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "a": 1 }, "name": "a_1"}] }');
+NOTICE:  creating collection
+                                                                                                                           create_indexes_background                                                                                                                           
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""1"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""2"" }, ""createdCollectionAutomatically"" : true, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ }")
+(1 row)
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "b": 1 }, "name": "b_1"}] }');
+                                                                                                                                                                        create_indexes_background                                                                                                                                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""2"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""3"" }, ""createdCollectionAutomatically"" : false, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ ""indexRequest"" : { ""cmdType"" : ""C"", ""ids"" : [ { ""$numberInt"" : ""32048"" } ] } }")
+(1 row)
+
+SELECT documentdb_api.create_indexes_background('db', '{ "createIndexes": "backgroundcoll2", "indexes": [ { "key" : { "c": 1 }, "name": "c_1"}] }');
+                                                                                                                                                                        create_indexes_background                                                                                                                                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""raw"" : { ""defaultShard"" : { ""numIndexesBefore"" : { ""$numberInt"" : ""3"" }, ""numIndexesAfter"" : { ""$numberInt"" : ""4"" }, ""createdCollectionAutomatically"" : false, ""ok"" : { ""$numberInt"" : ""1"" } } }, ""ok"" : { ""$numberInt"" : ""1"" } }",t,"{ ""indexRequest"" : { ""cmdType"" : ""C"", ""ids"" : [ { ""$numberInt"" : ""32049"" } ] } }")
+(1 row)
+
+-- we should only have index on "a" since that creates the collection inline and shoul dbe built. The index queue should have b and c indexes.
+SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id FROM documentdb_api_catalog.documentdb_index_queue;
+                                                                                         index_cmd                                                                                          | cmd_type | index_id | index_cmd_status | collection_id 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------+----------+------------------+---------------
+ CREATE INDEX CONCURRENTLY documents_rum_index_32044 ON documentdb_data.documents_32007 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='b',tl=2699))  | C        |    32044 |                1 |         32007
+ CREATE INDEX CONCURRENTLY documents_rum_index_32045 ON documentdb_data.documents_32007 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='c',tl=2699))  | C        |    32045 |                1 |         32007
+ CREATE INDEX CONCURRENTLY documents_rum_index_32048 ON documentdb_data.documents_32008 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='b',tl=2699))  | C        |    32048 |                1 |         32008
+ CREATE INDEX CONCURRENTLY documents_rum_index_32049 ON documentdb_data.documents_32008 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='c',tl=2699))  | C        |    32049 |                1 |         32008
+(4 rows)
+
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll1');
+ index_type_is_primary | index_type_count 
+-----------------------+------------------
+ f                     |                1
+ t                     |                1
+(2 rows)
+
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll2');
+ index_type_is_primary | index_type_count 
+-----------------------+------------------
+ f                     |                1
+ t                     |                1
+(2 rows)
+
+-- now call build once.
+CALL documentdb_api_internal.build_index_concurrently(1);
+--all indexes should be built and queue should be empty.
+SELECT * FROM documentdb_api_catalog.documentdb_index_queue;
+ index_cmd | cmd_type | index_id | index_cmd_status | global_pid | start_time | collection_id | comment | attempt | update_time | user_oid 
+-----------+----------+----------+------------------+------------+------------+---------------+---------+---------+-------------+----------
+(0 rows)
+
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll1');
+ index_type_is_primary | index_type_count 
+-----------------------+------------------
+ f                     |                3
+ t                     |                1
+(2 rows)
+
+SELECT * FROM documentdb_test_helpers.count_collection_indexes('db', 'backgroundcoll2');
+ index_type_is_primary | index_type_count 
+-----------------------+------------------
+ f                     |                3
+ t                     |                1
 (2 rows)
 
