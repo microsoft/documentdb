@@ -220,3 +220,18 @@ $$;
 
 SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "findAndModify", "remove": false, "query": {"_id": 549}, "upsert": false, "update": {"$set": {"c": "foo"}}, "new": false, "fields": { "_id": 1 }}');
 SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "findAndModify", "remove": false, "query": {"_id": 549}, "upsert": false, "update": {"$set": {"c": "foo"}}, "new": false, "fields": { "_id": 1 }}');
+
+-- delete toasted document
+-- the document size is larger than 2000, so the tuple is toasted
+SELECT 1 FROM documentdb_api.insert_one('fam', 'large_toasted_coll', FORMAT('{"_id": %s, "a": "%s", "b": "%s"}', 1, (select string_agg('a', '') FROM generate_series(1, 1000)), (select string_agg('b', '') FROM generate_series(1, 1000)))::documentdb_core.bson);
+SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "large_toasted_coll", "query": null, "remove": true, "fields": {"_id": 0, "a": 0}}');
+
+SELECT 1 FROM documentdb_api.insert_one('fam', 'large_toasted_coll', FORMAT('{"_id": %s, "a": "%s", "b": "%s"}', 1, (select string_agg('a', '') FROM generate_series(1, 1000)), (select string_agg('b', '') FROM generate_series(1, 1000)))::documentdb_core.bson);
+SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "large_toasted_coll", "query": null, "remove": true}');
+
+-- delete non-toasted document
+SELECT 1 FROM documentdb_api.insert_one('fam', 'large_toasted_coll', FORMAT('{"_id": %s, "a": "%s", "b": "%s"}', 1, (select string_agg('a', '') FROM generate_series(1, 100)), (select string_agg('b', '') FROM generate_series(1, 100)))::documentdb_core.bson);
+SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "large_toasted_coll", "query": null, "remove": true, "fields": {"_id": 0, "a": 0}}');
+
+SELECT 1 FROM documentdb_api.insert_one('fam', 'large_toasted_coll', FORMAT('{"_id": %s, "a": "%s", "b": "%s"}', 1, (select string_agg('a', '') FROM generate_series(1, 100)), (select string_agg('b', '') FROM generate_series(1, 100)))::documentdb_core.bson);
+SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "large_toasted_coll", "query": null, "remove": true}');

@@ -30,10 +30,12 @@
 #include "opclass/bson_gin_composite_scan.h"
 #include "index_am/index_am_utils.h"
 #include "opclass/bson_gin_index_term.h"
+#include "opclass/bson_gin_private.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
+extern bool ForceRumOrderedIndexScan;
 
 bool RumHasMultiKeyPaths = false;
 
@@ -65,6 +67,12 @@ typedef struct DocumentDBRumIndexState
 	IndexMultiKeyStatus multiKeyStatus;
 
 	void *indexArrayState;
+
+	int32_t numDuplicates;
+
+	ScanKeyData forcedOrderScanKey;
+
+	bool isForcedOrderScan;
 } DocumentDBRumIndexState;
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
@@ -265,25 +273,128 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
  * matches the [MinKey, MaxKey] range of the path with an equality prefix.
  */
 bool
-CompositeIndexSupportsOrderByPushdown(IndexOptInfo *indexOptInfo)
+CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
+									  int32_t *maxPathKeySupported)
 {
-	if (indexOptInfo->relam != RumIndexAmId())
+	if (indexPath->indexinfo->relam != RumIndexAmId())
 	{
 		return false;
 	}
 
-	if (!indexOptInfo->amcanorderbyop)
+	if (!indexPath->indexinfo->amcanorderbyop)
 	{
 		/* No use if the index can't order by operator */
 		return false;
 	}
 
+	BsonGinIndexOptionsBase *options =
+		(BsonGinIndexOptionsBase *) indexPath->indexinfo->opclassoptions[0];
+
+	if (options->type != IndexOptionsType_Composite)
+	{
+		return false;
+	}
+
+	ListCell *sortCell;
+	int32_t maxOrderbyColumn = -1;
+	int32_t minOrderbyColumn = INT_MAX;
+	int32_t orderByDetailIndex = 0;
+	foreach(sortCell, sortDetails)
+	{
+		SortIndexInputDetails *sortDetailsInput = (SortIndexInputDetails *) lfirst(
+			sortCell);
+		if (sortDetailsInput->sortPathKey->pk_strategy != 1)
+		{
+			break;
+		}
+
+		int32_t orderbyColumnNumber = GetCompositeOpClassColumnNumber(
+			sortDetailsInput->sortPath,
+			options);
+		if (orderbyColumnNumber < 0)
+		{
+			/* If the order by path does not match the index, we can't push down any further keys */
+			break;
+		}
+
+		if (maxOrderbyColumn < 0)
+		{
+			minOrderbyColumn = orderbyColumnNumber;
+			maxOrderbyColumn = orderbyColumnNumber;
+		}
+		else if (orderbyColumnNumber != maxOrderbyColumn + 1)
+		{
+			/* order by does not match index ordering */
+			break;
+		}
+
+		maxOrderbyColumn = orderbyColumnNumber;
+		orderByDetailIndex = foreach_current_index(sortCell);
+	}
+
+	if (maxOrderbyColumn < 0)
+	{
+		/* No order by columns found, nothing to push down */
+		return false;
+	}
+
+	*maxPathKeySupported = orderByDetailIndex;
 	bool isMultiKeyIndex = false;
-	Relation indexRel = index_open(indexOptInfo->indexoid, NoLock);
+	Relation indexRel = index_open(indexPath->indexinfo->indexoid, NoLock);
 	isMultiKeyIndex = RumGetMultikeyStatus(indexRel);
 	index_close(indexRel, NoLock);
 
-	return !isMultiKeyIndex;
+	if (!isMultiKeyIndex && maxOrderbyColumn == 0)
+	{
+		/* Non multi-key index on the first column always supports order by */
+		return true;
+	}
+
+	bool equalityPrefixes[INDEX_MAX_KEYS] = { false };
+	bool hasRangePredicate[INDEX_MAX_KEYS] = { false };
+
+	bool isValid = GetEqualityRangePredicatesForIndexPath(indexPath, options,
+														  equalityPrefixes,
+														  hasRangePredicate);
+	if (!isValid)
+	{
+		return false;
+	}
+
+	/* Now for an orderby walk the index paths and ensure we have sanity to push down
+	 * We can only push orderby to the index if the preceding columns to the first orderby
+	 * are all equality. For multi-key index, equality must go until the max order by clause.
+	 */
+	for (int i = 0; i < minOrderbyColumn; i++)
+	{
+		if (!equalityPrefixes[i])
+		{
+			return false;
+		}
+	}
+
+	if (isMultiKeyIndex)
+	{
+		/* For multi-key we may have filters on the order by that restrict rows, but there may be rows
+		 * that do not match the filter, but need to be considered for order by.
+		 * Given 2 document such as
+		 * "a": [ 3, 90, 50 ],  "a": [ 30, 51 ]
+		 * a filter of { "a": { "$gt" 50 }} orderby "a": 1 will walk the index as:
+		 *  "a": [ 30, 51 ], "a": [ 3, 90, 50 ]
+		 * which is incorrect since 3 needs to be ordered first (even though it didn't match the filter).
+		 * Consequently, only support orderby pushdown if the filter doesn't cover the orderby column.
+		 */
+		for (int i = minOrderbyColumn; i <= maxOrderbyColumn; i++)
+		{
+			if (hasRangePredicate[i] || equalityPrefixes[i])
+			{
+				return false;
+			}
+		}
+	}
+
+	/* Equality prefix with order by on the column is supported. */
+	return true;
 }
 
 
@@ -469,8 +580,9 @@ IsTextIndexMatch(IndexPath *path)
 	foreach(cell, path->indexclauses)
 	{
 		IndexClause *clause = lfirst(cell);
-		if (path->indexinfo->opfamily[clause->indexcol] ==
-			BsonRumTextPathOperatorFamily())
+		if (IsTextPathOpFamilyOid(
+				path->indexinfo->relam,
+				path->indexinfo->opfamily[clause->indexcol]))
 		{
 			return true;
 		}
@@ -507,7 +619,22 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 		scan->opaque = outerScanState;
 
 		/* Initialize with 1 composite scan key */
-		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, norderbys);
+		int32_t nInnerOrderBy = norderbys;
+		if (EnableIndexOrderbyPushdown && norderbys == 0 && ForceRumOrderedIndexScan)
+		{
+			nInnerOrderBy = 1;
+			outerScanState->isForcedOrderScan = true;
+			outerScanState->forcedOrderScanKey.sk_attno = 1;
+			outerScanState->forcedOrderScanKey.sk_flags = SK_ORDER_BY;
+			outerScanState->forcedOrderScanKey.sk_strategy =
+				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY;
+			outerScanState->forcedOrderScanKey.sk_subtype = InvalidOid;
+			outerScanState->forcedOrderScanKey.sk_collation = InvalidOid;
+			outerScanState->forcedOrderScanKey.sk_argument =
+				BuildCompositeOrderByScanKeyArgument(rel->rd_opcoptions[0]);
+		}
+
+		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, nInnerOrderBy);
 
 		/* return the outer scan */
 		return scan;
@@ -601,18 +728,10 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 			outerScanState->multiKeyStatus = multiKeyStatusFunc(scan->indexRelation);
 		}
 
-		ModifyScanKeysForCompositeScan(scankey, nscankeys,
-									   &outerScanState->compositeKey,
-									   outerScanState->multiKeyStatus ==
-									   IndexMultiKeyStatus_HasArrays);
-
+		ScanKey innerOrderBy = NULL;
+		int32_t nInnerorderbys = 0;
 		if (EnableIndexOrderbyPushdown)
 		{
-			if (norderbys > 1)
-			{
-				ereport(ERROR, (errmsg("Cannot push down multi-order by yet")));
-			}
-
 			if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_HasArrays)
 			{
 				if (IndexArrayStateFuncs != NULL)
@@ -632,18 +751,28 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 				}
 			}
 
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  &outerScanState->compositeKey, 1,
-								  orderbys,
-								  norderbys);
+			innerOrderBy = orderbys;
+			nInnerorderbys = norderbys;
+
+			/* handle forced orderby */
+			if (outerScanState->isForcedOrderScan)
+			{
+				/* If this is a forced order scan, we need to use the forced order scan key */
+				innerOrderBy = &outerScanState->forcedOrderScanKey;
+				nInnerorderbys = 1;
+			}
 		}
-		else
-		{
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  &outerScanState->compositeKey, 1,
-								  NULL,
-								  0);
-		}
+
+		ModifyScanKeysForCompositeScan(scankey, nscankeys,
+									   &outerScanState->compositeKey,
+									   outerScanState->multiKeyStatus ==
+									   IndexMultiKeyStatus_HasArrays,
+									   nInnerorderbys > 0);
+
+		coreRoutine->amrescan(outerScanState->innerScan,
+							  &outerScanState->compositeKey, 1,
+							  innerOrderBy,
+							  nInnerorderbys);
 	}
 	else
 	{
@@ -701,11 +830,20 @@ GetOneTupleCore(DocumentDBRumIndexState *outerScanState,
 				IndexAmRoutine *coreRoutine)
 {
 	bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
-	scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
-	scan->xs_recheck = outerScanState->innerScan->xs_recheck;
-	scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
-	scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
-	scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
+
+	if (outerScanState->isForcedOrderScan)
+	{
+		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+	}
+	else
+	{
+		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+		scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
+		scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
+		scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
+	}
 	return result;
 }
 
@@ -734,6 +872,10 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 												  &scan->xs_heaptid))
 				{
 					return true;
+				}
+				else
+				{
+					outerScanState->numDuplicates++;
 				}
 
 				/* else, get the next tuple */
@@ -919,6 +1061,13 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 		}
 
 		ExplainPropertyList("indexBounds", boundsList, es);
+
+		if (outerScanState->numDuplicates > 0)
+		{
+			/* If we have duplicates, explain the number of duplicates */
+			ExplainPropertyInteger("numDuplicates", "entries",
+								   outerScanState->numDuplicates, es);
+		}
 
 		/* Explain the inner scan using underlying am */
 		TryExplainByIndexAm(outerScanState->innerScan, es);

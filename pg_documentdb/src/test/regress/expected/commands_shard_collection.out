@@ -53,13 +53,12 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
 SELECT collection_id AS reshard_collection_id FROM documentdb_api_catalog.collections
 WHERE collection_name = 'reshard' AND database_name = 'db' \gset
 \d documentdb_data.documents_:reshard_collection_id
-                   Table "documentdb_data.documents_5000"
-     Column      |           Type           | Collation | Nullable | Default 
------------------+--------------------------+-----------+----------+---------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+          Table "documentdb_data.documents_5000"
+     Column      |  Type  | Collation | Nullable | Default 
+-----------------+--------+-----------+----------+---------
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_5000" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_5001" documentdb_rum (document bson_rum_single_path_ops (path='a.b.c', iswildcard='true', tl='2699'))
@@ -78,13 +77,12 @@ SELECT documentdb_api.shard_collection('db','reshard', '{"value":"hashed"}', fal
 (1 row)
 
 \d documentdb_data.documents_:reshard_collection_id
-                   Table "documentdb_data.documents_5000"
-     Column      |           Type           | Collation | Nullable | Default 
------------------+--------------------------+-----------+----------+---------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+          Table "documentdb_data.documents_5000"
+     Column      |  Type  | Collation | Nullable | Default 
+-----------------+--------+-----------+----------+---------
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_5000" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_5003" documentdb_rum (document bson_rum_single_path_ops (path=_id, tl='2699'))

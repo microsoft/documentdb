@@ -24,9 +24,15 @@ type ClientKey = (Cow<'static, str>, Cow<'static, str>);
 pub struct ServiceContextInner {
     pub setup_configuration: Box<dyn SetupConfiguration>,
     pub dynamic_configuration: Arc<dyn DynamicConfiguration>,
+
+    // Connection pool for system requests that is shared between ServiceContext and DynamicConfiguration
     pub system_requests_pool: Arc<ConnectionPool>,
-    pub system_auth_pool: Arc<ConnectionPool>,
-    pub user_data_pools: RwLock<HashMap<ClientKey, ConnectionPool>>,
+    pub system_auth_pool: ConnectionPool,
+
+    // Maps user credentials to their respective connection pools
+    // We need Arc on the ConnectionPool to allow sharing across threads from different connections
+    // TODO: need to add excessive testing when the user is changing password or pool size changed
+    pub user_data_pools: RwLock<HashMap<ClientKey, Arc<ConnectionPool>>>,
     pub cursor_store: CursorStore,
     pub transaction_store: TransactionStore,
     pub query_catalog: QueryCatalog,
@@ -36,13 +42,13 @@ pub struct ServiceContextInner {
 pub struct ServiceContext(Arc<ServiceContextInner>);
 
 impl ServiceContext {
-    pub async fn new(
+    pub fn new(
         setup_configuration: Box<dyn SetupConfiguration>,
         dynamic_configuration: Arc<dyn DynamicConfiguration>,
         query_catalog: QueryCatalog,
         system_requests_pool: Arc<ConnectionPool>,
-        system_auth_pool: Arc<ConnectionPool>,
-    ) -> Result<Self> {
+        system_auth_pool: ConnectionPool,
+    ) -> Self {
         log::trace!("Initial dynamic configuration: {:?}", dynamic_configuration);
 
         let timeout_secs = setup_configuration.transaction_timeout_secs();
@@ -56,20 +62,17 @@ impl ServiceContext {
             transaction_store: TransactionStore::new(Duration::from_secs(timeout_secs)),
             query_catalog,
         };
-        Ok(ServiceContext(Arc::new(inner)))
+        ServiceContext(Arc::new(inner))
     }
 
-    pub async fn get_data_conn(&'_ self, user: &str, pass: &str) -> Result<Connection> {
+    pub async fn get_data_pool(&'_ self, user: &str, pass: &str) -> Result<Arc<ConnectionPool>> {
         let read_lock = self.0.user_data_pools.read().await;
 
         match read_lock.get(&(Cow::Borrowed(user), Cow::Borrowed(pass))) {
             None => Err(DocumentDBError::internal_error(
                 "Connection pool missing for user.".to_string(),
             )),
-            Some(pool) => {
-                let inner_conn = pool.get_inner_connection().await?;
-                Ok(Connection::new(inner_conn, false))
-            }
+            Some(pool) => Ok(Arc::clone(pool)),
         }
     }
 
@@ -150,14 +153,14 @@ impl ServiceContext {
         let mut write_lock = self.0.user_data_pools.write().await;
         let _ = write_lock.insert(
             (Cow::Owned(user.to_owned()), Cow::Owned(pass.to_owned())),
-            ConnectionPool::new_with_user(
+            Arc::new(ConnectionPool::new_with_user(
                 self.setup_configuration(),
                 self.query_catalog(),
                 user,
                 Some(pass),
                 format!("{}-Data", self.setup_configuration().application_name()),
                 self.dynamic_configuration().max_connections().await,
-            )?,
+            )?),
         );
         Ok(())
     }

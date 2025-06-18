@@ -964,7 +964,8 @@ AddPathStringToHashset(List *indexIdList, HTAB *stringHashSet)
 			{
 				/* Check if the index is a single path index */
 				if (indexRelation->rd_opcoptions[i] != NULL &&
-					IsSinglePathOpFamilyOid(indexRelation->rd_opfamily[i]))
+					IsSinglePathOpFamilyOid(indexRelation->rd_rel->relam,
+											indexRelation->rd_opfamily[i]))
 				{
 					bytea *optBytea = indexRelation->rd_opcoptions[i];
 

@@ -496,7 +496,7 @@ inline static void
 WriteBsonSqlValue(Datum fieldValue, pgbson_element_writer *writer)
 {
 	/* extract the bson. */
-	pgbson *nestedBson = (pgbson *) DatumGetPointer(fieldValue);
+	pgbson *nestedBson = DatumGetPgBson(fieldValue);
 
 	/* if it's a single value bson ({ "": <value> }) */
 	/* then write the *value* as a child element. */

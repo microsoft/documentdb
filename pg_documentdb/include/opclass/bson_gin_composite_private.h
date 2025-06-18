@@ -122,4 +122,7 @@ void UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
 
 void MergeSingleVariableBounds(VariableIndexBounds *variableBounds,
 							   CompositeQueryRunData *runData);
+
+void PickVariableBoundsForOrderedScan(VariableIndexBounds *variableBounds,
+									  CompositeQueryRunData *runData);
  #endif

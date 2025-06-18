@@ -485,3 +485,12 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeli
 -- match/find with $comment
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "filter": { "_id": "1", "$comment": "finding id 1" }}');
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline":[ { "$match": { "_id": "1", "$comment": "finding id 1" } } ] }');
+
+
+-- $lookup and $unwind stage combined when null results need to be preserved
+SELECT documentdb_api.insert_one('db','lookup_author','{ "_id": 1, "name": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 1, "title" : "Pride and prejudice", "author": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 2, "title" : "Emma", "author": "Jane Austen" }', NULL);
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');

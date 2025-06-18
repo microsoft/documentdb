@@ -6,7 +6,7 @@
  *-------------------------------------------------------------------------
  */
 
-use std::str::from_utf8;
+use std::{str::from_utf8, sync::Arc};
 
 use bson::{rawdoc, spec::BinarySubtype};
 use rand::{distributions::Uniform, prelude::Distribution, rngs::OsRng};
@@ -15,7 +15,7 @@ use tokio_postgres::types::Type;
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},
-    postgres::PgDocument,
+    postgres::{DocumentDBDataClient, PgDataClient, PgDocument},
     processor,
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo, RequestType},
@@ -66,14 +66,26 @@ impl AuthState {
     }
 }
 
-pub async fn process(ctx: &mut ConnectionContext, request: &Request<'_>) -> Result<Response> {
-    if let Some(response) = handle_auth_request(ctx, request).await? {
+pub async fn process(
+    connection_context: &mut ConnectionContext,
+    request: &Request<'_>,
+) -> Result<Response> {
+    if let Some(response) = handle_auth_request(connection_context, request).await? {
         return Ok(response);
     }
 
     let request_info = request.extract_common();
     if request.request_type().allowed_unauthorized() {
-        return processor::process_request(request, &mut request_info?, ctx).await;
+        let service_context = Arc::clone(&connection_context.service_context);
+        let data_client =
+            <DocumentDBDataClient as PgDataClient>::new_unauthorized(&service_context);
+        return processor::process_request(
+            request,
+            &mut request_info?,
+            connection_context,
+            data_client,
+        )
+        .await;
     }
 
     Err(DocumentDBError::unauthorized(format!(
@@ -83,14 +95,16 @@ pub async fn process(ctx: &mut ConnectionContext, request: &Request<'_>) -> Resu
 }
 
 async fn handle_auth_request(
-    ctx: &mut ConnectionContext,
+    connection_context: &mut ConnectionContext,
     request: &Request<'_>,
 ) -> Result<Option<Response>> {
     match request.request_type() {
-        RequestType::SaslStart => Ok(Some(handle_sasl_start(ctx, request).await?)),
-        RequestType::SaslContinue => Ok(Some(handle_sasl_continue(ctx, request).await?)),
+        RequestType::SaslStart => Ok(Some(handle_sasl_start(connection_context, request).await?)),
+        RequestType::SaslContinue => Ok(Some(
+            handle_sasl_continue(connection_context, request).await?,
+        )),
         RequestType::Logout => {
-            ctx.auth_state = AuthState::new();
+            connection_context.auth_state = AuthState::new();
             Ok(Some(Response::Raw(RawResponse(rawdoc! {
                 "ok": OK_SUCCEEDED,
             }))))
@@ -99,7 +113,10 @@ async fn handle_auth_request(
     }
 }
 
-async fn handle_sasl_start(ctx: &mut ConnectionContext, request: &Request<'_>) -> Result<Response> {
+async fn handle_sasl_start(
+    connection_context: &mut ConnectionContext,
+    request: &Request<'_>,
+) -> Result<Response> {
     let mechanism = request
         .document()
         .get_str("mechanism")
@@ -130,16 +147,16 @@ async fn handle_sasl_start(ctx: &mut ConnectionContext, request: &Request<'_>) -
             .take(NONCE_LENGTH),
     );
 
-    let (salt, iterations) = get_salt_and_iteration(ctx, username).await?;
+    let (salt, iterations) = get_salt_and_iteration(connection_context, username).await?;
     let response = format!("r={},s={},i={}", nonce, salt, iterations);
 
-    ctx.auth_state.first_state = Some(ScramFirstState {
+    connection_context.auth_state.first_state = Some(ScramFirstState {
         nonce,
         first_message_bare: format!("n={},r={}", username, client_nonce),
         first_message: response.clone(),
     });
 
-    ctx.auth_state.username = Some(username.to_string());
+    connection_context.auth_state.username = Some(username.to_string());
 
     let binary_response = bson::Binary {
         subtype: BinarySubtype::Generic,
@@ -155,12 +172,12 @@ async fn handle_sasl_start(ctx: &mut ConnectionContext, request: &Request<'_>) -
 }
 
 async fn handle_sasl_continue(
-    ctx: &mut ConnectionContext,
+    connection_context: &mut ConnectionContext,
     request: &Request<'_>,
 ) -> Result<Response> {
     let payload = parse_sasl_payload(request, false)?;
 
-    if let Some(first_state) = ctx.auth_state.first_state.as_ref() {
+    if let Some(first_state) = connection_context.auth_state.first_state.as_ref() {
         // Username is not always provided by saslcontinue
 
         let client_nonce = payload.nonce.ok_or(DocumentDBError::unauthorized(
@@ -176,7 +193,7 @@ async fn handle_sasl_continue(
             ))?;
         let username = payload
             .username
-            .or(ctx.auth_state.username.as_deref())
+            .or(connection_context.auth_state.username.as_deref())
             .ok_or(DocumentDBError::internal_error(
                 "Username missing from sasl continue".to_string(),
             ))?;
@@ -195,12 +212,13 @@ async fn handle_sasl_continue(
             client_nonce
         );
 
-        let scram_sha256_row = ctx
+        let scram_sha256_row = connection_context
             .service_context
             .authentication_connection()
             .await?
             .query(
-                ctx.service_context
+                connection_context
+                    .service_context
                     .query_catalog()
                     .authenticate_with_scram_sha256(),
                 &[Type::TEXT, Type::TEXT, Type::TEXT],
@@ -234,8 +252,8 @@ async fn handle_sasl_continue(
             bytes: format!("v={}", server_signature).as_bytes().to_vec(),
         };
 
-        ctx.auth_state.password = Some("".to_string());
-        ctx.auth_state.authorized = true;
+        connection_context.auth_state.password = Some("".to_string());
+        connection_context.auth_state.authorized = true;
 
         Ok(Response::Raw(RawResponse(rawdoc! {
             "payload": payload,
@@ -318,8 +336,11 @@ fn parse_sasl_payload<'a, 'b: 'a>(
     })
 }
 
-async fn get_salt_and_iteration(ctx: &ConnectionContext, username: &str) -> Result<(String, i32)> {
-    for blocked_prefix in ctx
+async fn get_salt_and_iteration(
+    connection_context: &ConnectionContext,
+    username: &str,
+) -> Result<(String, i32)> {
+    for blocked_prefix in connection_context
         .service_context
         .setup_configuration()
         .blocked_role_prefixes()
@@ -334,12 +355,15 @@ async fn get_salt_and_iteration(ctx: &ConnectionContext, username: &str) -> Resu
         }
     }
 
-    let results = ctx
+    let results = connection_context
         .service_context
         .authentication_connection()
         .await?
         .query(
-            ctx.service_context.query_catalog().salt_and_iterations(),
+            connection_context
+                .service_context
+                .query_catalog()
+                .salt_and_iterations(),
             &[Type::TEXT],
             &[&username],
             None,

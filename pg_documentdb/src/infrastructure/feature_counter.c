@@ -241,6 +241,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_CREATE_INDEX_2D] = "create_index_2d",
 	[FEATURE_CREATE_INDEX_2DSPHERE] = "create_index_2dsphere",
 	[FEATURE_CREATE_INDEX_ALTERNATE_AM] = "create_index_alternate_am",
+	[FEATURE_CREATE_INDEX_COMPOSITE_BASED_TERM] = "create_index_composite_based_term",
 	[FEATURE_CREATE_INDEX_FTS] = "create_index_fts",
 	[FEATURE_CREATE_INDEX_TEXT] = "create_index_text",
 	[FEATURE_CREATE_INDEX_TTL] = "create_index_ttl",

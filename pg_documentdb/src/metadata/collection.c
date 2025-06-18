@@ -907,9 +907,9 @@ GetMongoCollectionFromCatalogById(uint64 collectionId, Oid relationId,
 		Datum shardKeyDatum = heap_getattr(tuple, 4, tupleDescriptor, &isNull);
 		if (!isNull)
 		{
-			pgbson *shardKeyBson = (pgbson *) DatumGetPointer(shardKeyDatum);
+			pgbson *shardKeyBson = DatumGetPgBson(shardKeyDatum);
 			collection->shardKey =
-				CopyPgbsonIntoMemoryContext(shardKeyBson, CurrentMemoryContext);
+				CopyPgbsonIntoMemoryContext(shardKeyBson, outerContext);
 		}
 
 		/* Attr 5 is the collection_uuid */
@@ -924,9 +924,9 @@ GetMongoCollectionFromCatalogById(uint64 collectionId, Oid relationId,
 			Datum viewDatum = heap_getattr(tuple, 6, tupleDescriptor, &isNull);
 			if (!isNull)
 			{
-				pgbson *viewDefinition = (pgbson *) DatumGetPointer(viewDatum);
+				pgbson *viewDefinition = DatumGetPgBson(viewDatum);
 				collection->viewDefinition =
-					CopyPgbsonIntoMemoryContext(viewDefinition, CurrentMemoryContext);
+					CopyPgbsonIntoMemoryContext(viewDefinition, outerContext);
 			}
 		}
 
@@ -937,10 +937,7 @@ GetMongoCollectionFromCatalogById(uint64 collectionId, Oid relationId,
 			Datum validatorDatum = heap_getattr(tuple, 7, tupleDescriptor, &isNull);
 			if (!isNull)
 			{
-				pgbson *validator = (pgbson *) DatumGetPointer(validatorDatum);
-
-				/* The pgbson returned by DatumGetPointer doesn't have 4B VARHDR, add it with cloning func */
-				validator = PgbsonCloneFromPgbson(validator);
+				pgbson *validator = DatumGetPgBson(validatorDatum);
 				collection->schemaValidator.validator =
 					CopyPgbsonIntoMemoryContext(validator, outerContext);
 			}
@@ -1060,7 +1057,7 @@ GetMongoCollectionFromCatalogByNameDatum(Datum databaseNameDatum,
 		Datum shardKeyDatum = heap_getattr(tuple, 4, tupleDescriptor, &isNull);
 		if (!isNull)
 		{
-			pgbson *shardKeyBson = (pgbson *) DatumGetPointer(shardKeyDatum);
+			pgbson *shardKeyBson = DatumGetPgBson(shardKeyDatum);
 			collection->shardKey = CopyPgbsonIntoMemoryContext(shardKeyBson,
 															   outerContext);
 		}
@@ -1077,7 +1074,7 @@ GetMongoCollectionFromCatalogByNameDatum(Datum databaseNameDatum,
 			Datum viewDatum = heap_getattr(tuple, 6, tupleDescriptor, &isNull);
 			if (!isNull)
 			{
-				pgbson *viewDefinition = (pgbson *) DatumGetPointer(viewDatum);
+				pgbson *viewDefinition = DatumGetPgBson(viewDatum);
 				collection->viewDefinition =
 					CopyPgbsonIntoMemoryContext(viewDefinition, outerContext);
 			}
@@ -1090,8 +1087,7 @@ GetMongoCollectionFromCatalogByNameDatum(Datum databaseNameDatum,
 			Datum validatorDatum = heap_getattr(tuple, 7, tupleDescriptor, &isNull);
 			if (!isNull)
 			{
-				pgbson *validator = (pgbson *) DatumGetPointer(validatorDatum);
-				validator = PgbsonCloneFromPgbson(validator);
+				pgbson *validator = DatumGetPgBson(validatorDatum);
 				collection->schemaValidator.validator =
 					CopyPgbsonIntoMemoryContext(validator, outerContext);
 			}
@@ -1902,7 +1898,10 @@ ParseAndGetValidatorSpec(bson_iter_t *iter, const char *validatorName, bool *has
 	}
 
 	EnsureTopLevelFieldType(validatorName, iter, BSON_TYPE_DOCUMENT);
-	const bson_value_t *validator = bson_iter_value(iter);
+
+	/* Copy the bson value to make sure the validator is valid beyond the lifetime of iter */
+	bson_value_t *validator = palloc(sizeof(bson_value_t));
+	bson_value_copy(bson_iter_value(iter), validator);
 
 	/* Large and overly complex validation rules can impact database performance, especially during write operations. */
 	if (validator->value.v_doc.data_len > (uint32_t) MaxSchemaValidatorSize)

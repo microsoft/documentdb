@@ -33,6 +33,7 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
+	.get_text_path_op_family_oid = BsonRumTextPathOperatorFamily,
 	.add_explain_output = NULL, /* No explain output for RUM */
 	.am_name = "rum"
 };
@@ -72,7 +73,7 @@ GetBsonIndexAmEntryByIndexOid(Oid indexAm)
 	{
 		return &RumIndexAmEntry;
 	}
-	else if (IsClusterVersionAtleast(DocDB_V0, 104, 0))
+	else if (IsClusterVersionAtleast(DocDB_V0, 103, 1))
 	{
 		for (int i = 0; i < BsonNumAlternateAmEntries; i++)
 		{
@@ -104,6 +105,8 @@ SetDynamicIndexAmOidsAndGetCount(Datum *indexAmArray, int32_t indexAmArraySize)
  * Gets a registered index AM entry along with all its capabilities and utility functions
  * by the name of the index AM. We throw an error if the requested index AM is not found,
  * as by the time we call them it should already have been registered.
+ *
+ * Returns NULL if the index AM is in the registry but the access method is not available.
  */
 const BsonIndexAmEntry *
 GetBsonIndexAmByIndexAmName(const char *index_am_name)
@@ -117,6 +120,14 @@ GetBsonIndexAmByIndexAmName(const char *index_am_name)
 	{
 		if (strcmp(BsonAlternateAmRegistry[i].am_name, index_am_name) == 0)
 		{
+			BsonIndexAmEntry *amEntry = &BsonAlternateAmRegistry[i];
+			if (amEntry->get_am_oid() == InvalidOid)
+			{
+				ereport(ERROR, (errmsg(
+									"Index access method %s is not available, check the alternate_index_handler_name setting",
+									index_am_name)));
+			}
+
 			return &BsonAlternateAmRegistry[i];
 		}
 	}
@@ -157,25 +168,28 @@ TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es)
  * Whether the opFamily of an index is a single path index
  */
 bool
-IsSinglePathOpFamilyOid(Oid opFamilyOid)
+IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid)
 {
-	if (opFamilyOid == BsonRumSinglePathOperatorFamily())
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
 	{
-		return true;
-	}
-	else if (IsClusterVersionAtleast(DocDB_V0, 104, 0) &&
-			 BsonNumAlternateAmEntries > 0)
-	{
-		for (int i = 0; i < BsonNumAlternateAmEntries; i++)
-		{
-			if (BsonAlternateAmRegistry[i].get_single_path_op_family_oid() == opFamilyOid)
-			{
-				return true;
-			}
-		}
+		return false;
 	}
 
-	return false;
+	return opFamilyOid == amEntry->get_single_path_op_family_oid();
+}
+
+
+bool
+IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return opFamilyOid == amEntry->get_text_path_op_family_oid();
 }
 
 

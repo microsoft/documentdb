@@ -68,6 +68,9 @@ typedef struct IndexDefKeyPath
 
 	/* Whether or not this specific key is a wildcard index */
 	bool isWildcard;
+
+	/* The sort direction: 1 for asc, -1 for desc. */
+	int sortDirection;
 } IndexDefKeyPath;
 
 
@@ -93,6 +96,9 @@ typedef struct
 
 	/* Whether or not the index path has 2dsphere index */
 	bool has2dsphereIndex;
+
+	/* Whether or not index path has descending indexes */
+	bool hasDescendingIndex;
 
 	/*
 	 * List of IndexDefKeyPath where each path represents a particular

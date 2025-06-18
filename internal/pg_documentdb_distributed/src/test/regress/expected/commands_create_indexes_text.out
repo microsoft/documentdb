@@ -50,13 +50,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6773" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }'))
@@ -82,13 +81,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6774" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 1.0 }'), document bson_rum_single_path_ops (path=c))
@@ -114,13 +112,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6775" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='{ "b" : 1.0 }'), document bson_rum_single_path_ops (path=c))
@@ -146,13 +143,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6776" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='{ "b" : 1.0, "c" : 1.0 }'))
@@ -178,13 +174,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6777" documentdb_rum (document bson_rum_text_path_ops (weights='', iswildcard='true'))
@@ -210,13 +205,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6778" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', defaultlanguage=es))
@@ -242,13 +236,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6779" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 100.0, "c" : 200.0 }'), document bson_rum_single_path_ops (path=c))
@@ -274,13 +267,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6780" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 1.0, "c" : 200.0, "d" : 10.0 }'), document bson_rum_single_path_ops (path=c))
@@ -306,13 +298,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6781" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='', iswildcard='true'))
@@ -338,13 +329,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6782" documentdb_rum (document bson_rum_text_path_ops (weights='', iswildcard='true'), document bson_rum_single_path_ops (path=a))
@@ -370,13 +360,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6783" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', languageoverride=idioma))
@@ -410,13 +399,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6784" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', iswildcard='true'))
@@ -449,13 +437,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6785" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', iswildcard='true'))
@@ -488,13 +475,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6786" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', iswildcard='true'))
@@ -527,13 +513,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6787" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 2.0 }', iswildcard='true'))
@@ -566,13 +551,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6788" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 2.0 }', iswildcard='true'))
@@ -605,13 +589,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6789" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 2.0 }', iswildcard='true'))
@@ -637,13 +620,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6790" documentdb_rum (document bson_rum_text_path_ops (weights='', iswildcard='true', defaultlanguage=es))
@@ -671,13 +653,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6791" documentdb_rum (document bson_rum_text_path_ops (weights='{ "dummy" : 1.0, "title" : 2.0 }', iswildcard='true'))
@@ -705,13 +686,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6792" documentdb_rum (document bson_rum_text_path_ops (weights='{ "dummy" : 1.0, "title" : 2.0 }', iswildcard='true'))
@@ -737,13 +717,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6793" documentdb_rum (document bson_rum_text_path_ops (weights='{ "dummy" : 1.0, "title" : 2.0 }', iswildcard='true'))
@@ -777,13 +756,12 @@ SELECT * FROM documentdb_api_catalog.collection_indexes WHERE collection_id = 67
 (2 rows)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6794" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }'))
@@ -809,13 +787,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6795" documentdb_rum (document bson_rum_single_path_ops (path=c), document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 1.0 }'))
@@ -841,13 +818,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6796" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_single_path_ops (path=c), document bson_rum_text_path_ops (weights='{ "b" : 1.0 }'))
@@ -873,13 +849,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6797" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='{ "b" : 1.0, "c" : 1.0 }'))
@@ -905,13 +880,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6798" documentdb_rum (document bson_rum_text_path_ops (weights='', iswildcard='true'))
@@ -937,13 +911,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6799" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', defaultlanguage=es))
@@ -969,13 +942,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6800" documentdb_rum (document bson_rum_single_path_ops (path=c), document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 100.0, "c" : 200.0 }'))
@@ -1001,13 +973,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6801" documentdb_rum (document bson_rum_single_path_ops (path=c), document bson_rum_text_path_ops (weights='{ "a" : 1.0, "b" : 1.0, "c" : 200.0, "d" : 10.0 }'))
@@ -1033,13 +1004,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6802" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='', iswildcard='true'))
@@ -1065,13 +1035,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6803" documentdb_rum (document bson_rum_single_path_ops (path=a), document bson_rum_text_path_ops (weights='', iswildcard='true'))
@@ -1097,13 +1066,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6804" documentdb_rum (document bson_rum_text_path_ops (weights='{ "a" : 1.0 }', languageoverride=idioma))
@@ -1129,13 +1097,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6805" documentdb_rum (document bson_rum_text_path_ops (weights='', iswildcard='true', defaultlanguage=es))
@@ -1156,13 +1123,12 @@ SELECT documentdb_api.list_indexes_cursor_first_page('db', '{ "listIndexes": "cr
 (1 row)
 
 \d documentdb_data.documents_6770
-                   Table "documentdb_data.documents_6770"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_6770"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_6770" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_6806" documentdb_rum (document bson_rum_single_path_ops (path=_id, tl='2699'))

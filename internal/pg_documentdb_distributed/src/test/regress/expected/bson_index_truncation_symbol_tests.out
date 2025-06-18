@@ -12,13 +12,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_11700
-                   Table "documentdb_data.documents_11700"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_11700"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_11700" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_11701" documentdb_rum (document bson_rum_single_path_ops (path=ikey, tl='20'))
@@ -763,13 +762,12 @@ NOTICE:  creating collection
 (1 row)
 
 \d documentdb_data.documents_11701
-                   Table "documentdb_data.documents_11701"
-     Column      |           Type           | Collation | Nullable | Default 
+          Table "documentdb_data.documents_11701"
+     Column      |  Type  | Collation | Nullable | Default 
 ---------------------------------------------------------------------
- shard_key_value | bigint                   |           | not null | 
- object_id       | bson                     |           | not null | 
- document        | bson                     |           | not null | 
- creation_time   | timestamp with time zone |           |          | 
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
 Indexes:
     "collection_pk_11701" PRIMARY KEY, btree (shard_key_value, object_id)
     "documents_rum_index_11703" documentdb_rum (document bson_rum_single_path_ops (path=ikey2, tl='100'))

@@ -35,6 +35,7 @@ typedef struct
 	Oid (*get_am_oid)(void);
 	Oid (*get_single_path_op_family_oid)(void);
 	Oid (*get_composite_path_op_family_oid)(void);
+	Oid (*get_text_path_op_family_oid)(void);
 
 	/* optional func to add explain output */
 	void (*add_explain_output)(struct IndexScanDescData *indexScanDesc, struct
@@ -73,7 +74,12 @@ bool IsCompositeOpFamilyOid(Oid relam, Oid opFamilyOid);
 /*
  * Whether the Oid of the oprator family points to a single path operator family.
  */
-bool IsSinglePathOpFamilyOid(Oid opFamilyOid);
+bool IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid);
+
+/*
+ * Whether the Oid of the oprator family points to a text path operator family.
+ */
+bool IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid);
 
 bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 

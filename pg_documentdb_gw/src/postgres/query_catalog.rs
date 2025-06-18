@@ -38,6 +38,7 @@ pub struct QueryCatalog {
     pub bson_dollar_project_output_regex: String,
     pub index_condition_split_regex: String,
     pub runtime_condition_split_regex: String,
+    pub sort_condition_split_regex: String,
     pub single_index_condition_regex: String,
     pub api_catalog_name_regex: String,
     pub output_count_regex: String,
@@ -168,6 +169,10 @@ impl QueryCatalog {
 
     pub fn runtime_condition_split_regex(&self) -> &str {
         &self.runtime_condition_split_regex
+    }
+
+    pub fn sort_condition_split_regex(&self) -> &str {
+        &self.sort_condition_split_regex
     }
 
     pub fn single_index_condition_regex(&self) -> &str {
@@ -351,12 +356,13 @@ pub fn create_query_catalog() -> QueryCatalog {
             find_bson_repath_and_build: "documentdb_api_catalog.bson_repath_and_build".to_string(),
 
             // query_diagnostics.rs
-            bson_dollar_project_output_regex: "(documentdb_api_catalog.)?bson_dollar_([^\\(]+)\\([^,]+, 'BSONHEX([\\w\\d]+)'::documentdb_api_catalog.bson".to_string(),
-            index_condition_split_regex: "\\(?((\\s+AND\\s+)?(?<expr>\\S+ (OPERATOR\\(\\S+\\)|(@\\S+)) '[^']+'::(documentdb_api_catalog.)?bson))+\\)?".to_string(),
-            runtime_condition_split_regex: "\\(?((\\s+AND|OR\\s+)?(?<expr>\\S+ (OPERATOR\\(\\S+\\)|(@\\S+)) '[^']+'::(documentdb_api_catalog.)?bson))+\\)?".to_string(),
+            bson_dollar_project_output_regex: "(documentdb_api_catalog.)?bson_dollar_([^\\(]+)\\([^,]+, 'BSONHEX([\\w\\d]+)'::documentdb_core.bson".to_string(),
+            index_condition_split_regex: "\\(?((\\s+AND\\s+)?(?<expr>\\S+ (OPERATOR\\(\\S+\\)|(@\\S+)) '[^']+'::(documentdb_core.)?bson))+\\)?".to_string(),
+            runtime_condition_split_regex: "\\(?((\\s+AND|OR\\s+)?(?<expr>\\S+ (OPERATOR\\(\\S+\\)|(@\\S+)) '[^']+'::(documentdb_core.)?bson))+\\)?".to_string(),
+            sort_condition_split_regex: "(documentdb_api_catalog\\.)?bson_orderby\\(([^,]+), 'BSONHEX([\\w\\d]+)'::documentdb_core.bson\\)".to_string(),
             single_index_condition_regex: "(OPERATOR\\()?(documentdb_api_catalog\\.)?(?<operator>@[^\\)\\s]+)\\)?\\s+'BSONHEX(?<queryBson>\\S+)'".to_string(),
             api_catalog_name_regex: "documentdb_api_catalog.".to_string(),
-            output_count_regex: "BSONSUM('{ \"\" : { \"$numberInt\" : \"1\" } }'::documentdb_api_catalog.bson)".to_string(),
+            output_count_regex: "BSONSUM('{ \"\" : { \"$numberInt\" : \"1\" } }'::documentdb_core.bson)".to_string(),
 
             // cursor.rs
             cursor_get_more: "SELECT cursorPage, continuation FROM documentdb_api.cursor_get_more($1, $2, $3)".to_string(),

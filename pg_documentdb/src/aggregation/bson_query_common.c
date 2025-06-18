@@ -18,7 +18,14 @@ DollarRangeParams *
 ParseQueryDollarRange(pgbsonelement *filterElement)
 {
 	DollarRangeParams *rangeParams = palloc0(sizeof(DollarRangeParams));
+	InitializeQueryDollarRange(filterElement, rangeParams);
+	return rangeParams;
+}
 
+
+void
+InitializeQueryDollarRange(pgbsonelement *filterElement, DollarRangeParams *rangeParams)
+{
 	bson_iter_t rangeIter;
 	BsonValueInitIterator(&filterElement->bsonValue, &rangeIter);
 	while (bson_iter_next(&rangeIter))
@@ -40,6 +47,10 @@ ParseQueryDollarRange(pgbsonelement *filterElement)
 		{
 			rangeParams->isMaxInclusive = bson_iter_bool(&rangeIter);
 		}
+		else if (strcmp(key, "fullScan") == 0)
+		{
+			rangeParams->isFullScan = true;
+		}
 		else
 		{
 			ereport(ERROR, (errmsg("Unsupported range predicate: %s", key), errdetail_log(
@@ -47,5 +58,12 @@ ParseQueryDollarRange(pgbsonelement *filterElement)
 		}
 	}
 
-	return rangeParams;
+	if (rangeParams->isFullScan)
+	{
+		/* If full scan is requested, we ignore min and max values */
+		rangeParams->minValue.value_type = BSON_TYPE_MINKEY;
+		rangeParams->maxValue.value_type = BSON_TYPE_MAXKEY;
+		rangeParams->isMinInclusive = true;
+		rangeParams->isMaxInclusive = true;
+	}
 }

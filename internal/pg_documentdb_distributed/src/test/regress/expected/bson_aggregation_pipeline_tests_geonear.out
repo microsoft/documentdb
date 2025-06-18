@@ -1078,7 +1078,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT * FROM documentdb_api_catalog.bson_aggreg
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'new'::text), '{ "new" : [  ] }'::documentdb_core.bson)
                      ->  Bitmap Heap Scan on documentdb_data.documents_49803_498056 collection_0_1
-                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                            Recheck Cond: (collection_0_1.shard_key_value = '49803'::bigint)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression((documentdb_api_catalog.bson_dollar_project_geonear(collection.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" } ] }, "distanceField" : "dist.calculated", "spherical" : true, "key" : "a" }'::documentdb_core.bson)), '{ "x" : "x" }'::documentdb_core.bson), 'x'::text)
                            ->  Bitmap Index Scan on _id_
@@ -1117,7 +1117,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson
          ->  Nested Loop Left Join
                Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_internal.bson_dollar_add_fields(documentdb_api_catalog.bson_dollar_project_geonear(collection_0_1.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }, "distanceField" : "dist.calculated", "key" : "a" }'::documentdb_core.bson), '{ "dist.calculated" : { "$round" : [ { "$multiply" : [ "$dist.calculated", { "$numberInt" : "100000" } ] } ] } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)), true)
                ->  Seq Scan on documentdb_data.documents_49802_498044 collection
-                     Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                     Output: collection.shard_key_value, collection.object_id, collection.document
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_internal.bson_dollar_add_fields(documentdb_api_catalog.bson_dollar_project_geonear(collection_0_1.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }, "distanceField" : "dist.calculated", "key" : "a" }'::documentdb_core.bson), '{ "dist.calculated" : { "$round" : [ { "$multiply" : [ "$dist.calculated", { "$numberInt" : "100000" } ] } ] } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)
                      ->  Index Scan using lookup2_2ds_a_idx on documentdb_data.documents_49803_498056 collection_0_1

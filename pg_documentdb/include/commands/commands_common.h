@@ -69,7 +69,10 @@ typedef struct WriteError
 
 bool FindShardKeyValueForDocumentId(MongoCollection *collection, const
 									bson_value_t *queryDoc,
-									bson_value_t *objectId, int64 *shardKeyValue);
+									bson_value_t *objectId,
+									bool queryHasNonIdFilters,
+									int64 *shardKeyValue,
+									const bson_value_t *variableSpec);
 
 bool IsCommonSpecIgnoredField(const char *fieldName);
 

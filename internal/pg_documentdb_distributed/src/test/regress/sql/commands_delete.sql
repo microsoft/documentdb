@@ -479,6 +479,12 @@ ROLLBACK;
 
 BEGIN;
 SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": 2, "$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 1}], "let": {"varRef": "cat"} }');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lte": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "zebra"}} ');
 SELECT document from documentdb_api.collection('db', 'coll_delete');
 ROLLBACK;

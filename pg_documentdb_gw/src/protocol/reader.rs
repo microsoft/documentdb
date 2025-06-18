@@ -42,11 +42,7 @@ where
 }
 
 // Given an already read header, read the remaining message bytes into a RequestMessage
-pub async fn read_request<R>(
-    header: &Header,
-    stream: &mut R,
-    _: &ConnectionContext,
-) -> Result<RequestMessage>
+pub async fn read_request<R>(header: &Header, stream: &mut R) -> Result<RequestMessage>
 where
     R: AsyncRead + Unpin + Send,
 {

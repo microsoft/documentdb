@@ -402,6 +402,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* Oid of the bson_dollar_range function */
 	Oid BsonRangeMatchFunctionId;
 
+	/* Oid of the bson_full_scan function */
+	Oid BsonFullScanFunctionId;
+
 	/* Oid of the $range runtime operator #<> */
 	Oid BsonRangeMatchOperatorOid;
 
@@ -1829,6 +1832,19 @@ BsonRangeMatchFunctionId(void)
 	return GetSchemaFunctionIdWithNargs(&Cache.BsonRangeMatchFunctionId,
 										ApiCatalogToApiInternalSchemaName,
 										"bson_dollar_range", nargs, argTypes,
+										missingOk);
+}
+
+
+Oid
+BsonFullScanFunctionOid(void)
+{
+	int nargs = 2;
+	Oid argTypes[2] = { BsonTypeId(), BsonTypeId() };
+	bool missingOk = true;
+	return GetSchemaFunctionIdWithNargs(&Cache.BsonFullScanFunctionId,
+										ApiInternalSchemaNameV2,
+										"bson_dollar_fullscan", nargs, argTypes,
 										missingOk);
 }
 

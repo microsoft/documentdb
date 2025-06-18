@@ -1200,6 +1200,29 @@ SELECT document from documentdb_api.collection('db', 'coll_delete');
  { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
 (3 rows)
 
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": 2, "$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 1}], "let": {"varRef": "cat"} }');
+                                         delete                                         
+---------------------------------------------------------------------
+ ("{ ""n"" : { ""$numberInt"" : ""1"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "dog" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(2 rows)
+
+ROLLBACK;
+BEGIN;
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "1" }, "a" : "dog" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": { "$expr": {"$lte": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "zebra"}} ');
                                          delete                                         
 ---------------------------------------------------------------------

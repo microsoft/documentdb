@@ -133,6 +133,9 @@ pub struct ExplainPlan {
     #[serde(rename = "Sort Key")]
     pub sort_keys: Option<Vec<String>>,
 
+    #[serde(rename = "Presorted Key")]
+    pub presorted_key: Option<Vec<String>>,
+
     #[serde(rename = "Sort Method")]
     pub sort_method: Option<String>,
 
