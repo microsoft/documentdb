@@ -24,7 +24,7 @@ pub async fn process_drop_database(
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let db = request_info.db()?.to_string();
 
@@ -54,7 +54,7 @@ pub async fn process_drop_collection(
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let coll = request_info.collection()?.to_string();
     let coll_str = coll.as_str();
@@ -89,7 +89,7 @@ pub async fn process_delete(
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let is_read_only_for_disk_full = dynamic_config.is_read_only_for_disk_full().await;
     let delete_rows = pg_data_client

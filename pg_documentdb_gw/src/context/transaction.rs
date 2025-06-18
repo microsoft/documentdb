@@ -167,7 +167,7 @@ impl TransactionStore {
         connection_context: &ConnectionContext,
         transaction_info: &RequestTransactionInfo,
         session_id: Vec<u8>,
-        pg_data_client: &impl PgDataClient<'_>,
+        pg_data_client: &impl PgDataClient,
     ) -> Result<()> {
         if let Some((_, transaction_number)) = connection_context.transaction.as_ref() {
             if transaction_number > &transaction_info.transaction_number {
@@ -259,17 +259,17 @@ impl TransactionStore {
             let transactions = self.transactions.read().await;
 
             if let Some((_, transaction)) = transactions.get(&session_id) {
-                if transaction.transaction_number() != transaction_info.transaction_number {
-                    return Err(DocumentDBError::documentdb_error(
+                return if transaction.transaction_number() != transaction_info.transaction_number {
+                    Err(DocumentDBError::documentdb_error(
                         ErrorCode::NoSuchTransaction,
                         format!(
                             "Cannot continue transaction {}",
                             transaction_info.transaction_number
                         ),
-                    ));
+                    ))
                 } else {
-                    return Ok(());
-                }
+                    Ok(())
+                };
             }
         }
 

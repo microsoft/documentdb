@@ -13,7 +13,7 @@ use std::{env, path::PathBuf, sync::Arc};
 use documentdb_gateway::{
     configuration::{DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration},
     get_service_context, populate_ssl_certificates,
-    postgres::{create_query_catalog, ConnectionPool},
+    postgres::{create_query_catalog, ConnectionPool, DocumentDBDataClient},
     run_server,
     shutdown_controller::SHUTDOWN_CONTROLLER,
     AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
@@ -104,7 +104,7 @@ async fn main() {
         authentication_pool,
     );
 
-    run_server(
+    run_server::<DocumentDBDataClient>(
         service_context,
         certificate_options,
         None,

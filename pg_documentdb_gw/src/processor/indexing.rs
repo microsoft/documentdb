@@ -29,7 +29,7 @@ pub async fn process_create_indexes(
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let db = &request_info.db()?.to_string();
     if db == "config" || db == "admin" {
@@ -67,10 +67,10 @@ pub async fn wait_for_index(
     create_result: PgResponse,
     connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let start_time = Instant::now();
-    let index_build_id: PgDocument = create_result.first()?.get(2);
+    let index_build_id: PgDocument = pg_data_client.get_index_build_id(&create_result)?;
 
     if index_build_id.0.is_empty() {
         return Ok(Response::Pg(create_result));
@@ -156,7 +156,7 @@ fn parse_create_index_error(response: &PgResponse) -> Result<Response> {
 pub async fn process_reindex(
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_reindex(request_info, connection_context)
@@ -167,7 +167,7 @@ pub async fn process_drop_indexes(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let response = pg_data_client
         .execute_drop_indexes(request, request_info, connection_context)
@@ -175,21 +175,37 @@ pub async fn process_drop_indexes(
 
     // TODO: It should not be needed to convert the document, but the backend returns ok:true instead of ok:1
     let mut response = Document::try_from(response.as_raw_document()?)?;
-    let response_code = response.get_bool("ok").map_err(|e| {
+    let is_response_ok = response.get_bool("ok").map_err(|e| {
         DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
     })?;
 
-    response.insert("ok", if response_code { 1 } else { 0 });
-    Ok(Response::Raw(RawResponse(RawDocumentBuf::from_document(
-        &response,
-    )?)))
+    response.insert("ok", if is_response_ok { 1 } else { 0 });
+
+    if is_response_ok {
+        Ok(Response::Raw(RawResponse(RawDocumentBuf::from_document(
+            &response,
+        )?)))
+    } else {
+        let error_message = response.get_str("errmsg").map_err(|e| {
+            DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+        })?;
+        let error_code = response.get_i32("code").map_err(|e| {
+            DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+        })?;
+
+        Err(DocumentDBError::PostgresDocumentDBError(
+            error_code,
+            error_message.to_string(),
+            std::backtrace::Backtrace::capture(),
+        ))
+    }
 }
 
 pub async fn process_list_indexes(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
         .execute_list_indexes(request, request_info, connection_context)

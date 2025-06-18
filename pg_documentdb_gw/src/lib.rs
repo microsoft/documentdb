@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::context::{ConnectionContext, ServiceContext};
 use crate::error::{DocumentDBError, Result};
-use crate::postgres::{ConnectionPool, DocumentDBDataClient, PgDataClient};
+use crate::postgres::{ConnectionPool, PgDataClient};
 use crate::requests::RequestType;
 
 pub use crate::postgres::QueryCatalog;
@@ -50,13 +50,16 @@ pub mod telemetry;
 pub const SYSTEM_REQUESTS_MAX_CONNECTIONS: usize = 2;
 pub const AUTHENTICATION_MAX_CONNECTIONS: usize = 5;
 
-pub async fn run_server(
+pub async fn run_server<T>(
     sc: ServiceContext,
     certificate_options: CertificateOptions,
     telemetry: Option<Box<dyn TelemetryProvider>>,
     token: CancellationToken,
     cipher_map: Option<fn(Option<&str>) -> i32>,
-) -> Result<()> {
+) -> Result<()>
+where
+    T: PgDataClient,
+{
     let listener = TcpListener::bind(format!(
         "{}:{}",
         if sc.setup_configuration().use_local_host() {
@@ -71,7 +74,7 @@ pub async fn run_server(
     let enforce_ssl_tcp = sc.setup_configuration().enforce_ssl_tcp();
     // Listen for new tcp connections until cancelled
     loop {
-        match listen_for_connections(
+        match listen_for_connections::<T>(
             sc.clone(),
             &certificate_options,
             telemetry.clone(),
@@ -126,7 +129,7 @@ pub async fn populate_ssl_certificates() -> Result<CertificateOptions> {
     panic!("Release builds must provide SSL certificate options.")
 }
 
-async fn listen_for_connections(
+async fn listen_for_connections<T>(
     sc: ServiceContext,
     certificate_options: &CertificateOptions,
     telemetry: Option<Box<dyn TelemetryProvider>>,
@@ -134,7 +137,10 @@ async fn listen_for_connections(
     token: CancellationToken,
     enforce_ssl_tcp: bool,
     cipher_map: Option<fn(Option<&str>) -> i32>,
-) -> Result<bool> {
+) -> Result<bool>
+where
+    T: PgDataClient,
+{
     let token_clone = token.clone();
 
     let mut ctx = SslContextBuilder::new(SslMethod::tls()).unwrap();
@@ -152,7 +158,7 @@ async fn listen_for_connections(
     // Wait for either a new connection or cancellation
     tokio::select! {
         res = listener.accept() => {
-            // Recieve the connection and spawn a thread which handles it until cancelled
+            // Receive the connection and spawn a thread which handles it until cancelled
             let (stream, ip) = res?;
             log::trace!("New TCP connection established.");
 
@@ -160,7 +166,7 @@ async fn listen_for_connections(
             socket2::SockRef::from(&stream).set_tcp_keepalive(&TcpKeepalive::new().with_interval(Duration::from_secs(60)).with_time(Duration::from_secs(180)))?;
             tokio::spawn(async move {
                 tokio::select! {
-                    _ = handle_connection(ssl, sc, telemetry, ip, stream, enforce_ssl_tcp, cipher_map) => {}
+                    _ = handle_connection::<T>(ssl, sc, telemetry, ip, stream, enforce_ssl_tcp, cipher_map) => {}
                     _ = token_clone.cancelled() => {}
                 }
             });
@@ -178,7 +184,7 @@ async fn get_stream(ssl: Ssl, stream: TcpStream) -> Result<SslStream<TcpStream>>
     Ok(ssl_stream)
 }
 
-async fn handle_connection(
+async fn handle_connection<T>(
     ssl: Ssl,
     sc: ServiceContext,
     telemetry: Option<Box<dyn TelemetryProvider>>,
@@ -186,7 +192,9 @@ async fn handle_connection(
     stream: TcpStream,
     enforce_ssl_tcp: bool,
     cipher_map: Option<fn(Option<&str>) -> i32>,
-) {
+) where
+    T: PgDataClient,
+{
     let mut connection_context =
         ConnectionContext::new(sc, telemetry, ip, ssl.version_str().to_string()).await;
 
@@ -197,22 +205,24 @@ async fn handle_connection(
                     Some(map) => map(stream.ssl().current_cipher().map(|cipher| cipher.name())),
                     None => 0,
                 };
-                handle_stream(stream, connection_context).await
+                handle_stream::<SslStream<TcpStream>, T>(stream, connection_context).await
             }
             Err(e) => log::error!("Failed to create SslStream: {}", e),
         },
-        false => handle_stream(stream, connection_context).await,
+        false => handle_stream::<TcpStream, T>(stream, connection_context).await,
     }
 }
 
-async fn handle_stream<R>(mut stream: R, mut connection_context: ConnectionContext)
+async fn handle_stream<R, T>(mut stream: R, mut connection_context: ConnectionContext)
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
+    T: PgDataClient,
 {
     loop {
         match protocol::reader::read_header(&mut stream).await {
             Ok(Some(header)) => {
-                if let Err(e) = handle_message(&mut connection_context, &header, &mut stream).await
+                if let Err(e) =
+                    handle_message::<R, T>(&mut connection_context, &header, &mut stream).await
                 {
                     if let Err(e) = log_and_write_error(
                         &connection_context,
@@ -256,13 +266,16 @@ where
     }
 }
 
-async fn get_response(
+async fn get_response<T>(
     connection_context: &mut ConnectionContext,
     message: &RequestMessage,
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     header: &Header,
-) -> Result<Response> {
+) -> Result<Response>
+where
+    T: PgDataClient,
+{
     // Parse the request bytes into a type and the contained document(s)
     if request.request_type() != &RequestType::IsMaster {
         log::debug!(
@@ -279,7 +292,7 @@ async fn get_response(
     }
 
     if !connection_context.auth_state.authorized || request.request_type().handle_with_auth() {
-        let response = auth::process(connection_context, request).await?;
+        let response = auth::process::<T>(connection_context, request).await?;
         return Ok(response);
     }
 
@@ -287,11 +300,7 @@ async fn get_response(
     connection_context.allocate_data_pool().await?;
 
     let service_context = Arc::clone(&connection_context.service_context);
-    let data_client = <DocumentDBDataClient as PgDataClient>::new_authorized(
-        &service_context,
-        &connection_context.auth_state,
-    )
-    .await?;
+    let data_client = T::new_authorized(&service_context, &connection_context.auth_state).await?;
 
     // Process the actual request
     let response =
@@ -300,13 +309,14 @@ async fn get_response(
     Ok(response)
 }
 
-async fn handle_message<R>(
+async fn handle_message<R, T>(
     connection_context: &mut ConnectionContext,
     header: &Header,
     stream: &mut R,
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
+    T: PgDataClient,
 {
     // Read the request message off the stream
     let mut request_tracker = RequestTracker::new();
@@ -343,7 +353,7 @@ where
     }
 
     let mut collection = String::new();
-    let result = handle_request(
+    let result = handle_request::<R, T>(
         connection_context,
         header,
         &request,
@@ -398,7 +408,7 @@ where
     Ok(())
 }
 
-async fn handle_request<R>(
+async fn handle_request<R, T>(
     connection_context: &mut ConnectionContext,
     header: &Header,
     request: &Request<'_>,
@@ -409,11 +419,13 @@ async fn handle_request<R>(
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
+    T: PgDataClient,
 {
     *collection = request_info.collection().unwrap_or("").to_string();
 
     // Process the response for the message
-    let response = get_response(connection_context, message, request, request_info, header).await?;
+    let response =
+        get_response::<T>(connection_context, message, request, request_info, header).await?;
 
     let format_response_start = request_info.request_tracker.start_timer();
 

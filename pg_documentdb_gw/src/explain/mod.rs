@@ -109,12 +109,12 @@ fn write_output_stage(
 /// Processing explain is a bit complicated because the payload can come in two forms:
 /// A command with explain:true, or an explain command wrapping a sub command
 #[async_recursion]
-pub async fn process_explain<'a>(
+pub async fn process_explain(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     verbosity: Option<Verbosity>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'a>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     if let Some(result) = request.document().into_iter().next() {
         let result = result?;
@@ -229,9 +229,9 @@ async fn run_explain(
     query_base: &str,
     verbosity: Verbosity,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
-    let (explain_rows, query) = pg_data_client
+    let (explain_response, query) = pg_data_client
         .execute_explain(
             request,
             request_info,
@@ -243,10 +243,8 @@ async fn run_explain(
 
     let dynamic_config = connection_context.dynamic_configuration();
 
-    match explain_rows.first() {
-        Some(row) => {
-            let content: serde_json::Value = row.try_get(0)?;
-
+    match explain_response {
+        Some(content) => {
             if log_enabled!(log::Level::Debug) {
                 log::debug!("Backend Explain result: {}", content)
             }

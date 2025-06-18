@@ -40,7 +40,7 @@ pub async fn process_request(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &mut ConnectionContext,
-    pg_data_client: impl PgDataClient<'_>,
+    pg_data_client: impl PgDataClient,
 ) -> Result<Response> {
     let dynamic_config = connection_context.dynamic_configuration();
     transaction::handle(request, request_info, connection_context, &pg_data_client).await?;
@@ -360,7 +360,7 @@ async fn process_find(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
         .execute_find(request, request_info, connection_context)
@@ -374,7 +374,7 @@ async fn process_insert(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let insert_rows = pg_data_client
         .execute_insert(request, request_info, connection_context)
@@ -389,7 +389,7 @@ async fn process_aggregate(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
         .execute_aggregate(request, request_info, connection_context)
@@ -402,7 +402,7 @@ async fn process_update(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let update_rows = pg_data_client
         .execute_update(request, request_info, connection_context)
@@ -417,7 +417,7 @@ async fn process_list_databases(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_list_databases(request, request_info, connection_context)
@@ -428,7 +428,7 @@ async fn process_list_collections(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
         .execute_list_collections(request, request_info, connection_context)
@@ -442,7 +442,7 @@ async fn process_validate(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_validate(request, request_info, connection_context)
@@ -453,7 +453,7 @@ async fn process_find_and_modify(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_find_and_modify(request, request_info, connection_context)
@@ -464,7 +464,7 @@ async fn process_distinct(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_distinct_query(request, request_info, connection_context)
@@ -475,7 +475,7 @@ async fn process_count(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // we need to ensure that the collection is correctly set up before we can execute the count query
     let _ = request_info.collection()?;
@@ -489,7 +489,7 @@ async fn process_create(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_create_collection(request, request_info, context)
@@ -519,7 +519,7 @@ async fn process_coll_stats(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
     let scale = if let Some(scale) = request.document().get("scale")? {
@@ -537,7 +537,7 @@ async fn process_db_stats(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
     let scale = if let Some(scale) = request.document().get("scale")? {
@@ -556,7 +556,7 @@ async fn process_shard_collection(
     request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
     reshard: bool,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let namespace = request_info.collection()?.to_string();
     let (db, collection) = protocol::extract_namespace(namespace.as_str())?;
@@ -566,7 +566,7 @@ async fn process_shard_collection(
         .map_err(DocumentDBError::parse_failure())?;
 
     let _ = pg_data_client
-        .execute_shard_collection(request_info, db, collection, key, reshard, context)
+        .execute_shard_collection(request, request_info, db, collection, key, reshard, context)
         .await?;
 
     Ok(Response::ok())
@@ -576,7 +576,7 @@ async fn process_rename_collection(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut source: Option<String> = None;
     let mut target: Option<String> = None;
@@ -648,7 +648,7 @@ async fn process_current_op(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut filter = RawDocumentBuf::new();
     let mut all = false;
@@ -671,7 +671,7 @@ async fn process_coll_mod(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_coll_mod(request, request_info, connection_context)
@@ -684,7 +684,7 @@ async fn get_parameter(
     all: bool,
     show_details: bool,
     params: Vec<String>,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
         .execute_get_parameter(request_info, all, show_details, params, connection_context)
@@ -695,7 +695,7 @@ async fn process_get_parameter(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut all_parameters = false;
     let mut show_details = false;

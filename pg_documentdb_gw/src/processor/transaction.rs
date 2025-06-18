@@ -19,7 +19,7 @@ pub async fn handle(
     request: &Request<'_>,
     request_info: &RequestInfo<'_>,
     connection_context: &mut ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<()> {
     connection_context.transaction = None;
     if let Some(request_transaction_info) = &request_info.transaction_info {
@@ -84,14 +84,14 @@ pub async fn handle(
         );
 
         if let Err(e) = transaction_result {
-            match (request.request_type(), &e) {
+            return match (request.request_type(), &e) {
                 // Especially allow the transaction to remain unfilled if it is committing a committed transaction
                 (
                     RequestType::CommitTransaction,
                     DocumentDBError::DocumentDBError(ErrorCode::TransactionCommitted, _, _),
-                ) => return Ok(()),
-                _ => return Err(e),
-            }
+                ) => Ok(()),
+                _ => Err(e),
+            };
         }
 
         connection_context.transaction =

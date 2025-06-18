@@ -95,7 +95,7 @@ pub async fn process_get_more(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     connection_context: &ConnectionContext,
-    pg_data_client: &impl PgDataClient<'_>,
+    pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut id = None;
     request.extract_fields(|k, v| {
@@ -125,7 +125,7 @@ pub async fn process_get_more(
         ))?;
 
     let results = pg_data_client
-        .execute_get_more(
+        .execute_cursor_get_more(
             request,
             request_info,
             &db,

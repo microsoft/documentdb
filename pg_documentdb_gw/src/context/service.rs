@@ -33,6 +33,7 @@ pub struct ServiceContextInner {
     // We need Arc on the ConnectionPool to allow sharing across threads from different connections
     // TODO: need to add excessive testing when the user is changing password or pool size changed
     pub user_data_pools: RwLock<HashMap<ClientKey, Arc<ConnectionPool>>>,
+    pub system_shared_pools: RwLock<HashMap<usize, Arc<ConnectionPool>>>,
     pub cursor_store: CursorStore,
     pub transaction_store: TransactionStore,
     pub query_catalog: QueryCatalog,
@@ -58,6 +59,7 @@ impl ServiceContext {
             system_requests_pool,
             system_auth_pool,
             user_data_pools: RwLock::new(HashMap::new()),
+            system_shared_pools: RwLock::new(HashMap::new()),
             cursor_store: CursorStore::new(setup_configuration.as_ref(), true),
             transaction_store: TransactionStore::new(Duration::from_secs(timeout_secs)),
             query_catalog,
@@ -65,7 +67,7 @@ impl ServiceContext {
         ServiceContext(Arc::new(inner))
     }
 
-    pub async fn get_data_pool(&'_ self, user: &str, pass: &str) -> Result<Arc<ConnectionPool>> {
+    pub async fn get_data_pool(&self, user: &str, pass: &str) -> Result<Arc<ConnectionPool>> {
         let read_lock = self.0.user_data_pools.read().await;
 
         match read_lock.get(&(Cow::Borrowed(user), Cow::Borrowed(pass))) {
@@ -163,5 +165,34 @@ impl ServiceContext {
             )?),
         );
         Ok(())
+    }
+
+    pub async fn get_system_shared_pool(&self) -> Result<Arc<ConnectionPool>> {
+        let max_connections = self.dynamic_configuration().max_connections().await;
+
+        if let Some(conn_pool) = self
+            .0
+            .system_shared_pools
+            .read()
+            .await
+            .get(&max_connections)
+        {
+            return Ok(Arc::clone(conn_pool));
+        }
+
+        let mut write_lock = self.0.system_shared_pools.write().await;
+
+        let system_shared_pool = Arc::new(ConnectionPool::new_with_user(
+            self.setup_configuration(),
+            self.query_catalog(),
+            &self.setup_configuration().postgres_system_user(),
+            None,
+            format!("{}-Data", self.setup_configuration().application_name()),
+            max_connections,
+        )?);
+
+        write_lock.insert(max_connections, Arc::clone(&system_shared_pool));
+
+        Ok(Arc::clone(&system_shared_pool))
     }
 }

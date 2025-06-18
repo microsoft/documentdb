@@ -15,7 +15,7 @@ use tokio_postgres::types::Type;
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},
-    postgres::{DocumentDBDataClient, PgDataClient, PgDocument},
+    postgres::{PgDataClient, PgDocument},
     processor,
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo, RequestType},
@@ -35,6 +35,7 @@ pub struct AuthState {
     first_state: Option<ScramFirstState>,
     username: Option<String>,
     pub password: Option<String>,
+    user_oid: Option<u32>,
 }
 
 impl Default for AuthState {
@@ -50,6 +51,7 @@ impl AuthState {
             first_state: None,
             username: None,
             password: None,
+            user_oid: None,
         }
     }
 
@@ -61,15 +63,28 @@ impl AuthState {
             ))
     }
 
+    pub fn user_oid(&self) -> Result<u32> {
+        self.user_oid.ok_or(DocumentDBError::internal_error(
+            "User OID missing".to_string(),
+        ))
+    }
+
     pub fn set_username(&mut self, user: &str) {
         self.username = Some(user.to_string());
     }
+
+    pub fn set_user_oid(&mut self, user_oid: u32) {
+        self.user_oid = Some(user_oid);
+    }
 }
 
-pub async fn process(
+pub async fn process<T>(
     connection_context: &mut ConnectionContext,
     request: &Request<'_>,
-) -> Result<Response> {
+) -> Result<Response>
+where
+    T: PgDataClient,
+{
     if let Some(response) = handle_auth_request(connection_context, request).await? {
         return Ok(response);
     }
@@ -77,8 +92,7 @@ pub async fn process(
     let request_info = request.extract_common();
     if request.request_type().allowed_unauthorized() {
         let service_context = Arc::clone(&connection_context.service_context);
-        let data_client =
-            <DocumentDBDataClient as PgDataClient>::new_unauthorized(&service_context);
+        let data_client = T::new_unauthorized(&service_context).await?;
         return processor::process_request(
             request,
             &mut request_info?,
@@ -253,6 +267,8 @@ async fn handle_sasl_continue(
         };
 
         connection_context.auth_state.password = Some("".to_string());
+        connection_context.auth_state.user_oid =
+            Some(get_user_oid(connection_context, username).await?);
         connection_context.auth_state.authorized = true;
 
         Ok(Response::Raw(RawResponse(rawdoc! {
@@ -397,4 +413,26 @@ async fn get_salt_and_iteration(
         .map_err(DocumentDBError::pg_response_invalid)?;
 
     Ok((salt.to_string(), iterations))
+}
+
+pub async fn get_user_oid(connection_context: &ConnectionContext, username: &str) -> Result<u32> {
+    let user_oid_rows = connection_context
+        .service_context
+        .authentication_connection()
+        .await?
+        .query(
+            "SELECT oid from pg_roles WHERE rolname = $1",
+            &[Type::TEXT],
+            &[&username],
+            None,
+            &mut RequestInfo::new(),
+        )
+        .await?;
+
+    let user_oid = user_oid_rows
+        .first()
+        .ok_or(DocumentDBError::pg_response_empty())?
+        .try_get::<_, tokio_postgres::types::Oid>(0)?;
+
+    Ok(user_oid as u32)
 }

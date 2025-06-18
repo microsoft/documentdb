@@ -45,7 +45,7 @@ impl Transaction {
     }
 
     pub fn get_connection(&self) -> Arc<Connection> {
-        self.conn.clone()
+        Arc::clone(&self.conn)
     }
 
     pub async fn commit(&mut self) -> Result<()> {
