@@ -15,6 +15,7 @@ A curated collection of guides to help you understand what DocumentDB is, why it
 - [DocumentDB Gateway](./gateway.md)
 - [Prebuild Image](./prebuild.md)
 - [Usage (CRUD)](./usage.md)
+- [Environment Variables](./environment-variables.md)
 - [Collection Management](./collection-management.md)
 - [Indexing](./indexing.md)
 - [Aggregation](./aggregation.md)
