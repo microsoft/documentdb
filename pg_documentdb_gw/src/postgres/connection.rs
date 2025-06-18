@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/postgres/client.rs
+ * src/postgres/connections.rs
  *
  *-------------------------------------------------------------------------
  */
@@ -32,7 +32,7 @@ pub fn pg_configuration(sc: &dyn SetupConfiguration) -> tokio_postgres::Config {
     config
 }
 
-// Ensures search_path is set on all acquired clients
+// Ensures search_path is set on all acquired connections
 #[derive(Debug)]
 pub struct ConnectionPool {
     pool: deadpool_postgres::Pool,
@@ -148,7 +148,6 @@ impl Connection {
         Ok(self.inner_conn.query(&statement, params).await?)
     }
 
-    #[allow(unused_mut)]
     pub async fn query(
         &self,
         query: &str,
@@ -303,10 +302,5 @@ impl Connection {
             inner_conn: conn,
             in_transaction,
         }
-    }
-
-    // Should avoid using this in general - Used for explain which has special handling
-    pub fn get_inner(&mut self) -> &mut InnerConnection {
-        &mut self.inner_conn
     }
 }

@@ -491,7 +491,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [8, 12], "step": 1 } } }]}');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                      QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
@@ -596,9 +596,17 @@ SELECT document FROM bson_aggregation_pipeline('db',
 (13 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db',
-    '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": "partition", "step": 1 } } }]}');
+    '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": "partition", "step": 1 } } }, {"$sort": { "a": 1, "cost": 1}}]}');
                                                                                        document                                                                                        
 ---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "abc", "cost" : { "$numberInt" : "3" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
+ { "a" : "abc", "cost" : { "$numberInt" : "4" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "abc", "cost" : { "$numberInt" : "5" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
+ { "a" : "abc", "cost" : { "$numberInt" : "6" } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "abc", "cost" : { "$numberInt" : "7" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
+ { "a" : "abc", "cost" : { "$numberInt" : "8" } }
+ { "a" : "abc", "cost" : { "$numberInt" : "9" } }
+ { "_id" : { "$numberInt" : "1" }, "a" : "abc", "cost" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
  { "_id" : { "$numberInt" : "13" }, "a" : "def", "cost" : { "$numberInt" : "-5" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
  { "a" : "def", "cost" : { "$numberInt" : "-4" } }
  { "a" : "def", "cost" : { "$numberInt" : "-3" } }
@@ -621,14 +629,6 @@ SELECT document FROM bson_aggregation_pipeline('db',
  { "a" : "def", "cost" : { "$numberInt" : "14" } }
  { "a" : "def", "cost" : { "$numberInt" : "15" } }
  { "_id" : { "$numberInt" : "11" }, "a" : "def", "cost" : { "$numberInt" : "16" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
- { "_id" : { "$numberInt" : "3" }, "a" : "abc", "cost" : { "$numberInt" : "3" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
- { "a" : "abc", "cost" : { "$numberInt" : "4" } }
- { "_id" : { "$numberInt" : "2" }, "a" : "abc", "cost" : { "$numberInt" : "5" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
- { "a" : "abc", "cost" : { "$numberInt" : "6" } }
- { "_id" : { "$numberInt" : "4" }, "a" : "abc", "cost" : { "$numberInt" : "7" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
- { "a" : "abc", "cost" : { "$numberInt" : "8" } }
- { "a" : "abc", "cost" : { "$numberInt" : "9" } }
- { "_id" : { "$numberInt" : "1" }, "a" : "abc", "cost" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
 (30 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db',
@@ -687,7 +687,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 54_1
+   ->  Distributed Subplan 53_1
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 8
@@ -697,24 +697,24 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Node: host=localhost port=58070 dbname=regression
                      ->  Seq Scan on documentdb_data.documents_4770_477016 collection
                            Output: document
-   ->  Distributed Subplan 54_2
+   ->  Distributed Subplan 53_2
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 1
                Tasks Shown: All
                ->  Task
-                     Query: SELECT intermediate_result.document FROM read_intermediate_result('54_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson) UNION ALL SELECT NULL::documentdb_core.bson AS document
+                     Query: SELECT intermediate_result.document FROM read_intermediate_result('53_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson) UNION ALL SELECT NULL::documentdb_core.bson AS document
                      Node: host=localhost port=58070 dbname=regression
                      ->  Append
                            ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                                  Output: intermediate_result.document
-                                 Function Call: read_intermediate_result('54_1'::text, 'binary'::citus_copy_format)
+                                 Function Call: read_intermediate_result('53_1'::text, 'binary'::citus_copy_format)
                            ->  Result
                                  Output: NULL::documentdb_core.bson
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT documentdb_api_internal.bson_densify_range(agg_stage_0_1.document, '{ "field" : "cost", "partitionByFields" : [ "a" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (PARTITION BY (documentdb_api_internal.bson_expression_partition_by_fields_get(agg_stage_0_1.document, '{ "" : [ "a" ] }'::documentdb_core.bson)) ORDER BY (documentdb_api_catalog.bson_orderby(agg_stage_0_1.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('54_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0_1) agg_stage_0
+         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT documentdb_api_internal.bson_densify_range(agg_stage_0_1.document, '{ "field" : "cost", "partitionByFields" : [ "a" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (PARTITION BY (documentdb_api_internal.bson_expression_partition_by_fields_get(agg_stage_0_1.document, '{ "" : [ "a" ] }'::documentdb_core.bson)) ORDER BY (documentdb_api_catalog.bson_orderby(agg_stage_0_1.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('53_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0_1) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_lookup_unwind((documentdb_api_internal.bson_densify_range(intermediate_result.document, '{ "field" : "cost", "partitionByFields" : [ "a" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (?)), '_'::text)
@@ -725,7 +725,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                            Sort Key: (documentdb_api_internal.bson_expression_partition_by_fields_get(intermediate_result.document, '{ "" : [ "a" ] }'::documentdb_core.bson)), (documentdb_api_catalog.bson_orderby(intermediate_result.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                            ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                                  Output: documentdb_api_catalog.bson_orderby(intermediate_result.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson), documentdb_api_internal.bson_expression_partition_by_fields_get(intermediate_result.document, '{ "" : [ "a" ] }'::documentdb_core.bson), intermediate_result.document
-                                 Function Call: read_intermediate_result('54_2'::text, 'binary'::citus_copy_format)
+                                 Function Call: read_intermediate_result('53_2'::text, 'binary'::citus_copy_format)
 (41 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db',
@@ -756,7 +756,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 59_1
+   ->  Distributed Subplan 57_1
          ->  WindowAgg
                Output: bson_densify_full(remote_scan.document, '{ "field" : "cost", "partitionByFields" : [ "a" ], "range" : { "bounds" : "full", "step" : { "$numberInt" : "1" } } }'::bson) OVER (?), remote_scan.worker_column_2
                ->  Sort
@@ -774,13 +774,13 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('59_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
+         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('57_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_lookup_unwind(intermediate_result.document, '_'::text)
                ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                      Output: intermediate_result.document
-                     Function Call: read_intermediate_result('59_1'::text, 'binary'::citus_copy_format)
+                     Function Call: read_intermediate_result('57_1'::text, 'binary'::citus_copy_format)
 (27 rows)
 
 -- Reshard multikey
@@ -834,17 +834,17 @@ SELECT document FROM bson_aggregation_pipeline('db',
 (37 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db',
-    '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a", "quantity"], "range": { "bounds": "partition", "step": 1 } } }]}');
+    '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a", "quantity"], "range": { "bounds": "partition", "step": 1 } } }, {"$sort": { "a": 1, "quantity": 1, "cost": 1}}]}');
                                                                                        document                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "2" }, "a" : "abc", "cost" : { "$numberInt" : "5" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
- { "_id" : { "$numberInt" : "4" }, "a" : "abc", "cost" : { "$numberInt" : "7" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
- { "_id" : { "$numberInt" : "12" }, "a" : "def", "cost" : { "$numberInt" : "11" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
- { "_id" : { "$numberInt" : "14" }, "a" : "def", "cost" : { "$numberInt" : "9" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
- { "_id" : { "$numberInt" : "13" }, "a" : "def", "cost" : { "$numberInt" : "-5" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
- { "_id" : { "$numberInt" : "3" }, "a" : "abc", "cost" : { "$numberInt" : "3" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
- { "_id" : { "$numberInt" : "11" }, "a" : "def", "cost" : { "$numberInt" : "16" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
  { "_id" : { "$numberInt" : "1" }, "a" : "abc", "cost" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "abc", "cost" : { "$numberInt" : "3" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
+ { "_id" : { "$numberInt" : "4" }, "a" : "abc", "cost" : { "$numberInt" : "7" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "abc", "cost" : { "$numberInt" : "5" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
+ { "_id" : { "$numberInt" : "11" }, "a" : "def", "cost" : { "$numberInt" : "16" }, "quantity" : { "$numberInt" : "501" }, "date" : { "$date" : { "$numberLong" : "1718841600000" } } }
+ { "_id" : { "$numberInt" : "13" }, "a" : "def", "cost" : { "$numberInt" : "-5" }, "quantity" : { "$numberInt" : "503" }, "date" : { "$date" : { "$numberLong" : "1718841610000" } } }
+ { "_id" : { "$numberInt" : "14" }, "a" : "def", "cost" : { "$numberInt" : "9" }, "quantity" : { "$numberInt" : "504" }, "date" : { "$date" : { "$numberLong" : "1718841615000" } } }
+ { "_id" : { "$numberInt" : "12" }, "a" : "def", "cost" : { "$numberInt" : "11" }, "quantity" : { "$numberInt" : "507" }, "date" : { "$date" : { "$numberLong" : "1718841605000" } } }
 (8 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db',
@@ -1035,7 +1035,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 80_1
+   ->  Distributed Subplan 78_1
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 8
@@ -1045,24 +1045,24 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Node: host=localhost port=58070 dbname=regression
                      ->  Seq Scan on documentdb_data.documents_4770_477024 collection
                            Output: document
-   ->  Distributed Subplan 80_2
+   ->  Distributed Subplan 78_2
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 1
                Tasks Shown: All
                ->  Task
-                     Query: SELECT intermediate_result.document FROM read_intermediate_result('80_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson) UNION ALL SELECT NULL::documentdb_core.bson AS document
+                     Query: SELECT intermediate_result.document FROM read_intermediate_result('78_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson) UNION ALL SELECT NULL::documentdb_core.bson AS document
                      Node: host=localhost port=58070 dbname=regression
                      ->  Append
                            ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                                  Output: intermediate_result.document
-                                 Function Call: read_intermediate_result('80_1'::text, 'binary'::citus_copy_format)
+                                 Function Call: read_intermediate_result('78_1'::text, 'binary'::citus_copy_format)
                            ->  Result
                                  Output: NULL::documentdb_core.bson
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT documentdb_api_internal.bson_densify_range(agg_stage_0_1.document, '{ "field" : "cost", "partitionByFields" : [ "a", "quantity" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (PARTITION BY (documentdb_api_internal.bson_expression_partition_by_fields_get(agg_stage_0_1.document, '{ "" : [ "a", "quantity" ] }'::documentdb_core.bson)) ORDER BY (documentdb_api_catalog.bson_orderby(agg_stage_0_1.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('80_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0_1) agg_stage_0
+         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT documentdb_api_internal.bson_densify_range(agg_stage_0_1.document, '{ "field" : "cost", "partitionByFields" : [ "a", "quantity" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (PARTITION BY (documentdb_api_internal.bson_expression_partition_by_fields_get(agg_stage_0_1.document, '{ "" : [ "a", "quantity" ] }'::documentdb_core.bson)) ORDER BY (documentdb_api_catalog.bson_orderby(agg_stage_0_1.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('78_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0_1) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_lookup_unwind((documentdb_api_internal.bson_densify_range(intermediate_result.document, '{ "field" : "cost", "partitionByFields" : [ "a", "quantity" ], "range" : { "bounds" : [ { "$numberInt" : "8" }, { "$numberInt" : "12" } ], "step" : { "$numberInt" : "1" } } }'::documentdb_core.bson) OVER (?)), '_'::text)
@@ -1073,7 +1073,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                            Sort Key: (documentdb_api_internal.bson_expression_partition_by_fields_get(intermediate_result.document, '{ "" : [ "a", "quantity" ] }'::documentdb_core.bson)), (documentdb_api_catalog.bson_orderby(intermediate_result.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                            ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                                  Output: documentdb_api_catalog.bson_orderby(intermediate_result.document, '{ "cost" : { "$numberLong" : "1" } }'::documentdb_core.bson), documentdb_api_internal.bson_expression_partition_by_fields_get(intermediate_result.document, '{ "" : [ "a", "quantity" ] }'::documentdb_core.bson), intermediate_result.document
-                                 Function Call: read_intermediate_result('80_2'::text, 'binary'::citus_copy_format)
+                                 Function Call: read_intermediate_result('78_2'::text, 'binary'::citus_copy_format)
 (41 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db',
@@ -1104,7 +1104,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 84_1
+   ->  Distributed Subplan 82_1
          ->  WindowAgg
                Output: bson_densify_full(remote_scan.document, '{ "field" : "cost", "partitionByFields" : [ "a", "quantity" ], "range" : { "bounds" : "full", "step" : { "$numberInt" : "1" } } }'::bson) OVER (?), remote_scan.worker_column_2
                ->  Sort
@@ -1122,13 +1122,13 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('84_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
+         Query: SELECT documentdb_api_catalog.bson_lookup_unwind(document, '_'::text) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('82_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  ProjectSet
                Output: documentdb_api_catalog.bson_lookup_unwind(intermediate_result.document, '_'::text)
                ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                      Output: intermediate_result.document
-                     Function Call: read_intermediate_result('84_1'::text, 'binary'::citus_copy_format)
+                     Function Call: read_intermediate_result('82_1'::text, 'binary'::citus_copy_format)
 (27 rows)
 
 -- Test that internal number of documents generated limits are working

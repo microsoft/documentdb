@@ -12,7 +12,7 @@ use tokio_postgres::IsolationLevel;
 use crate::{
     configuration::SetupConfiguration,
     error::{DocumentDBError, ErrorCode, Result},
-    postgres::{self, Connection},
+    postgres::{self, Connection, PgDataClient},
 };
 use std::{
     collections::HashMap,
@@ -164,11 +164,12 @@ impl TransactionStore {
 
     pub async fn create(
         &self,
-        context: &ConnectionContext,
+        connection_context: &ConnectionContext,
         transaction_info: &RequestTransactionInfo,
         session_id: Vec<u8>,
+        pg_data_client: &impl PgDataClient<'_>,
     ) -> Result<()> {
-        if let Some((_, transaction_number)) = context.transaction.as_ref() {
+        if let Some((_, transaction_number)) = connection_context.transaction.as_ref() {
             if transaction_number > &transaction_info.transaction_number {
                 return Err(DocumentDBError::documentdb_error(
                     ErrorCode::TransactionTooOld,
@@ -228,9 +229,13 @@ impl TransactionStore {
                 transaction_info.transaction_number
             );
             let transaction = Transaction::start(
-                context.service_context.setup_configuration(),
+                connection_context.service_context.setup_configuration(),
                 transaction_info,
-                Arc::new(context.pull_connection_without_transaction(true).await?),
+                Arc::new(
+                    pg_data_client
+                        .pull_connection_with_transaction(true)
+                        .await?,
+                ),
                 transaction_info
                     .isolation_level
                     .unwrap_or(IsolationLevel::ReadCommitted),

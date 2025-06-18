@@ -16,12 +16,11 @@ use log::{log_enabled, warn};
 use model::*;
 use once_cell::sync::Lazy;
 use serde_json::Value;
-use tokio_postgres::types::Type;
 
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, Result},
-    postgres::{PgDocument, Timeout},
+    postgres::PgDataClient,
     protocol::OK_SUCCEEDED,
     requests::{Request, RequestInfo, RequestType},
     responses::{RawResponse, Response},
@@ -110,11 +109,12 @@ fn write_output_stage(
 /// Processing explain is a bit complicated because the payload can come in two forms:
 /// A command with explain:true, or an explain command wrapping a sub command
 #[async_recursion]
-pub async fn process_explain(
+pub async fn process_explain<'a>(
     request: &Request<'_>,
     request_info: &mut RequestInfo<'_>,
     verbosity: Option<Verbosity>,
-    context: &ConnectionContext,
+    connection_context: &ConnectionContext,
+    pg_data_client: &impl PgDataClient<'a>,
 ) -> Result<Response> {
     if let Some(result) = request.document().into_iter().next() {
         let result = result?;
@@ -135,7 +135,8 @@ pub async fn process_explain(
                         &Request::Raw(RequestType::Explain, explain_doc, request.extra()),
                         request_info,
                         Some(verbosity),
-                        context,
+                        connection_context,
+                        pg_data_client,
                     )
                     .await
                 } else {
@@ -144,10 +145,50 @@ pub async fn process_explain(
                     ))
                 }
             }
-            "aggregate" => run_explain(request, request_info, "pipeline", verbosity, context).await,
-            "find" => run_explain(request, request_info, "find", verbosity, context).await,
-            "count" => run_explain(request, request_info, "count", verbosity, context).await,
-            "distinct" => run_explain(request, request_info, "distinct", verbosity, context).await,
+            "aggregate" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "pipeline",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "find" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "find",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "count" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "count",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
+            "distinct" => {
+                run_explain(
+                    request,
+                    request_info,
+                    "distinct",
+                    verbosity,
+                    connection_context,
+                    pg_data_client,
+                )
+                .await
+            }
             _ => Err(DocumentDBError::bad_value(
                 "Unrecognized explain command.".to_string(),
             )),
@@ -188,59 +229,21 @@ async fn run_explain(
     query_base: &str,
     verbosity: Verbosity,
     connection_context: &ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response> {
-    let analyze = if !matches!(
-        verbosity,
-        Verbosity::QueryPlanner | Verbosity::AllShardsQueryPlan
-    ) {
-        "True"
-    } else {
-        "False"
-    };
-    let query = connection_context
-        .service_context
-        .query_catalog()
-        .explain(analyze, query_base);
+    let (explain_rows, query) = pg_data_client
+        .execute_explain(
+            request,
+            request_info,
+            query_base,
+            verbosity,
+            connection_context,
+        )
+        .await?;
 
     let dynamic_config = connection_context.dynamic_configuration();
-    let results = if matches!(
-        verbosity,
-        Verbosity::AllShardsQueryPlan | Verbosity::AllShardsExecution
-    ) {
-        let mut pg = connection_context
-            .pull_connection_without_transaction(false)
-            .await?;
-        let t = pg.get_inner().transaction().await?;
-        let explain_config_query = connection_context
-            .service_context
-            .query_catalog()
-            .set_explain_all_tasks_true();
-        if !explain_config_query.is_empty() {
-            t.batch_execute(explain_config_query).await?;
-        }
-        let stmt = t
-            .prepare_typed_cached(&query, &[Type::TEXT, Type::BYTEA])
-            .await?;
-        t.query(
-            &stmt,
-            &[&request_info.db()?, &PgDocument(request.document())],
-        )
-        .await?
-    } else {
-        connection_context
-            .pull_connection()
-            .await?
-            .query_db_bson(
-                &query,
-                &request_info.db()?.to_string(),
-                &PgDocument(request.document()),
-                Timeout::transaction(request_info.max_time_ms),
-                request_info,
-            )
-            .await?
-    };
 
-    match results.first() {
+    match explain_rows.first() {
         Some(row) => {
             let content: serde_json::Value = row.try_get(0)?;
 
@@ -934,6 +937,7 @@ fn get_stage_from_plan(
                             ("SHARD_MERGE".to_owned(), None)
                         }
                     }
+                    "DocumentDBApiExplainQueryScan" => ("ExplainWrapper".to_owned(), None),
                     scan_type if query_catalog.scan_types().contains(&scan_type.to_string()) => {
                         ("FETCH".to_owned(), None)
                     }
@@ -1224,7 +1228,7 @@ fn is_aggregation_stage_skippable(
         }
 
         // no filters, no output, no inner plan - ignorable.
-        if plan.output.as_ref().map_or(true, |o| o.is_empty()) {
+        if plan.output.as_ref().is_none_or(|o| o.is_empty()) {
             return true;
         }
 
@@ -1311,6 +1315,29 @@ fn query_planner(
                 doc.append("isBitmap", true);
             }
 
+            if let Some(sort_keys) = plan.sort_keys.as_ref() {
+                let mut sort_keys_arr = RawArrayBuf::new();
+                for order_string in sort_keys {
+                    if let Some(order_value) =
+                        query_diagnostics::get_sort_conditions(order_string, query_catalog)
+                    {
+                        sort_keys_arr.push(order_value);
+                    }
+                }
+                if !sort_keys_arr.is_empty() {
+                    doc.append("sortKey", sort_keys_arr);
+                }
+
+                doc.append("sortKeysCount", sort_keys.len() as i32);
+            }
+            if let Some(presorted_keys) = plan.presorted_key.as_ref() {
+                doc.append("presortedKeysCount", presorted_keys.len() as i32);
+            }
+
+            if stage_name != "FETCH" && plan.node_type == "Index Scan" && plan.order_by.is_some() {
+                doc.append("hasOrderBy", true);
+            }
+
             if let Some(vector_search_params) = plan.vector_search_custom_params.as_deref() {
                 let params: std::result::Result<VectorSearchParams, serde_json::Error> =
                     serde_json::from_str(vector_search_params);
@@ -1349,6 +1376,32 @@ fn query_planner(
                 if !conditions.is_empty() {
                     doc.append("indexFilterSet", limited_array_from_contents(conditions));
                 }
+            }
+
+            if plan.index_details.is_some() {
+                let mut arr = RawArrayBuf::new();
+                for detail in plan.index_details.as_ref().unwrap() {
+                    let mut index_doc = rawdoc! {};
+                    if let Some(index_name) = detail.index_name.as_deref() {
+                        index_doc.append("indexName", index_name);
+                    }
+
+                    if let Some(multi_key_val) = detail.is_multi_key {
+                        index_doc.append("isMultiKey", multi_key_val);
+                    }
+
+                    if let Some(index_bounds) = detail.index_bounds.as_ref() {
+                        let mut bounds_arr = RawArrayBuf::new();
+                        index_bounds.iter().for_each(|key| {
+                            bounds_arr.push(key.as_str());
+                        });
+                        index_doc.append("bounds", bounds_arr);
+                    }
+
+                    arr.push(index_doc);
+                }
+
+                doc.append("indexUsage", arr);
             }
 
             if stage_name != "EOF" {
@@ -1456,6 +1509,33 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
         if let Some(v) = plan.workers_launched {
             doc.append("parallelWorkers", smallest_from_i64(v))
         }
+
+        if plan.index_details.is_some() {
+            let mut arr = RawArrayBuf::new();
+            for detail in plan.index_details.as_ref().unwrap() {
+                let mut index_doc = rawdoc! {};
+                if let Some(index_name) = detail.index_name.as_deref() {
+                    index_doc.append("indexName", index_name);
+                }
+
+                if let Some(inner_scan_loops) = detail.inner_scan_loops {
+                    index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
+                }
+
+                if let Some(scan_key_details) = detail.scan_key_details.as_ref() {
+                    let mut scan_key_arr = RawArrayBuf::new();
+                    scan_key_details.iter().for_each(|key| {
+                        scan_key_arr.push(key.as_str());
+                    });
+                    index_doc.append("scanKeys", scan_key_arr);
+                }
+
+                arr.push(index_doc);
+            }
+
+            doc.append("indexUsage", arr);
+        }
+
         doc
     });
     rawdoc! {
@@ -1479,6 +1559,13 @@ fn skip_stage(plan: ExplainPlan, query_catalog: &QueryCatalog) -> ExplainPlan {
         let mut p = plan.inner_plans.expect("Checked").remove(0);
         p.alias = plan.alias;
         p
+    } else if plan.node_type == "Custom Scan"
+        && plan.custom_plan_provider.as_deref() == Some("DocumentDBApiExplainQueryScan")
+        && plan.inner_plans.as_ref().is_some_and(|ip| ip.len() == 1)
+    {
+        let mut new_plan = plan.inner_plans.expect("Checked").remove(0);
+        new_plan.index_details = plan.index_details;
+        new_plan
     } else {
         plan
     }

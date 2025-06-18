@@ -244,6 +244,7 @@ void ValidateVariableName(StringView name);
 void GetTimeSystemVariablesFromVariableSpec(pgbson *variableSpec,
 											TimeSystemVariables *timeSystemVariables);
 pgbson * ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
-										 TimeSystemVariables *timeSystemVariables);
+										 TimeSystemVariables *timeSystemVariables,
+										 bool isWriteCommand);
 
 #endif

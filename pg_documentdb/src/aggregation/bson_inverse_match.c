@@ -69,6 +69,8 @@ static const TraverseBsonExecutionFuncs InverseMatchExecutionFuncs = {
 	.VisitArrayField = NULL,
 	.VisitTopLevelField = InverseMatchVisitTopLevelField,
 	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 /* --------------------------------------------------------- */

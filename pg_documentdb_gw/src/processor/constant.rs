@@ -59,7 +59,6 @@ pub fn process_is_db_grid(context: &ConnectionContext) -> Result<Response> {
 pub fn process_get_rw_concern(
     request: &Request<'_>,
     request_info: &RequestInfo<'_>,
-    _: &ConnectionContext,
 ) -> Result<Response> {
     request.extract_fields(|k, _| match k {
         "getDefaultRWConcern" | "inMemory" | "comment" | "lsid" | "$db" => Ok(()),

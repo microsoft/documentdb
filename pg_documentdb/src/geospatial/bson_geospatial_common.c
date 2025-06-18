@@ -92,7 +92,9 @@ static const TraverseBsonExecutionFuncs ProcessLegacyCoordinates = {
 	.SetTraverseResult = NULL,
 	.VisitArrayField = NULL,
 	.VisitTopLevelField = LegacyPointVisitTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 /*
@@ -103,7 +105,9 @@ static const TraverseBsonExecutionFuncs ProcessGeography = {
 	.SetTraverseResult = NULL,
 	.VisitArrayField = NULL,
 	.VisitTopLevelField = GeographyVisitTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 
@@ -115,7 +119,9 @@ static const TraverseBsonExecutionFuncs ValidateGeography = {
 	.SetTraverseResult = NULL,
 	.VisitArrayField = NULL,
 	.VisitTopLevelField = GeographyValidateTopLevelField,
-	.SetIntermediateArrayIndex = NULL
+	.SetIntermediateArrayIndex = NULL,
+	.HandleIntermediateArrayPathNotFound = NULL,
+	.SetIntermediateArrayStartEnd = NULL,
 };
 
 

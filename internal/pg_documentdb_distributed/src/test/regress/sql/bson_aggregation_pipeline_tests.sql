@@ -526,3 +526,11 @@ SELECT check_aggregation_stages_limit(1001);
 SELECT check_lookup_stages_limit(1000, 1);
 SELECT check_lookup_stages_limit(1, 1000);
 RESET documentdb.aggregation_stages_limit;
+
+-- $lookup and $unwind stage combined when null results need to be preserved
+SELECT documentdb_api.insert_one('db','lookup_author','{ "_id": 1, "name": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 1, "title" : "Pride and prejudice", "author": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 2, "title" : "Emma", "author": "Jane Austen" }', NULL);
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');

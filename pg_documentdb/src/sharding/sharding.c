@@ -31,6 +31,17 @@
 extern bool EnableNativeColocation;
 extern int ShardingMaxChunks;
 extern bool RecreateRetryTableOnSharding;
+extern bool UseNewShardKeyCalculation;
+
+/* Metadata about shard keys - this is unchanged through
+ * iterating though the query for the shard key.
+ */
+typedef struct ShardKeyMetadata
+{
+	/* ordered array of shard key fields */
+	const char **fields;
+	int fieldCount;
+} ShardKeyMetadata;
 
 /*
  * ShardKeyFieldValues is used to keep track of shard key values in a query.
@@ -42,17 +53,20 @@ extern bool RecreateRetryTableOnSharding;
  */
 typedef struct ShardKeyFieldValues
 {
-	/* ordered array of shard key fields */
-	const char **fields;
-	int fieldCount;
-
-	/* array specifying whether a field was set in the query */
-	bool *isSet;
-
 	/* array of shard key values corresponding to shard key fields */
 	bson_value_t *values;
+
+	/* array specifying whether a field was set in the query */
+	int *setCount;
 } ShardKeyFieldValues;
 
+/* When processing a $in, the set of values in the $in that are applied */
+typedef struct ShardKeyInValueCount
+{
+	bson_value_t *values;
+
+	int valueCount;
+} ShardKeyInValueCount;
 
 /*
  * Mode tracking sharding options
@@ -100,18 +114,32 @@ PG_FUNCTION_INFO_V1(command_reshard_collection);
 PG_FUNCTION_INFO_V1(command_unshard_collection);
 
 static bson_value_t FindShardKeyFieldValue(bson_iter_t *docIter, const char *path);
-static void InitShardKeyFieldValues(pgbson *shardKey,
+
+static void InitShardKeyMetadata(pgbson *shardKeyBson,
+								 ShardKeyMetadata *shardKeyMetadata);
+static void InitShardKeyFieldValues(const ShardKeyMetadata *shardKeyMetadata,
 									ShardKeyFieldValues *shardKeyValues);
-static int ShardKeyFieldIndex(ShardKeyFieldValues *shardKey, const char *path);
+static void CloneShardKeyFieldValues(const ShardKeyFieldValues *source,
+									 const ShardKeyMetadata *shardKeyMetadata,
+									 ShardKeyFieldValues *target);
+static int ShardKeyFieldIndex(const ShardKeyMetadata *shardKey, const char *path);
 static bool ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
+										   const ShardKeyMetadata *shardKeyMetadata,
 										   int64 *shardKeyHash,
 										   bool *isShardKeyValueCollationAware);
 static void ValidateShardKey(const pgbson *shardKeyDoc);
 static void FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
+											const ShardKeyMetadata *shardKeyMetadata,
 											ShardKeyFieldValues *shardKeyValues);
-static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int
-									 collectionVarno, ShardKeyFieldValues *fieldValues,
+static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, int
+									 collectionVarno,
+									 const ShardKeyMetadata *shardKeyMetadata,
+									 ShardKeyFieldValues *fieldValues,
 									 bool *isShardKeyValueCollationAware);
+static Expr * FindShardKeyValuesExprNew(bson_iter_t *queryDocIter, int
+										collectionVarno,
+										const ShardKeyMetadata *shardKeyMetadata,
+										bool *isShardKeyValueCollationAware);
 
 static void ShardCollectionCore(ShardCollectionArgs *args);
 static void ShardCollectionLegacy(PG_FUNCTION_ARGS);
@@ -418,20 +446,12 @@ ValidateShardKey(const pgbson *shardKeyDoc)
 }
 
 
-/*
- * InitShardKeyFieldValues initializes a ShardKeyFieldValues based on the shard
- * key.
- */
-void
-InitShardKeyFieldValues(pgbson *shardKeyBson, ShardKeyFieldValues *shardKeyValues)
+static void
+InitShardKeyMetadata(pgbson *shardKeyBson, ShardKeyMetadata *shardKeyMetadata)
 {
 	int shardKeyCount = PgbsonCountKeys(shardKeyBson);
-
-	/* prepare data structure for storing shard key field values */
-	shardKeyValues->fieldCount = shardKeyCount;
-	shardKeyValues->fields = palloc(shardKeyCount * sizeof(const char *));
-	shardKeyValues->values = palloc0(shardKeyCount * sizeof(bson_value_t));
-	shardKeyValues->isSet = palloc0(shardKeyCount * sizeof(bool));
+	shardKeyMetadata->fieldCount = shardKeyCount;
+	shardKeyMetadata->fields = palloc(shardKeyCount * sizeof(const char *));
 
 	/* build array of shard key field names */
 	bson_iter_t shardKeyIter;
@@ -439,7 +459,37 @@ InitShardKeyFieldValues(pgbson *shardKeyBson, ShardKeyFieldValues *shardKeyValue
 
 	for (int fieldIndex = 0; bson_iter_next(&shardKeyIter); fieldIndex++)
 	{
-		shardKeyValues->fields[fieldIndex] = bson_iter_key(&shardKeyIter);
+		shardKeyMetadata->fields[fieldIndex] = bson_iter_key(&shardKeyIter);
+	}
+}
+
+
+/*
+ * InitShardKeyFieldValues initializes a ShardKeyFieldValues based on the shard
+ * key.
+ */
+static void
+InitShardKeyFieldValues(const ShardKeyMetadata *metadata,
+						ShardKeyFieldValues *shardKeyValues)
+{
+	int shardKeyCount = metadata->fieldCount;
+
+	/* prepare data structure for storing shard key field values */
+	shardKeyValues->values = palloc0(shardKeyCount * sizeof(bson_value_t));
+	shardKeyValues->setCount = palloc0(shardKeyCount * sizeof(int));
+}
+
+
+static void
+CloneShardKeyFieldValues(const ShardKeyFieldValues *source,
+						 const ShardKeyMetadata *shardKeyMetadata,
+						 ShardKeyFieldValues *target)
+{
+	InitShardKeyFieldValues(shardKeyMetadata, target);
+	for (int fieldIndex = 0; fieldIndex < shardKeyMetadata->fieldCount; fieldIndex++)
+	{
+		target->values[fieldIndex] = source->values[fieldIndex];
+		target->setCount[fieldIndex] = source->setCount[fieldIndex];
 	}
 }
 
@@ -449,7 +499,7 @@ InitShardKeyFieldValues(pgbson *shardKeyBson, ShardKeyFieldValues *shardKeyValue
  * or -1 if it is not found.
  */
 int
-ShardKeyFieldIndex(ShardKeyFieldValues *shardKey, const char *path)
+ShardKeyFieldIndex(const ShardKeyMetadata *shardKey, const char *path)
 {
 	for (int fieldIndex = 0; fieldIndex < shardKey->fieldCount; fieldIndex++)
 	{
@@ -471,14 +521,15 @@ ShardKeyFieldIndex(ShardKeyFieldValues *shardKey, const char *path)
  */
 bool
 ComputeShardKeyFieldValuesHash(ShardKeyFieldValues *shardKeyValues,
+							   const ShardKeyMetadata *shardKeyMetadata,
 							   int64 *shardKeyHash,
 							   bool *isShardKeyValueCollationAware)
 {
 	*shardKeyHash = 0;
 	bool checkCollationAware = false;
-	for (int fieldIndex = 0; fieldIndex < shardKeyValues->fieldCount; fieldIndex++)
+	for (int fieldIndex = 0; fieldIndex < shardKeyMetadata->fieldCount; fieldIndex++)
 	{
-		if (!shardKeyValues->isSet[fieldIndex])
+		if (shardKeyValues->setCount[fieldIndex] == 0)
 		{
 			/* not all fields in the shard key were specified */
 			return false;
@@ -544,17 +595,23 @@ ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
 		return CreateShardKeyValueFilter(collectionVarno, shardKeyValueConst);
 	}
 
-	ShardKeyFieldValues shardKeyValues;
-	InitShardKeyFieldValues(shardKey, &shardKeyValues);
-
 	bson_iter_t queryDocIter;
 	BsonValueInitIterator(queryDocument, &queryDocIter);
 
-	ShardKeyFieldValues fieldValues;
-	InitShardKeyFieldValues(shardKey, &fieldValues);
+	ShardKeyMetadata shardKeyMetadata;
+	InitShardKeyMetadata(shardKey, &shardKeyMetadata);
 
-	return FindShardKeyValuesExpr(&queryDocIter, shardKey, collectionVarno, &fieldValues,
-								  isShardKeyValueCollationAware);
+	if (UseNewShardKeyCalculation)
+	{
+		return FindShardKeyValuesExprNew(&queryDocIter, collectionVarno,
+										 &shardKeyMetadata,
+										 isShardKeyValueCollationAware);
+	}
+
+	ShardKeyFieldValues fieldValues;
+	InitShardKeyFieldValues(&shardKeyMetadata, &fieldValues);
+	return FindShardKeyValuesExpr(&queryDocIter, collectionVarno, &shardKeyMetadata,
+								  &fieldValues, isShardKeyValueCollationAware);
 }
 
 
@@ -596,17 +653,21 @@ ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
 		return true;
 	}
 
+	ShardKeyMetadata shardKeyMetadata;
+	InitShardKeyMetadata(shardKey, &shardKeyMetadata);
+
 	ShardKeyFieldValues shardKeyValues;
-	InitShardKeyFieldValues(shardKey, &shardKeyValues);
+	InitShardKeyFieldValues(&shardKeyMetadata, &shardKeyValues);
 
 	bson_iter_t queryDocIter;
 	BsonValueInitIterator(query, &queryDocIter);
 
 	/* determine the shard key field values from the query BSON */
-	FindShardKeyFieldValuesForQuery(&queryDocIter, &shardKeyValues);
+	FindShardKeyFieldValuesForQuery(&queryDocIter, &shardKeyMetadata, &shardKeyValues);
 
 	/* compute the hash, returns false if not all shard key fields are set */
-	return ComputeShardKeyFieldValuesHash(&shardKeyValues, shardKeyHash,
+	return ComputeShardKeyFieldValuesHash(&shardKeyValues, &shardKeyMetadata,
+										  shardKeyHash,
 										  isShardKeyValueCollationAware);
 }
 
@@ -633,6 +694,7 @@ ComputeShardKeyHashForQueryValue(pgbson *shardKey, uint64_t collectionId,
  */
 static void
 FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
+								const ShardKeyMetadata *shardKeyMetadata,
 								ShardKeyFieldValues *shardKeyValues)
 {
 	while (bson_iter_next(queryDocument))
@@ -661,7 +723,8 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 										   "$and query.")));
 				}
 
-				FindShardKeyFieldValuesForQuery(&andElementIterator, shardKeyValues);
+				FindShardKeyFieldValuesForQuery(&andElementIterator, shardKeyMetadata,
+												shardKeyValues);
 			}
 		}
 		else if (key[0] == '$')
@@ -671,7 +734,7 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 		else
 		{
 			/* key is a path rather than an operator */
-			int fieldIndex = ShardKeyFieldIndex(shardKeyValues, key);
+			int fieldIndex = ShardKeyFieldIndex(shardKeyMetadata, key);
 			if (fieldIndex < 0)
 			{
 				/* key is not one of the shard key paths */
@@ -698,7 +761,7 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 							/* query has the form <field>:{"$eq":<value>} */
 							shardKeyValues->values[fieldIndex] =
 								*bson_iter_value(&shardKeyFieldValueIter);
-							shardKeyValues->isSet[fieldIndex] = true;
+							shardKeyValues->setCount[fieldIndex] = 1;
 						}
 					} while (bson_iter_next(&shardKeyFieldValueIter));
 
@@ -710,9 +773,32 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 
 			/* query has the form <field>:<value> */
 			shardKeyValues->values[fieldIndex] = *bson_iter_value(queryDocument);
-			shardKeyValues->isSet[fieldIndex] = true;
+			shardKeyValues->setCount[fieldIndex] = 1;
 		}
 	}
+}
+
+
+static Expr *
+CreateShardKeyFilterCore(const ShardKeyMetadata *shardKeyMetadata,
+						 ShardKeyFieldValues *fieldValues,
+						 bool *isShardKeyValueCollationAware,
+						 int collectionVarno)
+{
+	int64_t shardKeyHash;
+	if (ComputeShardKeyFieldValuesHash(fieldValues, shardKeyMetadata, &shardKeyHash,
+									   isShardKeyValueCollationAware))
+	{
+		/* Single shard key found via series of ANDs */
+		Datum shardKeyFieldValuesHashDatum = Int64GetDatum(shardKeyHash);
+		Const *shardKeyValueConst = makeConst(INT8OID, -1, InvalidOid, 8,
+											  shardKeyFieldValuesHashDatum, false, true);
+
+		/* construct document <operator> <value> expression */
+		return CreateShardKeyValueFilter(collectionVarno, shardKeyValueConst);
+	}
+
+	return NULL;
 }
 
 
@@ -722,7 +808,8 @@ FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
  * TODO: Handle $in and other scenarios.
  */
 static Expr *
-FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collectionVarno,
+FindShardKeyValuesExpr(bson_iter_t *queryDocIter, int collectionVarno,
+					   const ShardKeyMetadata *shardKeyMetadata,
 					   ShardKeyFieldValues *fieldValues,
 					   bool *isShardKeyValueCollationAware)
 {
@@ -753,8 +840,9 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 										   "$and query.")));
 				}
 
-				Expr *innerExpr = FindShardKeyValuesExpr(&andElementIterator, shardKey,
-														 collectionVarno, fieldValues,
+				Expr *innerExpr = FindShardKeyValuesExpr(&andElementIterator,
+														 collectionVarno,
+														 shardKeyMetadata, fieldValues,
 														 isShardKeyValueCollationAware);
 				if (innerExpr != NULL && IsA(innerExpr, BoolExpr))
 				{
@@ -792,9 +880,10 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 				}
 
 				ShardKeyFieldValues orValues;
-				InitShardKeyFieldValues(shardKey, &orValues);
-				Expr *orExpr = FindShardKeyValuesExpr(&orElementIterator, shardKey,
-													  collectionVarno, &orValues,
+				InitShardKeyFieldValues(shardKeyMetadata, &orValues);
+				Expr *orExpr = FindShardKeyValuesExpr(&orElementIterator,
+													  collectionVarno, shardKeyMetadata,
+													  &orValues,
 													  isShardKeyValueCollationAware);
 				if (orExpr != NULL)
 				{
@@ -825,7 +914,7 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 		else
 		{
 			/* key is a path rather than an operator */
-			int fieldIndex = ShardKeyFieldIndex(fieldValues, key);
+			int fieldIndex = ShardKeyFieldIndex(shardKeyMetadata, key);
 			if (fieldIndex < 0)
 			{
 				/* key is not one of the shard key paths */
@@ -852,7 +941,7 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 							/* query has the form <field>:{"$eq":<value>} */
 							fieldValues->values[fieldIndex] =
 								*bson_iter_value(&shardKeyFieldValueIter);
-							fieldValues->isSet[fieldIndex] = true;
+							fieldValues->setCount[fieldIndex] = 1;
 						}
 					} while (bson_iter_next(&shardKeyFieldValueIter));
 
@@ -864,22 +953,18 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 
 			/* query has the form <field>:<value> */
 			fieldValues->values[fieldIndex] = *bson_iter_value(queryDocIter);
-			fieldValues->isSet[fieldIndex] = true;
+			fieldValues->setCount[fieldIndex] = 1;
 		}
 	}
 
-	int64_t shardKeyHash;
-	if (ComputeShardKeyFieldValuesHash(fieldValues, &shardKeyHash,
-									   isShardKeyValueCollationAware))
+	Expr *singleShardKeyFilter = CreateShardKeyFilterCore(shardKeyMetadata,
+														  fieldValues,
+														  isShardKeyValueCollationAware,
+														  collectionVarno);
+	if (singleShardKeyFilter != NULL)
 	{
-		/* Single shard key found via series of ANDs */
-		Datum shardKeyFieldValuesHashDatum = Int64GetDatum(shardKeyHash);
-		Const *shardKeyValueConst = makeConst(INT8OID, -1, InvalidOid, 8,
-											  shardKeyFieldValuesHashDatum, false, true);
-
-		/* construct document <operator> <value> expression */
 		list_free_deep(shardKeyMultiClause);
-		return CreateShardKeyValueFilter(collectionVarno, shardKeyValueConst);
+		return singleShardKeyFilter;
 	}
 
 	if (shardKeyMultiClause != NIL)
@@ -888,6 +973,339 @@ FindShardKeyValuesExpr(bson_iter_t *queryDocIter, pgbson *shardKey, int collecti
 	}
 
 	return NULL;
+}
+
+
+static void
+FindShardKeyValuesExprPhase1(bson_iter_t *queryDocIter, const ShardKeyMetadata *metadata,
+							 ShardKeyFieldValues *fieldValues, List **orClauses,
+							 ShardKeyFieldValues *inClauses)
+{
+	while (bson_iter_next(queryDocIter))
+	{
+		const char *key = bson_iter_key(queryDocIter);
+
+		if (strcmp(key, "$and") == 0)
+		{
+			bson_iter_t andIterator;
+			if (!BSON_ITER_HOLDS_ARRAY(queryDocIter) ||
+				!bson_iter_recurse(queryDocIter, &andIterator))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("Could not iterate through query document "
+									   "$and.")));
+			}
+
+			while (bson_iter_next(&andIterator))
+			{
+				bson_iter_t andElementIterator;
+				if (!BSON_ITER_HOLDS_DOCUMENT(&andIterator) ||
+					!bson_iter_recurse(&andIterator, &andElementIterator))
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg("Could not iterate through elements within "
+										   "$and query.")));
+				}
+
+				FindShardKeyValuesExprPhase1(&andElementIterator, metadata, fieldValues,
+											 orClauses, inClauses);
+			}
+		}
+		else if (strcmp(key, "$or") == 0 && orClauses)
+		{
+			bson_value_t *orValue = palloc(sizeof(bson_value_t));
+			*orValue = *bson_iter_value(queryDocIter);
+			*orClauses = lappend(*orClauses, orValue);
+		}
+		else if (key[0] == '$')
+		{
+			/* ignore other top level operators */
+		}
+		else
+		{
+			/* key is a path rather than an operator */
+			int fieldIndex = ShardKeyFieldIndex(metadata, key);
+			if (fieldIndex < 0)
+			{
+				/* key is not one of the shard key paths */
+				continue;
+			}
+
+			bson_iter_t shardKeyFieldValueIter;
+
+			/* if the value under key is a non-empty document, it may be an operator  */
+			if (BSON_ITER_HOLDS_DOCUMENT(queryDocIter) &&
+				bson_iter_recurse(queryDocIter, &shardKeyFieldValueIter) &&
+				bson_iter_next(&shardKeyFieldValueIter))
+			{
+				const char *firstKey = bson_iter_key(&shardKeyFieldValueIter);
+
+				/* if the first key starts with $, it's an operator document */
+				if (firstKey[0] == '$')
+				{
+					/* check for $eq operator */
+					do {
+						const char *operatorName = bson_iter_key(&shardKeyFieldValueIter);
+						if (strcmp(operatorName, "$eq") == 0)
+						{
+							/* query has the form <field>:{"$eq":<value>} */
+							fieldValues->values[fieldIndex] =
+								*bson_iter_value(&shardKeyFieldValueIter);
+							fieldValues->setCount[fieldIndex] = 1;
+						}
+						else if (strcmp(operatorName, "$in") == 0 && inClauses)
+						{
+							inClauses->values[fieldIndex] =
+								*bson_iter_value(&shardKeyFieldValueIter);
+							inClauses->setCount[fieldIndex]++;
+						}
+					} while (bson_iter_next(&shardKeyFieldValueIter));
+
+					continue;
+				}
+
+				/* if the key is not an operator, fall through */
+			}
+
+			/* query has the form <field>:<value> */
+			fieldValues->values[fieldIndex] = *bson_iter_value(queryDocIter);
+			fieldValues->setCount[fieldIndex] = 1;
+		}
+	}
+}
+
+
+static Expr *
+ConsiderShardKeyFiltersForInClauses(const ShardKeyMetadata *shardKeyMetadata,
+									ShardKeyFieldValues *fieldValues,
+									ShardKeyFieldValues *inFieldValues,
+									bool *isShardKeyValueCollationAware,
+									int collectionVarno)
+{
+	/* First pass, sanity checks */
+	int totalShardKeys = 1;
+	ShardKeyInValueCount *shardKeyValue = palloc0(shardKeyMetadata->fieldCount *
+												  sizeof(ShardKeyInValueCount));
+	for (int i = 0; i < shardKeyMetadata->fieldCount; i++)
+	{
+		if (fieldValues->setCount[i] > 0 && inFieldValues->setCount[i] > 0)
+		{
+			/* Both were set, ignore the in case */
+			inFieldValues->setCount[i] = 0;
+		}
+
+		if (inFieldValues->setCount[i] > 1)
+		{
+			/* More than 1 $in specified on a path and it's not in the required path
+			 * we can't safely determine shardKeyValue - bail.
+			 */
+			return NULL;
+		}
+
+		/* If the value is covered by at least required and in, then increment count */
+		if (fieldValues->setCount[i] > 0)
+		{
+			shardKeyValue[i].valueCount = 1;
+			shardKeyValue[i].values = palloc(sizeof(bson_value_t));
+			shardKeyValue[i].values[0] = fieldValues->values[i];
+		}
+		else if (inFieldValues->setCount[i] > 0)
+		{
+			int numValues = BsonDocumentValueCountKeys(&inFieldValues->values[i]);
+			bson_iter_t inIterator;
+			BsonValueInitIterator(&inFieldValues->values[i], &inIterator);
+			shardKeyValue[i].valueCount = numValues;
+			shardKeyValue[i].values = palloc(numValues * sizeof(bson_value_t));
+			totalShardKeys = totalShardKeys * numValues;
+
+			int inIdx = 0;
+			while (bson_iter_next(&inIterator))
+			{
+				shardKeyValue[i].values[inIdx++] = *bson_iter_value(&inIterator);
+			}
+		}
+		else
+		{
+			/* Neither values are set - we can't get to a shard key */
+			return NULL;
+		}
+	}
+
+	/* The product of $ins produce totalShardKeys terms. If we got here, there's at least 1 value or in available */
+	List *shardKeyValueExprs = NIL;
+	ShardKeyFieldValues currentValues;
+	InitShardKeyFieldValues(shardKeyMetadata, &currentValues);
+	for (int i = 0; i < totalShardKeys; i++)
+	{
+		int indexToUse = i;
+		for (int j = 0; j < shardKeyMetadata->fieldCount; j++)
+		{
+			int valueIndex = indexToUse % shardKeyValue[j].valueCount;
+			currentValues.values[j] = shardKeyValue[j].values[valueIndex];
+			currentValues.setCount[j] = 1;
+			indexToUse = indexToUse / shardKeyValue[j].valueCount;
+		}
+
+		Expr *shardKeyFilter = CreateShardKeyFilterCore(shardKeyMetadata, &currentValues,
+														isShardKeyValueCollationAware,
+														collectionVarno);
+		if (shardKeyFilter != NULL)
+		{
+			shardKeyValueExprs = lappend(shardKeyValueExprs, shardKeyFilter);
+		}
+	}
+
+
+	for (int i = 0; i < shardKeyMetadata->fieldCount; i++)
+	{
+		pfree(shardKeyValue[i].values);
+	}
+
+	pfree(shardKeyValue);
+
+	if (list_length(shardKeyValueExprs) == 0)
+	{
+		return NULL;
+	}
+	else if (list_length(shardKeyValueExprs) == 1)
+	{
+		/* If we have only one $or clause, return it */
+		return (Expr *) linitial(shardKeyValueExprs);
+	}
+	else
+	{
+		BoolExpr *logicalExpr = makeNode(BoolExpr);
+		logicalExpr->boolop = OR_EXPR;
+		logicalExpr->args = shardKeyValueExprs;
+		logicalExpr->location = -1;
+
+		return (Expr *) logicalExpr;
+	}
+}
+
+
+static Expr *
+ConsiderShardKeyFiltersForOrClauses(const ShardKeyMetadata *shardKeyMetadata,
+									ShardKeyFieldValues *fieldValues,
+									List *orClauses,
+									bool *isShardKeyValueCollationAware,
+									int collectionVarno)
+{
+	List *shardKeyMultiClause = NIL;
+	ListCell *orCell;
+	foreach(orCell, orClauses)
+	{
+		bson_value_t *orValue = (bson_value_t *) lfirst(orCell);
+		bson_iter_t orIterator;
+		BsonValueInitIterator(orValue, &orIterator);
+
+		/* If every arm of the $or has a shard key value filter then it's safe to pull up */
+		List *orExprs = NIL;
+		while (bson_iter_next(&orIterator))
+		{
+			bson_iter_t orElementIterator;
+			if (!BSON_ITER_HOLDS_DOCUMENT(&orIterator) ||
+				!bson_iter_recurse(&orIterator, &orElementIterator))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("Could not iterate through elements within "
+									   "$or query.")));
+			}
+
+			ShardKeyFieldValues orValues;
+			CloneShardKeyFieldValues(fieldValues, shardKeyMetadata, &orValues);
+			FindShardKeyValuesExprPhase1(&orElementIterator, shardKeyMetadata,
+										 &orValues, NULL, NULL);
+			Expr *orExpr = CreateShardKeyFilterCore(shardKeyMetadata, &orValues,
+													isShardKeyValueCollationAware,
+													collectionVarno);
+			if (orExpr != NULL)
+			{
+				orExprs = lappend(orExprs, orExpr);
+			}
+			else
+			{
+				list_free_deep(orExprs);
+				orExprs = NIL;
+				break;
+			}
+		}
+
+		if (orExprs != NIL)
+		{
+			BoolExpr *logicalExpr = makeNode(BoolExpr);
+			logicalExpr->boolop = OR_EXPR;
+			logicalExpr->args = orExprs;
+			logicalExpr->location = -1;
+
+			shardKeyMultiClause = lappend(shardKeyMultiClause, logicalExpr);
+		}
+	}
+
+	if (list_length(shardKeyMultiClause) == 0)
+	{
+		return NULL;
+	}
+	else if (list_length(shardKeyMultiClause) == 1)
+	{
+		/* If we have only one $or clause, return it */
+		return (Expr *) linitial(shardKeyMultiClause);
+	}
+	else
+	{
+		/* If we have multiple $or clauses, combine them into a single expression */
+		return make_ands_explicit(shardKeyMultiClause);
+	}
+}
+
+
+static Expr *
+FindShardKeyValuesExprNew(bson_iter_t *queryDocIter,
+						  int collectionVarno,
+						  const ShardKeyMetadata *shardKeyMetadata,
+						  bool *isShardKeyValueCollationAware)
+{
+	/* Phase 1, collect the shard keys from all the $eq and $ands
+	 * All top level $ors are collected separately as are $ins
+	 */
+	ShardKeyFieldValues fieldValues;
+	InitShardKeyFieldValues(shardKeyMetadata, &fieldValues);
+
+	List *orClauses = NIL;
+	ShardKeyFieldValues inFieldValues;
+	InitShardKeyFieldValues(shardKeyMetadata, &inFieldValues);
+	FindShardKeyValuesExprPhase1(queryDocIter, shardKeyMetadata, &fieldValues, &orClauses,
+								 &inFieldValues);
+
+	/* First, see if all the required paths yield a shard key */
+	Expr *singleKey = CreateShardKeyFilterCore(shardKeyMetadata, &fieldValues,
+											   isShardKeyValueCollationAware,
+											   collectionVarno);
+	if (singleKey != NULL)
+	{
+		/* We have a single shard key value, return it */
+		list_free_deep(orClauses);
+		return singleKey;
+	}
+
+	/* Next try to see if $in clauses can satisfy the query */
+	Expr *inBasedKey = ConsiderShardKeyFiltersForInClauses(shardKeyMetadata, &fieldValues,
+														   &inFieldValues,
+														   isShardKeyValueCollationAware,
+														   collectionVarno);
+	if (inBasedKey != NULL)
+	{
+		/* We have a single shard key value, return it */
+		list_free_deep(orClauses);
+		return inBasedKey;
+	}
+
+	/* Now, fieldValues is populated with all the entries that are *required*
+	 * The orClauses & inClauses are populated with the $or and $in clauses
+	 */
+	return ConsiderShardKeyFiltersForOrClauses(shardKeyMetadata, &fieldValues,
+											   orClauses, isShardKeyValueCollationAware,
+											   collectionVarno);
 }
 
 

@@ -1569,16 +1569,27 @@ UpdateCteRte(RangeTblEntry *rte, CommonTableExpr *baseCte)
 	rte->inFromCl = true;
 
 	List *colnames = NIL;
+	List *coltypes = NIL;
+	List *coltypmods = NIL;
 	ListCell *cell;
 	Query *baseQuery = (Query *) baseCte->ctequery;
 	foreach(cell, baseQuery->targetList)
 	{
 		TargetEntry *tle = (TargetEntry *) lfirst(cell);
 		colnames = lappend(colnames, makeString(tle->resname ? tle->resname : ""));
+		coltypes = lappend_oid(coltypes, exprType((Node *) tle->expr));
+		coltypmods = lappend_int(coltypmods, exprTypmod((Node *) tle->expr));
 	}
 
 	rte->eref = makeAlias(rte->alias->aliasname, colnames);
 	rte->alias = makeAlias(rte->alias->aliasname, NIL);
+
+	rte->coltypes = coltypes;
+	rte->coltypmods = coltypmods;
+
+	baseCte->ctecolnames = colnames;
+	baseCte->ctecoltypes = coltypes;
+	baseCte->ctecoltypmods = coltypmods;
 }
 
 
@@ -2772,6 +2783,19 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 		Expr *rightDocExpr = lsecond(mergeDocumentsArgs);
 		if (lookupContext->preserveNullAndEmptyArrays)
 		{
+#if PG_VERSION_NUM >= 160000
+
+			/*
+			 * Starting PG 16, if we are preserving nulls, then we need to set the varnullingrels
+			 * to the join RTE index so that document var can be replaced if NULL.
+			 */
+			if (IsA(rightDocExpr, Var))
+			{
+				Bitmapset *nullValIngRel = NULL;
+				nullValIngRel = bms_add_member(nullValIngRel, joinQueryRteIndex);
+				((Var *) rightDocExpr)->varnullingrels = nullValIngRel;
+			}
+#endif
 			Expr *coalesceExpr = GetEmptyBsonCoalesce(rightDocExpr);
 			list_nth_cell(mergeDocumentsArgs, 1)->ptr_value = coalesceExpr;
 		}

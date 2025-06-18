@@ -44,19 +44,6 @@ pub struct ConnectionContext {
 static CONNECTION_ID: AtomicI64 = AtomicI64::new(0);
 
 impl ConnectionContext {
-    pub async fn pull_connection(&self) -> Result<Arc<Connection>> {
-        if let Some((session_id, _)) = self.transaction.as_ref() {
-            let transaction_store = self.service_context.transaction_store();
-
-            if let Some(conn) = transaction_store.get_connection(session_id).await {
-                return Ok(conn);
-            }
-        }
-        Ok(Arc::new(
-            self.pull_connection_without_transaction(false).await?,
-        ))
-    }
-
     pub async fn get_cursor(&self, id: i64, user: &str) -> Option<CursorStoreEntry> {
         // If there is a transaction, get the cursor to its store
         if let Some((session_id, _)) = self.transaction.as_ref() {
@@ -105,24 +92,6 @@ impl ConnectionContext {
         self.service_context.add_cursor(key, value).await
     }
 
-    pub async fn pull_connection_without_transaction(
-        &self,
-        in_transaction: bool,
-    ) -> Result<Connection> {
-        let user = self.auth_state.username()?;
-        let pass = self
-            .auth_state
-            .password
-            .as_ref()
-            .ok_or(DocumentDBError::internal_error(
-                "Password is missing on pg connection acquisition".to_string(),
-            ))?;
-
-        let mut conn = self.service_context.get_data_conn(user, pass).await?;
-        conn.in_transaction = in_transaction;
-        Ok(conn)
-    }
-
     pub async fn new(
         sc: ServiceContext,
         telemetry_provider: Option<Box<dyn TelemetryProvider>>,
@@ -145,7 +114,16 @@ impl ConnectionContext {
         }
     }
 
-    pub async fn allocate_data_pool(&self, user: &str, pass: &str) -> Result<()> {
+    pub async fn allocate_data_pool(&self) -> Result<()> {
+        let user = self.auth_state.username()?;
+        let pass = self
+            .auth_state
+            .password
+            .as_ref()
+            .ok_or(DocumentDBError::internal_error(
+                "Password is missing on pg connection acquisition".to_string(),
+            ))?;
+
         self.service_context.allocate_data_pool(user, pass).await
     }
 

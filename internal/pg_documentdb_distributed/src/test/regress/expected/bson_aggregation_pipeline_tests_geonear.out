@@ -1078,7 +1078,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT * FROM documentdb_api_catalog.bson_aggreg
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection_0_1.document, 'new'::text), '{ "new" : [  ] }'::documentdb_core.bson)
                      ->  Bitmap Heap Scan on documentdb_data.documents_49803_498056 collection_0_1
-                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document, collection_0_1.creation_time
+                           Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                            Recheck Cond: (collection_0_1.shard_key_value = '49803'::bigint)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression((documentdb_api_catalog.bson_dollar_project_geonear(collection.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "0" }, { "$numberInt" : "1" } ] }, "distanceField" : "dist.calculated", "spherical" : true, "key" : "a" }'::documentdb_core.bson)), '{ "x" : "x" }'::documentdb_core.bson), 'x'::text)
                            ->  Bitmap Index Scan on _id_
@@ -1117,7 +1117,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson
          ->  Nested Loop Left Join
                Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_internal.bson_dollar_add_fields(documentdb_api_catalog.bson_dollar_project_geonear(collection_0_1.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }, "distanceField" : "dist.calculated", "key" : "a" }'::documentdb_core.bson), '{ "dist.calculated" : { "$round" : [ { "$multiply" : [ "$dist.calculated", { "$numberInt" : "100000" } ] } ] } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)), true)
                ->  Seq Scan on documentdb_data.documents_49802_498044 collection
-                     Output: collection.shard_key_value, collection.object_id, collection.document, collection.creation_time
+                     Output: collection.shard_key_value, collection.object_id, collection.document
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_internal.bson_dollar_add_fields(documentdb_api_catalog.bson_dollar_project_geonear(collection_0_1.document, '{ "near" : { "type" : "Point", "coordinates" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" } ] }, "distanceField" : "dist.calculated", "key" : "a" }'::documentdb_core.bson), '{ "dist.calculated" : { "$round" : [ { "$multiply" : [ "$dist.calculated", { "$numberInt" : "100000" } ] } ] } }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)
                      ->  Index Scan using lookup2_2ds_a_idx on documentdb_data.documents_49803_498056 collection_0_1
@@ -1182,6 +1182,33 @@ SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
  { "_id" : { "$numberInt" : "16" }, "a" : { "c" : [ [ { "$numberInt" : "10" }, { "$numberInt" : "10" } ], [ { "$numberInt" : "20" }, { "$numberInt" : "20" } ], [ { "$numberInt" : "30" }, { "$numberInt" : "30" } ], [ { "$numberInt" : "40" }, { "$numberInt" : "40" } ] ] }, "dist" : { "calculated" : { "$numberDouble" : "0.0" } } }
  { "_id" : { "$numberInt" : "17" }, "a" : { "c" : [ { "x" : { "$numberInt" : "10" }, "y" : { "$numberInt" : "10" } }, { "x" : { "$numberInt" : "20" }, "y" : { "$numberInt" : "20" } }, { "x" : { "$numberInt" : "30" }, "y" : { "$numberInt" : "30" } }, { "x" : { "$numberInt" : "40" }, "y" : { "$numberInt" : "40" } } ] }, "dist" : { "calculated" : { "$numberDouble" : "0.0" } } }
 (2 rows)
+
+ROLLBACK;
+BEGIN;
+set citus.enable_local_execution TO OFF;
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 16, "a": { "c": [[10, 10], [20, 20], [30, 30], [40, 40]]} }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 17, "a": { "c": [{"x": 10, "y": 10}, {"x": 20, "y": 20}, {"x": 30, "y": 30}, {"x": 40, "y": 40}]} }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 18, "a": { "c": [[]]} }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 19, "a": { "c": [{}]} }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
 
 EXPLAIN VERBOSE SELECT * FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [10, 10], "distanceField": "dist.calculated", "key": "a.c" } } , { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ]}');

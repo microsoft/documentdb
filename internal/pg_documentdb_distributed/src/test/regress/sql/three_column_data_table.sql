@@ -4,6 +4,7 @@ SET citus.next_shard_id TO 2930000;
 SET documentdb.next_collection_id TO 293000;
 SET documentdb.next_collection_index_id TO 293000;
 
+SET documentdb.enableDataTableWithoutCreationTime to off;
 -- create table with 4 columns first
 SELECT documentdb_api.create_collection('db', '4col');
 

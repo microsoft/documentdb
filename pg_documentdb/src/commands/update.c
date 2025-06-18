@@ -3395,9 +3395,11 @@ UpdateOneObjectId(MongoCollection *collection, UpdateOneParams *updateOneParams,
 	for (int tryNumber = 0; tryNumber < maxTries; tryNumber++)
 	{
 		int64 shardKeyValue = 0;
-
+		bson_value_t *variableSpec = NULL;
+		bool queryHasNonIdFilters = false;
 		if (!FindShardKeyValueForDocumentId(collection, updateOneParams->query, objectId,
-											&shardKeyValue))
+											queryHasNonIdFilters, &shardKeyValue,
+											variableSpec))
 		{
 			/* no document matches both the query and the object ID */
 			return;

@@ -19,6 +19,8 @@
 #include <access/relscan.h>
 #include <utils/rel.h>
 #include "math.h"
+#include <commands/explain.h>
+#include <access/gin.h>
 
 #include "api_hooks.h"
 #include "planner/mongo_query_operator.h"
@@ -26,11 +28,17 @@
 #include "index_am/documentdb_rum.h"
 #include "metadata/metadata_cache.h"
 #include "opclass/bson_gin_composite_scan.h"
-
+#include "index_am/index_am_utils.h"
+#include "opclass/bson_gin_index_term.h"
+#include "opclass/bson_gin_private.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
+extern bool ForceRumOrderedIndexScan;
+
+bool RumHasMultiKeyPaths = false;
+
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -59,7 +67,15 @@ typedef struct DocumentDBRumIndexState
 	IndexMultiKeyStatus multiKeyStatus;
 
 	void *indexArrayState;
+
+	int32_t numDuplicates;
+
+	ScanKeyData forcedOrderScanKey;
+
+	bool isForcedOrderScan;
 } DocumentDBRumIndexState;
+
+extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
 
 static bool IsIndexIsValidForQuery(IndexPath *path);
 static bool MatchClauseWithIndexForFuncExpr(IndexPath *path, int32_t indexcol,
@@ -68,7 +84,7 @@ static bool ValidateMatchForOrderbyQuals(IndexPath *path);
 
 static bool IsTextIndexMatch(IndexPath *path);
 
-static IndexMultiKeyStatus CheckIndexHasArrays(IndexScanDesc scan,
+static IndexMultiKeyStatus CheckIndexHasArrays(Relation indexRelation,
 											   IndexAmRoutine *coreRoutine);
 
 static IndexScanDesc extension_rumbeginscan(Relation rel, int nkeys, int norderbys);
@@ -79,6 +95,17 @@ static int64 extension_amgetbitmap(IndexScanDesc scan,
 								   TIDBitmap *tbm);
 static bool extension_amgettuple(IndexScanDesc scan,
 								 ScanDirection direction);
+static IndexBuildResult * extension_rumbuild(Relation heapRelation,
+											 Relation indexRelation,
+											 struct IndexInfo *indexInfo);
+static bool extension_ruminsert(Relation indexRelation,
+								Datum *values,
+								bool *isnull,
+								ItemPointer heap_tid,
+								Relation heapRelation,
+								IndexUniqueCheck checkUnique,
+								bool indexUnchanged,
+								struct IndexInfo *indexInfo);
 
 inline static void
 EnsureRumLibLoaded(void)
@@ -164,6 +191,8 @@ GetRumIndexHandler(PG_FUNCTION_ARGS)
 	indexRoutine->amgettuple = extension_amgettuple;
 	indexRoutine->amendscan = extension_rumendscan;
 	indexRoutine->amcostestimate = extension_rumcostestimate;
+	indexRoutine->ambuild = extension_rumbuild;
+	indexRoutine->aminsert = extension_ruminsert;
 
 	return indexRoutine;
 }
@@ -230,6 +259,142 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
 		*indexTotalCost = 0;
 		*indexStartupCost = 0;
 	}
+}
+
+
+/*
+ * Currently orderby pushdown only works for RUM indexes if enabled.
+ * However, orderby also requires that the index is
+ * 1) Not a multi-key index
+ * 2) Or the filters on order by are full range filters.
+ *
+ * Currently we ignore multi-key indexes altogether.
+ * TODO: Support multi-key indexes with order by pushdown if the orderby
+ * matches the [MinKey, MaxKey] range of the path with an equality prefix.
+ */
+bool
+CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
+									  int32_t *maxPathKeySupported)
+{
+	if (indexPath->indexinfo->relam != RumIndexAmId())
+	{
+		return false;
+	}
+
+	if (!indexPath->indexinfo->amcanorderbyop)
+	{
+		/* No use if the index can't order by operator */
+		return false;
+	}
+
+	BsonGinIndexOptionsBase *options =
+		(BsonGinIndexOptionsBase *) indexPath->indexinfo->opclassoptions[0];
+
+	if (options->type != IndexOptionsType_Composite)
+	{
+		return false;
+	}
+
+	ListCell *sortCell;
+	int32_t maxOrderbyColumn = -1;
+	int32_t minOrderbyColumn = INT_MAX;
+	int32_t orderByDetailIndex = 0;
+	foreach(sortCell, sortDetails)
+	{
+		SortIndexInputDetails *sortDetailsInput = (SortIndexInputDetails *) lfirst(
+			sortCell);
+		if (sortDetailsInput->sortPathKey->pk_strategy != 1)
+		{
+			break;
+		}
+
+		int32_t orderbyColumnNumber = GetCompositeOpClassColumnNumber(
+			sortDetailsInput->sortPath,
+			options);
+		if (orderbyColumnNumber < 0)
+		{
+			/* If the order by path does not match the index, we can't push down any further keys */
+			break;
+		}
+
+		if (maxOrderbyColumn < 0)
+		{
+			minOrderbyColumn = orderbyColumnNumber;
+			maxOrderbyColumn = orderbyColumnNumber;
+		}
+		else if (orderbyColumnNumber != maxOrderbyColumn + 1)
+		{
+			/* order by does not match index ordering */
+			break;
+		}
+
+		maxOrderbyColumn = orderbyColumnNumber;
+		orderByDetailIndex = foreach_current_index(sortCell);
+	}
+
+	if (maxOrderbyColumn < 0)
+	{
+		/* No order by columns found, nothing to push down */
+		return false;
+	}
+
+	*maxPathKeySupported = orderByDetailIndex;
+	bool isMultiKeyIndex = false;
+	Relation indexRel = index_open(indexPath->indexinfo->indexoid, NoLock);
+	isMultiKeyIndex = RumGetMultikeyStatus(indexRel);
+	index_close(indexRel, NoLock);
+
+	if (!isMultiKeyIndex && maxOrderbyColumn == 0)
+	{
+		/* Non multi-key index on the first column always supports order by */
+		return true;
+	}
+
+	bool equalityPrefixes[INDEX_MAX_KEYS] = { false };
+	bool hasRangePredicate[INDEX_MAX_KEYS] = { false };
+
+	bool isValid = GetEqualityRangePredicatesForIndexPath(indexPath, options,
+														  equalityPrefixes,
+														  hasRangePredicate);
+	if (!isValid)
+	{
+		return false;
+	}
+
+	/* Now for an orderby walk the index paths and ensure we have sanity to push down
+	 * We can only push orderby to the index if the preceding columns to the first orderby
+	 * are all equality. For multi-key index, equality must go until the max order by clause.
+	 */
+	for (int i = 0; i < minOrderbyColumn; i++)
+	{
+		if (!equalityPrefixes[i])
+		{
+			return false;
+		}
+	}
+
+	if (isMultiKeyIndex)
+	{
+		/* For multi-key we may have filters on the order by that restrict rows, but there may be rows
+		 * that do not match the filter, but need to be considered for order by.
+		 * Given 2 document such as
+		 * "a": [ 3, 90, 50 ],  "a": [ 30, 51 ]
+		 * a filter of { "a": { "$gt" 50 }} orderby "a": 1 will walk the index as:
+		 *  "a": [ 30, 51 ], "a": [ 3, 90, 50 ]
+		 * which is incorrect since 3 needs to be ordered first (even though it didn't match the filter).
+		 * Consequently, only support orderby pushdown if the filter doesn't cover the orderby column.
+		 */
+		for (int i = minOrderbyColumn; i <= maxOrderbyColumn; i++)
+		{
+			if (hasRangePredicate[i] || equalityPrefixes[i])
+			{
+				return false;
+			}
+		}
+	}
+
+	/* Equality prefix with order by on the column is supported. */
+	return true;
 }
 
 
@@ -415,23 +580,15 @@ IsTextIndexMatch(IndexPath *path)
 	foreach(cell, path->indexclauses)
 	{
 		IndexClause *clause = lfirst(cell);
-		if (path->indexinfo->opfamily[clause->indexcol] ==
-			BsonRumTextPathOperatorFamily())
+		if (IsTextPathOpFamilyOid(
+				path->indexinfo->relam,
+				path->indexinfo->opfamily[clause->indexcol]))
 		{
 			return true;
 		}
 	}
 
 	return false;
-}
-
-
-inline static bool
-IsCompositeOpClass(Relation rel)
-{
-	return EnableNewCompositeIndexOpclass &&
-		   IndexRelationGetNumberOfKeyAttributes(rel) == 1 &&
-		   rel->rd_opfamily[0] == BsonRumCompositeIndexOperatorFamily();
 }
 
 
@@ -462,7 +619,22 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 		scan->opaque = outerScanState;
 
 		/* Initialize with 1 composite scan key */
-		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, norderbys);
+		int32_t nInnerOrderBy = norderbys;
+		if (EnableIndexOrderbyPushdown && norderbys == 0 && ForceRumOrderedIndexScan)
+		{
+			nInnerOrderBy = 1;
+			outerScanState->isForcedOrderScan = true;
+			outerScanState->forcedOrderScanKey.sk_attno = 1;
+			outerScanState->forcedOrderScanKey.sk_flags = SK_ORDER_BY;
+			outerScanState->forcedOrderScanKey.sk_strategy =
+				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY;
+			outerScanState->forcedOrderScanKey.sk_subtype = InvalidOid;
+			outerScanState->forcedOrderScanKey.sk_collation = InvalidOid;
+			outerScanState->forcedOrderScanKey.sk_argument =
+				BuildCompositeOrderByScanKeyArgument(rel->rd_opcoptions[0]);
+		}
+
+		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, nInnerOrderBy);
 
 		/* return the outer scan */
 		return scan;
@@ -521,14 +693,16 @@ extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 	}
 
 	extension_rumrescan_core(scan, scankey, nscankeys,
-							 orderbys, norderbys, &rum_index_routine);
+							 orderbys, norderbys, &rum_index_routine,
+							 RumGetMultikeyStatus);
 }
 
 
 void
 extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 						 ScanKey orderbys, int norderbys,
-						 IndexAmRoutine *coreRoutine)
+						 IndexAmRoutine *coreRoutine,
+						 GetMultikeyStatusFunc multiKeyStatusFunc)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
@@ -551,21 +725,13 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		/* TODO: We need to check if the index has arrays */
 		if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_Unknown)
 		{
-			outerScanState->multiKeyStatus = CheckIndexHasArrays(scan, coreRoutine);
+			outerScanState->multiKeyStatus = multiKeyStatusFunc(scan->indexRelation);
 		}
 
-		ModifyScanKeysForCompositeScan(scankey, nscankeys,
-									   &outerScanState->compositeKey,
-									   outerScanState->multiKeyStatus ==
-									   IndexMultiKeyStatus_HasArrays);
-
+		ScanKey innerOrderBy = NULL;
+		int32_t nInnerorderbys = 0;
 		if (EnableIndexOrderbyPushdown)
 		{
-			if (norderbys > 1)
-			{
-				ereport(ERROR, (errmsg("Cannot push down multi-order by yet")));
-			}
-
 			if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_HasArrays)
 			{
 				if (IndexArrayStateFuncs != NULL)
@@ -585,18 +751,28 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 				}
 			}
 
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  &outerScanState->compositeKey, 1,
-								  orderbys,
-								  norderbys);
+			innerOrderBy = orderbys;
+			nInnerorderbys = norderbys;
+
+			/* handle forced orderby */
+			if (outerScanState->isForcedOrderScan)
+			{
+				/* If this is a forced order scan, we need to use the forced order scan key */
+				innerOrderBy = &outerScanState->forcedOrderScanKey;
+				nInnerorderbys = 1;
+			}
 		}
-		else
-		{
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  &outerScanState->compositeKey, 1,
-								  NULL,
-								  0);
-		}
+
+		ModifyScanKeysForCompositeScan(scankey, nscankeys,
+									   &outerScanState->compositeKey,
+									   outerScanState->multiKeyStatus ==
+									   IndexMultiKeyStatus_HasArrays,
+									   nInnerorderbys > 0);
+
+		coreRoutine->amrescan(outerScanState->innerScan,
+							  &outerScanState->compositeKey, 1,
+							  innerOrderBy,
+							  nInnerorderbys);
 	}
 	else
 	{
@@ -654,11 +830,20 @@ GetOneTupleCore(DocumentDBRumIndexState *outerScanState,
 				IndexAmRoutine *coreRoutine)
 {
 	bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
-	scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
-	scan->xs_recheck = outerScanState->innerScan->xs_recheck;
-	scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
-	scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
-	scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
+
+	if (outerScanState->isForcedOrderScan)
+	{
+		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+	}
+	else
+	{
+		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+		scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
+		scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
+		scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
+	}
 	return result;
 }
 
@@ -688,6 +873,10 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 				{
 					return true;
 				}
+				else
+				{
+					outerScanState->numDuplicates++;
+				}
 
 				/* else, get the next tuple */
 				result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
@@ -703,11 +892,117 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 }
 
 
+static IndexBuildResult *
+extension_rumbuild(Relation heapRelation,
+				   Relation indexRelation,
+				   struct IndexInfo *indexInfo)
+{
+	EnsureRumLibLoaded();
+
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.ambuild(heapRelation, indexRelation, indexInfo);
+	}
+
+	bool amCanBuildParallel = false;
+	return extension_rumbuild_core(heapRelation, indexRelation,
+								   indexInfo, &rum_index_routine,
+								   RumUpdateMultiKeyStatus,
+								   amCanBuildParallel);
+}
+
+
+IndexBuildResult *
+extension_rumbuild_core(Relation heapRelation, Relation indexRelation,
+						struct IndexInfo *indexInfo, IndexAmRoutine *coreRoutine,
+						UpdateMultikeyStatusFunc updateMultikeyStatus,
+						bool amCanBuildParallel)
+{
+	RumHasMultiKeyPaths = false;
+	IndexBuildResult *result = coreRoutine->ambuild(heapRelation, indexRelation,
+													indexInfo);
+
+	/* Update statistics to track that we're a multi-key index:
+	 * Note: We don't use HasMultiKeyPaths here as we want to handle the parallel build
+	 * scenario where we may have multiple workers building the index.
+	 */
+	if (amCanBuildParallel && IsCompositeOpClass(indexRelation))
+	{
+		IndexMultiKeyStatus status = CheckIndexHasArrays(indexRelation, coreRoutine);
+		if (status == IndexMultiKeyStatus_HasArrays)
+		{
+			bool isBuild = true;
+			updateMultikeyStatus(isBuild, indexRelation);
+		}
+	}
+	else if (RumHasMultiKeyPaths)
+	{
+		bool isBuild = true;
+		updateMultikeyStatus(isBuild, indexRelation);
+	}
+
+	return result;
+}
+
+
+static bool
+extension_ruminsert(Relation indexRelation,
+					Datum *values,
+					bool *isnull,
+					ItemPointer heap_tid,
+					Relation heapRelation,
+					IndexUniqueCheck checkUnique,
+					bool indexUnchanged,
+					struct IndexInfo *indexInfo)
+{
+	EnsureRumLibLoaded();
+
+	if (!EnableNewCompositeIndexOpclass)
+	{
+		return rum_index_routine.aminsert(indexRelation, values, isnull,
+										  heap_tid, heapRelation, checkUnique,
+										  indexUnchanged, indexInfo);
+	}
+
+	return extension_ruminsert_core(indexRelation, values, isnull,
+									heap_tid, heapRelation, checkUnique,
+									indexUnchanged, indexInfo,
+									&rum_index_routine, RumUpdateMultiKeyStatus);
+}
+
+
+bool
+extension_ruminsert_core(Relation indexRelation,
+						 Datum *values,
+						 bool *isnull,
+						 ItemPointer heap_tid,
+						 Relation heapRelation,
+						 IndexUniqueCheck checkUnique,
+						 bool indexUnchanged,
+						 struct IndexInfo *indexInfo,
+						 IndexAmRoutine *coreRoutine,
+						 UpdateMultikeyStatusFunc updateMultikeyStatus)
+{
+	RumHasMultiKeyPaths = false;
+	bool result = coreRoutine->aminsert(indexRelation, values, isnull,
+										heap_tid, heapRelation, checkUnique,
+										indexUnchanged, indexInfo);
+
+	if (RumHasMultiKeyPaths)
+	{
+		bool isBuild = false;
+		updateMultikeyStatus(isBuild, indexRelation);
+	}
+
+	return result;
+}
+
+
 static IndexMultiKeyStatus
-CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
+CheckIndexHasArrays(Relation indexRelation, IndexAmRoutine *coreRoutine)
 {
 	/* Start a nested query lookup */
-	IndexScanDesc innerDesc = coreRoutine->ambeginscan(scan->indexRelation, 1, 0);
+	IndexScanDesc innerDesc = coreRoutine->ambeginscan(indexRelation, 1, 0);
 
 	ScanKeyData arrayKey = { 0 };
 	arrayKey.sk_attno = 1;
@@ -719,4 +1014,73 @@ CheckIndexHasArrays(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 	bool hasArrays = coreRoutine->amgettuple(innerDesc, ForwardScanDirection);
 	coreRoutine->amendscan(innerDesc);
 	return hasArrays ? IndexMultiKeyStatus_HasArrays : IndexMultiKeyStatus_HasNoArrays;
+}
+
+
+void
+ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
+{
+	if (IsCompositeOpClass(scan->indexRelation))
+	{
+		DocumentDBRumIndexState *outerScanState =
+			(DocumentDBRumIndexState *) scan->opaque;
+
+		ExplainPropertyBool("isMultiKey",
+							outerScanState->multiKeyStatus ==
+							IndexMultiKeyStatus_HasArrays, es);
+
+		/* From the composite keys, get the lower bounds of the scans */
+		/* Call extract_query to get the index details */
+		uint32_t nentries = 0;
+		bool *partialMatch = NULL;
+		Pointer *extraData = NULL;
+
+		LOCAL_FCINFO(fcinfo, 5);
+		fcinfo->flinfo = palloc(sizeof(FmgrInfo));
+		fmgr_info_copy(fcinfo->flinfo,
+					   index_getprocinfo(scan->indexRelation, 1, GIN_EXTRACTQUERY_PROC),
+					   CurrentMemoryContext);
+
+		fcinfo->args[0].value = outerScanState->compositeKey.sk_argument;
+		fcinfo->args[1].value = PointerGetDatum(&nentries);
+		fcinfo->args[2].value = Int16GetDatum(BSON_INDEX_STRATEGY_COMPOSITE_QUERY);
+		fcinfo->args[3].value = PointerGetDatum(&partialMatch);
+		fcinfo->args[4].value = PointerGetDatum(&extraData);
+
+		Datum *entryRes = (Datum *) gin_bson_composite_path_extract_query(fcinfo);
+
+		/* Now write out the result for explain */
+		List *boundsList = NIL;
+		for (uint32_t i = 0; i < nentries; i++)
+		{
+			bytea *entry = DatumGetByteaPP(entryRes[i]);
+
+			char *serializedBound = SerializeBoundsStringForExplain(entry, extraData[i],
+																	fcinfo);
+			boundsList = lappend(boundsList, serializedBound);
+		}
+
+		ExplainPropertyList("indexBounds", boundsList, es);
+
+		if (outerScanState->numDuplicates > 0)
+		{
+			/* If we have duplicates, explain the number of duplicates */
+			ExplainPropertyInteger("numDuplicates", "entries",
+								   outerScanState->numDuplicates, es);
+		}
+
+		/* Explain the inner scan using underlying am */
+		TryExplainByIndexAm(outerScanState->innerScan, es);
+	}
+}
+
+
+void
+ExplainRegularIndexScan(IndexScanDesc scan, struct ExplainState *es)
+{
+	if (IsBsonRegularIndexAm(scan->indexRelation->rd_rel->relam))
+	{
+		/* See if there's a hook to explain more in this index */
+		TryExplainByIndexAm(scan, es);
+	}
 }

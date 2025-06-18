@@ -53,4 +53,17 @@ typedef enum BsonIndexStrategy
 	BSON_INDEX_STRATEGY_IS_MULTIKEY = 33,
 } BsonIndexStrategy;
 
+
+inline static bool
+IsNegationStrategy(BsonIndexStrategy strategy)
+{
+	return (strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_EQUAL ||
+			strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_IN ||
+			strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_GT ||
+			strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_GTE ||
+			strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_LT ||
+			strategy == BSON_INDEX_STRATEGY_DOLLAR_NOT_LTE);
+}
+
+
 #endif

@@ -159,6 +159,12 @@ typedef struct
 	/* Whether a root truncation term has already been created for this document */
 	bool hasTruncatedTerms;
 
+	/* Whether or not to skip generating the top level array term */
+	bool skipGenerateTopLevelArrayTerm;
+
+	/* Whether or not to generate path based undefined terms (used in composite indexes) */
+	bool generatePathBasedUndefinedTerms;
+
 	/*
 	 * Whether or not the path has array ancestors in the pre paths:
 	 * for a path a.b.c
@@ -166,6 +172,12 @@ typedef struct
 	 * For wildcard indexes, returns true if any path had an array ancestor
 	 */
 	bool hasArrayAncestors;
+
+	/*
+	 * When an array path has subtrees that have terms, and other other subtrees
+	 * that do not have terms, this is marked as true.
+	 */
+	bool hasArrayPartialTermExistence;
 
 	/*
 	 * Whether or not to use the reduced wildcard term generation support.
@@ -194,5 +206,6 @@ IndexTraverseOption GetCompositePathIndexTraverseOption(BsonIndexStrategy strate
 														void *contextOptions, const
 														char *currentPath, uint32_t
 														currentPathLength,
-														bson_type_t bsonType);
+														const bson_value_t *bsonValue,
+														int32_t *compositeIndexCol);
 #endif

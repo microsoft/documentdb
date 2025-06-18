@@ -105,7 +105,7 @@ impl SetupConfiguration for DocumentDBSetupConfiguration {
     }
 
     fn use_local_host(&self) -> bool {
-        self.use_local_host.unwrap_or(true)
+        self.use_local_host.unwrap_or(false)
     }
 
     fn gateway_listen_port(&self) -> u16 {

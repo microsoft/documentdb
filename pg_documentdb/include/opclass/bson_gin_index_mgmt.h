@@ -182,6 +182,26 @@ Size FillSinglePathSpec(const char *prefix, void *buffer);
 void ValidateSinglePathSpec(const char *prefix);
 Size FillDeprecatedStringSpec(const char *value, void *ptr);
 
+struct PathKey;
+struct Expr;
+typedef struct SortIndexInputDetails
+{
+	const char *sortPath;
+	struct Expr *sortVar;
+	struct Expr *sortDatum;
+	struct PathKey *sortPathKey;
+} SortIndexInputDetails;
+
+
+struct IndexPath;
+bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath,
+										   List *sortDetails,
+										   int32_t *maxPathKeySupported);
+
+int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions);
+
+bool PathHasArrayIndexElements(const StringView *path);
+
 /* Helper macro to retrieve a length prefixed value in the index options */
 #define Get_Index_Path_Option(options, field, result, resultFieldLength) \
 	const char *pathDefinition = GET_STRING_RELOPTION(options, field); \

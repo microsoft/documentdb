@@ -4,6 +4,7 @@ SET documentdb.next_collection_id TO 1200;
 SET documentdb.next_collection_index_id TO 1200;
 
 SET documentdb.enableNewCompositeIndexOpClass to on;
+set documentdb.enableExtendedExplainPlans to on;
 
 SELECT documentdb_api.drop_collection('db', 'queryoperator') IS NOT NULL;
 SELECT documentdb_api.create_collection('db', 'queryoperator');
@@ -39,6 +40,7 @@ set local documentdb.useLocalExecutionShardQueries to off;
 set local enable_seqscan TO off;
 set local documentdb.forceUseIndexIfAvailable to on;
 set local documentdb.enableNewCompositeIndexOpClass to on;
+set local documentdb.enableExtendedExplainPlans to on;
 
 \i sql/bson_query_operator_tests_explain_core.sql
 COMMIT;

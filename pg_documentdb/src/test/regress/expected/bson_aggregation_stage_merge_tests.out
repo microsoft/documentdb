@@ -1029,8 +1029,8 @@ NOTICE:  creating collection
 SELECT document FROM documentdb_api.collection('db','sortClauseTarget');
                                                             document                                                            
 --------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "cheese pizza", "restaurant_name" : "Honest John Pizza", "drink" : "soda" }
  { "_id" : { "$numberInt" : "2" }, "item" : "cheeseLess pizza", "restaurant_name" : "DisHonest John Pizza", "drink" : "pepsi" }
+ { "_id" : { "$numberInt" : "1" }, "item" : "cheese pizza", "restaurant_name" : "Honest John Pizza", "drink" : "soda" }
 (2 rows)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "pipelinetoMerge",  "pipeline": [  {"$sort"  : {"_id" :  -1}} , {"$group" : {"_id" :  "$_id"}}, {"$merge" : { "into": "sortClauseGroup", "whenMatched": "replace", "whenNotMatched": "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
@@ -1108,14 +1108,14 @@ NOTICE:  creating collection
 SELECT document FROM documentdb_api.collection('db','resJunkeTarget');
                                              document                                              
 ---------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "a" : { "$numberInt" : "13" }, "b" : { "$numberInt" : "99" } }
- { "_id" : { "$numberInt" : "8" }, "a" : { "$numberInt" : "13" }, "b" : { "$numberInt" : "20" } }
- { "_id" : { "$numberInt" : "7" }, "a" : { "$numberInt" : "29" }, "b" : { "$numberInt" : "86" } }
- { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "29" }, "b" : { "$numberInt" : "17" } }
- { "_id" : { "$numberInt" : "5" }, "a" : { "$numberInt" : "45" }, "b" : { "$numberInt" : "113" } }
- { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "45" }, "b" : { "$numberInt" : "10" } }
- { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "87" }, "b" : { "$numberInt" : "76" } }
  { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "87" }, "b" : { "$numberInt" : "7" } }
+ { "_id" : { "$numberInt" : "6" }, "a" : { "$numberInt" : "87" }, "b" : { "$numberInt" : "76" } }
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "45" }, "b" : { "$numberInt" : "10" } }
+ { "_id" : { "$numberInt" : "5" }, "a" : { "$numberInt" : "45" }, "b" : { "$numberInt" : "113" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "29" }, "b" : { "$numberInt" : "17" } }
+ { "_id" : { "$numberInt" : "7" }, "a" : { "$numberInt" : "29" }, "b" : { "$numberInt" : "86" } }
+ { "_id" : { "$numberInt" : "8" }, "a" : { "$numberInt" : "13" }, "b" : { "$numberInt" : "20" } }
+ { "_id" : { "$numberInt" : "4" }, "a" : { "$numberInt" : "13" }, "b" : { "$numberInt" : "99" } }
 (8 rows)
 
 -- test when source collection is view

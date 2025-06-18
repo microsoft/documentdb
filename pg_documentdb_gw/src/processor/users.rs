@@ -6,92 +6,54 @@
  *-------------------------------------------------------------------------
  */
 
-use tokio_postgres::types::Type;
-
 use crate::{
     context::ConnectionContext,
     error::DocumentDBError,
-    postgres::{PgDocument, Timeout},
-    requests::Request,
-    responses::{PgResponse, Response},
+    postgres::PgDataClient,
+    requests::{Request, RequestInfo},
+    responses::Response,
 };
 
-pub(crate) async fn process_create_user(
+pub async fn process_create_user(
     request: &Request<'_>,
-    context: &mut ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &mut ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response, DocumentDBError> {
-    let mut request_info = request.extract_common()?;
-
-    let results = context
-        .pull_connection()
-        .await?
-        .query(
-            context.service_context.query_catalog().create_user(),
-            &[Type::BYTEA],
-            &[&PgDocument(request.document())],
-            Timeout::transaction(request_info.max_time_ms),
-            &mut request_info,
-        )
-        .await?;
-    Ok(Response::Pg(PgResponse::new(results)))
+    pg_data_client
+        .execute_create_user(request, request_info, connection_context)
+        .await
 }
 
-pub(crate) async fn process_drop_user(
+pub async fn process_drop_user(
     request: &Request<'_>,
-    context: &mut ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &mut ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response, DocumentDBError> {
-    let mut request_info = request.extract_common()?;
-
-    let results = context
-        .pull_connection()
-        .await?
-        .query(
-            context.service_context.query_catalog().drop_user(),
-            &[Type::BYTEA],
-            &[&PgDocument(request.document())],
-            Timeout::transaction(request_info.max_time_ms),
-            &mut request_info,
-        )
-        .await?;
-    Ok(Response::Pg(PgResponse::new(results)))
+    pg_data_client
+        .execute_drop_user(request, request_info, connection_context)
+        .await
 }
 
-pub(crate) async fn process_update_user(
+pub async fn process_update_user(
     request: &Request<'_>,
-    context: &mut ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &mut ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response, DocumentDBError> {
-    let mut request_info = request.extract_common()?;
-
-    let results = context
-        .pull_connection()
-        .await?
-        .query(
-            context.service_context.query_catalog().update_user(),
-            &[Type::BYTEA],
-            &[&PgDocument(request.document())],
-            Timeout::transaction(request_info.max_time_ms),
-            &mut request_info,
-        )
-        .await?;
-    Ok(Response::Pg(PgResponse::new(results)))
+    pg_data_client
+        .execute_update_user(request, request_info, connection_context)
+        .await
 }
 
-pub(crate) async fn process_users_info(
+pub async fn process_users_info(
     request: &Request<'_>,
-    context: &mut ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &mut ConnectionContext,
+    pg_data_client: &impl PgDataClient<'_>,
 ) -> Result<Response, DocumentDBError> {
-    let mut request_info = request.extract_common()?;
-
-    let results = context
-        .pull_connection()
-        .await?
-        .query(
-            context.service_context.query_catalog().users_info(),
-            &[Type::BYTEA],
-            &[&PgDocument(request.document())],
-            Timeout::transaction(request_info.max_time_ms),
-            &mut request_info,
-        )
-        .await?;
-    Ok(Response::Pg(PgResponse::new(results)))
+    pg_data_client
+        .execute_users_info(request, request_info, connection_context)
+        .await
 }
