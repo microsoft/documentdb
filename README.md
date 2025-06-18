@@ -305,6 +305,16 @@ SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', 
 
 Contributors and users can join the [DocumentDB Discord channel in the Microsoft OSS server](https://aka.ms/documentdb_discord) for quick collaboration.
 
+### Releases
+
+DocumentDB uses an automated release workflow to build and distribute packages. For detailed information about:
+- Creating releases
+- Package verification
+- Docker image usage
+- Contributing to the release process
+
+Please refer to our [Release Workflow Documentation](docs/release-workflow.md).
+
 ### FAQs
 
 Q1. While performing `make check` if you encounter error `FATAL:  "/home/documentdb/code/pg_documentdb_core/src/test/regress/tmp/data" has wrong ownership`?
