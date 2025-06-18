@@ -7,7 +7,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Allow pushing to gh-pages branch
+      contents: write
+      packages: write
+      pages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
