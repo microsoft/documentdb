@@ -4,7 +4,7 @@ Thank you for your interest in contributing to DocumentDB. There are several way
 
 ## Asking Questions
 
-[Join us on Discord](https://discord.gg/WXUrVbnt4n) to engage directly with our team and the community with any questions you may have. Our channel is not only a place for immediate assistance but also a hub for discussing project updates, upcoming features, and technical challenges. We host regular meetings where the project's maintainers and public contributors can interact directly to ask questions, share feedback, and discuss ideas.
+[Join us on Discord](https://discord.gg/vH7bYu524D) to engage directly with our team and the community with any questions you may have. Our channel is not only a place for immediate assistance but also a hub for discussing project updates, upcoming features, and technical challenges. We host regular meetings where the project's maintainers and public contributors can interact directly to ask questions, share feedback, and discuss ideas.
 
 ## Reporting Issues
 
