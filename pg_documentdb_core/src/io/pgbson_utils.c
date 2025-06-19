@@ -183,7 +183,7 @@ AddNumberToBsonValue(bson_value_t *state, const bson_value_t *number,
 
 /*
  * Subtracts the number stored in subtrahend to state and modifies state.
- * returns true if substraction happened (type was supported)
+ * returns true if subtraction happened (type was supported)
  */
 bool
 SubtractNumberFromBsonValue(bson_value_t *state, const bson_value_t *subtrahend,

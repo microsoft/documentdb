@@ -243,7 +243,7 @@ gin_bson_hashed_options(PG_FUNCTION_ARGS)
  * the check array which is the result of the comparison of two hashes (index term and query term)
  * because there can be collisions when calculating hashes, so we always need to
  * recheck the query at runtime. For null values we force the recheck even if the result
- * it false, because we need to consider the mongo scenario of a missing path == null.
+ * it false, because we need to consider the scenario of a missing path == null.
  * For more details see documentation on the 'consistent' method in the GIN extensibility.
  */
 Datum

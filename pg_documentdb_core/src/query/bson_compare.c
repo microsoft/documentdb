@@ -639,7 +639,7 @@ BsonValueAsInt64WithRoundingMode(const bson_value_t *value,
 
 /*
  * Converts Numeric bson value to 32 bit integer
- * This method throws `MongoConversionFailure` if bson_value_type is v_decimal128 and :
+ * This method throws `ERRCODE_DOCUMENTDB_CONVERSIONFAILURE` if bson_value_type is v_decimal128 and :
  *    - NaN is attempted in conversion
  *    - converted result overflows the int32 range
  */
@@ -652,7 +652,7 @@ BsonValueAsInt32(const bson_value_t *value)
 
 /*
  * Converts Numeric bson value to 32 bit integer with the specified rounding mode
- * This method throws `MongoConversionFailure` if bson_value_type is v_decimal128 and :
+ * This method throws `ERRCODE_DOCUMENTDB_CONVERSIONFAILURE` if bson_value_type is v_decimal128 and :
  *    - NaN is attempted in conversion
  *    - converted result overflows the int32 range
  */

@@ -308,7 +308,7 @@ bson_dollar_text_meta_qual(PG_FUNCTION_ARGS)
 
 /*
  * Given a '$text' filter and an associated index with options, generates a
- * mongo compatible TSQuery that can be used to query the index.
+ * compatible TSQuery that can be used to query the index.
  */
 Datum
 BsonTextGenerateTSQuery(const bson_value_t *queryValue, bytea *indexOptions)
@@ -783,7 +783,7 @@ FormatTraverseOptionForText(IndexTraverseOption pathOption, bson_type_t bsonType
 /*
  * Implements the GetTextIndexTraverseOption for index term generation.
  * Validates that the term is valid given tha path filter, and also ensures that
- * the path is a "TEXTT or "array" of texts.
+ * the path is a "TEXT" or "array" of texts.
  */
 static IndexTraverseOption
 GetTextIndexTraverseOption(void *contextOptions,
@@ -861,7 +861,7 @@ ExtractTsConfigFromLanguage(const StringView *language,
 	}
 
 	/* First canonicalize language to a PG supported form and parse out
-	 * the ones from Mongo supported values
+	 * the ones from supported values
 	 */
 	for (int i = 0; i < NumberOfLanguages; i++)
 	{

@@ -164,7 +164,7 @@ static bson_decimal128_t GetBsonValueAsDecimal128Core(const bson_value_t *value,
 /*
  * Get the decimal 128 value as int32.
  *
- * This method throws `MongoConversionFailure` if :
+ * This method throws `ERRCODE_DOCUMENTDB_CONVERSIONFAILURE` if :
  *    - NaN is attempted in conversion
  *    - converted result overflows the int32 range
  */

@@ -1232,7 +1232,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 				value->value.v_binary.data_len != 16)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"field collectionUUID must be of UUID type")));
+									"field collectionUUID must be a UUID")));
 			}
 
 			collectionUuid = palloc(sizeof(pg_uuid_t));
@@ -1355,7 +1355,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"The 'cursor' option is required, except for aggregate with the explain argument")));
+							"The 'cursor' option is required, except for aggregate with explain")));
 	}
 
 	if (addCursorParams)
@@ -1580,7 +1580,7 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 			{
 				if (StringViewEqualsCString(&keyView, "ntoreturn"))
 				{
-					/* In case of versions <6.0 we support ntoreturn */
+					/* In case hook requests, we support ntoreturn */
 					if (isNtoReturnSupported)
 					{
 						SetBatchSize("ntoreturn", value, queryData);
@@ -1920,8 +1920,7 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 
 	/*
 	 * the count() query which has no filter/skip/limit/etc can be done via an estimatedDocumentCount
-	 * per the mongo spec. In this case, we rewrite the query as a collStats aggregation query with
-	 * a project to make it the appropriate output.
+	 * In this case, we rewrite the query as a collStats aggregation query with a project to make it the appropriate output.
 	 */
 	if (!hasQueryModifier && context.mongoCollection != NULL)
 	{
@@ -3245,7 +3244,7 @@ HandleRedact(const bson_value_t *existingValue, Query *query,
 
 	/*
 	 * There is two kind of $redact parameters:
-	 * a. like "$redact: { $cond: { if: { $eq: ["$level", "public"] }, then: "$$KEEP", else: "$$PRUNE" }"
+	 * a. like "$redact: { $cond: { if: { $eq: ["$stuff", "valid"] }, then: "$$KEEP", else: "$$PRUNE" }"
 	 * existingValue->value_type is BSON_TYPE_DOCUMENT.
 	 * BsonDollarRedactWithLetFunctionOid() takes four parameters, currentProjection, redactSpec, redactSpecText, variableSpec.
 	 * redactSpec is the document and redactSpecText is empty
@@ -4789,7 +4788,9 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 
 	if (isNaturalReverseSort || isNaturalSort)
 	{
-		/*server would throw exception Exception while reading from stream if collection is null, directly return query when collection is null*/
+		/* server would throw exception Exception while reading from stream if collection is null,
+		 * directly return query when collection is null
+		 */
 		if (context->mongoCollection == NULL)
 		{
 			return query;

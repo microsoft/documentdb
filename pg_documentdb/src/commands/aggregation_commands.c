@@ -1112,8 +1112,6 @@ ParseGetMoreSpec(text **databaseName, pgbson *getMoreSpec, pgbson *cursorSpec,
 
 /*
  * Creates a unique cursorId if one isn't provided.
- * We just use virtual x-id since that's going to be unique per query
- * within a node.
  */
 static int64_t
 GenerateCursorId(int64_t inputValue)

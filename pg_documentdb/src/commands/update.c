@@ -1492,7 +1492,6 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 	{
 		if (DetermineUpdateType(update) == UpdateType_ReplaceDocument)
 		{
-			/* Mongo does not support this case */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg("multi update is not supported for "
 								   "replacement-style update")));
@@ -3416,7 +3415,7 @@ UpdateOneObjectId(MongoCollection *collection, UpdateOneParams *updateOneParams,
 		{
 			if (result->reinsertDocument != NULL)
 			{
-				/* we could easily reinsert here, but Mongo does not support it */
+				/* we could support reinsert here? */
 				ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 								errmsg("shard key value update is only supported when "
 									   "filtering by the full shard key and specifying "
