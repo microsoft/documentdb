@@ -51,7 +51,13 @@ command_rebalancer_status(PG_FUNCTION_ARGS)
 	bool isNull = false;
 	Datum result = ExtensionExecuteQueryViaSPI(
 		FormatSqlQuery(
-			"WITH r1 AS (SELECT jsonb_build_object('jobId', job_id, 'state', state::text, 'startedAt', started_at::text, 'finishedAt', finished_at::text, 'details', details) AS obj FROM citus_rebalance_status()),"
+			"WITH r1 AS (SELECT jsonb_build_object("
+			"  'state', state::text,"
+			"  'startedAt', started_at::text,"
+			"  'finishedAt', finished_at::text,"
+			"  'task_state_counts', details->'task_state_counts',"
+			"  'tasks', (SELECT jsonb_agg(task - 'LSN' - 'command' - 'hosts' - 'task_id') FROM jsonb_array_elements(details->'tasks') AS task)) AS obj"
+			" FROM citus_rebalance_status()),"
 			" r2 AS (SELECT jsonb_build_object('rows', jsonb_agg(r1.obj)) AS obj FROM r1)"
 			" SELECT %s.bson_json_to_bson(r2.obj::text) FROM r2",
 			CoreSchemaName), readOnly, SPI_OK_SELECT, &isNull);
