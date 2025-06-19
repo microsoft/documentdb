@@ -222,6 +222,12 @@ impl PgResponse {
                         Some("index creation requires resources too large to fit in the resource memory limit, please try creating index with less number of documents or creating index before inserting documents into collection".to_string()), None
                     ))
                 }
+                else if msg.contains("index row size") && msg.contains("exceeds maximum"){
+                    Some((
+                        ErrorCode::CannotBuildIndexKeys as i32,
+                        Some("Index key is too large.".to_string()), None
+                    ))
+                }
                 else {
                     Some((ErrorCode::InternalError as i32, None, None))
                 }
