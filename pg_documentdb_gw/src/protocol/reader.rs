@@ -31,7 +31,10 @@ where
     match Header::read_from(stream).await {
         Ok(header) => Ok(Some(header)),
         Err(DocumentDBError::IoError(e, b)) => {
-            if e.kind() == ErrorKind::UnexpectedEof {
+            if e.kind() == ErrorKind::UnexpectedEof
+                || e.kind() == ErrorKind::BrokenPipe
+                || e.kind() == ErrorKind::ConnectionReset
+            {
                 Ok(None)
             } else {
                 Err(DocumentDBError::IoError(e, b))
@@ -88,8 +91,8 @@ async fn parse_query(message: &[u8]) -> Result<Request> {
     let _flags = reader.read_u32_le().await?;
 
     // Parse the collection and skip the position to the end of it
-    let (collection_path, endpos) = str_from_u8_nul_utf8(&reader.get_ref()[4..])?;
-    let collection_path = collection_path.to_string();
+    let (namespace, endpos) = str_from_u8_nul_utf8(&reader.get_ref()[4..])?;
+
     reader.set_position(u64::try_from(endpos + 5).map_err(|_| {
         DocumentDBError::internal_error("Collection length failed to convert to a u64.".to_string())
     })?);
@@ -108,9 +111,10 @@ async fn parse_query(message: &[u8]) -> Result<Request> {
 
     // Treat the bytes as a raw bson reference
     let query = RawDocument::from_bytes(query_slice)?;
+    let (_db, collection_name) = parse_collection_path(namespace)?;
 
     // OP_QUERY is only supported for commands currently
-    if collection_path == "admin.$cmd" || collection_path == "$admin.$cmd" {
+    if collection_name == "$cmd" {
         return parse_cmd(query, None).await;
     }
 
