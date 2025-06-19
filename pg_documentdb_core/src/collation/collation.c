@@ -247,7 +247,7 @@ inline static bool CheckIfValidLocale(const char *locale);
 inline static void ThrowInvalidLocaleError(const char *locale);
 
 /*
- *  This takes a mongo collation document and convert to postgres locale string
+ *  This takes a collation document and convert to postgres locale string
  *  e.g., en-u-ks-level1-kc-false-kf-upper-kn-false, and use that to perform
  *  comparisons.
  *
@@ -283,7 +283,7 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 
 			if (strcmp(inputLocale, "simple") == 0)
 			{
-				/* Mongo uses 'simple' locale to specify simple binary comparison. It's a no-op */
+				/* 'simple' locale is used specify simple binary comparison. It's a no-op */
 				/* since postgres ICU will pick default. */
 				continue;
 			}
@@ -294,7 +294,7 @@ ParseAndGetCollationString(const bson_value_t *collationValue, const char *colat
 		{
 			if (value.value_type == BSON_TYPE_DOUBLE)
 			{
-				/* If the value is docuble Mongo casts it to int. Strength 2.9 is treated as 2 and so on. */
+				/* If the value is double we casts it to int. Strength 2.9 is treated as 2 and so on. */
 				strength = (int) value.value.v_double;
 			}
 			else

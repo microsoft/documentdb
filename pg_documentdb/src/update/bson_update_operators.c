@@ -40,7 +40,7 @@ typedef struct
 
 
 /*
- * Mongo BitWise operator types
+ * BitWise operator types
  */
 static MongoBitwiseOperator BitwiseOperators[] = {
 	{ "and", BITWISE_OPERATOR_AND },
@@ -428,7 +428,7 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 
 	bson_value_t valueToModify = *existingValue;
 
-	/* As per Mongo 5.0 behaviour of $mul update operator (int64 * int64) and (int64 * int32) overflow will result into multiplication failure and returns error */
+	/* $mul update operator (int64 * int64) and (int64 * int32) overflow will result into multiplication failure and returns error */
 	bool convertInt64OverflowToDouble = false;
 
 	if (valueToModify.value_type == BSON_TYPE_EOD)
@@ -617,12 +617,11 @@ HandleUpdateDollarCurrentDate(const bson_value_t *existingValue,
 
 	if (updateValue->value_type == BSON_TYPE_BOOL)
 	{
-		/* Specification says bool value should be true, but mongoDB impl works with false as well.
-		 * So ignoring the check whether the provided bool val is true (or false) */
+		/* Update goes through irrespective of the actual value of updateValue->value_type as long as
+		 * the type is BOOL. We might make it more restrictive in future.  */
 
-		/* Also, no need to check if the updateNode->fieldValue existed or what type it was,
-		 * mongodb impl creates new (if field doesn't already exist),
-		 * or changes it's type if already existed but of different type */
+		/* Whether updateNode->fieldValue exists or it's current type is irrelevant for updates.
+		* Old value and type wil be overwritten with new one, or created if it did not exist. */
 		UpdateWriterWriteModifiedValue(writer, &dateBsonValue);
 		return;
 	}
@@ -661,17 +660,15 @@ HandleUpdateDollarCurrentDate(const bson_value_t *existingValue,
 		const char *typename = bson_iter_utf8(&nestedIterator, &pathLength);
 		if (strcmp(typename, "timestamp") == 0)
 		{
-			/* No need to check if the updateNode->fieldValue existed or what type it was,
-			 * mongodb impl creates new (if field doesn't already exist),
-			 * or changes it's type if already existed but of different type */
+			/* Whether updateNode->fieldValue exists or it's current type is irrelevant for updates.
+			* Old value and type wil be overwritten with new one, or created if it did not exist. */
 			UpdateWriterWriteModifiedValue(writer, &timestampBsonValue);
 			return;
 		}
 		else if (strcmp(typename, "date") == 0)
 		{
-			/* No need to check if the updateNode->fieldValue existed or what type it was,
-			 * mongodb impl creates new (if field doesn't already exist),
-			 * or changes it's type if already existed but of different type */
+			/* Whether updateNode->fieldValue exists or it's current type is irrelevant for updates.
+			* Old value and type wil be overwritten with new one, or created if it did not exist. */
 			UpdateWriterWriteModifiedValue(writer, &dateBsonValue);
 			return;
 		}
@@ -1368,15 +1365,15 @@ ValidateUpdateSpecAndSetPushUpdateState(const bson_value_t *fieldUpdateValue,
 	/**
 	 * This holds the first key that is seen except all the $modifiers which is reported in error if $each is also present
 	 *
-	 * e.g: {$push: {a: {"$slice": 2, "bad_plugin": 1, "another_bad_key": 2, $each: [1,2,3]}}}
-	 * Here nonClauseKey = "bad_plugin"
+	 * e.g: {$push: {a: {"$slice": 2, "property1": 1, "property2": 2, $each: [1,2,3]}}}
+	 * Here nonClauseKey = "property1"
 	 * */
 	char *nonClauseKey = NULL;
 
 	/**
 	 * This holds the first dollar prefixed key that is seen including all the $modifiers which is reported in error if $each is not present
 	 *
-	 * e.g: {$push: {a: {"$slice": 2, "bad_plugin": 1, "another_bad_key": 2}}}
+	 * e.g: {$push: {a: {"$slice": 2, "property1": 1, "property2": 2}}}
 	 * Here firstDollarKey = "$slice"
 	 * */
 	char *firstDollarKey = NULL;
@@ -1420,8 +1417,7 @@ ValidateUpdateSpecAndSetPushUpdateState(const bson_value_t *fieldUpdateValue,
 		}
 	}
 
-	/* $each is a required modifier for other modifiers to have impact */
-	/* Based on native mongo behavior and jstest, when $each is missing, other modifiers are treated as simple objects to push. */
+	/* When $push does not use $each, other modifiers are treated as simple objects to push. */
 	if (eachBsonValue.value_type == BSON_TYPE_EOD)
 	{
 		pushState->modifiersExist = false;

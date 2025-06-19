@@ -238,7 +238,7 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filte
 -- (8) a. collation has no effect on $regex
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "a": { "$regex": "^c", "$options": "" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1 } }');
 
--- (9) Native Mongo error message compatibility, 
+-- (9) Error message Tests 
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "$or" : [{ "a": { "$eq": "cat" } }, { "b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "upper", "numericOrdering": true, "alternate": "none"} }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "$or" : [{ "a": { "$eq": "cat" } }, { "b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en_DB", "strength" : 1, "caseLevel": true, "caseFirst": "upper", "numericOrdering": true, "alternate": "shifted"} }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search2", "filter": { "$or" : [{ "a": { "$eq": "cat" } }, { "b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1, "caseLevel": true, "caseFirst": "bad", "numericOrdering": true} }');

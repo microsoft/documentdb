@@ -127,8 +127,7 @@ ThrowIdPathModifiedError(void)
 
 
 /*
- * Ensures that in Update Type Replacement the _id field in a write document conforms to the requirements of Mongo
- * Right.
+ * Ensures that after update the type of the _id field is not unexpected.
  */
 inline static void
 ValidateIdForUpdateTypeReplacement(const bson_value_t *idValue)
@@ -727,7 +726,7 @@ ProcessQueryProjectionValue(void *context, const char *path, const bson_value_t 
 	bool isDocumentDottedIdField = strncmp(path, "_id.", 4) == 0;
 	bool isDocumentIdField = isDocumentDottedIdField || strcmp(path, "_id") == 0;
 
-	/* Native mongo gives an error when update type is replacement and querySpec has dotted id field */
+	/* Throw error when update type is replacement and querySpec has dotted id field */
 	if (isUpdateTypeReplacement && isDocumentDottedIdField)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTEXACTVALUEFIELD),
