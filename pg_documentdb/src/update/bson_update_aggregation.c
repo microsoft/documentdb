@@ -243,8 +243,9 @@ GetAggregationPipelineUpdateState(const bson_value_t *updateSpec)
 /*
  * ProcessAggregationPipelineUpdate takes a source document, and an update
  * specification that is an aggregation pipeline array that has the stages
- * $set, $addFields, $unset, $project, $replaceRoot or $replaceWith (only stages supported
- * by the mongo protocol) and applies the pipeline on the update document.
+ * $set, $addFields, $unset, $project, $replaceRoot or $replaceWith and applies
+ * the pipeline on the update document.
+ *
  * In this case, we apply each stage as a separate entity and rewrite the document in-between
  * stages. This is because mutations from a prior stage are visible as inputs to the next stage.
  * This may be scenarios such as - Set an array in one stage, and then set the array index
