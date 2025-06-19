@@ -5,10 +5,10 @@ use documentdb_gateway::configuration::{
     DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration,
 };
 use documentdb_gateway::error::Result;
-use documentdb_gateway::postgres::{create_query_catalog, Pool};
+use documentdb_gateway::postgres::{create_query_catalog, ConnectionPool};
 use documentdb_gateway::{get_service_context, populate_ssl_certificates, QueryCatalog};
 
-use documentdb_gateway::run_server;
+use documentdb_gateway::{run_server, AUTHENTICATION_MAX_CONNECTIONS};
 use mongodb::options::{Tls, TlsOptions};
 use mongodb::{
     options::{AuthMechanism, ClientOptions, Credential, ServerAddress},
@@ -48,7 +48,7 @@ async fn run(config: DocumentDBSetupConfiguration) {
     let query_catalog = create_query_catalog();
     let postgres_system_user = config.postgres_system_user();
     let system_pool = Arc::new(
-        Pool::new_with_user(
+        ConnectionPool::new_with_user(
             &config,
             &query_catalog,
             &postgres_system_user,
@@ -70,14 +70,23 @@ async fn run(config: DocumentDBSetupConfiguration) {
             .await
             .unwrap();
 
+    let authentication_pool = ConnectionPool::new_with_user(
+        &config,
+        &query_catalog,
+        &postgres_system_user,
+        None,
+        format!("{}-PreAuthRequests", config.application_name()),
+        AUTHENTICATION_MAX_CONNECTIONS,
+    )
+    .expect("Failed to create authentication pool");
+
     let service_context = get_service_context(
         Box::new(config),
         dynamic_configuration,
         query_catalog,
         system_pool,
-    )
-    .await
-    .unwrap();
+        authentication_pool,
+    );
 
     run_server(
         service_context,
@@ -95,8 +104,8 @@ pub fn configuration() -> DocumentDBSetupConfiguration {
         node_host_name: "localhost".to_string(),
         blocked_role_prefixes: Vec::new(),
         gateway_listen_port: Some(10260),
-        allow_transaction_snapshot: false,
-        enforce_ssl_tcp: true,
+        allow_transaction_snapshot: Some(false),
+        enforce_ssl_tcp: Some(true),
         postgres_system_user: Some(
             std::env::var("PostgresSystemUser").unwrap_or("cosmosdev".to_string()),
         ),
