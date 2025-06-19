@@ -225,7 +225,7 @@ pub trait PgDataClient: Send + Sync {
         key: &RawDocument,
         reshard: bool,
         connection_context: &ConnectionContext,
-    ) -> Result<Vec<Row>>;
+    ) -> Result<()>;
 
     async fn execute_reindex(
         &self,
@@ -338,4 +338,11 @@ pub trait PgDataClient: Send + Sync {
     // it's a processing logic, not a data client logic, but for sake of simplicity, we put it here.
     // It should be refactored later to a more appropriate place related to the processing
     fn get_index_build_id<'a>(&self, index_response: &'a PgResponse) -> Result<PgDocument<'a>>;
+
+    async fn execute_unshard_collection(
+        &self,
+        request: &Request<'_>,
+        request_info: &mut RequestInfo<'_>,
+        connection_context: &ConnectionContext,
+    ) -> Result<()>;
 }

@@ -126,6 +126,7 @@ pub enum RequestType {
     SaslContinue,
     SaslStart,
     ShardCollection,
+    UnshardCollection,
     Update,
     UpdateUser,
     UsersInfo,
@@ -207,6 +208,7 @@ impl FromStr for RequestType {
             "saslContinue" => Ok(RequestType::SaslContinue),
             "saslStart" => Ok(RequestType::SaslStart),
             "shardCollection" => Ok(RequestType::ShardCollection),
+            "unshardCollection" => Ok(RequestType::UnshardCollection),
             "update" => Ok(RequestType::Update),
             "updateUser" => Ok(RequestType::UpdateUser),
             "usersInfo" => Ok(RequestType::UsersInfo),
@@ -312,7 +314,7 @@ impl<'a> Request<'a> {
         ))
     }
 
-    pub fn extract_fields_and_common<F>(&self, mut f: F) -> Result<RequestInfo>
+    pub fn extract_fields_and_common<F>(&self, mut coll_extractor: F) -> Result<RequestInfo>
     where
         F: FnMut(&str, RawBsonRef) -> Result<()>,
     {
@@ -388,7 +390,7 @@ impl<'a> Request<'a> {
                         v.as_str()
                     }
                 }
-                _ => f(k, v)?,
+                _ => coll_extractor(k, v)?,
             }
         }
         let transaction_info = match (&session_id, transaction_number) {
@@ -433,6 +435,7 @@ impl<'a> Request<'a> {
             RequestType::RenameCollection => &["renameCollection"],
             RequestType::ReshardCollection => &["reshardCollection"],
             RequestType::ShardCollection => &["shardCollection"],
+            RequestType::UnshardCollection => &["unshardCollection"],
             RequestType::Update => &["update"],
             _ => &[],
         }

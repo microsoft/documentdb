@@ -49,20 +49,18 @@ pub struct QueryCatalog {
     // cursor.rs
     pub cursor_get_more: String,
 
-    // delete.rs
+    // data_description.rs
+    pub create_collection_view: String,
     pub drop_database: String,
     pub drop_collection: String,
-    pub delete: String,
     pub set_allow_write: String,
+    pub shard_collection: String,
+    pub rename_collection: String,
+    pub coll_mod: String,
+    pub unshard_collection: String,
 
-    // indexing.rs
-    pub create_indexes_background: String,
-    pub check_build_index_status: String,
-    pub re_index: String,
-    pub drop_indexes: String,
-    pub list_indexes_cursor_first_page: String,
-
-    // process.rs
+    // data_management.rs
+    pub delete: String,
     pub find_cursor_first_page: String,
     pub insert: String,
     pub aggregate_cursor_first_page: String,
@@ -73,14 +71,17 @@ pub struct QueryCatalog {
     pub find_and_modify: String,
     pub distinct_query: String,
     pub count_query: String,
-    pub create_collection_view: String,
     pub coll_stats: String,
     pub db_stats: String,
-    pub shard_collection: String,
-    pub rename_collection: String,
     pub current_op: String,
-    pub coll_mod: String,
     pub get_parameter: String,
+
+    // indexing.rs
+    pub create_indexes_background: String,
+    pub check_build_index_status: String,
+    pub re_index: String,
+    pub drop_indexes: String,
+    pub list_indexes_cursor_first_page: String,
 
     // user.rs
     pub create_user: String,
@@ -336,6 +337,10 @@ impl QueryCatalog {
     pub fn scan_types(&self) -> &Vec<String> {
         &self.scan_types
     }
+
+    pub fn unshard_collection(&self) -> &str {
+        &self.unshard_collection
+    }
 }
 
 pub fn create_query_catalog() -> QueryCatalog {
@@ -370,20 +375,18 @@ pub fn create_query_catalog() -> QueryCatalog {
             // client.rs
             set_search_path_and_timeout: "SET search_path = documentdb_api_catalog,documentdb_api,public;SET statement_timeout = {timeout}".to_string(),
 
-            // delete.rs
+            // data_description.rs
             drop_database: "SELECT documentdb_api.drop_database($1)".to_string(),
             drop_collection: "SELECT documentdb_api.drop_collection($1, $2)".to_string(),
-            delete: "SELECT * FROM documentdb_api.delete($1, $2, $3, NULL)".to_string(),
             set_allow_write: "SET LOCAL documentdb.IsPgReadOnlyForDiskFull to false; SET transaction read write".to_string(),
+            create_collection_view: "SELECT documentdb_api.create_collection_view($1, $2)".to_string(),
+            shard_collection: "SELECT documentdb_api.shard_collection($1, $2, $3, $4)".to_string(),
+            rename_collection: "SELECT documentdb_api.rename_collection($1, $2, $3, $4)".to_string(),
+            coll_mod: "SELECT documentdb_api.coll_mod($1, $2, $3)".to_string(),
+            unshard_collection: "SELECT documentdb_api.unshard_collection($1)".to_string(),
 
-            // indexing.rs
-            create_indexes_background: "SELECT * FROM documentdb_api.create_indexes_background($1, $2)".to_string(),
-            check_build_index_status: "SELECT * FROM documentdb_api_internal.check_build_index_status($1)".to_string(),
-            re_index: "CALL documentdb_api.re_index($1, $2)".to_string(),
-            drop_indexes: "CALL documentdb_api.drop_indexes($1, $2)".to_string(),
-            list_indexes_cursor_first_page: "SELECT cursorPage, continuation, persistConnection, cursorId FROM documentdb_api.list_indexes_cursor_first_page($1, $2)".to_string(),
-
-            // process.rs
+            // data_management.rs
+            delete: "SELECT * FROM documentdb_api.delete($1, $2, $3, NULL)".to_string(),
             find_cursor_first_page: "SELECT cursorPage, continuation, persistConnection, cursorId FROM documentdb_api.find_cursor_first_page($1, $2)".to_string(),
             insert: "SELECT * FROM documentdb_api.insert($1, $2, $3, NULL)".to_string(),
             aggregate_cursor_first_page: "SELECT cursorPage, continuation, persistConnection, cursorId FROM documentdb_api.aggregate_cursor_first_page($1, $2)".to_string(),
@@ -402,14 +405,17 @@ pub fn create_query_catalog() -> QueryCatalog {
             find_and_modify: "SELECT * FROM documentdb_api.find_and_modify($1, $2, NULL)".to_string(),
             distinct_query: "SELECT document FROM documentdb_api.distinct_query($1, $2)".to_string(),
             count_query: "SELECT document FROM documentdb_api.count_query($1, $2)".to_string(),
-            create_collection_view: "SELECT documentdb_api.create_collection_view($1, $2)".to_string(),
             coll_stats: "SELECT documentdb_api.coll_stats($1, $2, $3)".to_string(),
             db_stats: "SELECT documentdb_api.db_stats($1, $2, $3)".to_string(),
-            shard_collection: "SELECT documentdb_api.shard_collection($1, $2, $3, $4)".to_string(),
-            rename_collection: "SELECT documentdb_api.rename_collection($1, $2, $3, $4)".to_string(),
             current_op: "SELECT documentdb_api.current_op($1, $2, $3)".to_string(),
-            coll_mod: "SELECT documentdb_api.coll_mod($1, $2, $3)".to_string(),
             get_parameter: "SELECT documentdb_api.get_parameter($1, $2, $3)".to_string(),
+
+            // indexing.rs
+            create_indexes_background: "SELECT * FROM documentdb_api.create_indexes_background($1, $2)".to_string(),
+            check_build_index_status: "SELECT * FROM documentdb_api_internal.check_build_index_status($1)".to_string(),
+            re_index: "CALL documentdb_api.re_index($1, $2)".to_string(),
+            drop_indexes: "CALL documentdb_api.drop_indexes($1, $2)".to_string(),
+            list_indexes_cursor_first_page: "SELECT cursorPage, continuation, persistConnection, cursorId FROM documentdb_api.list_indexes_cursor_first_page($1, $2)".to_string(),
 
             // user.rs
             create_user: "SELECT documentdb_api.create_user($1)".to_string(),

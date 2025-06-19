@@ -704,9 +704,8 @@ impl PgDataClient for DocumentDBDataClient {
         key: &RawDocument,
         reshard: bool,
         connection_context: &ConnectionContext,
-    ) -> Result<Vec<Row>> {
-        let shard_collection_rows = self
-            .pull_connection(connection_context)
+    ) -> Result<()> {
+        self.pull_connection(connection_context)
             .await?
             .query(
                 connection_context
@@ -725,7 +724,7 @@ impl PgDataClient for DocumentDBDataClient {
             )
             .await?;
 
-        Ok(shard_collection_rows)
+        Ok(())
     }
 
     async fn execute_reindex(
@@ -987,5 +986,28 @@ impl PgDataClient for DocumentDBDataClient {
 
     fn get_index_build_id<'a>(&self, index_response: &'a PgResponse) -> Result<PgDocument<'a>> {
         Ok(index_response.first()?.get(2))
+    }
+
+    async fn execute_unshard_collection(
+        &self,
+        request: &Request<'_>,
+        request_info: &mut RequestInfo<'_>,
+        connection_context: &ConnectionContext,
+    ) -> Result<()> {
+        self.pull_connection(connection_context)
+            .await?
+            .query(
+                connection_context
+                    .service_context
+                    .query_catalog()
+                    .unshard_collection(),
+                &[Type::BYTEA],
+                &[&PgDocument(request.document())],
+                Timeout::command(request_info.max_time_ms),
+                request_info,
+            )
+            .await?;
+
+        Ok(())
     }
 }
