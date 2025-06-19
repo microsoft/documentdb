@@ -3,7 +3,7 @@
  *
  * include/commands/diagnostic_commands_common.h
  *
- * Common declarations of Mongo Diagnostic commands.
+ * Common declarations of Diagnostic commands.
  * These are used in diag command scenarios like CurrentOp, IndexStats, CollStats
  *
  *-------------------------------------------------------------------------

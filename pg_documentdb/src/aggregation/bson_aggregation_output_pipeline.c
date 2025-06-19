@@ -584,8 +584,8 @@ bson_dollar_merge_fail_when_not_matched(PG_FUNCTION_ARGS)
 /*
  * Mutates the query for the $merge stage
  *
- * Example mongo command : { $merge: { into: "targetCollection", on: "_id", whenMatched: "replace", whenNotMatched: "insert" } }
- * targetCollection with schema validation `{ "a" : { "$type" : "int" } }` and validationLevel is `strict`
+ * Example : { $merge: { into: <>, on: <>, whenMatched: <>, whenNotMatched: <> } }
+ * target collection with schema validation `{ "a" : { "$type" : "int" } }` and validationLevel is `strict`
  * sql query :
  *
  * MERGE INTO ONLY ApiDataSchemaName.documents_2 documents_2
@@ -652,7 +652,6 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 	if (targetCollection == NULL)
 	{
 		/* Currently, if a collection is created and a subsequent query fails, we don't create a table, but the collection_id still increments, which is not the desired behavior.
-		 * To pass JS tests, we are temporarily keeping EnableMergeTargetCreation as true. However, this will be disabled in the production environment.
 		 * TODO: We need to devise a strategy to prevent the increment of collection_id if a query fails after the creation of a collection.
 		 */
 		if (EnableMergeTargetCreation)
@@ -925,11 +924,11 @@ MakeActionWhenNotMatched(WhenNotMatchedAction whenNotMatched, Var *sourceDocVar,
  * Parses & validates the input $merge spec.
  *
  * { $merge: {
- *     into: <collection> -or- { db: <db>, coll: <collection> },
- *     on: <identifier field> -or- [ <identifier field1>, ...],  // Optional
- *     let: <variables>,                                         // Optional
- *     whenMatched: <replace|keepExisting|merge|fail|pipeline>,  // Optional
- *    whenNotMatched: <insert|discard|fail>                     // Optional
+ *     into: <>,
+ *     on: <>,
+ *     let: <>,
+ *     whenMatched: <>,
+ *    whenNotMatched: <>
  * } }
  *
  * Parsed outputs are placed in the MergeArgs struct.
@@ -1868,7 +1867,7 @@ ValidateFinalPgbsonBeforeWriting(const pgbson *finalBson, const pgbson *targetDo
 /*
  * This function Validate the ObjectId fields and write it in the writer.
  *
- * During validation, it addresses the following MongoDB behavior:
+ * During validation, it addresses the following behavior:
  * 1. If the ObjectId of the source and target documents differ, an error is thrown because the target ObjectId cannot be replaced with the source ObjectId, as the ObjectId field is immutable.
  * 2. If the ObjectId of the source and target documents are the same, the ObjectId field is written to the writer.
  * 3. If the source ObjectId is missing we write the target ObjectId to the writer.
@@ -1926,7 +1925,7 @@ ValidateAndAddObjectIdToWriter(pgbson_writer *writer,
 /*
  * Mutates the query for the $out stage
  *
- * Example mongo command : { $out: { "db": "targetDb", "coll" : "targetColl" } }
+ * Example command : { $out: { "db": <>, "coll" : <> } }
  * targetDb with schema validation enabled as `'{ "a" : { "$type" : "int" } }`, we need to apply schema validation to the final document.
  * sql query :
  *

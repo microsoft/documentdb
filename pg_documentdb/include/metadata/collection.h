@@ -3,7 +3,7 @@
  *
  * include/metadata/collection.h
  *
- * Common declarations for Mongo collections
+ * Common declarations for collections, views and data tables.
  *
  *-------------------------------------------------------------------------
  */
@@ -28,12 +28,12 @@
 #define DOCUMENT_DATA_TABLE_NAME_PREFIX "documents_"
 #define DOCUMENT_DATA_TABLE_NAME_FORMAT DOCUMENT_DATA_TABLE_NAME_PREFIX UINT64_FORMAT
 
-/* constants for document column of a Mongo data table */
+/* constants for document column of a data table */
 #define DOCUMENT_DATA_TABLE_DOCUMENT_VAR_COLLATION (InvalidOid)
 #define DOCUMENT_DATA_TABLE_DOCUMENT_VAR_TYPMOD ((int32) (-1))
 
 
-/* Attribute number constants for the layout of the mongo data table */
+/* Attribute number constants for the layout of the data table */
 #define DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER ((AttrNumber) 1)
 #define DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER ((AttrNumber) 2)
 #define DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER ((AttrNumber) 3)
@@ -211,7 +211,7 @@ MongoCollection * GetMongoCollectionByColId(uint64 collectionId, LOCKMODE lockMo
 /* get Mongo collection metadata by realtion ID of a collection's shard */
 MongoCollection * GetMongoCollectionByRelationShardId(Oid relationId);
 
-/* get OID of Mongo documents table by collection id */
+/* get OID of data table (documents_*) table by collection id */
 Oid GetRelationIdForCollectionId(uint64 collectionId, LOCKMODE lockMode);
 
 /* c-wrapper for create_collection() */

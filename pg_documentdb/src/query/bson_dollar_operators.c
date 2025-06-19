@@ -761,7 +761,7 @@ bson_value_dollar_all(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $elemMatch functionality
+ * implements the $elemMatch functionality
  * in the runtime. Checks that the value in the element is
  * an array and at least one element matches all the conditions
  * provided in the nested filter.
@@ -785,7 +785,7 @@ bson_dollar_elemmatch(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $elemMatch functionality
+ * implements the $elemMatch functionality
  * in the runtime for bson_values. Checks that the value in the element is
  * an array and at least one element matches all the conditions
  * provided in the nested filter.
@@ -810,7 +810,7 @@ bson_value_dollar_elemmatch(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_bits_all_clear implements the Mongo's $bitsAllClear functionality
+ * bson_dollar_bits_all_clear implements the $bitsAllClear functionality
  * in the runtime. This compares that all set bits of filter are unset in document or not.
  */
 Datum
@@ -826,7 +826,7 @@ bson_dollar_bits_all_clear(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_bits_any_clear implements the Mongo's $bitsAnyClear functionality
+ * bson_dollar_bits_any_clear implements the $bitsAnyClear functionality
  * in the runtime. This compares that any set bit of filter is unset in document or not.
  */
 Datum
@@ -842,7 +842,7 @@ bson_dollar_bits_any_clear(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_bits_all_set implements the Mongo's $bitsAllSet functionality
+ * bson_dollar_bits_all_set implements the $bitsAllSet functionality
  * in the runtime. This compares that all set bits of filter are set in document or not.
  */
 Datum
@@ -858,7 +858,7 @@ bson_dollar_bits_all_set(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_bits_any_set implements the Mongo's $bitsAnySet functionality
+ * bson_dollar_bits_any_set implements the $bitsAnySet functionality
  * in the runtime. This compares that any set bit of filter is set in document or not.
  */
 Datum
@@ -874,7 +874,7 @@ bson_dollar_bits_any_set(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $bitsAllClear functionality
+ * implements the $bitsAllClear functionality
  * in the runtime. This compares that all set bits of filter are unset in element value or not.
  */
 Datum
@@ -891,7 +891,7 @@ bson_value_dollar_bits_all_clear(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $bitsAnyClear functionality
+ * implements the $bitsAnyClear functionality
  * in the runtime. This compares that any set bits of filter is unset in element value or not.
  */
 Datum
@@ -908,7 +908,7 @@ bson_value_dollar_bits_any_clear(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $bitsAllSet functionality
+ * implements the $bitsAllSet functionality
  * in the runtime. This compares that all set bits of filter are set in element value or not.
  */
 Datum
@@ -925,7 +925,7 @@ bson_value_dollar_bits_all_set(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $bitsAnySet functionality
+ * implements the $bitsAnySet functionality
  * in the runtime. This compares that any set bits of filter is set in element value or not.
  */
 Datum
@@ -942,8 +942,8 @@ bson_value_dollar_bits_any_set(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_regex implements the Mongo's $regex functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_regex implements the $regex functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the regex on the value provided.
  */
@@ -965,7 +965,7 @@ bson_dollar_regex(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $regex functionality
+ * implements the $regex functionality
  * in the runtime. Checks that the value in the element provided
  * that at least one matches the regex on the value provided.
  */
@@ -988,7 +988,7 @@ bson_value_dollar_regex(PG_FUNCTION_ARGS)
 
 
 /*
- * Implements the Mongo's $mod functionality in the runtime for bson_values.
+ * Implements the $mod functionality in the runtime for bson_values.
  * Checks if the value of given field divided by a divisor has the specified remainder
  */
 Datum
@@ -1004,7 +1004,7 @@ bson_dollar_mod(PG_FUNCTION_ARGS)
 
 
 /*
- * Implements the Mongo's $mod functionality in the runtime.
+ * Implements the $mod functionality in the runtime.
  * Checks if the value of given field divided by a divisor has the specified remainder
  */
 Datum
@@ -1020,8 +1020,8 @@ bson_value_dollar_mod(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_eq implements the Mongo's $eq functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_eq implements the $eq functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the equality semantics on the value
  * provided.
@@ -1038,7 +1038,7 @@ bson_dollar_eq(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $eq functionality
+ * implements the $eq functionality
  * in the runtime. Checks that the value in the element provided
  * is equal to the value in the filter.
  *
@@ -1058,8 +1058,8 @@ bson_value_dollar_eq(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_gt implements the Mongo's $gt functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_gt implements the $gt functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the greater than semantics on the value
  * provided.
@@ -1077,7 +1077,7 @@ bson_dollar_gt(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $gt functionality
+ * implements the $gt functionality
  * in the runtime. Checks that the value in the element provided
  * is greater than the value in the filter.
  */
@@ -1094,7 +1094,7 @@ bson_value_dollar_gt(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $not: { $gt: {} } functionality
+ * implements the $not: { $gt: {} } functionality
  * in the runtime. Checks that the value in the element provided
  * is greater than the value in the filter.
  */
@@ -1112,8 +1112,8 @@ bson_dollar_not_gt(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_gte implements the Mongo's $gte functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_gte implements the $gte functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the greater than or equal
  *  semantics on the value provided.
@@ -1130,8 +1130,8 @@ bson_dollar_gte(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_gte implements the Mongo's $not: { $gte: {} } functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_gte implements the $not: { $gte: {} } functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the greater than or equal
  *  semantics on the value provided.
@@ -1162,7 +1162,7 @@ bson_dollar_fullscan(PG_FUNCTION_ARGS)
 
 /*
  * bson_dollar_range implements the DocumentDB API's version of the range
- * functionality in the runtime. Note that this is different from MongoDB's
+ * functionality in the runtime. Note that this is different from
  * $range array operator. This combines $gt and $lt conditions into a range
  * operator that can be used to traverse an index efficiently.
  *
@@ -1263,7 +1263,7 @@ bson_dollar_range(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $gte functionality
+ * implements the $gte functionality
  * in the runtime. Checks that the value in the element provided
  * is greater than or equal the value in the filter.
  */
@@ -1281,8 +1281,8 @@ bson_value_dollar_gte(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_not_lt implements the Mongo's $not: { $lt: {}} functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_not_lt implements the $not: { $lt: {}} functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the less than
  *  semantics on the value provided.
@@ -1301,8 +1301,8 @@ bson_dollar_not_lt(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_lt implements the Mongo's $lt functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_lt implements the $lt functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the less than
  *  semantics on the value provided.
@@ -1320,7 +1320,7 @@ bson_dollar_lt(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $lt functionality
+ * implements the $lt functionality
  * in the runtime. Checks that the value in the element provided
  * is less than the value in the filter.
  */
@@ -1337,8 +1337,8 @@ bson_value_dollar_lt(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_lte implements the Mongo's $lte functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_lte implements the $lte functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the less than or equal
  *  semantics on the value provided.
@@ -1356,8 +1356,8 @@ bson_dollar_lte(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_not_lte implements the Mongo's $not: { $lte: {}} functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_not_lte implements the $not: { $lte: {}} functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches the less than or equal
  *  semantics on the value provided.
@@ -1376,7 +1376,7 @@ bson_dollar_not_lte(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $lte functionality
+ * implements the $lte functionality
  * in the runtime. Checks that the value in the element provided
  * is less than or equal to the value in the filter.
  */
@@ -1393,8 +1393,8 @@ bson_value_dollar_lte(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_in implements the Mongo's $in functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_in implements the $in functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one matches at least one of the input array values.
  */
@@ -1448,7 +1448,7 @@ bson_dollar_merge_join_filter(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $in functionality
+ * implements the $in functionality
  * in the runtime. Checks that the value in the element provided
  * is equal to at least one of the values in the filter.
  */
@@ -1470,11 +1470,11 @@ bson_value_dollar_in(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_nin implements the Mongo's $nin functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_nin implements the $nin functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one does not match the query value presented.
- * Note: per Mongo's $nin requirements, documents that don't have the field
+ * Note: per $nin requirements, documents that don't have the field
  * are also considered to be $nin.
  */
 Datum
@@ -1505,7 +1505,7 @@ bson_dollar_nin(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $nin functionality
+ * implements the $nin functionality
  * in the runtime. Checks that the value in the element provided
  * is not equal to any of the values in the filter.
  */
@@ -1527,11 +1527,11 @@ bson_value_dollar_nin(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_ne implements the Mongo's $ne functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_ne implements the $ne functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one does not match the query value presented.
- * Note: per Mongo's $ne requirements, documents that don't have the field
+ * Note: per $ne requirements, documents that don't have the field
  * are also considered to be $ne.
  */
 Datum
@@ -1547,7 +1547,7 @@ bson_dollar_ne(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $ne functionality
+ * implements the $ne functionality
  * in the runtime. Checks that the value in the element provided
  * is not equal to the value in the filter.
  */
@@ -1564,8 +1564,8 @@ bson_value_dollar_ne(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_exists implements the Mongo's $exits functionality
- * in the runtime. This traverses the document based on Mongo's
+ * bson_dollar_exists implements the $exits functionality
+ * in the runtime. This traverses the document based on
  * filter dot-notation syntax and for all possible values, checks
  * that at least one path matches the $exists operator.
  */
@@ -1585,7 +1585,7 @@ bson_dollar_exists(PG_FUNCTION_ARGS)
 
 
 /*
- * implements the Mongo's $gt functionality
+ * implements the $gt functionality
  * in the runtime. Checks that the value in the element provided
  * exists.
  */
@@ -1605,7 +1605,7 @@ bson_value_dollar_exists(PG_FUNCTION_ARGS)
 
 
 /*
- * implements Mongo's $expr functionality
+ * implements $expr functionality
  * in the runtime. Evaluates the expression pointed to by the filter
  * against the document. Returns true in the following cases:
  * 1) The expression evaluated to a boolean result and is true.
@@ -1677,7 +1677,7 @@ bson_dollar_expr(PG_FUNCTION_ARGS)
 
 
 /*
- * implements Mongo's $text functionality
+ * implements $text functionality
  * in the runtime. Simply fails as $text is not supported on the runtime.
  */
 Datum
@@ -2448,7 +2448,6 @@ GetRemainderFromModBsonValues(const bson_value_t *dividendValue,
 		 *    both operands are long or one is int, we should return long
 		 *    one of the operands is double (not Inf) and one long and the remainder fits in an int32, we should return long.
 		 *    the dividend is an int32, the other is not Inf and the remainder can be represented as an int32, we should return int.
-		 * (ref: 4.4.13\jstests\core\mod_overflow.js, 4.4.13\jstests\aggregation\expressions\expression_mod.js).
 		 */
 		bool checkFixedInteger = true;
 		if ((dividendValue->value_type == BSON_TYPE_INT64 ||
@@ -3199,7 +3198,7 @@ PopulateRegexState(PG_FUNCTION_ARGS, TraverseRegexValidateState *state)
 
 	if (EnableCollation)
 	{
-		/* collation does not take effect on $regex according to native Mongo */
+		/* collation does not take effect on $regex  */
 		PgbsonToSinglePgbsonElementWithCollation(filter, &filterElement);
 	}
 	else

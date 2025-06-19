@@ -3,7 +3,7 @@
  *
  * include/commands/cursor_common.h
  *
- * Common declarations of Mongo Cursor commands.
+ * Common declarations of Cursor commands.
  *
  *-------------------------------------------------------------------------
  */

@@ -188,7 +188,6 @@ RegexCompileCore(char *regexPatternStr, char *options, PcreData **pcreData,
 	 * register the PG's memory management functions with PCRE2 lib */
 	CreatePcreCompileContext(*pcreData);
 
-	/* Limit according to jstests\core\regex_limit.js */
 	pcre2_set_max_pattern_length((*pcreData)->compileContext, maxPatternLength);
 
 	(*pcreData)->compiledRegex =
@@ -362,8 +361,7 @@ ProcessRegexCompileOptions(char *options)
 
 				default:
 				{
-					/* Unknown options to be ignored to match the behavior
-					 * in Native MongoDB */
+					/* Unknown options to be ignored */
 				}
 			}
 		}

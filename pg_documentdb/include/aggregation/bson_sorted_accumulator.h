@@ -31,7 +31,7 @@ typedef struct BsonOrderAggValue
 	/* An array of bsons of size numSortKeys computed
 	 * by applying the sort spec on an input document. These
 	 * bsons are value from the sort keys for ordering documents.
-	 * Mongo allow a maximum of 32 sort keys.
+	 * A maximum of 32 sort keys is allowed.
 	 */
 	Datum sortKeyValues[32];
 } BsonOrderAggValue;
