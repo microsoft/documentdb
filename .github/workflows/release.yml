@@ -1,0 +1,457 @@
+name: Automated Release
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. v0.105-0)'
+        required: true
+        type: string
+      create_draft:
+        description: 'Create draft release'
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  extract-release-info:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      changelog: ${{ steps.extract.outputs.changelog }}
+      release_date: ${{ steps.extract.outputs.release_date }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version and changelog
+        id: extract
+        run: |
+          # Determine version from tag or input
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          
+          # Remove 'v' prefix if present
+          VERSION=${VERSION#v}
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          
+          # Extract changelog for this version from CHANGELOG.md
+          CHANGELOG_CONTENT=$(awk "/^### documentdb v${VERSION} /{flag=1; next} /^### documentdb v[0-9]/{flag=0} flag" CHANGELOG.md | sed '/^$/d')
+          
+          if [[ -z "$CHANGELOG_CONTENT" ]]; then
+            echo "Warning: No changelog found for version $VERSION"
+            CHANGELOG_CONTENT="Release notes for version $VERSION"
+          fi
+          
+          # Save changelog to file for multi-line output
+          cat > /tmp/changelog.md <<EOF
+          $CHANGELOG_CONTENT
+          EOF
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Extract release date from changelog
+          RELEASE_DATE=$(grep -A1 "### documentdb v${VERSION}" CHANGELOG.md | grep -o "([^)]*)" | sed 's/[()]//g' || echo "$(date '+%B %d, %Y')")
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+
+  build-deb-packages:
+    needs: extract-release-info
+    runs-on: ${{ matrix.runner }}
+    name: deb-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu22.04, ubuntu24.04, deb11, deb12]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+        pg_version:
+          - 16
+          - 17
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update package changelog
+        run: |
+          VERSION="${{ needs.extract-release-info.outputs.version }}"
+          RELEASE_DATE="${{ needs.extract-release-info.outputs.release_date }}"
+          CHANGELOG="${{ needs.extract-release-info.outputs.changelog }}"
+          
+          # Update Debian changelog
+          cat > /tmp/new_changelog_entry <<EOF
+          documentdb ($VERSION) unstable; urgency=medium
+          
+          EOF
+          
+          # Add changelog items with proper formatting
+          echo "$CHANGELOG" | while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+              echo "  $line" >> /tmp/new_changelog_entry
+            fi
+          done
+          
+          echo "" >> /tmp/new_changelog_entry
+          echo " -- DocumentDB Release Bot <documentdb@noreply.github.com>  $(date -R)" >> /tmp/new_changelog_entry
+          echo "" >> /tmp/new_changelog_entry
+          
+          # Prepend to existing changelog
+          cat /tmp/new_changelog_entry packaging/debian_files/changelog > /tmp/updated_changelog
+          mv /tmp/updated_changelog packaging/debian_files/changelog
+
+      - name: Build Debian Package
+        run: |
+          VERSION="${{ needs.extract-release-info.outputs.version }}"
+          # Convert version format for packaging
+          DOCUMENTDB_VERSION=$(echo $VERSION | sed "s/-/./g")
+          ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version $DOCUMENTDB_VERSION
+
+      - name: Sign DEB packages
+        run: |
+          # Install GPG and dpkg-sig for signing DEB packages
+          sudo apt-get update && sudo apt-get install -y gnupg2 dpkg-sig
+          
+          # Generate a temporary signing key for demo purposes
+          # In production, use proper key management with secure key storage
+          cat > /tmp/gpg-batch <<EOF
+          %echo Generating DocumentDB signing key
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: DocumentDB Package Signing
+          Name-Email: documentdb@noreply.github.com
+          Expire-Date: 1y
+          %no-ask-passphrase
+          %no-protection
+          %commit
+          %echo done
+          EOF
+          
+          gpg --batch --generate-key /tmp/gpg-batch
+          
+          # Sign all DEB packages
+          KEY_ID="DocumentDB Package Signing" 
+          for deb_file in packaging/*.deb; do
+            if [[ -f "$deb_file" ]]; then
+              echo "Signing package: $deb_file with key $KEY_ID"
+              dpkg-sig --sign "$KEY_ID" "$deb_file"
+            fi
+          done
+          
+          # Export public key for verification
+          gpg --armor --export "DocumentDB Package Signing" > packaging/documentdb-signing-key.asc
+
+      - name: Upload Debian Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ needs.extract-release-info.outputs.version }}
+          path: |
+            packaging/*.deb
+            packaging/documentdb-signing-key.asc
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0
+
+  build-rpm-packages:
+    needs: extract-release-info
+    runs-on: ${{ matrix.runner }}
+    name: rpm-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [rhel8, rhel9]
+        arch: [amd64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+        pg_version:
+          - 16
+          - 17
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update package changelog
+        run: |
+          VERSION="${{ needs.extract-release-info.outputs.version }}"
+          RELEASE_DATE="${{ needs.extract-release-info.outputs.release_date }}"
+          CHANGELOG="${{ needs.extract-release-info.outputs.changelog }}"
+          
+          # Update RPM spec changelog
+          # Create new changelog entry
+          cat > /tmp/new_rpm_changelog <<EOF
+          * $(date '+%a %b %d %Y') DocumentDB Release Bot <documentdb@noreply.github.com> - $VERSION
+          EOF
+          
+          # Add changelog items
+          echo "$CHANGELOG" | while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+              echo "$line" | sed 's/^\* /- /' >> /tmp/new_rpm_changelog
+            fi
+          done
+          
+          echo "" >> /tmp/new_rpm_changelog
+          
+          # Insert changelog into spec file after the existing %changelog section
+          if grep -q "^%changelog" packaging/rpm_files/documentdb.spec; then
+            # Create temporary file with new changelog
+            cp packaging/rpm_files/documentdb.spec /tmp/spec_backup
+            # Insert after existing %changelog line
+            awk -v new_changelog="$(cat /tmp/new_rpm_changelog)" '
+              /^%changelog/ { print; print new_changelog; next }
+              { print }
+            ' /tmp/spec_backup > packaging/rpm_files/documentdb.spec
+          else
+            # Add %changelog section if it doesn't exist
+            echo "" >> packaging/rpm_files/documentdb.spec
+            echo "%changelog" >> packaging/rpm_files/documentdb.spec
+            cat /tmp/new_rpm_changelog >> packaging/rpm_files/documentdb.spec
+          fi
+
+      - name: Build RPM Package
+        run: |
+          VERSION="${{ needs.extract-release-info.outputs.version }}"
+          # Convert version format for packaging
+          DOCUMENTDB_VERSION=$(echo $VERSION | sed "s/-/./g")
+          ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version $DOCUMENTDB_VERSION --test-clean-install
+
+      - name: Sign RPM packages
+        run: |
+          # Install RPM signing tools
+          sudo apt-get update && sudo apt-get install -y rpm gnupg2
+          
+          # Generate a temporary signing key for demo purposes
+          cat > /tmp/gpg-batch <<EOF
+          %echo Generating DocumentDB RPM signing key
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: DocumentDB RPM Package Signing
+          Name-Email: documentdb@noreply.github.com
+          Expire-Date: 1y
+          %no-ask-passphrase
+          %no-protection
+          %commit
+          %echo done
+          EOF
+          
+          gpg --batch --generate-key /tmp/gpg-batch
+          
+          # Configure RPM signing
+          echo "%_gpg_name DocumentDB RPM Package Signing" >> ~/.rpmmacros
+          echo "%_gpg_path /home/runner/.gnupg" >> ~/.rpmmacros
+          echo "%_signature gpg" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --batch --verbose --no-armor --passphrase-fd 3 --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> ~/.rpmmacros
+          
+          # Sign all RPM packages
+          for rpm_file in packaging/*.rpm; do
+            if [[ -f "$rpm_file" ]]; then
+              echo "Signing RPM package: $rpm_file"
+              rpm --addsign "$rpm_file"
+            fi
+          done
+          
+          # Export public key for verification
+          gpg --armor --export "DocumentDB RPM Package Signing" > packaging/documentdb-rpm-signing-key.asc
+
+      - name: Upload RPM Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ needs.extract-release-info.outputs.version }}
+          path: |
+            packaging/*.rpm
+            packaging/documentdb-rpm-signing-key.asc
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0
+
+  build-docker-images:
+    needs: [extract-release-info, build-deb-packages]
+    runs-on: ${{ matrix.runner }}
+    name: docker-${{ matrix.arch }}-pg${{ matrix.pg_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+        pg_version:
+          - 16
+          - 17
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download DEB packages
+        uses: actions/download-artifact@v4
+        with:
+          name: archive-ubuntu22.04-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ needs.extract-release-info.outputs.version }}
+          path: packaging/
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image build metadata
+        id: image_metadata
+        run: |
+          PACKAGE_NAME=$(ls packaging/*.deb | grep -v dbgsym | head -n1)
+          echo "PACKAGE NAME: $PACKAGE_NAME"
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          
+          BASE_IMAGE="ubuntu:22.04"
+          echo "BASE_IMAGE NAME: $BASE_IMAGE"
+          echo "BASE_IMAGE=$BASE_IMAGE" >> $GITHUB_ENV
+          
+          VERSION="${{ needs.extract-release-info.outputs.version }}"
+          echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6.18.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          provenance: false
+          sbom: false
+          context: .
+          push: true
+          platforms: linux/${{ matrix.arch }}
+          file: .github/containers/Build-Ubuntu/Dockerfile_prebuild
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-latest
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+            POSTGRES_VERSION=${{ matrix.pg_version }}
+            DEB_PACKAGE_REL_PATH=${{ env.PACKAGE_NAME }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/microsoft/documentdb
+            org.opencontainers.image.description=DocumentDB OSS release image
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign manifest (keyless)
+        run: |
+          cosign sign ${{ env.REGISTRY }}/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.IMAGE_TAG }} -y
+      
+      - name: Verify manifest signature (keyless)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/heads/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ${{ env.REGISTRY }}/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.IMAGE_TAG }}
+
+  create-release:
+    needs: [extract-release-info, build-deb-packages, build-rpm-packages, build-docker-images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Copy all packages to release assets
+          find release-artifacts/ -name "*.deb" -exec cp {} release-assets/ \;
+          find release-artifacts/ -name "*.rpm" -exec cp {} release-assets/ \;
+          find release-artifacts/ -name "*signing-key.asc" -exec cp {} release-assets/ \;
+          
+          # Create checksums
+          cd release-assets
+          sha256sum *.deb *.rpm > SHA256SUMS
+          sha256sum *.asc >> SHA256SUMS
+          cd ..
+          
+          ls -la release-assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', needs.extract-release-info.outputs.version) }}
+          name: DocumentDB v${{ needs.extract-release-info.outputs.version }}
+          body: |
+            # DocumentDB v${{ needs.extract-release-info.outputs.version }}
+            
+            Released on ${{ needs.extract-release-info.outputs.release_date }}
+            
+            ## Release Notes
+            
+            ${{ needs.extract-release-info.outputs.changelog }}
+            
+            ## Assets
+            
+            This release includes:
+            - DEB packages for Ubuntu 22.04, 24.04, Debian 11, 12 (amd64, arm64)
+            - RPM packages for RHEL 8, 9 (amd64)
+            - Docker images available at `ghcr.io/${{ github.repository }}/documentdb-oss:PG{16,17}-{amd64,arm64}-${{ needs.extract-release-info.outputs.version }}`
+            - Package signing keys for verification
+            - SHA256 checksums for all packages
+            
+            ## Installation
+            
+            Please refer to the [installation documentation](https://github.com/microsoft/documentdb#installation) for detailed instructions.
+            
+            ## Docker Images
+            
+            Docker images are signed with cosign and can be verified:
+            ```bash
+            cosign verify --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/release.yml@.*" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              ghcr.io/${{ github.repository }}/documentdb-oss:PG16-amd64-${{ needs.extract-release-info.outputs.version }}
+            ```
+          files: release-assets/*
+          draft: ${{ github.event.inputs.create_draft == 'true' || github.event.inputs.create_draft == '' }}
+          prerelease: false
+          generate_release_notes: false
+          token: ${{ secrets.GITHUB_TOKEN }}
