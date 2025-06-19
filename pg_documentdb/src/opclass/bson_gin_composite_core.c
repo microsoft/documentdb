@@ -1536,7 +1536,8 @@ AddMultiBoundaryForDollarRegex(int32_t indexAttribute, pgbsonelement *queryEleme
 
 	SetSingleBoundsDollarRegex(&queryElement->bsonValue, &set->bounds[0], isNegationOp);
 
-	/* For not operator we need to recheck because of array terms. ["ab", "ca"] we would match a regex like "c*.*" for the second term however for the first we wouldn't, so we need to go to the runtime. */
+	/* For not operator we need to recheck because of array terms. ["ab", "ca"] we would match a
+	 * regex like "c*.*" for the second term however for the first we wouldn't, so we need to go to the runtime. */
 	set->bounds[0].requiresRuntimeRecheck = isNegationOp;
 	set->bounds[1].requiresRuntimeRecheck = isNegationOp;
 

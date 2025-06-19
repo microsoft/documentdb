@@ -3,7 +3,7 @@
  *
  * src/oss_backend/commands/commands_common.c
  *
- * Implementation of a set of common methods for Mongo commands.
+ * Implementation of a set of common methods for commands in general.
  *
  *-------------------------------------------------------------------------
  */
@@ -405,7 +405,7 @@ TryGetErrorMessageAndCode(ErrorData *errorData, int *code, char **errmessage)
 
 
 /*
- * Ensures that the _id field in a write document conforms to the requirements of Mongo
+ * Ensures that the _id field in a write document conforms to the protocol requirements
  * Right now this ensures that the _id is not undefined or an array or a regex pattern
  */
 void

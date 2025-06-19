@@ -584,7 +584,7 @@ TruncateNestedEntry(pgbson_element_writer *elementWriter, const
 		case BSON_TYPE_DBPOINTER:
 		case BSON_TYPE_REGEX:
 		{
-			/* TODO: Support truncating this?  We fail when obejct or arrays or arrays of arrays/objects goes over 2K limit*/
+			/* TODO: Support truncating this?  We fail when objects or arrays or arrays of arrays/objects goes over 2K limit*/
 			*forceAsNotTruncated = true;
 			PgbsonElementWriterWriteValue(elementWriter, currentValue);
 			return false;

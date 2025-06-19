@@ -53,7 +53,7 @@
 
 
 /*
- * Response to be send to the Compute gateway during the salt and iteration
+ * Response to be send during the salt and iteration
  * count request while authenticating the client using SCRAM SHA 256
  */
 typedef struct SaltIterationsReqResult
@@ -69,7 +69,7 @@ typedef struct SaltIterationsReqResult
 } SaltIterationsReqResult;
 
 /*
- * Response to be send to the Compute gateway during SCRAM SHA 256
+ * Response to be send during SCRAM SHA 256
  * authentication request while authenticating the client
  */
 typedef struct ScramAuthResult
@@ -77,8 +77,8 @@ typedef struct ScramAuthResult
 	/* Status of the request. 1 if ok; 0 otherwise */
 	int ok;
 
-	/* Server signature string to be used by the compute gateway and then
-	 * pass on to the mongo client */
+	/* Server signature string to be used by the caller and then
+	 * pass on to the client */
 	char *serverSignature;
 } ScramAuthResult;
 
@@ -181,7 +181,7 @@ PG_FUNCTION_INFO_V1(command_authenticate_with_pwd);
 
 /*
  * This function provides the encoded salt and iteration count corresponding to
- * the given user name to the Compute gateway while authenticating the Mongo
+ * the given user name to the caller while authenticating the
  * client using SCRAM SHA 256
  * Input argument 1: User name. Type: text
  * Output: { "ok" : 1, "iterations" : int, "salt" : text }

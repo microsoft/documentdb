@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/create_collection_view.c
+ * src/commands/create_collection_view.c
  *
  * Implementation of view and collection creation functions.
  *
@@ -40,22 +40,6 @@ typedef struct CreateSpec
 
 	bool capped;
 
-	/* timeseries */
-
-	/* expireAfterSeconds */
-
-	/* clusteredIndex */
-
-	/* changeStreamPreAndPostImages */
-
-	/* autoIndexId */
-
-	/* size (max_size) */
-
-	/* max: (max_documents) */
-
-	/* storageEngine */
-
 	/* validator */
 	const bson_value_t *validator;
 
@@ -65,24 +49,14 @@ typedef struct CreateSpec
 	/* validationAction */
 	char *validationAction;
 
-	/* indexOptionDefaults */
-
 	/* viewOn */
 	char *viewOn;
 
 	/* pipeline */
 	bson_value_t pipeline;
 
-	/* collation */
-
-	/* writeConcern */
-
-	/* encryptedFields */
-
 	/* idIndex */
 	bson_value_t idIndex;
-
-	/* comment */
 } CreateSpec;
 
 static const StringView SystemPrefix = { .string = "system.", .length = 7 };
