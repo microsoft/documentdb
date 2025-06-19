@@ -61,7 +61,7 @@ typedef enum BoolIndexOption
  */
 typedef struct IndexSpec
 {
-	/* Mongo index name, cannot be NULL */
+	/* index name, cannot be NULL */
 	char *indexName;
 
 	/** index options start here **/
@@ -149,10 +149,10 @@ typedef struct IndexCmdRequest
 	/* Postgres command */
 	char *cmd;
 
-	/* index id assigned to this Mongo index */
+	/* index id assigned to this index */
 	int indexId;
 
-	/* collection id of a collection to which this Mongo index belongs*/
+	/* collection id of a collection to which this index belongs*/
 	uint64 collectionId;
 
 	/* Internal retry attempt count that we maintain for each request*/

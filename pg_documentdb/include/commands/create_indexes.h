@@ -20,7 +20,7 @@
 #include "vector/vector_spec.h"
 
 /*
- * Should be used together with MongoIndexBuildAborted errcode.
+ * Used with the ERRCODE_DOCUMENTDB_INDEXBUILDABORTED error code.
  */
 #define COLLIDX_CONCURRENTLY_DROPPED_RECREATED_ERRMSG \
 	"Index build failed :: caused by :: index or " \
@@ -110,8 +110,7 @@ typedef struct
 	 * when it is a wildcard index. Evenmore, keyPathList would be an empty
 	 * list if wildcard index is on whole document, i.e., doesn't have a
 	 * prefixing path. If it's a wildcard index with a prefixing path, then
-	 * keyPathList would contain a single element since Mongo doesn't allow
-	 * compound wildcard indexes.
+	 * keyPathList would contain a single element since compound wildcard indexes are not allowed.
 	 */
 	List *keyPathList;
 

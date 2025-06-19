@@ -3,7 +3,7 @@
  *
  * include/configs/config_initialization.h
  *
- * Common initialization of Mongo configs.
+ * Common initialization of configs.
  *
  *-------------------------------------------------------------------------
  */

@@ -3,7 +3,7 @@
  *
  * include/commands/commands_common.h
  *
- * Common declarations of Mongo commands.
+ * Common declarations of commands.
  *
  *-------------------------------------------------------------------------
  */
@@ -24,11 +24,10 @@
 #define BSON_MAX_ALLOWED_SIZE (16 * 1024 * 1024)
 
 /*
- * Maximum size of document produced by an intermediate stage of an aggregation pipeline.
- * This is a Native Mongo constrains. For example, if the pipeline is [$facet, $unwind],
- * $facet is allowed to generate document that is larger than 16MB, since $unwind can
- * break them into smaller document. However, $facet is not allowed to generate a document
- * that's larger than 100MB.
+ * Maximum size of a document produced by an intermediate stage of an aggregation pipeline.
+ * For example, in a pipeline like [$facet, $unwind], $facet is allowed to generate a document
+ * larger than 16MB, since $unwind can break it into smaller documents. However, $facet cannot
+ * generate a document larger than 100MB.
  */
 #define BSON_MAX_ALLOWED_SIZE_INTERMEDIATE (100 * 1024 * 1024)
 
