@@ -157,7 +157,7 @@ Oid BsonQueryTypeId(void);
 Oid VectorTypeId(void);
 Oid HalfVectorTypeId(void);
 Oid IndexSpecTypeId(void);
-Oid MongoCatalogCollectionsTypeOid(void);
+Oid ApiCatalogCollectionsTypeOid(void);
 Oid GetClusterBsonQueryTypeId(void);
 Oid GetBsonArrayTypeOid(void);
 Oid BsonIndexBoundsTypeId(void);

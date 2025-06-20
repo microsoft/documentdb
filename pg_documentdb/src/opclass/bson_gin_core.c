@@ -1276,7 +1276,7 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 	{
 		/* if isArrayTerm is true (because we're inside an array context and we're generating */
 		/* and we're building the non array-index based terms, then just use the base path) */
-		/* this is because mongo can filter on array entries based on the array index (a.b.0 / a.b.1) */
+		/* this is because we can filter on array entries based on the array index (a.b.0 / a.b.1) */
 		/* or simply on the array path itself (a.b) */
 		pathToInsert = basePath;
 		pathtoInsertLength = basePathLength;
@@ -1290,7 +1290,7 @@ GenerateTermPath(bson_iter_t *bsonIter, const char *basePath,
 	else
 	{
 		/* otherwise build the path to insert. We use 'base.field' for the path */
-		/* since dot paths are illegal in mongo for field names. */
+		/* since dot paths are illegal in field names. */
 		uint32_t fieldPathLength = bson_iter_key_len(bsonIter);
 		uint32_t pathToInsertAllocLength;
 

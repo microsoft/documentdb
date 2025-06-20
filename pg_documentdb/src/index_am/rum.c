@@ -722,7 +722,6 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
 
-		/* TODO: We need to check if the index has arrays */
 		if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_Unknown)
 		{
 			outerScanState->multiKeyStatus = multiKeyStatusFunc(scan->indexRelation);
