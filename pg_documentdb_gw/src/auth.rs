@@ -9,7 +9,7 @@
 use std::{str::from_utf8, sync::Arc};
 
 use bson::{rawdoc, spec::BinarySubtype};
-use rand::{distributions::Uniform, prelude::Distribution, rngs::OsRng};
+use rand::Rng;
 use tokio_postgres::types::Type;
 
 use crate::{
@@ -127,6 +127,19 @@ async fn handle_auth_request(
     }
 }
 
+fn generate_server_nonce(client_nonce: &str) -> String {
+    const CHARSET: &[u8] = b"!\"#$%&'()*+-./0123456789:;<>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+    let mut rng = rand::thread_rng();
+
+    let mut result = String::with_capacity(NONCE_LENGTH);
+    for _ in 0..NONCE_LENGTH {
+        let idx = rng.gen_range(0..CHARSET.len());
+        result.push(CHARSET[idx] as char);
+    }
+
+    format!("{}{}", client_nonce, result)
+}
+
 async fn handle_sasl_start(
     connection_context: &mut ConnectionContext,
     request: &Request<'_>,
@@ -152,20 +165,13 @@ async fn handle_sasl_start(
         "Nonce missing from SaslStart.".to_string(),
     ))?;
 
-    let mut nonce = String::with_capacity(client_nonce.len() + NONCE_LENGTH);
-    nonce.push_str(client_nonce);
-    nonce.extend(
-        Uniform::from(33..125)
-            .sample_iter(OsRng)
-            .map(|x: u8| if x > 43 { (x + 1) as char } else { x as char })
-            .take(NONCE_LENGTH),
-    );
+    let server_nonce = generate_server_nonce(client_nonce);
 
     let (salt, iterations) = get_salt_and_iteration(connection_context, username).await?;
-    let response = format!("r={},s={},i={}", nonce, salt, iterations);
+    let response = format!("r={},s={},i={}", server_nonce, salt, iterations);
 
     connection_context.auth_state.first_state = Some(ScramFirstState {
-        nonce,
+        nonce: server_nonce,
         first_message_bare: format!("n={},r={}", username, client_nonce),
         first_message: response.clone(),
     });
