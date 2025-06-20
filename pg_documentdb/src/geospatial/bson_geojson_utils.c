@@ -246,7 +246,7 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 			{
 				const bson_value_t *lineStringValue = bson_iter_value(&coordinatesIter);
 
-				/* To match mongo error reporting for case when ring value is not array we validate it agains Linestring */
+				/* For error cases when ring value is not array we validate it agains Linestring */
 				isValid = ValidateCoordinatesNotArray(lineStringValue,
 													  GeoJsonType_LINESTRING,
 													  parseState);
@@ -542,9 +542,7 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 	bool shouldThrowError = state->shouldThrowValidityError;
 
 	/*
-	 * For Polygons and Linestrings adjacent same points are not valid for postgis as well as mongo discards
-	 * them for internal use with indexing and query
-	 * Please refer jstests\core\geo_s2dupe_points.js
+	 * For Polygons and Linestrings adjacent same points are not valid for postgis, so we discard them.
 	 */
 	bool isPolyOrLinestring =
 		((type & (GeoJsonType_LINESTRING | GeoJsonType_POLYGON)) != 0);
@@ -615,7 +613,7 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 
 		/*
 		 * 2nd: For Linestrings and Polygon a long edge covering a complete latitude or longitude
-		 * is not valid in Postgis, it is valid in mongo but we need to handle the error gracefully
+		 * is not valid in Postgis, we need to handle the error gracefully
 		 */
 		if (isPolyOrLinestring && index > 0 && (fabs(point.y - last.y) >= 180.0))
 		{
@@ -789,7 +787,7 @@ GeoJsonTypeName(GeoJsonType type)
 
 /*
  * ValidateCoordinatesNotArray parses and validates "coordinates" field value for different
- * GeoJson types and throws appropriate mongo error if "coordinates" is not array.
+ * GeoJson types and throws appropriate error if "coordinates" is not array.
  *
  * In case of validity issue the function either throws an error if the error is expected or
  * return false to flag invalidity
@@ -806,7 +804,7 @@ ValidateCoordinatesNotArray(const bson_value_t *coordinatesValue, GeoJsonType ge
 		{
 			if (coordinatesValue->value_type != BSON_TYPE_DOCUMENT)
 			{
-				/* GeoJSON standard doesn't accept Documents for Points but mongo does. */
+				/* GeoJSON standard doesn't accept Documents for Points but we do. */
 				RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 					shouldThrowError, (
 						errcode(GEO_ERROR_CODE(parseState->errorCtxt)),

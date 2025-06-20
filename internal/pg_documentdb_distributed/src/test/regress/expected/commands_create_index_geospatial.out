@@ -685,19 +685,19 @@ SELECT documentdb_api.insert_one('db','2dindextest','{"b" : [ { "c": [10, 20] },
  { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "352583709" }, "errmsg" : "geo values must be 'legacy coordinate pairs' for 2d indexes" } ] }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [{"type": "Point", "coordinates": [10, 20]}, {"type": "Point", "coordinates": [10, 20]}] }', NULL); -- This is not supported in mongo as multi key
+SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [{"type": "Point", "coordinates": [10, 20]}, {"type": "Point", "coordinates": [10, 20]}] }', NULL); -- This is not supported as multi key
                                                                                                                             insert_one                                                                                                                            
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Can't extract geo keys { _id: 1 } Point must only contain numeric elements" } ] }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [[10, 20], [20, 20]] }', NULL); -- -- This is not supported in mongo as multi key legacy
+SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [[10, 20], [20, 20]] }', NULL); -- This is not supported as multi key legacy
                                                                                                                             insert_one                                                                                                                            
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Can't extract geo keys { _id: 1 } Point must only contain numeric elements" } ] }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [ { "x" : 1, "y" : 1 }, { "x" : 2, "y" : 2 }, { "x" : 3, "y" : 3 } ] }', NULL); -- -- This is not supported in mongo as multi key legacy
+SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [ { "x" : 1, "y" : 1 }, { "x" : 2, "y" : 2 }, { "x" : 3, "y" : 3 } ] }', NULL); -- This is not supported as multi key legacy
                                                                                                                             insert_one                                                                                                                            
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Can't extract geo keys { _id: 1 } Point must only contain numeric elements" } ] }
