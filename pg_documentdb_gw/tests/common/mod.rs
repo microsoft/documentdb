@@ -5,7 +5,7 @@ use documentdb_gateway::configuration::{
     DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration,
 };
 use documentdb_gateway::error::Result;
-use documentdb_gateway::postgres::{create_query_catalog, ConnectionPool};
+use documentdb_gateway::postgres::{create_query_catalog, ConnectionPool, DocumentDBDataClient};
 use documentdb_gateway::{get_service_context, populate_ssl_certificates, QueryCatalog};
 
 use documentdb_gateway::{run_server, AUTHENTICATION_MAX_CONNECTIONS};
@@ -88,7 +88,7 @@ async fn run(config: DocumentDBSetupConfiguration) {
         authentication_pool,
     );
 
-    run_server(
+    run_server::<DocumentDBDataClient>(
         service_context,
         certificate_options,
         None,
