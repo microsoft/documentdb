@@ -217,22 +217,9 @@ Oid GetRelationIdForCollectionId(uint64 collectionId, LOCKMODE lockMode);
 /* c-wrapper for create_collection() */
 bool CreateCollection(Datum dbNameDatum, Datum collectionNameDatum);
 
-/* c-wrapper for copy_collection_metadata() */
-void SetupCollectionForOut(char *srcDbName, char *srcCollectionName, char *destDbName,
-						   char *destCollectionName, bool createTemporaryTable);
-
 /* c-wrapper for rename_collection() */
 void RenameCollection(Datum dbNameDatum, Datum srcCollectionNameDatum, Datum
 					  destCollectionNameDatum, bool dropTarget);
-
-/* c-wrapper for droping the staging collection created during $out */
-void DropStagingCollectionForOut(Datum dbNameDatum, Datum srcCollectionNameDatumt);
-
-/* c-wrapper for copy_collection_data() */
-void OverWriteDataFromStagingToDest(Datum srcDbNameDatum, Datum srcCollectionNameDatum,
-									Datum
-									destDbNameDatum, Datum destCollectionNameDatum, bool
-									dropSourceCollection);
 
 /* called by metadata_cache.c when cache invalidation occurs */
 void ResetCollectionsCache(void);

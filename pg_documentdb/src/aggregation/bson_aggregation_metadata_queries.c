@@ -585,7 +585,7 @@ GenerateBaseListCollectionsQuery(Datum databaseDatum, bool nameOnly,
 									   list_make2(opExpr, notExpr)));
 
 	/* Add a row_get_bson to make it a single bson document */
-	Var *rowExpr = makeVar(1, 0, MongoCatalogCollectionsTypeOid(), -1, InvalidOid, 0);
+	Var *rowExpr = makeVar(1, 0, ApiCatalogCollectionsTypeOid(), -1, InvalidOid, 0);
 	FuncExpr *funcExpr = makeFuncExpr(RowGetBsonFunctionOid(), BsonTypeId(),
 									  list_make1(rowExpr), InvalidOid, InvalidOid,
 									  COERCE_EXPLICIT_CALL);

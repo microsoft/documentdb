@@ -305,7 +305,7 @@ IndexIdGetIndexDetails(int indexId)
 
 /*
  * IndexSpecOptionsAreEquivalent returns true given two IndexSpec's are
- * equivalent except their Mongo index names and expireAfterSeconds options.
+ * equivalent except their index names and expireAfterSeconds options.
  *
  * We don't check them because they should anyway be the same for two indexes
  * as long as all the other options are the same.
@@ -1146,8 +1146,9 @@ MakeIndexSpecForBuiltinIdIndex(void)
 		.indexSparse = BoolIndexOption_Undefined,
 
 		/*
-		 * Even though the _id index is unique, Mongo reports it as
-		 * "non unique".
+		 * Even though the _id index is unique, Mongo (and we) report it as
+		 * "non unique". This is especially true in Sharded collections where
+		 * it's only unique by shard key.
 		 */
 		.indexUnique = BoolIndexOption_Undefined,
 		.indexExpireAfterSeconds = NULL,

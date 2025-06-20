@@ -1309,7 +1309,7 @@ ValidateCollectionNameForValidSystemNamespace(StringView *collectionView,
 
 /*
  * command_collection_table returns the OID of a table that stores the data
- * for a given Mongo a collection and locks the table for reads.
+ * for a given Mongo collection and locks the table for reads.
  */
 Datum
 command_collection_table(PG_FUNCTION_ARGS)
@@ -1539,132 +1539,6 @@ RenameCollection(Datum dbNameDatum, Datum srcCollectionNameDatum, Datum
 	{
 		ereport(ERROR, (errmsg("rename_collection unexpectedly "
 							   "returned NULL datum")));
-	}
-}
-
-
-/*
- * DropStagingCollectionForOut is a C wrapper for dropping a TEMP non-mongo collection
- * created during $out. Typically, the temp collection is promoted to be the target
- * user collection if $out succeeds. But, we would need to delete it if $out fails for
- * some reason. On such a delete, we want to turn of change tracking.
- */
-void
-DropStagingCollectionForOut(Datum dbNameDatum, Datum srcCollectionNameDatum)
-{
-	/*
-	 *  Note that chage tracking is turned off for this delete
-	 *  ApiSchemaName.drop_collection(
-	 *      daatabaseName, collectionName, write_concern, uuid, track_changes)
-	 */
-	const char *cmdStr = FormatSqlQuery(
-		"SELECT %s.drop_collection($1, $2, null, null, false)",
-		ApiSchemaName);
-
-	Oid argTypes[2] = { TEXTOID, TEXTOID };
-	Datum argValues[2] = {
-		dbNameDatum,
-		srcCollectionNameDatum
-	};
-
-	/* all args are non-null */
-	char *argNulls = NULL;
-
-	bool isNull = true;
-	bool readOnly = false;
-	ExtensionExecuteQueryWithArgsViaSPI(cmdStr,
-										2,
-										argTypes, argValues, argNulls,
-										readOnly, SPI_OK_SELECT,
-										&isNull);
-	if (isNull)
-	{
-		ereport(ERROR, (errmsg("drop_collection unexpectedly "
-							   "returned NULL datum")));
-	}
-}
-
-
-/*
- * OverWriteDataFromStagingToDest is a C wrapper around copy_collection_data. It returns
- * whether whether data was copied from the source to the destination.
- */
-void
-OverWriteDataFromStagingToDest(Datum srcDbNameDatum, Datum srcCollectionNameDatum, Datum
-							   destDbNameDatum, Datum destCollectionNameDatum, bool
-							   dropSourceCollection)
-{
-	const char *cmdStr =
-		FormatSqlQuery("SELECT %s.copy_collection_data($1, $2, $3, $4, $5)",
-					   ApiInternalSchemaName);
-
-	Oid argTypes[5] = { TEXTOID, TEXTOID, TEXTOID, TEXTOID, BOOLOID };
-	Datum argValues[5] = {
-		srcDbNameDatum,
-		srcCollectionNameDatum,
-		destDbNameDatum,
-		destCollectionNameDatum,
-		BoolGetDatum(dropSourceCollection)
-	};
-
-	/* all args are non-null */
-	char *argNulls = NULL;
-
-	bool isNull = true;
-	bool readOnly = false;
-	ExtensionExecuteQueryWithArgsViaSPI(cmdStr,
-										5,
-										argTypes, argValues, argNulls,
-										readOnly, SPI_OK_SELECT,
-										&isNull);
-	if (isNull)
-	{
-		ereport(ERROR, (errmsg("copy_collection_data unexpectedly "
-							   "returned NULL datum")));
-	}
-}
-
-
-/*
- * CopyCollectionMetadata is a C wrapper around collection set method for $out. It returns
- * whether the destination collection was set up properly with the necessary indexes copied
- * from the source collection.
- */
-void
-SetupCollectionForOut(char *srcDbName, char *srcCollectionName, char *destDbName, char *
-					  destCollectionName, bool createTemporaryTable)
-{
-	const char *cmdStr = createTemporaryTable ?
-						 FormatSqlQuery(
-		"SELECT %s.setup_temporary_out_collection($1, $2, $3, $4)", ApiInternalSchemaName)
-						 :
-						 FormatSqlQuery(
-		"SELECT %s.setup_renameable_out_collection($1, $2, $3, $4)",
-		ApiInternalSchemaName);
-
-	Oid argTypes[4] = { TEXTOID, TEXTOID, TEXTOID, TEXTOID };
-	Datum argValues[4] = {
-		CStringGetTextDatum(srcDbName),
-		CStringGetTextDatum(srcCollectionName),
-		CStringGetTextDatum(destDbName),
-		CStringGetTextDatum(destCollectionName)
-	};
-
-	/* all args are non-null */
-	char *argNulls = NULL;
-
-	bool isNull = true;
-	bool readOnly = false;
-	ExtensionExecuteQueryWithArgsViaSPI(cmdStr,
-										4,
-										argTypes, argValues, argNulls,
-										readOnly, SPI_OK_SELECT,
-										&isNull);
-	if (isNull)
-	{
-		ereport(ERROR, (errmsg(
-							"Setup Collection For Out unexpected returned NULL datum. createTemporaryTable = %d",
-							createTemporaryTable)));
 	}
 }
 

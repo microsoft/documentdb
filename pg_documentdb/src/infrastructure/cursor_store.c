@@ -1,9 +1,18 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * include/planner/documentdb_plan_cache.h
+ * src/infrastructure/cursor_store.c
  *
- * Common declarations for the pg_documentdb plan cache.
+ * Common declarations for the pg_documentdb cursor store
+ * based on temp files on disk.
+ *
+ * This is based off of a similar set up as tuplestore's FileSet
+ * except it ensures that on success the files are not deleted at the
+ * end of the transaction. The file names are also based on the cursorId
+ * so that it can be accessed by a different backend.
+ *
+ * There is also a background job that cleans up the cursor files after
+ * a certain expiry time limit.
  *
  *-------------------------------------------------------------------------
  */
@@ -87,6 +96,14 @@ typedef struct CursorFileState
 	bool cursorComplete;
 } CursorFileState;
 
+
+/*
+ * Shared memory state for the cursor store
+ * This is used to track the number of cursors
+ * so that we can do resource governance.
+ * Currently this is only on the limit of number
+ * of cursors that can be created.
+ */
 typedef struct CursorStoreSharedData
 {
 	int sharedCursorStoreTrancheId;

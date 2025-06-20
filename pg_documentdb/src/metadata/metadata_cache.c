@@ -163,7 +163,7 @@ typedef struct DocumentDBApiOidCacheData
 	Oid IndexSpecTypeId;
 
 	/* OID of the ApiCatalogSchemaName.collections */
-	Oid MongoCatalogCollectionsTypeOid;
+	Oid ApiCatalogCollectionsTypeOid;
 
 	/* OID of the <bson> OPERATOR(ApiCatalogSchemaName.=) <bson> operator */
 	Oid BsonEqualOperatorId;
@@ -229,7 +229,7 @@ typedef struct DocumentDBApiOidCacheData
 	Oid CollectionIndexIdSequenceId;
 
 	/* OID of ApiCatalogSchemaName schema */
-	Oid MongoCatalogNamespaceId;
+	Oid ApiCatalogNamespaceId;
 
 	/* OID of the current extension */
 	Oid DocumentDBApiExtensionId;
@@ -811,7 +811,7 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of the bson_array_agg function */
 	Oid ApiCatalogBsonArrayAggregateAllArgsFunctionOid;
 
-	/* OID of the mongo bson_distinct_agg function */
+	/* OID of the bson_distinct_agg function */
 	Oid ApiCatalogBsonDistinctAggregateFunctionOid;
 
 	/* OID of the bson_object_agg function */
@@ -1212,11 +1212,11 @@ InitializeDocumentDBApiExtensionCache(void)
 
 	/* since the extension exists, we expect ApiCatalogSchemaName to exist too */
 	missingOK = false;
-	Cache.MongoCatalogNamespaceId = get_namespace_oid(ApiCatalogSchemaName, missingOK);
+	Cache.ApiCatalogNamespaceId = get_namespace_oid(ApiCatalogSchemaName, missingOK);
 
 	/* look up the ApiCatalogSchemaName.collections OID to catch invalidations */
 	Cache.CollectionsTableId = get_relname_relid("collections",
-												 Cache.MongoCatalogNamespaceId);
+												 Cache.ApiCatalogNamespaceId);
 
 	/* after cache reset (e.g. drop+create extension), also reset collections cache */
 	ResetCollectionsCache();
@@ -4837,19 +4837,19 @@ IndexSpecTypeId(void)
 
 
 Oid
-MongoCatalogCollectionsTypeOid(void)
+ApiCatalogCollectionsTypeOid(void)
 {
 	InitializeDocumentDBApiExtensionCache();
 
-	if (Cache.MongoCatalogCollectionsTypeOid == InvalidOid)
+	if (Cache.ApiCatalogCollectionsTypeOid == InvalidOid)
 	{
 		List *typeNameList = list_make2(makeString(ApiCatalogSchemaName),
 										makeString("collections"));
 		TypeName *typeName = makeTypeNameFromNameList(typeNameList);
-		Cache.MongoCatalogCollectionsTypeOid = typenameTypeId(NULL, typeName);
+		Cache.ApiCatalogCollectionsTypeOid = typenameTypeId(NULL, typeName);
 	}
 
-	return Cache.MongoCatalogCollectionsTypeOid;
+	return Cache.ApiCatalogCollectionsTypeOid;
 }
 
 
