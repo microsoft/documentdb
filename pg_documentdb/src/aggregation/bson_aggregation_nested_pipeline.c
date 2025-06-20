@@ -372,7 +372,11 @@ HandleFacet(const bson_value_t *existingValue, Query *query,
 
 	/* First step, move the current query into a CTE */
 	CommonTableExpr *baseCte = makeNode(CommonTableExpr);
-	baseCte->ctename = psprintf("facet_base_%d", context->nestedPipelineLevel);
+
+	/* Adding the stage number to the CTE alias (which is done in CreateCteSelectQuery()) is not enough to avoid conflict
+	 * when there are multiple top level facets due to the facet stage is planned (see facet explains)*/
+	baseCte->ctename = psprintf("facet_base_%d_%d", context->stageNum,
+								context->nestedPipelineLevel);
 	baseCte->ctequery = (Node *) query;
 
 	/* Second step: Build UNION ALL query */
@@ -1249,7 +1253,8 @@ BuildFacetUnionAllQuery(int numStages, const bson_value_t *facetValue,
 		/* Levels up is unused as we reset it after we build the aggregation and the final levelsup
 		 * is determined. */
 		int levelsUpUnused = 0;
-		Query *baseQuery = CreateCteSelectQuery(baseCte, "facetsub", numStages,
+		Query *baseQuery = CreateCteSelectQuery(baseCte, "facetsub",
+												parentContext->stageNum,
 												levelsUpUnused);
 
 		/* Mutate the Query to add the aggregation pipeline */

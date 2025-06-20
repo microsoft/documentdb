@@ -667,19 +667,31 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
  { "a" : [ { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : [ "x", { "$numberInt" : "1" }, { "$numberDouble" : "2.0" }, true ], "y" : [ "p", "q" ] }, "newField" : "1" }, { "_id" : "2", "double" : { "$numberDouble" : "2.0" }, "a" : { "b" : { "c" : { "$numberInt" : "3" } }, "y" : [ "p", "q" ] }, "newField" : "1" }, { "_id" : "3", "boolean" : false, "b" : "yes", "c" : true, "newField" : "1", "a" : { "y" : [ "p", "q" ] } } ], "b" : [ { "d" : { "$numberInt" : "3" } } ], "c" : [ { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : "x" } }, { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : { "$numberInt" : "1" } } }, { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : { "$numberDouble" : "2.0" } } }, { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : true } }, { "_id" : "2", "double" : { "$numberDouble" : "2.0" }, "a" : { "b" : { "c" : { "$numberInt" : "3" } } } } ] }
 (1 row)
 
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }]}');
+       document       
+---------------------------------------------------------------------
+ { "results" : [  ] }
+(1 row)
+
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } }]}');
+                                                                  document                                                                  
+---------------------------------------------------------------------
+ { "a" : [ { "results" : [  ], "newField" : "1", "a" : { "y" : [ "p", "q" ] } } ], "b" : [ { "d" : { "$numberInt" : "1" } } ], "c" : [  ] }
+(1 row)
+
 EXPlAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: WITH facet_base_0 AS (SELECT collection.document FROM documentdb_data.documents_4110_411001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4110'::bigint)) SELECT documentdb_api_catalog.bson_object_agg(document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS document FROM facet_base_0 facetsub_stage_1) agg_stage_sub_1_1 UNION ALL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'b'::text), '{ "b" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson)) AS document FROM (SELECT facetsub_stage_2.document FROM facet_base_0 facetsub_stage_2) agg_stage_sub_1_0) agg_stage_sub_1_1 UNION ALL SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text) AS document FROM facet_base_0 facetsub_stage_3) agg_stage_sub_1_1)) agg_stage_0
+         Query: WITH facet_base_0_0 AS (SELECT collection.document FROM documentdb_data.documents_4110_411001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4110'::bigint)) SELECT documentdb_api_catalog.bson_object_agg(document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS document FROM facet_base_0_0 facetsub_stage_1) agg_stage_sub_1_1 UNION ALL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'b'::text), '{ "b" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson)) AS document FROM (SELECT facetsub_stage_2.document FROM facet_base_0_0 facetsub_stage_2) agg_stage_sub_1_0) agg_stage_sub_1_1 UNION ALL SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text) AS document FROM facet_base_0_0 facetsub_stage_3) agg_stage_sub_1_1)) agg_stage_0
          Node: host=localhost port=58070 dbname=regression
          ->  Aggregate
                Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson)))
-               CTE facet_base_0
+               CTE facet_base_0_0
                  ->  Bitmap Heap Scan on documentdb_data.documents_4110_411001 collection
                        Output: collection.document
                        Recheck Cond: (collection.shard_key_value = '4110'::bigint)
@@ -688,21 +700,95 @@ EXPlAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                ->  Append
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg(documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson)
-                           ->  CTE Scan on facet_base_0 facetsub_stage_1
+                           ->  CTE Scan on facet_base_0_0 facetsub_stage_1
                                  Output: facetsub_stage_1.document
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))), 'b'::text), '{ "b" : [  ] }'::documentdb_core.bson)
                            ->  Aggregate
                                  Output: documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
-                                 ->  CTE Scan on facet_base_0 facetsub_stage_2
+                                 ->  CTE Scan on facet_base_0_0 facetsub_stage_2
                                        Output: facetsub_stage_2.document
                      ->  Aggregate
                            Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)
                            ->  ProjectSet
                                  Output: documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text)
-                                 ->  CTE Scan on facet_base_0 facetsub_stage_3
+                                 ->  CTE Scan on facet_base_0_0 facetsub_stage_3
                                        Output: facetsub_stage_3.document
 (32 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }]}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: SELECT documentdb_api_catalog.bson_object_agg(document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT facetsub_stage_1.document FROM (SELECT agg_stage_1_1.document FROM (SELECT documentdb_api_catalog.bson_object_agg(agg_stage_0.document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1_1.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT facetsub_stage_0.document FROM (SELECT collection.document FROM documentdb_data.documents_4110_411001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4110'::bigint)) facetsub_stage_0 WHERE (facetsub_stage_0.document OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)) agg_stage_sub_1_1_1) agg_stage_0) agg_stage_1_1) facetsub_stage_1 WHERE (facetsub_stage_1.document OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)) agg_stage_sub_1_1) agg_stage_1
+         Node: host=localhost port=58070 dbname=regression
+         ->  Aggregate
+               Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))), 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))
+               ->  Aggregate
+                     Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))), 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)
+                     ->  Aggregate
+                           Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))
+                           Filter: (documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson))) OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)
+                           ->  Aggregate
+                                 Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)
+                                 ->  Bitmap Heap Scan on documentdb_data.documents_4110_411001 collection
+                                       Output: collection.shard_key_value, collection.object_id, collection.document
+                                       Recheck Cond: (collection.shard_key_value = '4110'::bigint)
+                                       Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "result" : true }'::documentdb_core.bson)
+                                       ->  Bitmap Index Scan on _id_
+                                             Index Cond: (collection.shard_key_value = '4110'::bigint)
+(22 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } }]}');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Output: remote_scan.document
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Query: WITH facet_base_2_0 AS (SELECT agg_stage_2_1.document FROM (SELECT documentdb_api_catalog.bson_object_agg(agg_stage_1.document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT facetsub_stage_1.document FROM (SELECT agg_stage_1_1.document FROM (SELECT documentdb_api_catalog.bson_object_agg(agg_stage_0.document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1_1.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT facetsub_stage_0.document FROM (SELECT collection.document FROM documentdb_data.documents_4110_411001 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4110'::bigint)) facetsub_stage_0 WHERE (facetsub_stage_0.document OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)) agg_stage_sub_1_1_1) agg_stage_0) agg_stage_1_1) facetsub_stage_1 WHERE (facetsub_stage_1.document OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)) agg_stage_sub_1_1) agg_stage_1) agg_stage_2_1) SELECT documentdb_api_catalog.bson_object_agg(document) AS document FROM (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson) AS document FROM facet_base_2_0 facetsub_stage_1) agg_stage_sub_1_1 UNION ALL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'b'::text), '{ "b" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson)) AS document FROM (SELECT facetsub_stage_2.document FROM facet_base_2_0 facetsub_stage_2) agg_stage_sub_1_0) agg_stage_sub_1_1 UNION ALL SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1.document, 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text) AS document FROM facet_base_2_0 facetsub_stage_3) agg_stage_sub_1_1)) agg_stage_2
+         Node: host=localhost port=58070 dbname=regression
+         ->  Aggregate
+               Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson)))
+               CTE facet_base_2_0
+                 ->  Aggregate
+                       Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))), 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))
+                       ->  Aggregate
+                             Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))), 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)
+                             ->  Aggregate
+                                   Output: documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)))
+                                   Filter: (documentdb_api_catalog.bson_object_agg((COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson))) OPERATOR(documentdb_api_catalog.#=) '{ "result" : true }'::documentdb_core.bsonquery)
+                                   ->  Aggregate
+                                         Output: COALESCE(documentdb_api_catalog.bson_array_agg(collection.document, 'results'::text), '{ "results" : [  ] }'::documentdb_core.bson)
+                                         ->  Bitmap Heap Scan on documentdb_data.documents_4110_411001 collection
+                                               Output: collection.shard_key_value, collection.object_id, collection.document
+                                               Recheck Cond: (collection.shard_key_value = '4110'::bigint)
+                                               Filter: (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "result" : true }'::documentdb_core.bson)
+                                               ->  Bitmap Index Scan on _id_
+                                                     Index Cond: (collection.shard_key_value = '4110'::bigint)
+               ->  Append
+                     ->  Aggregate
+                           Output: COALESCE(documentdb_api_catalog.bson_array_agg(documentdb_api_internal.bson_dollar_add_fields(facetsub_stage_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), 'a'::text), '{ "a" : [  ] }'::documentdb_core.bson)
+                           ->  CTE Scan on facet_base_2_0 facetsub_stage_1
+                                 Output: facetsub_stage_1.document
+                     ->  Aggregate
+                           Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))), 'b'::text), '{ "b" : [  ] }'::documentdb_core.bson)
+                           ->  Aggregate
+                                 Output: documentdb_core.bson_repath_and_build('d'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                                 ->  CTE Scan on facet_base_2_0 facetsub_stage_2
+                                       Output: facetsub_stage_2.document
+                     ->  Aggregate
+                           Output: COALESCE(documentdb_api_catalog.bson_array_agg((documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text)), 'c'::text), '{ "c" : [  ] }'::documentdb_core.bson)
+                           ->  ProjectSet
+                                 Output: documentdb_api_catalog.bson_dollar_unwind(facetsub_stage_3.document, '$a.b'::text)
+                                 ->  CTE Scan on facet_base_2_0 facetsub_stage_3
+                                       Output: facetsub_stage_3.document
+(42 rows)
 
 -- facet with parent transform:
 SELECT document FROM bson_aggregation_pipeline('db', 
