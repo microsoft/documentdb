@@ -1018,145 +1018,145 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_find('db',
 
 ROLLBACK;
 -- $lookup
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 1, "item" : "almonds", "price" : 12, "quantity" : 2 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 1, "movie_title" : "Interstellar", "ticket_price" : 15, "tickets_sold" : 120 }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders','{ "_id" : 2, "item" : "pecans", "price" : 20, "quantity" : 1 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings','{ "_id" : 2, "movie_title" : "Inception", "ticket_price" : 13, "tickets_sold" : 100 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 3, "item" : "bread", "price" : 10, "quantity" : 5 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 3, "movie_title" : "Dune", "ticket_price" : 18, "tickets_sold" : 95 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 4, "item" : ["almonds", "bread", "pecans"], "price" : 10, "quantity" : 5 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 4, "movie_title" : ["Interstellar", "Dune", "Inception"], "ticket_price" : 14, "tickets_sold" : 250 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 5}', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 5 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 6, "item" : {"a": "x", "b" : 1, "c" : [1, 2, 3]} }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 6, "movie_title" : {"a": "v", "b" : 2, "c" : [5, 6, 7]} }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_orders',' { "_id" : 7, "item" : [{"a": { "b" : 1}}, [1, 2, 3], 1, "x"] }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 7, "movie_title" : [{"a": { "b" : 2}}, [5, 6, 7], 9, "z"] }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory',' { "_id" : 11, "sku" : "almonds", "description": "product 1", "instock" : 120 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog',' { "_id" : 11, "title" : "Interstellar", "genre": "Sci-Fi", "available_seats" : 50 }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory',' { "_id" : 12, "sku" : "almonds", "description": "product 1", "instock" : 240 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog',' { "_id" : 12, "title" : "Interstellar", "genre": "Sci-Fi", "available_seats" : 70 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 13, "sku" : "bread", "description": "product 2", "instock" : 80 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 13, "title" : "Dune", "genre": "Sci-Fi", "available_seats" : 30 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 14, "sku" : "cashews", "description": "product 3", "instock" : 60 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 14, "title" : "Blade Runner", "genre": "Cyberpunk", "available_seats" : 40 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 15, "sku" : "pecans", "description": "product 4", "instock" : 70 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 15, "title" : "Inception", "genre": "Thriller", "available_seats" : 60 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 16, "sku" : null, "description": "product 4", "instock" : 70 }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 16, "title" : null, "genre": "Unknown", "available_seats" : 0 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 17, "sku" :  {"a": "x", "b" : 1, "c" : [1, 2, 3]}, "description": "complex object" }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 17, "title" :  {"a": "x", "b" : 1, "c" : [1, 2, 3]}, "genre": "Experimental" }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 18, "sku" : [{"a": { "b" : 1}}, [1, 2, 3], 1, "x"], "description": "complex array" }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 18, "title" : [{"a": { "b" : 1}}, [1, 2, 3], 1, "x"], "genre": "Experimental Array" }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','agg_pipeline_inventory','{ "_id" : 19, "sku" : [{"a": { "b" : 1}}, [1, 2, 3], 1, "x"], "description": "complex array" }', NULL);
+SELECT documentdb_api.insert_one('db','agg_pipeline_movie_catalog','{ "_id" : 19, "title" : [{"a": { "b" : 1}}, [1, 2, 3], 1, "x"], "genre": "Experimental Array" }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                document                                                                                                                                                                                                                                                                                                                                                 
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title" } } ], "cursor": {} }');
+                                                                                                                                                                        document                                                                                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }, { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }, { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "4" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
 (7 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } }, { "$sample": { "size": 3 } } ], "cursor": {} }');
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } }, { "$sample": { "size": 3 } } ], "cursor": {} }');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
@@ -1191,15 +1191,15 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 (29 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents("left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_core.bson_repath_and_build('efe'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson)) AS "funcName" FROM (SELECT lookup_subpipeline_substage_0.lookup_unwind AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind)) agg_stage_sub_1_0) agg_stage_sub_1_1), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_4111_411020 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4111'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_4112_411038 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '4112'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'sku'::text)) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents("left", (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(agg_stage_sub_1_1."funcName", 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS "funcName" FROM (SELECT documentdb_core.bson_repath_and_build('efe'::text, documentdb_api_catalog.bsonsum('{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson)) AS "funcName" FROM (SELECT lookup_subpipeline_substage_0.lookup_unwind AS "funcName" FROM documentdb_api_catalog.bson_lookup_unwind(lookup_non_inlined_stage_1."right", 'matched_docs'::text) lookup_subpipeline_substage_0(lookup_unwind)) agg_stage_sub_1_0) agg_stage_sub_1_1), true) AS document FROM (SELECT lookup_stage_1.document AS "left", "lookupRight_stage_1".document AS "right" FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "title" : "title" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_4111_411020 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4111'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_4112_411038 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '4112'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'title'::text)) "lookupRight_stage_1" ON (true))) lookup_non_inlined_stage_1
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
                Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (SubPlan 1), true)
@@ -1213,7 +1213,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      ->  Bitmap Heap Scan on documentdb_data.documents_4112_411038 collection_0_1
                            Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                            Recheck Cond: (collection_0_1.shard_key_value = '4112'::bigint)
-                           Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "sku" : "item" }'::documentdb_core.bson), 'sku'::text)
+                           Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "title" : "title" }'::documentdb_core.bson), 'title'::text)
                            ->  Bitmap Index Scan on _id_
                                  Index Cond: (collection_0_1.shard_key_value = '4112'::bigint)
                SubPlan 1
@@ -1227,269 +1227,269 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 (30 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "coll_dne", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "coll_dne", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [], "as": "c" } } ], "cursor": {} }');
-                                                                                                     document                                                                                                     
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [], "as": "c" } } ], "cursor": {} }');
+                                                                                                        document                                                                                                         
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "c" : [  ] }
  { "_id" : { "$numberInt" : "5" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "c" : [  ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "c" : [  ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "c" : [  ] }
 (7 rows)
 
 BEGIN;
 set local citus.enable_local_execution to off;
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                document                                                                                                                                                                                                                                                                                                                                                 
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title" } } ], "cursor": {} }');
+                                                                                                                                                                        document                                                                                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }, { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }, { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "4" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
 (7 rows)
 
 ROLLBACK;
-SELECT documentdb_api.shard_collection('db', 'agg_pipeline_orders', '{ "_id": "hashed" }', false);
+SELECT documentdb_api.shard_collection('db', 'agg_pipeline_movie_screenings', '{ "_id": "hashed" }', false);
  shard_collection 
 ---------------------------------------------------------------------
  
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                document                                                                                                                                                                                                                                                                                                                                                 
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title" } } ], "cursor": {} }');
+                                                                                                                                                                        document                                                                                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }, { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }, { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" } ] }
- { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "4" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
 (7 rows)
 
 BEGIN;
 set local citus.enable_local_execution to off;
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                document                                                                                                                                                                                                                                                                                                                                                 
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title" } } ], "cursor": {} }');
+                                                                                                                                                                        document                                                                                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }, { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }, { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" } ] }
- { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "4" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
 (7 rows)
 
 ROLLBACK;
-SELECT documentdb_api.shard_collection('db', 'agg_pipeline_inventory', '{ "_id": "hashed" }', false);
+SELECT documentdb_api.shard_collection('db', 'agg_pipeline_movie_catalog', '{ "_id": "hashed" }', false);
  shard_collection 
 ---------------------------------------------------------------------
  
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku" } } ], "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                document                                                                                                                                                                                                                                                                                                                                                 
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title" } } ], "cursor": {} }');
+                                                                                                                                                                        document                                                                                                                                                                        
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }, { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }, { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }, { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" } ] }
- { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }, { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "9" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "agg_pipeline_inventory", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "4" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "1" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "coll_dne", "as": "matched_docs", "localField": "item", "foreignField": "sku", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
-                                                                                                                           document                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "coll_dne", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
+                                                                                                                               document                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "efe" : { "$numberInt" : "0" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [], "as": "c" } } ], "cursor": {} }');
-                                                                                                     document                                                                                                     
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [], "as": "c" } } ], "cursor": {} }');
+                                                                                                        document                                                                                                         
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "c" : [  ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "c" : [  ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "c" : [  ] }
  { "_id" : { "$numberInt" : "5" }, "c" : [  ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "c" : [  ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "c" : [  ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "as": "matched_docs", "pipeline": [ { "$documents": [ { "a": 1}, { "a": 2 } ] }  ] } } ], "cursor": {} }');
-                                                                                                                                           document                                                                                                                                            
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "as": "matched_docs", "pipeline": [ { "$documents": [ { "a": 1}, { "a": 2 } ] }  ] } } ], "cursor": {} }');
+                                                                                                                                               document                                                                                                                                               
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [ { "a" : { "$numberInt" : "1" } }, { "a" : { "$numberInt" : "2" } } ] }
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "as": "matched_docs",  "foreignField": "foo", "localField": "_id", "pipeline": [ { "$documents": [ { "a": 1}, { "a": 2 } ] }  ] } } ], "cursor": {} }');
-                                                                                                          document                                                                                                           
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "as": "matched_docs",  "foreignField": "foo", "localField": "_id", "pipeline": [ { "$documents": [ { "a": 1}, { "a": 2 } ] }  ] } } ], "cursor": {} }');
+                                                                                                              document                                                                                                              
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "4" }, "item" : [ "almonds", "bread", "pecans" ], "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [  ] }
- { "_id" : { "$numberInt" : "6" }, "item" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "matched_docs" : [  ] }
- { "_id" : { "$numberInt" : "2" }, "item" : "pecans", "price" : { "$numberInt" : "20" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : [  ] }
- { "_id" : { "$numberInt" : "3" }, "item" : "bread", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : [  ] }
- { "_id" : { "$numberInt" : "7" }, "item" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "4" }, "movie_title" : [ "Interstellar", "Dune", "Inception" ], "ticket_price" : { "$numberInt" : "14" }, "tickets_sold" : { "$numberInt" : "250" }, "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "6" }, "movie_title" : { "a" : "v", "b" : { "$numberInt" : "2" }, "c" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }, "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "2" }, "movie_title" : "Inception", "ticket_price" : { "$numberInt" : "13" }, "tickets_sold" : { "$numberInt" : "100" }, "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "3" }, "movie_title" : "Dune", "ticket_price" : { "$numberInt" : "18" }, "tickets_sold" : { "$numberInt" : "95" }, "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "7" }, "movie_title" : [ { "a" : { "b" : { "$numberInt" : "2" } } }, [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], { "$numberInt" : "9" }, "z" ], "matched_docs" : [  ] }
  { "_id" : { "$numberInt" : "5" }, "matched_docs" : [  ] }
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" }, "matched_docs" : [  ] }
+ { "_id" : { "$numberInt" : "1" }, "movie_title" : "Interstellar", "ticket_price" : { "$numberInt" : "15" }, "tickets_sold" : { "$numberInt" : "120" }, "matched_docs" : [  ] }
 (7 rows)
 
 -- $lookup.pipeline Negative tests
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": { "$count": "efe" }, "as": "c" } } ], "cursor": {} }');
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": { "$count": "efe" }, "as": "c" } } ], "cursor": {} }');
 ERROR:  BSON field '$lookup.pipeline' is the wrong type 'object', expected type 'array'
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ "$count" ], "as": "c" } } ], "cursor": {} }');
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ "$count" ], "as": "c" } } ], "cursor": {} }');
 ERROR:  Pipeline stage for lookup pipeline must be a document
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { } ], "as": "c" } } ], "cursor": {} }');
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { } ], "as": "c" } } ], "cursor": {} }');
 ERROR:  A pipeline stage specification object must contain exactly one field.
 SELECT document FROM bson_aggregation_pipeline('db', 
-    '{ "aggregate": "agg_pipeline_orders", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { "$count": "efe", "$match": { "year": 2018 } } ], "as": "c" } } ], "cursor": {} }');
+    '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { "$count": "efe", "$match": { "year": 2018 } } ], "as": "c" } } ], "cursor": {} }');
 ERROR:  A pipeline stage specification object must contain exactly one field.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
 ERROR:  {aggregate: 1} is not valid for '$addFields'; a collection is required.
@@ -1501,7 +1501,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipelin
 ERROR:  {aggregate: 1} is not valid for '$skip'; a collection is required.
 -- test sort behavior on sharded/unsharded
 SELECT documentdb_distributed_test_helpers.mask_plan_id_from_distributed_subplan($Q$
-EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate" : "agg_pipeline_inventory", "pipeline" : [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } }, { "this_predicate_matches_nothing" : true } ] } }, { "$sort" : { "_id" : -1.0 } }, { "$limit" : 1.0 }, { "$project" : { "_id" : 1.0, "b" : { "$round" : "$a" } } } ], "cursor" : {  }, "lsid" : { "id" : { "$binary" : { "base64": "VJmzOaS5R46C4aFkQzrFaQ==", "subType" : "04" } } }, "$db" : "test" }')
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate" : "agg_pipeline_movie_catalog", "pipeline" : [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } }, { "this_predicate_matches_nothing" : true } ] } }, { "$sort" : { "_id" : -1.0 } }, { "$limit" : 1.0 }, { "$project" : { "_id" : 1.0, "b" : { "$round" : "$a" } } } ], "cursor" : {  }, "lsid" : { "id" : { "$binary" : { "base64": "VJmzOaS5R46C4aFkQzrFaQ==", "subType" : "04" } } }, "$db" : "test" }');
 $Q$);
                                                                                                                                                                                                  mask_plan_id_from_distributed_subplan                                                                                                                                                                                                  
 ---------------------------------------------------------------------
@@ -1638,35 +1638,35 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
                      Output: documentdb_api_internal.bson_dollar_add_fields(collection_0_1.document, '{ "newField" : "1", "a.y" : [ "p", "q" ] }'::documentdb_core.bson, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)
 (12 rows)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { "coll": "agg_pipeline_inventory", "pipeline": [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } } ] } } ] } } ], "cursor": {} }');
-                                                                                                               document                                                                                                                
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { "coll": "agg_pipeline_movie_catalog", "pipeline": [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } } ] } } ] } } ], "cursor": {} }');
+                                                                                                                document                                                                                                                
 ---------------------------------------------------------------------
  { "_id" : "1", "int" : { "$numberInt" : "10" }, "a" : { "b" : [ "x", { "$numberInt" : "1" }, { "$numberDouble" : "2.0" }, true ] } }
  { "_id" : "2", "double" : { "$numberDouble" : "2.0" }, "a" : { "b" : { "c" : { "$numberInt" : "3" } } } }
  { "_id" : "3", "boolean" : false, "a" : "no", "b" : "yes", "c" : true }
- { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }
- { "_id" : { "$numberInt" : "14" }, "sku" : "cashews", "description" : "product 3", "instock" : { "$numberInt" : "60" } }
- { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }
- { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } }
- { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" }
- { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }
- { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }
- { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } }
- { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }
+ { "_id" : { "$numberInt" : "12" }, "title" : "Interstellar", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "70" } }
+ { "_id" : { "$numberInt" : "14" }, "title" : "Blade Runner", "genre" : "Cyberpunk", "available_seats" : { "$numberInt" : "40" } }
+ { "_id" : { "$numberInt" : "19" }, "title" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "genre" : "Experimental Array" }
+ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "17" }, "title" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "genre" : "Experimental" }
+ { "_id" : { "$numberInt" : "11" }, "title" : "Interstellar", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "50" } }
+ { "_id" : { "$numberInt" : "13" }, "title" : "Dune", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "30" } }
+ { "_id" : { "$numberInt" : "15" }, "title" : "Inception", "genre" : "Thriller", "available_seats" : { "$numberInt" : "60" } }
+ { "_id" : { "$numberInt" : "18" }, "title" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "genre" : "Experimental Array" }
 (12 rows)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": { "nonexist": { "$exists": true } } }, { "$unionWith": { "coll": "agg_pipeline_inventory", "pipeline": [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } } ] } } ] } } ], "cursor": {} }');
-                                                                                                               document                                                                                                                
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": { "nonexist": { "$exists": true } } }, { "$unionWith": { "coll": "agg_pipeline_movie_catalog", "pipeline": [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } } ] } } ] } } ], "cursor": {} }');
+                                                                                                                document                                                                                                                
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "12" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "240" } }
- { "_id" : { "$numberInt" : "14" }, "sku" : "cashews", "description" : "product 3", "instock" : { "$numberInt" : "60" } }
- { "_id" : { "$numberInt" : "19" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }
- { "_id" : { "$numberInt" : "16" }, "sku" : null, "description" : "product 4", "instock" : { "$numberInt" : "70" } }
- { "_id" : { "$numberInt" : "17" }, "sku" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "description" : "complex object" }
- { "_id" : { "$numberInt" : "11" }, "sku" : "almonds", "description" : "product 1", "instock" : { "$numberInt" : "120" } }
- { "_id" : { "$numberInt" : "13" }, "sku" : "bread", "description" : "product 2", "instock" : { "$numberInt" : "80" } }
- { "_id" : { "$numberInt" : "15" }, "sku" : "pecans", "description" : "product 4", "instock" : { "$numberInt" : "70" } }
- { "_id" : { "$numberInt" : "18" }, "sku" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "description" : "complex array" }
+ { "_id" : { "$numberInt" : "12" }, "title" : "Interstellar", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "70" } }
+ { "_id" : { "$numberInt" : "14" }, "title" : "Blade Runner", "genre" : "Cyberpunk", "available_seats" : { "$numberInt" : "40" } }
+ { "_id" : { "$numberInt" : "19" }, "title" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "genre" : "Experimental Array" }
+ { "_id" : { "$numberInt" : "16" }, "title" : null, "genre" : "Unknown", "available_seats" : { "$numberInt" : "0" } }
+ { "_id" : { "$numberInt" : "17" }, "title" : { "a" : "x", "b" : { "$numberInt" : "1" }, "c" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }, "genre" : "Experimental" }
+ { "_id" : { "$numberInt" : "11" }, "title" : "Interstellar", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "50" } }
+ { "_id" : { "$numberInt" : "13" }, "title" : "Dune", "genre" : "Sci-Fi", "available_seats" : { "$numberInt" : "30" } }
+ { "_id" : { "$numberInt" : "15" }, "title" : "Inception", "genre" : "Thriller", "available_seats" : { "$numberInt" : "60" } }
+ { "_id" : { "$numberInt" : "18" }, "title" : [ { "a" : { "b" : { "$numberInt" : "1" } } }, [ { "$numberInt" : "1" }, { "$numberInt" : "2" }, { "$numberInt" : "3" } ], { "$numberInt" : "1" }, "x" ], "genre" : "Experimental Array" }
 (9 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { } } ], "cursor": {} }');
@@ -1686,23 +1686,23 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 (5 rows)
 
 -- $addFields nested usage
-SELECT documentdb_api.insert_one('db','aggregation_pipeline','{ "_id": 100, "student": "Maya", "homework": [10, 5, 10], "quiz": [10, 8], "extraCredit": 0 }', NULL);
+SELECT documentdb_api.insert_one('db','aggregation_pipeline','{ "_id": 100, "movie": "Nebula Drift", "critics": [7, 8, 9], "audience": [8, 7], "bonusPoints": 2 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','aggregation_pipeline','{ "_id": 200, "student": "Ryan", "homework": [5, 6, 5], "quiz": [8, 8], "extraCredit": 8 }', NULL);
+SELECT documentdb_api.insert_one('db','aggregation_pipeline','{ "_id": 200, "movie": "Quantum Heist", "critics": [6, 6, 7], "audience": [7, 6], "bonusPoints": 3 }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$match": { "extraCredit": { "$gte": 0 } } }, { "$addFields": { "totalHomework": { "$sum": "$homework" }, "totalQuiz": { "$sum": "$quiz" } }}, { "$addFields": { "totalScore": { "$add": [ "$totalHomework", "$totalQuiz", "$extraCredit" ]} }} ], "cursor": {} }');
-                                                                                                                                                                                      document                                                                                                                                                                                       
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$match": { "bonusPoints": { "$gte": 0 } } }, { "$addFields": { "totalCritics": { "$sum": "$critics" }, "totalAudience": { "$sum": "$audience" } } }, { "$addFields": { "totalScore": { "$add": [ "$totalCritics", "$totalAudience", "$bonusPoints" ] } } } ], "cursor": {} }');
+                                                                                                                                                                                           document                                                                                                                                                                                            
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "100" }, "student" : "Maya", "homework" : [ { "$numberInt" : "10" }, { "$numberInt" : "5" }, { "$numberInt" : "10" } ], "quiz" : [ { "$numberInt" : "10" }, { "$numberInt" : "8" } ], "extraCredit" : { "$numberInt" : "0" }, "totalHomework" : { "$numberInt" : "25" }, "totalQuiz" : { "$numberInt" : "18" }, "totalScore" : { "$numberInt" : "43" } }
- { "_id" : { "$numberInt" : "200" }, "student" : "Ryan", "homework" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "5" } ], "quiz" : [ { "$numberInt" : "8" }, { "$numberInt" : "8" } ], "extraCredit" : { "$numberInt" : "8" }, "totalHomework" : { "$numberInt" : "16" }, "totalQuiz" : { "$numberInt" : "16" }, "totalScore" : { "$numberInt" : "40" } }
+ { "_id" : { "$numberInt" : "100" }, "movie" : "Nebula Drift", "critics" : [ { "$numberInt" : "7" }, { "$numberInt" : "8" }, { "$numberInt" : "9" } ], "audience" : [ { "$numberInt" : "8" }, { "$numberInt" : "7" } ], "bonusPoints" : { "$numberInt" : "2" }, "totalCritics" : { "$numberInt" : "24" }, "totalAudience" : { "$numberInt" : "15" }, "totalScore" : { "$numberInt" : "41" } }
+ { "_id" : { "$numberInt" : "200" }, "movie" : "Quantum Heist", "critics" : [ { "$numberInt" : "6" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ], "audience" : [ { "$numberInt" : "7" }, { "$numberInt" : "6" } ], "bonusPoints" : { "$numberInt" : "3" }, "totalCritics" : { "$numberInt" : "19" }, "totalAudience" : { "$numberInt" : "13" }, "totalScore" : { "$numberInt" : "35" } }
 (2 rows)
 
 -- NumberDouble Range+1 and Range-1 Negative test $skip
@@ -2143,46 +2143,58 @@ SELECT check_lookup_stages_limit(1, 1000);
 
 RESET documentdb.aggregation_stages_limit;
 -- $lookup and $unwind stage combined when null results need to be preserved
-SELECT documentdb_api.insert_one('db','lookup_author','{ "_id": 1, "name": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_directors','{ "_id": 1, "name": "Alex Veridian" }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 1, "title" : "Pride and prejudice", "author": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_directors','{ "_id": 2, "name": "Morgan Slate" }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','lookup_movies','{ "_id": 1, "title": "Shadow Horizon", "director": "Alex Veridian" }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','lookup_books','{ "_id": 2, "title" : "Emma", "author": "Jane Austen" }', NULL);
+SELECT documentdb_api.insert_one('db','lookup_movies','{ "_id": 2, "title": "Neon Abyss", "director": "Morgan Slate" }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
-                                                                          document                                                                           
+SELECT documentdb_api.insert_one('db','lookup_movies','{ "_id": 3, "title": "Celestial Rift", "director": "Alex Veridian" }', NULL);
+                              insert_one                              
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "2" }, "title" : "Emma", "author" : "Jane Austen", "author-names" : { "_id" : { "$numberInt" : "1" }, "name" : "Jane Austen" } }
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_books", "pipeline": [{ "$lookup": { "from": "lookup_author", "localField": "author", "foreignField": "name", "as": "author-names" } }, { "$unwind": { "path": "$author-names", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Emma" } }] , "cursor": {} }');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_movies", "pipeline": [ { "$lookup": { "from": "lookup_directors", "localField": "director", "foreignField": "name", "as": "director_info" } }, { "$unwind": { "path": "$director_info", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Celestial Rift" } } ], "cursor": {} }');
+                                                                                   document                                                                                   
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "title" : "Celestial Rift", "director" : "Alex Veridian", "director_info" : { "_id" : { "$numberInt" : "1" }, "name" : "Alex Veridian" } }
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "lookup_movies", "pipeline": [ { "$lookup": { "from": "lookup_directors", "localField": "director", "foreignField": "name", "as": "director_info" } }, { "$unwind": { "path": "$director_info", "preserveNullAndEmptyArrays": true } }, { "$match": { "title": "Celestial Rift" } } ], "cursor": {} }');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'author-names'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "author" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_4118_411123 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4118'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_4117_411107 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '4117'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'name'::text)) "lookupRight_stage_1" ON (true))) agg_stage_1 WHERE (document OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Emma" }'::documentdb_core.bsonquery)
+         Query: SELECT document FROM (SELECT documentdb_api_internal.bson_dollar_merge_documents_at_path(lookup_stage_1.document, COALESCE("lookupRight_stage_1".document, '{ }'::documentdb_core.bson), 'director_info'::text) AS document FROM ((SELECT collection.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "director" }'::documentdb_core.bson) AS lookup_filter FROM documentdb_data.documents_4118_411123 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '4118'::bigint)) lookup_stage_1 LEFT JOIN LATERAL (SELECT lookup_right_query_stage_0.document FROM (SELECT collection_0_1.document FROM documentdb_data.documents_4117_411107 collection_0_1 WHERE (collection_0_1.shard_key_value OPERATOR(pg_catalog.=) '4117'::bigint)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'name'::text)) "lookupRight_stage_1" ON (true))) agg_stage_1 WHERE (document OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Celestial Rift" }'::documentdb_core.bsonquery)
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop Left Join
-               Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'author-names'::text)
-               Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "author" }'::documentdb_core.bson), 'name'::text)
-               Filter: (documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'author-names'::text) OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Emma" }'::documentdb_core.bsonquery)
+               Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'director_info'::text)
+               Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "name" : "director" }'::documentdb_core.bson), 'name'::text)
+               Filter: (documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, COALESCE(collection_0_1.document, '{ }'::documentdb_core.bson), 'director_info'::text) OPERATOR(documentdb_api_catalog.#=) '{ "title" : "Celestial Rift" }'::documentdb_core.bsonquery)
                ->  Bitmap Heap Scan on documentdb_data.documents_4118_411123 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document
                      Recheck Cond: (collection.shard_key_value = '4118'::bigint)
