@@ -179,9 +179,8 @@ SELECT * FROM bson_dollar_project('{"date": {"$date": "1930-12-31T11:59:00.000Z"
 (1 row)
 
 -- $week and $isoWeek 
--- $week range is 0-53, weeks are from Sunday-Saturday, and the 1st of the year starts on the first Sunday of the year, so any day of that year before
--- the first Sunday, is week 0.
--- $isoWeek follows ISO 8601, ranges is 1-53, weeks are Monday-Sunday, and the 1st of the year is the week that contains the year's first Thursday.
+-- $week range is 0-53, weeks are from Sunday-Saturday.
+-- $isoWeek ranges is 1-53, weeks are Monday-Sunday.
 -- 2023-01-01 is first Sunday of the year.
 SELECT * FROM bson_dollar_project('{"date": {"$date": "2023-01-01T07:30:10.5Z"}}', '{"week": {"$week": "$date"}, "isoWeek": {"$isoWeek": "$date"}}');
                            bson_dollar_project                            
@@ -260,9 +259,7 @@ SELECT * FROM bson_dollar_project('{"leapDate": {"$date": "2024-12-31T07:30:10.5
  { "leapDayOfYear" : { "$numberInt" : "366" }, "nonLeapDayOfYear" : { "$numberInt" : "365" } }
 (1 row)
 
--- $dayOfWeek and $isoDayOfWeek
--- $dayOfWeek is between 1 (Sunday) and 7 (Saturday).
--- $isoDayOfWeek is between 1 (Monday) and 7 (Sunday).
+-- $dayOfWeek and $isoDayOfWeek both are 1-7 following $week or $isoWeek.
 SELECT * FROM bson_dollar_project('{"date": {"$date": "2023-01-01T07:30:10.5Z"}}', '{"name": "Sunday", "dayOfWeek": {"$dayOfWeek": "$date"}, "isoDayOfWeek": {"$isoDayOfWeek": "$date"}}');
                                          bson_dollar_project                                          
 ---------------------------------------------------------------------
@@ -306,7 +303,6 @@ SELECT * FROM bson_dollar_project('{"date": {"$date": "2035-06-23T07:30:10.5Z"}}
 (1 row)
 
 -- $year and $isoWeekYear
--- $isoWeekYear returns the ISO 8601 week-numbering year that the date falls in.
 SELECT * FROM bson_dollar_project('{"date": {"$date": "2023-01-01T07:30:10.5Z"}}', '{"year": {"$year": "$date"}, "isoWeekYear": {"$isoWeekYear": "$date"}}');
                                 bson_dollar_project                                 
 ---------------------------------------------------------------------
@@ -481,7 +477,7 @@ SELECT * FROM bson_dollar_project('{"date": {"$date": "2035-06-23T07:30:10.5Z"}}
 ERROR:  $isoDayOfWeek requires a string for the timezone argument, but was given a bool (true)
 SELECT * FROM bson_dollar_project('{"date": {"$date": "2035-06-23T07:30:10.5Z"}}', '{"isoWeek": {"$isoWeek": {"date": "$date", "timezone": true}}}');
 ERROR:  $isoWeek requires a string for the timezone argument, but was given a bool (true)
--- date part operators: date option must be provided when argument is an object
+-- date part operators: object argument.
 SELECT * FROM bson_dollar_project('{ }', '{"year": {"$year": {"timezone": true}}}');
 ERROR:  missing 'date' argument to $year, provided: $year: { "timezone" : true }
 SELECT * FROM bson_dollar_project('{ }', '{"month": {"$month": {}}}');
@@ -508,7 +504,7 @@ SELECT * FROM bson_dollar_project('{ }', '{"isoDayOfWeek": {"$isoDayOfWeek": {"t
 ERROR:  missing 'date' argument to $isoDayOfWeek, provided: $isoDayOfWeek: { "timezone" : true }
 SELECT * FROM bson_dollar_project('{ }', '{"isoWeek": {"$isoWeek": {"timezone": true}}}');
 ERROR:  missing 'date' argument to $isoWeek, provided: $isoWeek: { "timezone" : true }
--- date part operators: when argument is object only date and timezone keys are accepted.
+-- date part operators: object with date and timezone arguments.
 SELECT * FROM bson_dollar_project('{ }', '{"year": {"$year": {"random": true}}}');
 ERROR:  unrecognized option to $year: "random"
 SELECT * FROM bson_dollar_project('{ }', '{"month": {"$month": {"foo": 1}}}');
@@ -535,7 +531,7 @@ SELECT * FROM bson_dollar_project('{ }', '{"isoDayOfWeek": {"$isoDayOfWeek": {"t
 ERROR:  unrecognized option to $isoDayOfWeek: "foo"
 SELECT * FROM bson_dollar_project('{ }', '{"isoWeek": {"$isoWeek": {"date": 1, "info": ""}}}');
 ERROR:  unrecognized option to $isoWeek: "info"
--- date part operators: when argument is array, it only accepts a single element in the array.
+-- date part operators: array argument, should be single element array.
 SELECT * FROM bson_dollar_project('{ }', '{"year": {"$year": [1, 2, 3]}}');
 ERROR:  $year accepts exactly one argument if given an array, but was given 3
 SELECT * FROM bson_dollar_project('{ }', '{"month": {"$month": []}}');
