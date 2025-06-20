@@ -123,7 +123,7 @@ static bool GeonearRangeConsistent(PG_FUNCTION_ARGS);
 
 /*
  * bson_gist_geometry_2d_options is GIST index support function to specify the index option in serialized format
- * this is useful to store the mongo 2d indexes options e.g. min, max or the name of the index
+ * this is useful to store the 2d indexes options e.g. min, max or the name of the index
  * which is shown in the explain plans.
  */
 Datum
@@ -481,7 +481,7 @@ PopulateGeospatialQueryState(IndexBsonGeospatialState *state,
 
 /*
  * bson_gist_geography_options is GIST index support function to specify the index option in serialized format
- * this is useful to store the mongo 2dsphere indexes options name of the index
+ * this is useful to store the 2dsphere indexes options name of the index
  * which is shown in the explain plans.
  */
 Datum

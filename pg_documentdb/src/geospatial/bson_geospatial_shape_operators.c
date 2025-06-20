@@ -3,7 +3,7 @@
  *
  * include/geospatial/bson_geospatial_shape_operators.c
  *
- * Methods for supporting multiple shape operators of mongodb
+ * Methods for supporting multiple shape operators
  *
  *-------------------------------------------------------------------------
  */
@@ -125,7 +125,7 @@ DatumWithDefaultSRID(Datum datum)
  * e.g. { $box: [[10, 10], [20, 20]], $center: [[10, 10], 10]}
  * returns $center shape operator & sets shapePointsOut to [[10, 10], 10]
  *
- * There are 5 shape operators defined by Mongo:
+ * There are 5 shape operators defined:
  * 1- $geometry - Spherical shape
  * 2- $box - Flat shape
  * 3- $polygon - Flat shape
@@ -175,8 +175,7 @@ GetShapeOperatorByValue(const bson_value_t *shapeValue, bson_value_t *shapePoint
 
 		if (shapeOperator->op == GeospatialShapeOperator_UNIQUEDOCS)
 		{
-			/* Ignore $unique for shape operators, this is deprecated but tests */
-			/* assert this jstests/core/geo_uniqueDocs.js */
+			/* Ignore $unique for shape operators */
 			continue;
 		}
 		indexOfValidShapeOperator++;
@@ -348,10 +347,10 @@ BsonValueGetPolygon(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 	}
 
 	/*
-	 * MongoDB doesn't have strict validation rules for 2d $polygon.
+	 * Postgis strict validation rules for 2d $polygon needs to be handled here.
 	 * e.g.
-	 * $polygon: [[1, 1], [1, 1], [1, 1]] is invalid in Postgis but this still returns Point[1, 1] in mongodb
-	 * $polygon: [[0, 0], [0, 2], [1, 1], [-1, 1]] is an invalid self intersecting polygon which is treated normally in mongodb
+	 * $polygon: [[1, 1], [1, 1], [1, 1]] is invalid in Postgis but this needs to returns Point[1, 1]
+	 * $polygon: [[0, 0], [0, 2], [1, 1], [-1, 1]] is an invalid self intersecting polygon which should be considered as normal
 	 *
 	 * So for all these cases we will just try to create a valid geometry polygon if it is not valid
 	 * We are not concerned about checking the validity first and then call make valid because it anyway

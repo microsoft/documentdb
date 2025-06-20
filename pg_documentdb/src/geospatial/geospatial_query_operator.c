@@ -194,9 +194,9 @@ PopulateBsonDollarGeoWithinQueryState(RuntimeBsonGeospatialState *runtimeState,
 
 	/*
 	 * Postgis provides ST_Within function but that doesn't provide the same
-	 * behavior as MongoDB, $geoWithin in Mongo also considers geometries that
-	 * are on the boundary to be `within` but Postgis makes the exception and
-	 * for boundary shapes.
+	 * behavior as $geoWithin, we need to also consider geometries that
+	 * are on the boundary to be `within` but Postgis within definition does not
+	 * guarantee that.
 	 *
 	 * So we use ST_Covers which includes geometries at the boundaries
 	 */
@@ -501,23 +501,23 @@ CompareGeoDatumsForDollarCenter(const ProcessCommonGeospatialState *state,
 
 /*
  * CompareForGeoWithinDatum compares the geospatial datum for $geoWithin operator.
- * There are few cases which are different from how Mongo protocol behaves:
+ * There are few cases which are different from the intended behavior of $geoWithin so we workaround them.
  *
- * Scenario 1: For a multi polygon geowithin queries, mongodb protocol returns "true" when all the region components of
+ * Scenario 1: For a multi polygon queries, $geoWithin returns "true" when all the region components of
  * the document is covered either by single or multiple components of query, but postgis assumes that only a single region of query
  * should contain all the region of document to be a match.
  *    e.g. Region A (Query) with 3 components A1, A2, A3
  *         Region B (Document) with 3 components B1, B2, B3
  *         Here let's assume A1, covers B1, A2 covers B2 and B3 and A3 doesn't cover any of the components of B
- *         MongoDB => This is a match because overall the document is covered fully by all the components of query,
- *                    it doesn't matter if all components of B are covered by a single component of A.
+ *         $geoWithin => This is a match because overall the document is covered fully by all the components of query,
+ *                       it doesn't matter if all components of B are covered by a single component of A.
  *         Postgis => This is not a match because B and all its component should be covered by a single component of A, which
  *                    is not the case here
  *
- *    To support this mongo behavior, we read individual components of documents and pass it to postgis, if all individual components are covered by query then we can
- *    consider this a mongo match
+ *    To support this behavior, we read individual components of documents and pass it to postgis, if all individual components are covered by query then we can
+ *    consider this a match
  *
- * Scenario 2: When polygons with holes are part of the comparision for geowithin, postgis has slightly different behavior then mongo db protocol where
+ * Scenario 2: When polygons with holes are part of the comparision for geowithin, postgis has slightly different behavior then $geoWithin where
  *       a) In postgis a polygon with hole doesn't cover itself
  *       b) Any polygon (with or without holes) doesn't consider other polygons which have holes in the covering region of first polygon.
  *
