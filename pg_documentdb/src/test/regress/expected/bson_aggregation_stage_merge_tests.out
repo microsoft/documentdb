@@ -2,7 +2,7 @@ SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documen
 SET documentdb.next_collection_id TO 780000;
 SET documentdb.next_collection_index_id TO 780000;
 --Test without Enabling feature flag of $merge
-SELECT documentdb_api.insert_one('sourceDB','withoutFlag',' { "_id" :  1, "item" : "almonds", "price" : 12, "quantity" : 2 }', NULL);
+SELECT documentdb_api.insert_one('sourceDB','withoutFlag',' { "_id" :  1, "country" : "India", "state" : "Rajasthan", "Code" : "RJ03" }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
@@ -116,13 +116,13 @@ SELECT document FROM documentdb_api.collection('defDb', 'defTar');
 (2 rows)
 
 -- simplest test case working
-SELECT documentdb_api.insert('db', '{"insert":"salaries", "documents":[
-   { "_id" : 1, "employee": "Ant", "salary": 100000, "fiscal_year": 2017 },
-   { "_id" : 2, "employee": "Bee", "salary": 120000, "fiscal_year": 2017 },
-   { "_id" : 3, "employee": "Ant", "salary": 115000, "fiscal_year": 2018 },
-   { "_id" : 4, "employee": "Bee", "salary": 145000, "fiscal_year": 2018 },
-   { "_id" : 5, "employee": "Cat", "salary": 135000, "fiscal_year": 2018 },
-   { "_id" : 6, "employee": "Cat", "salary": 150000, "fiscal_year": 2019 }
+SELECT documentdb_api.insert('db', '{"insert":"moviesDB", "documents":[
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 },
+   { "_id" : 2, "movie": "Captain America the winter soldier", "Budget": 170000000, "year": 2011 },
+   { "_id" : 3, "movie": "Aveneger Endgame", "Budget": 160000000, "year": 2012 },
+   { "_id" : 4, "movie": "Spider Man", "Budget": 150000000, "year": 2012 },
+   { "_id" : 5, "movie": "Iron Man 2", "Budget": 140000000, "year": 2013 },
+   { "_id" : 6, "movie": "Iron Man 1", "Budget": 130000000, "year": 2013 }
 ]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -130,26 +130,26 @@ NOTICE:  creating collection
  ("{ ""n"" : { ""$numberInt"" : ""6"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
 (1 row)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "salaries", "pipeline": [  {"$merge" : { "into": "budgets" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "moviesDB", "pipeline": [  {"$merge" : { "into": "budgets" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
                                                             cursorpage                                                            | continuation | persistconnection | cursorid 
 ----------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.salaries", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.moviesDB", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'budgets');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 -- simple test case target database is not same as source database
-SELECT documentdb_api.insert_one('sourceDB','sourceDumpData',' { "_id" :  1, "item" : "almonds", "price" : 12, "quantity" : 2 }', NULL);
+SELECT documentdb_api.insert_one('sourceDB','sourceDumpData',' { "_id" :  1, "country" : "India", "state" : "Rajasthan", "Code" : "RJ03" }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
@@ -164,17 +164,17 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT document FROM documentdb_api.collection('targetDB', 'targetDumpData');
-                                                            document                                                            
---------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "item" : "almonds", "price" : { "$numberInt" : "12" }, "quantity" : { "$numberInt" : "2" } }
+                                            document                                             
+-------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "country" : "India", "state" : "Rajasthan", "Code" : "RJ03" }
 (1 row)
 
 -- object id missing test
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "salaries", "pipeline": [ {"$project" : {"_id" : 0}}, {"$merge" : { "into": "budgets2" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "moviesDB", "pipeline": [ {"$project" : {"_id" : 0}}, {"$merge" : { "into": "budgets2" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
                                                             cursorpage                                                            | continuation | persistconnection | cursorid 
 ----------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.salaries", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.moviesDB", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
 SELECT count(document) FROM documentdb_api.collection('db', 'budgets2');
@@ -184,40 +184,40 @@ SELECT count(document) FROM documentdb_api.collection('db', 'budgets2');
 (1 row)
 
 -- test when merge input is string 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "salaries", "pipeline": [ {"$merge" : "normalString" } ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "moviesDB", "pipeline": [ {"$merge" : "normalString" } ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
                                                             cursorpage                                                            | continuation | persistconnection | cursorid 
 ----------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.salaries", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.moviesDB", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "salaries", "pipeline": [ {"$merge" : "dotted.String" } ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "moviesDB", "pipeline": [ {"$merge" : "dotted.String" } ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
                                                             cursorpage                                                            | continuation | persistconnection | cursorid 
 ----------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.salaries", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.moviesDB", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db','normalString');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 SELECT document FROM documentdb_api.collection('db', 'dotted.String');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 -- unique index test
@@ -329,12 +329,12 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "objectIDUniqueI
 
 --test source collection is sharded.
 SELECT documentdb_api.insert('db', '{"insert":"soruceShardedTest", "documents":[
-   { "_id" : 1, "employee": "Ant", "salary": 100000, "fiscal_year": 2017 },
-   { "_id" : 2, "employee": "Bee", "salary": 120000, "fiscal_year": 2017 },
-   { "_id" : 3, "employee": "Ant", "salary": 115000, "fiscal_year": 2018 },
-   { "_id" : 4, "employee": "Bee", "salary": 145000, "fiscal_year": 2018 },
-   { "_id" : 5, "employee": "Cat", "salary": 135000, "fiscal_year": 2018 },
-   { "_id" : 6, "employee": "Cat", "salary": 150000, "fiscal_year": 2019 }
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 },
+   { "_id" : 2, "movie": "Captain America the winter soldier", "Budget": 170000000, "year": 2011 },
+   { "_id" : 3, "movie": "Aveneger Endgame", "Budget": 160000000, "year": 2012 },
+   { "_id" : 4, "movie": "Spider Man", "Budget": 150000000, "year": 2012 },
+   { "_id" : 5, "movie": "Iron Man 2", "Budget": 140000000, "year": 2013 },
+   { "_id" : 6, "movie": "Iron Man 1", "Budget": 130000000, "year": 2013 }
 ]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -356,31 +356,31 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'soruceShardedTarget');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "soruceShardedTest", "pipeline": [{"$project" : { "_id" : 1, "employee" : 1, "salary" : {"$add" : ["$salary" , 1000]} }} ,{"$merge" : { "into": "soruceShardedTarget", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "soruceShardedTest", "pipeline": [{"$project" : { "_id" : 1, "employee" : 1, "Budget" : {"$add" : ["$Budget" , 1000]} }} ,{"$merge" : { "into": "soruceShardedTarget", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
                                                                 cursorpage                                                                 | continuation | persistconnection | cursorid 
 -------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
  { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.soruceShardedTest", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'soruceShardedTarget');
-                                            document                                            
-------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "101000" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "121000" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "116000" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "146000" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "136000" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "151000" } }
+                                   document                                    
+-------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "Budget" : { "$numberInt" : "180001000" } }
+ { "_id" : { "$numberInt" : "2" }, "Budget" : { "$numberInt" : "170001000" } }
+ { "_id" : { "$numberInt" : "3" }, "Budget" : { "$numberInt" : "160001000" } }
+ { "_id" : { "$numberInt" : "4" }, "Budget" : { "$numberInt" : "150001000" } }
+ { "_id" : { "$numberInt" : "5" }, "Budget" : { "$numberInt" : "140001000" } }
+ { "_id" : { "$numberInt" : "6" }, "Budget" : { "$numberInt" : "130001000" } }
 (6 rows)
 
 -- simple replace scenario
@@ -494,12 +494,12 @@ SELECT document FROM documentdb_api.collection('db','targetDataReplaceIdDiff');
 
 -- simple merge scenario
 SELECT documentdb_api.insert('db', '{"insert":"sourceWhenMatchMerge", "documents":[
-   { "_id" : 1, "employee": "Ant", "salary": 100000, "fiscal_year": 2017 },
-   { "_id" : 2, "employee": "Bee", "salary": 120000, "fiscal_year": 2017 },
-   { "_id" : 3, "employee": "Ant", "salary": 115000, "fiscal_year": 2018 },
-   { "_id" : 4, "employee": "Bee", "salary": 145000, "fiscal_year": 2018 },
-   { "_id" : 5, "employee": "Cat", "salary": 135000, "fiscal_year": 2018 },
-   { "_id" : 6, "employee": "Cat", "salary": 150000, "fiscal_year": 2019 }
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 },
+   { "_id" : 2, "movie": "Captain America the winter soldier", "Budget": 170000000, "year": 2011 },
+   { "_id" : 3, "movie": "Aveneger Endgame", "Budget": 160000000, "year": 2012 },
+   { "_id" : 4, "movie": "Spider Man", "Budget": 150000000, "year": 2012 },
+   { "_id" : 5, "movie": "Iron Man 2", "Budget": 140000000, "year": 2013 },
+   { "_id" : 6, "movie": "Iron Man 1", "Budget": 130000000, "year": 2013 }
 ]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -508,12 +508,12 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT documentdb_api.insert('db', '{"insert":"targetWhenMatchMerge", "documents":[
-   { "_id" : 1, "employee": "Ant", "salary": 100000, "fiscal_year": 2017 },
-   { "_id" : 2, "employee": "Bee", "salary": 120000, "fiscal_year": 2017 },
-   { "_id" : 3, "employee": "Ant", "salary": 115000, "fiscal_year": 2018 },
-   { "_id" : 4, "employee": "Bee", "salary": 145000, "fiscal_year": 2018 },
-   { "_id" : 5, "employee": "Cat", "salary": 135000, "fiscal_year": 2018 },
-   { "_id" : 6, "employee": "Cat", "salary": 150000, "fiscal_year": 2019 }
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 },
+   { "_id" : 2, "movie": "Captain America the winter soldier", "Budget": 170000000, "year": 2011 },
+   { "_id" : 3, "movie": "Aveneger Endgame", "Budget": 160000000, "year": 2012 },
+   { "_id" : 4, "movie": "Spider Man", "Budget": 150000000, "year": 2012 },
+   { "_id" : 5, "movie": "Iron Man 2", "Budget": 140000000, "year": 2013 },
+   { "_id" : 6, "movie": "Iron Man 1", "Budget": 130000000, "year": 2013 }
 ]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -529,14 +529,14 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceWhenMatch
 (1 row)
 
 select document from documentdb_api.collection('db', 'targetWhenMatchMerge');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 -- Let's Add one more column by projection and see if it merges in target collection.
@@ -552,20 +552,20 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceWhenMatch
 (1 row)
 
 select document from documentdb_api.collection('db', 'targetWhenMatchMerge');
-                                                                                 document                                                                                  
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" }, "new_column" : "testing merge" }
+                                                                                             document                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" }, "new_column" : "testing merge" }
 (6 rows)
 
 -- let's try to modify value of existing column of target collection. 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceWhenMatchMerge", 
 "pipeline": [ 
-               {"$project" : {"_id" : 1, "fiscal_year" : {"$add" : ["$fiscal_year" , 1]}}}, 
+               {"$project" : {"_id" : 1, "year" : {"$add" : ["$year" , 1]}}}, 
                {"$merge" : { "into": "targetWhenMatchMerge", "whenMatched" : "merge" }} 
             ], 
 "cursor": { "batchSize": 1 } }', 4294967294);
@@ -575,14 +575,14 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceWhenMatch
 (1 row)
 
 select document from documentdb_api.collection('db', 'targetWhenMatchMerge');
-                                                                                 document                                                                                  
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2018" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2018" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2019" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2019" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2019" }, "new_column" : "testing merge" }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2020" }, "new_column" : "testing merge" }
+                                                                                             document                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2012" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2012" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2013" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2013" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2014" }, "new_column" : "testing merge" }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2014" }, "new_column" : "testing merge" }
 (6 rows)
 
 -- let's create index and match on other key and try to merge when _id field on source and target ID are same
@@ -904,143 +904,145 @@ select document FROM documentdb_api.collection('db','targetMatchedIdTests');
 (3 rows)
 
 -- complex pipeline with last stage merge with replace and insert mode.
-SELECT documentdb_api.insert_one('db','pipelinefromMerge',' {"_id": 1, "name": "American Steak House", "food": ["filet", "sirloin"], "quantity": 100 , "beverages": ["beer", "wine"]}', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_src',' {"_id": 1, "company": "Company A", "products": ["product1", "product2"], "amount": 100 , "services": ["service1", "service2"]}', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','pipelinefromMerge','{ "_id": 2, "name": "Honest John Pizza", "food": ["cheese pizza", "pepperoni pizza"], "quantity": 120, "beverages": ["soda"]}', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_src','{ "_id": 2, "company": "Company B", "products": ["product3", "product4"], "amount": 120, "services": ["service3"]}', NULL);
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','pipelinetoMerge','{ "_id": 1, "item": "filet", "restaurant_name": "American Steak House"}', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_dest','{ "_id": 1, "item": "product1", "company_name": "Company A"}', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','pipelinetoMerge','{ "_id": 2, "item": "cheese pizza", "restaurant_name": "Honest John Pizza", "drink": "lemonade"}', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_dest','{ "_id": 2, "item": "product3", "company_name": "Company B", "extra": "value1"}', NULL);
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','pipelinetoMerge','{ "_id": 3, "item": "cheese pizza", "restaurant_name": "Honest John Pizza", "drink": "soda"}', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_dest','{ "_id": 3, "item": "product3", "company_name": "Company B", "extra": "value2"}', NULL);
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "pipelinetoMerge", 
-  "pipeline": 
-   [ 
-      { 
-      "$lookup": 
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "bson_agg_merge_dest", 
+   "pipeline": 
+    [ 
          { 
-            "from": "pipelinefromMerge", 
-            "pipeline": [ { "$match": { "quantity": { "$gt": 110 } }}], 
-            "as": "matched_docs", 
-            "localField": "restaurant_name", 
-            "foreignField": "name" 
-         }
-      },
-      {"$sort"  : {"_id" :  -1}} ,
-      {"$group" :{"_id" :  "$restaurant_name"}},
-      {"$project" : {"matched_docs" : 0}},
-      {"$merge" : { "into": "pipelineFinalMerge", "whenMatched": "replace", "whenNotMatched": "insert" }} 
-   ], "cursor": { "batchSize": 1 } }', 4294967294);
+         "$lookup": 
+             { 
+                  "from": "bson_agg_merge_src", 
+                  "pipeline": [ { "$match": { "amount": { "$gt": 110 } }}], 
+                  "as": "joined_docs", 
+                  "localField": "company_name", 
+                  "foreignField": "company" 
+             }
+         },
+         {"$sort"  : {"_id" :  -1}} ,
+         {"$group" :{"_id" :  "$company_name"}},
+         {"$project" : {"joined_docs" : 0}},
+         {"$merge" : { "into": "bson_agg_merge_final", "whenMatched": "replace", "whenNotMatched": "insert" }} 
+    ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
-                                                               cursorpage                                                                | continuation | persistconnection | cursorid 
------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.pipelinetoMerge", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+                                                                 cursorpage                                                                  | continuation | persistconnection | cursorid 
+---------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.bson_agg_merge_dest", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
-SELECT document FROM documentdb_api.collection('db','pipelineFinalMerge');
-              document              
-------------------------------------
- { "_id" : "American Steak House" }
- { "_id" : "Honest John Pizza" }
+SELECT document FROM documentdb_api.collection('db','bson_agg_merge_final');
+        document         
+-------------------------
+ { "_id" : "Company A" }
+ { "_id" : "Company B" }
 (2 rows)
 
 -- when target collection has array 
-SELECT documentdb_api.insert_one('db','sourceTargetHasArray',' { "_id" :  1, "a" : 1 }', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_src_array',' { "_id" :  1, "a" : 1 }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','sourceTargetHasArray',' { "_id" :  2, "a" : 5 }', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_src_array',' { "_id" :  2, "a" : 5 }', NULL);
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api.insert_one('db','targetTargetHasArray',' { "_id" :  1, "a" : [1,2,3,4] }', NULL);
+SELECT documentdb_api.insert_one('db','bson_agg_merge_dest_array',' { "_id" :  1, "a" : [1,2,3,4] }', NULL);
 NOTICE:  creating collection
                               insert_one                              
 ----------------------------------------------------------------------
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "targetTargetHasArray", "indexes": [{"key": {"a": 1}, "name": "index_2", "unique" : true}]}', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "bson_agg_merge_dest_array", "indexes": [{"key": {"a": 1}, "name": "index_2", "unique" : true}]}', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceTargetHasArray", "pipeline":[  {"$merge" : { "into": "targetTargetHasArray", "on" : "a", "whenMatched" : "replace", "whenNotMatched" : "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-                                                                  cursorpage                                                                  | continuation | persistconnection | cursorid 
-----------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.sourceTargetHasArray", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "bson_agg_merge_src_array", "pipeline":[  {"$merge" : { "into": "bson_agg_merge_dest_array", "on" : "a", "whenMatched" : "replace", "whenNotMatched" : "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+                                                                    cursorpage                                                                    | continuation | persistconnection | cursorid 
+--------------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.bson_agg_merge_src_array", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
 (1 row)
 
-SELECT document FROM documentdb_api.collection('db','target');
- document 
-----------
-(0 rows)
-
--- when query has sort clause
-SELECT documentdb_api.insert_one('db','sortClauseToTable','{ "_id": 1, "item": "cheese pizza", "restaurant_name": "Honest John Pizza", "drink": "soda"}', NULL);
-NOTICE:  creating collection
-                              insert_one                              
-----------------------------------------------------------------------
- { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
-(1 row)
-
-SELECT documentdb_api.insert_one('db','sortClauseToTable','{ "_id": 2, "item": "cheeseLess pizza", "restaurant_name": "DisHonest John Pizza", "drink": "pepsi"}', NULL);
-                              insert_one                              
-----------------------------------------------------------------------
- { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
-(1 row)
-
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sortClauseToTable",  "pipeline": [  {"$sort"  : {"_id" :  -1}} , {"$merge" : { "into": "sortClauseTarget", "whenMatched": "replace", "whenNotMatched": "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-NOTICE:  creating collection
-                                                                cursorpage                                                                 | continuation | persistconnection | cursorid 
--------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.sortClauseToTable", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
-(1 row)
-
-SELECT document FROM documentdb_api.collection('db','sortClauseTarget');
-                                                            document                                                            
---------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "2" }, "item" : "cheeseLess pizza", "restaurant_name" : "DisHonest John Pizza", "drink" : "pepsi" }
- { "_id" : { "$numberInt" : "1" }, "item" : "cheese pizza", "restaurant_name" : "Honest John Pizza", "drink" : "soda" }
+SELECT document FROM documentdb_api.collection('db','bson_agg_merge_dest_array');
+                             document                             
+------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : { "$numberInt" : "5" } }
 (2 rows)
 
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "pipelinetoMerge",  "pipeline": [  {"$sort"  : {"_id" :  -1}} , {"$group" : {"_id" :  "$_id"}}, {"$merge" : { "into": "sortClauseGroup", "whenMatched": "replace", "whenNotMatched": "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+-- when query has sort clause
+SELECT documentdb_api.insert_one('db','bson_agg_merge_sort_src','{ "_id": 1, "item": "product3", "company_name": "Company B", "extra": "value2"}', NULL);
 NOTICE:  creating collection
-                                                               cursorpage                                                                | continuation | persistconnection | cursorid 
------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
- { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.pipelinetoMerge", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
-SELECT document FROM documentdb_api.collection('db','sortClauseGroup');
+SELECT documentdb_api.insert_one('db','bson_agg_merge_sort_src','{ "_id": 2, "item": "product5", "company_name": "Company C", "extra": "value3"}', NULL);
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "bson_agg_merge_sort_src",  "pipeline": [  {"$sort"  : {"_id" :  -1}} , {"$merge" : { "into": "bson_agg_merge_sort_dest", "whenMatched": "replace", "whenNotMatched": "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+NOTICE:  creating collection
+                                                                   cursorpage                                                                    | continuation | persistconnection | cursorid 
+-------------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.bson_agg_merge_sort_src", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db','bson_agg_merge_sort_dest');
+                                                 document                                                  
+-----------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "item" : "product5", "company_name" : "Company C", "extra" : "value3" }
+ { "_id" : { "$numberInt" : "1" }, "item" : "product3", "company_name" : "Company B", "extra" : "value2" }
+(2 rows)
+
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "bson_agg_merge_dest",  "pipeline": [  {"$sort"  : {"_id" :  -1}} , {"$group" : {"_id" :  "$_id"}}, {"$merge" : { "into": "bson_agg_merge_sort_group", "whenMatched": "replace", "whenNotMatched": "insert" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+NOTICE:  creating collection
+                                                                 cursorpage                                                                  | continuation | persistconnection | cursorid 
+---------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.bson_agg_merge_dest", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db','bson_agg_merge_sort_group');
               document              
 ------------------------------------
  { "_id" : { "$numberInt" : "1" } }
@@ -1222,7 +1224,7 @@ NOTICE:  creating collection
 (12 rows)
 
 --explain when merge is not first stage of pipeline
-EXPLAIN (COSTS OFF)  SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{ "$match" : {"_id" :1}}, {"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{ "$match" : {"_id" :1}}, {"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
                                                                         QUERY PLAN                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
  Merge on documents_780052
@@ -1240,7 +1242,7 @@ SELECT documentdb_api.shard_collection('db', 'sourceExplain', '{ "a": "hashed" }
  
 (1 row)
 
-EXPLAIN (COSTS OFF)  SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
  Merge on documents_780052
@@ -1267,7 +1269,8 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
-EXPLAIN (COSTS OFF)  SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "on" : "a", "whenMatched" : "replace" }} ] }');
+-- citus will wrap our query in a subquery: SELECT document, target_shard_key_value FROM (our query) AS subquery
+EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "on" : "a", "whenMatched" : "replace" }} ] }');
                                                                      QUERY PLAN                                                                      
 -----------------------------------------------------------------------------------------------------------------------------------------------------
  Merge on documents_780052
@@ -1529,14 +1532,10 @@ SELECT documentdb_api.insert('db', '{"insert":"targetCollForView", "documents":[
  ("{ ""n"" : { ""$numberInt"" : ""1"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
 (1 row)
 
-SELECT documentdb_api.create_collection_view('db', '{ "create": "targetViewTest", "viewOn": "targetCollForView", "pipeline": [ { "$sort": { "a": 1 } } ] }');
-         create_collection_view         
-----------------------------------------
- { "ok" : { "$numberDouble" : "1.0" } }
-(1 row)
-
-SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "targetCollForView", "pipeline": [  {"$merge" : { "into" : "targetViewTest" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  Namespace db.targetViewTest is a view, not a collection
+SELECT documentdb_api.create_collection_view('db', '{ "create": "targetView", "viewOn": "targetCollForView", "pipeline": [ { "$sort": { "a": 1 } } ] }');
+ERROR:  ns: db.targetView already exists with different options: { "viewOn" : "aggregation_pipeline", "pipeline" : [ { "$project" : { "_id" : 1, "a" : 1 } } ] }
+SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "targetCollForView", "pipeline": [  {"$merge" : { "into" : "targetView" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
+ERROR:  Namespace db.targetView is a view, not a collection
 --Negative tests : when on field is missing/array in source document
 SELECT documentdb_api.insert('db', '{"insert":"sourceDataMissing", "documents":[{ "_id" : 3, "b": "c" }]}');
 NOTICE:  creating collection
@@ -1676,12 +1675,12 @@ ERROR:  The '_id' value cannot be of type array
 -- Basic Test with enable Native colocation
 SET documentdb.enableNativeColocation=true; 
 SELECT documentdb_api.insert('db', '{"insert":"nativeSrc", "documents":[
-   { "_id" : 1, "employee": "Ant", "salary": 100000, "fiscal_year": 2017 },
-   { "_id" : 2, "employee": "Bee", "salary": 120000, "fiscal_year": 2017 },
-   { "_id" : 3, "employee": "Ant", "salary": 115000, "fiscal_year": 2018 },
-   { "_id" : 4, "employee": "Bee", "salary": 145000, "fiscal_year": 2018 },
-   { "_id" : 5, "employee": "Cat", "salary": 135000, "fiscal_year": 2018 },
-   { "_id" : 6, "employee": "Cat", "salary": 150000, "fiscal_year": 2019 }
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 },
+   { "_id" : 2, "movie": "Captain America the winter soldier", "Budget": 170000000, "year": 2011 },
+   { "_id" : 3, "movie": "Aveneger Endgame", "Budget": 160000000, "year": 2012 },
+   { "_id" : 4, "movie": "Spider Man", "Budget": 150000000, "year": 2012 },
+   { "_id" : 5, "movie": "Iron Man 2", "Budget": 140000000, "year": 2013 },
+   { "_id" : 6, "movie": "Iron Man 1", "Budget": 130000000, "year": 2013 }
 ]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -1698,14 +1697,14 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'nativeTar');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 --replace
@@ -1716,14 +1715,14 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "nativeSrc", "pi
 (1 row)
 
 SELECT document FROM documentdb_api.collection('db', 'nativeTar');
-                                                                 document                                                                  
--------------------------------------------------------------------------------------------------------------------------------------------
- { "_id" : { "$numberInt" : "1" }, "employee" : "Ant", "salary" : { "$numberInt" : "100000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "2" }, "employee" : "Bee", "salary" : { "$numberInt" : "120000" }, "fiscal_year" : { "$numberInt" : "2017" } }
- { "_id" : { "$numberInt" : "3" }, "employee" : "Ant", "salary" : { "$numberInt" : "115000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "4" }, "employee" : "Bee", "salary" : { "$numberInt" : "145000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "5" }, "employee" : "Cat", "salary" : { "$numberInt" : "135000" }, "fiscal_year" : { "$numberInt" : "2018" } }
- { "_id" : { "$numberInt" : "6" }, "employee" : "Cat", "salary" : { "$numberInt" : "150000" }, "fiscal_year" : { "$numberInt" : "2019" } }
+                                                                             document                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "movie" : "Iron Man 3", "Budget" : { "$numberInt" : "180000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "2" }, "movie" : "Captain America the winter soldier", "Budget" : { "$numberInt" : "170000000" }, "year" : { "$numberInt" : "2011" } }
+ { "_id" : { "$numberInt" : "3" }, "movie" : "Aveneger Endgame", "Budget" : { "$numberInt" : "160000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "4" }, "movie" : "Spider Man", "Budget" : { "$numberInt" : "150000000" }, "year" : { "$numberInt" : "2012" } }
+ { "_id" : { "$numberInt" : "5" }, "movie" : "Iron Man 2", "Budget" : { "$numberInt" : "140000000" }, "year" : { "$numberInt" : "2013" } }
+ { "_id" : { "$numberInt" : "6" }, "movie" : "Iron Man 1", "Budget" : { "$numberInt" : "130000000" }, "year" : { "$numberInt" : "2013" } }
 (6 rows)
 
 SET documentdb.enableNativeColocation=false;

@@ -72,16 +72,15 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "3col", "pipelin
 
 -- lookup test
 -- create 4 column table for lookup
-SELECT documentdb_api.insert_one('db','pipelinefroms',' {"_id": 1, "name": "American Steak House", "food": ["filet", "sirloin"], "quantity": 100 , "beverages": ["beer", "wine"]}', NULL);
-SELECT documentdb_api.insert_one('db','pipelinefroms','{ "_id": 2, "name": "Honest John Pizza", "food": ["cheese pizza", "pepperoni pizza"], "quantity": 120, "beverages": ["soda"]}', NULL);
+SELECT documentdb_api.insert_one('db','three_column_data_table_from',' {"_id": 1, "col1": "Value1", "col2": ["item1", "item2"], "col3": 100 , "col4": ["item3", "item4"]}', NULL);
+SELECT documentdb_api.insert_one('db','three_column_data_table_from','{ "_id": 2, "col1": "Value2", "col2": ["item5", "item6"], "col3": 120, "col4": ["item7"]}', NULL);
 \d documentdb_data.documents_293002
 -- now create table with 3 column
 SET documentdb.enableDataTableWithoutCreationTime to on;
-SELECT documentdb_api.insert_one('db','pipelinetos','{ "_id": 1, "item": "filet", "restaurant_name": "American Steak House"}', NULL);
-SELECT documentdb_api.insert_one('db','pipelinetos','{ "_id": 2, "item": "cheese pizza", "restaurant_name": "Honest John Pizza", "drink": "lemonade"}', NULL);
-SELECT documentdb_api.insert_one('db','pipelinetos','{ "_id": 3, "item": "cheese pizza", "restaurant_name": "Honest John Pizza", "drink": "soda"}', NULL);
+SELECT documentdb_api.insert_one('db','three_column_data_table_to','{ "_id": 1, "item": "item1", "ref_col": "Value1"}', NULL);
+SELECT documentdb_api.insert_one('db','three_column_data_table_to','{ "_id": 2, "item": "item5", "ref_col": "Value2", "extra_col": "extra1"}', NULL);
+SELECT documentdb_api.insert_one('db','three_column_data_table_to','{ "_id": 3, "item": "item5", "ref_col": "Value2", "extra_col": "item7"}', NULL);
 \d documentdb_data.documents_293003
 
 SELECT document from bson_aggregation_pipeline('db', 
-  '{ "aggregate": "pipelinetos", "pipeline": [ { "$lookup": { "from": "pipelinefroms", "pipeline": [ { "$match": { "quantity": { "$gt": 110 } }}], "as": "matched_docs", "localField": "restaurant_name", "foreignField": "name" }} ], "cursor": {} }');
-
+  '{ "aggregate": "three_column_data_table_to", "pipeline": [ { "$lookup": { "from": "three_column_data_table_from", "pipeline": [ { "$match": { "col3": { "$gt": 110 } }}], "as": "matched_docs", "localField": "ref_col", "foreignField": "col1" }} ], "cursor": {} }');
