@@ -146,7 +146,14 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } } ], "cursor": {} }');
 
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }]}');
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } }]}');
+
+
 EXPlAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } } ], "cursor": {} }');
+
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }]}');
+EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline" : [{ "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet" : { "results" : [ { "$match" : { "result" : true } } ] } }, { "$facet": { "a" : [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ],  "b" : [ { "$count": "d" } ], "c": [ { "$unwind": "$a.b" } ] } }]}');
 
 -- facet with parent transform:
 SELECT document FROM bson_aggregation_pipeline('db', 
