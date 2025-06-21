@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/delete.c
+ * src/commands/delete.c
  *
  * Implementation of the delete command.
  *
@@ -504,7 +504,7 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 		{
 			if (!BSON_ITER_HOLDS_NUMBER(deletionIter))
 			{
-				/* for some reason, Mongo treats arbitrary types as valid limit 0 */
+				/* we treats arbitrary types as valid limit 0 */
 				limit = 0;
 			}
 			else
@@ -574,9 +574,8 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
  * If batchSpec->isOrdered is false, we continue with remaining tasks an
  * error.
  *
- * Using subtransactions is slightly different from Mongo, which effectively
- * does each delete operation in a separate transaction, but it has roughly
- * the same overall UX.
+ * We Use subtransactions which effectively
+ * does each delete operation in a separate transaction.
  */
 static void
 ProcessBatchDeletion(MongoCollection *collection, BatchDeletionSpec *batchSpec,

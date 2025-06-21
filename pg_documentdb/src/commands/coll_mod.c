@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/coll_mod.c
+ * src/commands/coll_mod.c
  *
  * Implementation of the collMod command.
  *-------------------------------------------------------------------------
@@ -145,12 +145,10 @@ command_coll_mod(PG_FUNCTION_ARGS)
 	 */
 
 	/*
-	 * Get the mongo collection with the right set of locks for coll_mod
-	 * Native mongo gets an exclusive lock on the complete database of the collection
-	 * (which means all the other collection as well because these can be part of the modification)
-	 *
-	 * We currently lock the collection data table only because none of the other option which can potentially
-	 * refer other collections are supported right now . e.g. viewOn, pipelines, validators etc
+	 * Acquire the appropriate lock on the collection for coll_mod.
+	 * An exclusive lock is obtained on the collection's data table.
+	 * Currently, only the collection itself is locked, since options that could affect
+	 * other collections (such as viewOn, pipelines, or validators) are not yet supported.
 	 */
 	Datum databaseDatum = PG_GETARG_DATUM(0);
 
@@ -425,7 +423,6 @@ ParseIndexSpecSetCollModOptions(bson_iter_t *indexSpecIter,
 			int64 expireAfterSeconds = BsonValueAsInt64(value);
 			if (expireAfterSeconds < 0)
 			{
-				/* this is interesting mongo db does not fail for this */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
 								errmsg(
 									"BSON field 'collMod.index.expireAfterSeconds' cannot be less than 0.")));
@@ -533,7 +530,7 @@ ModifyIndexSpecsInCollection(const MongoCollection *collection,
 	{
 		if (indexDetails.indexSpec.indexExpireAfterSeconds == NULL)
 		{
-			/* 5.0 doesn't allow non-TTL index to be converted to TTL index */
+			/* we doesn't allow non-TTL index to be converted to TTL index */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
 							errmsg("no expireAfterSeconds field to update")));
 		}

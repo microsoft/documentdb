@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/update.c
+ * src/commands/update.c
  *
  * Implementation of the update operation.
  *

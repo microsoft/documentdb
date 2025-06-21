@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/insert.c
+ * src/commands/insert.c
  *
  * Implementation of the insert operation.
  *

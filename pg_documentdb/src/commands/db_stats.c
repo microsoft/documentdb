@@ -109,7 +109,7 @@ command_db_stats(PG_FUNCTION_ARGS)
 	/* Truncate the fractional part of the scale */
 	scaleDouble = trunc(scaleDouble);
 
-	/* MongoDB docs don't mention this, but behaviour is to cap 'scale' to int32 */
+	/* The 'scale' value is capped to int32 for compatibility with expected behavior */
 	int32 scale = scaleDouble > INT32_MAX ? INT32_MAX :
 				  scaleDouble < INT32_MIN ? INT32_MIN :
 				  (int32) scaleDouble;

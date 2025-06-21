@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/drop_indexes.c
+ * src/commands/drop_indexes.c
  *
  * Implementation of the drop index operation.
  *
@@ -220,9 +220,7 @@ ProcessDropIndexesRequest(char *dbName, DropIndexesArg dropIndexesArg, bool
 		}
 
 		/* We need to do all prevalidation on all given index names and
-		* if none of them fails then only we should start dropping indexes.
-		* In Native MongoDB, we see that none of indexes are dropped
-		* if there are validation issues like 'index not found' etc. */
+		 * if none of them fails then only we should start dropping indexes. */
 		if (dropIndexConcurrently && indexesDetailsList != NIL)
 		{
 			ListCell *indexDetailsCell = NULL;
@@ -537,7 +535,7 @@ ParseDropIndexesArg(pgbson *arg)
 	while (bson_iter_next(&argIter))
 	{
 		/*
-		 * As Mongo does, we don't throw an error if we encounter with
+		 * we don't throw an error if we encounter with
 		 * definition of a field more than once.
 		 *
 		 * TODO: We should also not throw an error if there is a syntax error
@@ -550,10 +548,8 @@ ParseDropIndexesArg(pgbson *arg)
 		const char *argKey = bson_iter_key(&argIter);
 
 		/*
-		 * "deleteIndexes" command is deprecated but is still supported by Mongo v5
-		 * such that it is treated same as "dropIndexes" command. The bson message
-		 * that it takes and the error messages thrown are based on "dropIndexes",
-		 * so we don't need to do anything specific to support that command.
+		 * The "deleteIndexes" command is deprecated but still accepted as an alias for "dropIndexes".
+		 * The input and error handling are consistent with "dropIndexes", so no special handling is required.
 		 */
 		if (strcmp(argKey, "dropIndexes") == 0 ||
 			strcmp(argKey, "deleteIndexes") == 0)
@@ -638,7 +634,7 @@ ParseDropIndexesArg(pgbson *arg)
 	else if (dropIndexesArg.dropIndexMode == DROP_INDEX_BY_NAME_LIST &&
 			 list_length(dropIndexesArg.index.nameList) == 0)
 	{
-		/* Mongo allows passing an empty array too, so this is ok */
+		/* Passing an empty array is allowed, so this is ok */
 	}
 
 	return dropIndexesArg;
@@ -674,7 +670,7 @@ DropIndexesArgExpandIndexNameList(uint64 collectionId, DropIndexesArg *dropIndex
 
 
 /*
- * DropPostgresIndex drops GIN index that belongs to Mongo index with indexId.
+ * DropPostgresIndex drops GIN index with indexId.
  */
 void
 DropPostgresIndex(uint64 collectionId, int indexId, bool unique, bool concurrently,

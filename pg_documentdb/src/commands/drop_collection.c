@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/drop_collection.c
+ * src/commands/drop_collection.c
  *
  * Implementation of view and collection creation functions.
  *
