@@ -5,45 +5,45 @@ SET documentdb.next_collection_id TO 51100;
 SET documentdb.next_collection_index_id TO 51100;
 
 /* Insert data */
-SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 1, "item" : "apple", "amount" : 1, "year": 2021 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 2, "item" : "pecans", "amount" : 2, "year": 2021 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 3, "item" : "meat", "amount" : 5, "year": 2021}', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 4, "item" : "meat", "amount" : 7, "year": 2021}', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 5, "item" : "meat", "amount" : 20, "year": 2021 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 6, "item" : "apple", "amount" : 30, "year": 2022 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 7, "item" : "meat", "amount" : 60, "year": 2022 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 8, "item" : "pecans", "amount" : 62, "year": 2022 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 9, "item" : "bread", "amount" : 170, "year": 2023 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 10, "item" : "bread", "amount" : 300, "year": 2023 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 11, "item" : "pecans", "amount" : 320, "year": 2023 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 12, "item" : "pecans", "amount" : 350, "year": 2024 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 1, "product" : "apple", "price" : 1, "year": 2021 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 2, "product" : "peach", "price" : 2, "year": 2021 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 3, "product" : "melon", "price" : 5, "year": 2021}', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto',' { "_id" : 4, "product" : "melon", "price" : 7, "year": 2021}', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 5, "product" : "melon", "price" : 20, "year": 2021 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 6, "product" : "apple", "price" : 30, "year": 2022 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 7, "product" : "melon", "price" : 60, "year": 2022 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 8, "product" : "peach", "price" : 62, "year": 2022 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 9, "product" : "banana", "price" : 170, "year": 2023 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 10, "product" : "banana", "price" : 300, "year": 2023 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 11, "product" : "peach", "price" : 320, "year": 2023 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 12, "product" : "peach", "price" : 350, "year": 2024 }', NULL);
 
 /* positive cases: */
 -- $bucketAuto with only required fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3 } } ] }');
 -- $bucketAuto with diferent num of buckets
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 4 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 4 } } ] }');
 -- $bucketAuto with output fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "output": { "count": { "$sum": 1 }, "averageAmount": { "$avg": "$amount" } } } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": { "count": { "$sum": 1 }, "averageAmount": { "$avg": "$price" } } } } ] }');
 -- $bucketAuto without count in output fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "output": { "averageAmount": { "$avg": "$amount" } } } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": { "averageAmount": { "$avg": "$price" } } } } ] }');
 -- $bucketAuto with expression in groupBy field
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$amount", 1] }, "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$price", 1] }, "buckets": 3 } } ] }');
 -- $bucketAuto with another stage before it
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$match": { "item": "meat" } }, { "$bucketAuto": { "groupBy": "$amount", "buckets": 2 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$match": { "product": "melon" } }, { "$bucketAuto": { "groupBy": "$price", "buckets": 2 } } ] }');
 -- groupBy non-integar field
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$item", "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 3 } } ] }');
 -- unevenly distributed data
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 5 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 5 } } ] }');
 -- try granularity
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "granularity": "R5" } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": "R5" } } ] }');
 -- $bucketAuto with $let
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$let": { "vars": { "adjustedAmount": { "$multiply": ["$amount", 10] } }, "in": "$$adjustedAmount" }}, "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$let": { "vars": { "adjustedAmount": { "$multiply": ["$price", 10] } }, "in": "$$adjustedAmount" }}, "buckets": 3 } } ] }');
 -- With let at aggregation level
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "let": { "multiplier": 10 }, "pipeline": [ { "$bucketAuto": { "groupBy": { "$multiply": ["$amount", "$$multiplier"] }, "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "let": { "multiplier": 10 }, "pipeline": [ { "$bucketAuto": { "groupBy": { "$multiply": ["$price", "$$multiplier"] }, "buckets": 3 } } ] }');
 
 -- less buckets will be returned if the unique values are less than the buckets specified
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$item", "buckets": 8 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 8 } } ] }');
 -- Expand bucket: same value should go to the same bucket, even if this makes the buckets uneven
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$year", "buckets": 3 } } ] }');
 
@@ -98,29 +98,29 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 /* negative cases, validations: */
 -- required fields
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "buckets": 3 } } ] }');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount" } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price" } } ] }');
 -- groupBy must be a path with prefix $ or expression
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "amount", "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "price", "buckets": 3 } } ] }');
 -- buckets must be a positive integer
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": "abc" } } ] }');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3.1 } } ] }');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": -3 } } ] }');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 0 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": "abc" } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3.1 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": -3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 0 } } ] }');
 -- output must be document
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "output": 1 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": 1 } } ] }');
 -- unknown argument of $bucketAuto
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "unknown": 1 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "unknown": 1 } } ] }');
 
 -- granularity must be a string
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "granularity": 1 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": 1 } } ] }');
 -- unsupported granularity
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "granularity": "abc" } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": "abc" } } ] }');
 -- when has granularity, groupby value must be a non-negative number
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 3, "granularity": "POWERSOF2" } } ] }');
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$amount", 100] }, "buckets": 3, "granularity": "POWERSOF2" } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$price", 100] }, "buckets": 3, "granularity": "POWERSOF2" } } ] }');
 
 /* Explain */
-EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3 } } ] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3 } } ] }');
 
 
 /* running $bucketAuto with intermediate size of more than 100mb */
@@ -139,29 +139,29 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 
 
 /* sharded collection */
-SELECT documentdb_api.shard_collection('db', 'dollarBucketAuto', '{ "amount": "hashed" }', false);
+SELECT documentdb_api.shard_collection('db', 'dollarBucketAuto', '{ "price": "hashed" }', false);
 
 /* positive cases: */
 -- $bucketAuto with only required fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3 } } ] }');
 -- $bucketAuto with diferent num of buckets
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 4 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 4 } } ] }');
 -- $bucketAuto with output fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "output": { "count": { "$sum": 1 }, "averageAmount": { "$avg": "$amount" } } } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": { "count": { "$sum": 1 }, "averageAmount": { "$avg": "$price" } } } } ] }');
 -- $bucketAuto without count in output fields
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3, "output": { "averageAmount": { "$avg": "$amount" } } } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": { "averageAmount": { "$avg": "$price" } } } } ] }');
 -- $bucketAuto with expression in groupBy field
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$amount", 1] }, "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$price", 1] }, "buckets": 3 } } ] }');
 -- $bucketAuto with another stage before it
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$match": { "item": "bread" } }, { "$bucketAuto": { "groupBy": "$amount", "buckets": 2 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$match": { "product": "banana" } }, { "$bucketAuto": { "groupBy": "$price", "buckets": 2 } } ] }');
 -- groupBy non-integar field
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$item", "buckets": 3 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 3 } } ] }');
 -- unevenly distributed data
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 5 } } ] }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 5 } } ] }');
 -- test with null values
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 13, "item" : "pecans", "amount" : null, "year": 2024 }', NULL);
-SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 14, "item" : "pecans", "amount" : null, "year": 2024 }', NULL);
-SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 5 } } ] }');
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 13, "product" : "peach", "price" : null, "year": 2024 }', NULL);
+SELECT documentdb_api.insert_one('db','dollarBucketAuto','{ "_id" : 14, "product" : "peach", "price" : null, "year": 2024 }', NULL);
+SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 5 } } ] }');
 
 /* Explain */
-EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$amount", "buckets": 3 } } ] }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3 } } ] }');
