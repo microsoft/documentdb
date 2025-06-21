@@ -111,7 +111,7 @@ typedef bool (*CanInlineLookupStage)(const bson_value_t *stageValue, const
  */
 typedef struct AggregationStageDefinition
 {
-	/* The stage name in Mongo format (e.g. $addFields, $project) */
+	/* The stage name (e.g. $addFields, $project) */
 	const char *stage;
 
 	/* The function that will modify the pipeline for that stage - NULL if unsupported */
@@ -1610,7 +1610,7 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 				if (StringViewEqualsCString(&keyView, "projection"))
 				{
 					/* Validation handled in the stage processing */
-					/* TODO - Mongo validates projection even if collection is not present */
+					/* TODO - Protocol behavior validates projection even if collection is not present */
 					/* to align with that we may need to validate projection here, like $elemMatch envolve $jsonSchema */
 					projection = *value;
 					continue;
@@ -1716,7 +1716,7 @@ default_find_case:
 	if (!isNtoReturnSupported && hasNtoreturn)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5746102),
-						errmsg("Command is not supported for mongo version >= 5.1")));
+						errmsg("Command is not supported for cluster version >= 5.1")));
 	}
 
 	/* Find supports negative limit (as well as count) */
@@ -1844,7 +1844,7 @@ default_find_case:
 
 
 /*
- * Generates a query that is akin to the MongoDB $count query command
+ * Generates a query that is akin to $count command protocol.
  */
 Query *
 GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTimeout)
@@ -2033,7 +2033,7 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 
 
 /*
- * Generates a query that is akin to the MongoDB $distinct query command
+ * Generates a query that is akin to the $distinct command protocol.
  */
 Query *
 GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStatementTimeout)
@@ -2582,7 +2582,7 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
  * @param input:  this is a pointer which after parsing will hold input expression
  * @param p:  this is a pointer which after parsing will hold the p, i.e. the percentile array value
  * @param method: this is a pointer which after parsing will hold method
- * @param isMedianOp: this contains the name of the operator for error msg formatting purposes. This value is supposed to be $firstN/$lastN.
+ * @param isMedianOp: this contains the name of the operator for error msg formatting purposes.
  */
 void
 ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
@@ -2780,7 +2780,6 @@ HandleAddFields(const bson_value_t *existingValue, Query *query,
 /*
  * Handles the $bucket stage.
  * Converts to a $group stage with $_bucketInternal operator to handle bucket specific logics.
- * See bucket.md for more details.
  */
 static Query *
 HandleBucket(const bson_value_t *existingValue, Query *query,
@@ -3450,7 +3449,7 @@ HandleSkip(const bson_value_t *existingValue, Query *query,
 												Int64GetDatum(skipValue), false, true);
 	}
 
-	/* Postgres applies OFFSET after other layers. Mongo applies it first. to emulate this we need to
+	/* Postgres applies OFFSET after other layers. Protocol behavior applies it first. to emulate this we need to
 	 * Push down a subquery.
 	 */
 	context->requiresSubQuery = true;
@@ -3515,7 +3514,7 @@ HandleLimit(const bson_value_t *existingValue, Query *query,
 	}
 
 	/* PG applies projection before LIMIT - consequently if there was an error in the 11th
-	 * document and you do limit 10, PG would error out, but Mongo would not.
+	 * document and you do limit 10, PG would error out.
 	 * This is a nuance that requires a subquery.
 	 */
 	context->requiresSubQuery = true;
@@ -3899,7 +3898,7 @@ AddShardKeyAndIdFilters(const bson_value_t *existingValue, Query *query,
 
 	if (hasShardKeyFilters)
 	{
-		/* Mongo allows collation on _id field. We need to make sure we do that as well. We can't
+		/* Protocol behavior allows collation on _id field. We need to make sure we do that as well. We can't
 		 * push the Id filter to primary key index if the type needs to be collation aware (e.g., _id contains UTF8 )*/
 		bool isCollationAware;
 		bool isPointRead = false;
@@ -4699,7 +4698,7 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			}
 			else
 			{
-				/* match mongo behavior. */
+				/* match protocol defined behavior. */
 				Oid funcOid = BsonOrderByFunctionOid();
 				List *args = NIL;
 
