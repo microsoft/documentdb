@@ -34,7 +34,7 @@ SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "propert
 -- Must be a valid json type
 SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "properties" : { "name" : { "type": "hello" } } } }');
 
--- Json type "integer" not supported (MongoDB limitation)
+-- Json type "integer" not supported 
 SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "properties" : { "name" : { "type": "integer" } } } }');
 
 -- Array must not be empty
@@ -60,7 +60,7 @@ SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "propert
 -- Must be a valid json type
 SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "properties" : { "name" : { "bsonType": "hello" } } } }');
 
--- Bson type "integer" not supported (MongoDB limitation). "int" is supported
+-- Bson type "integer" not supported. "int" is supported
 SELECT bson_dollar_json_schema('{ "name":"pazu" }', '{ "$jsonSchema": { "properties" : { "name" : { "bsonType": "integer" } } } }');
 
 -- Array must not be empty

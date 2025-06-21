@@ -67,7 +67,7 @@ static bool IsBsonArrayUnique(const bson_value_t *value, bool ignoreKeyOrderInOb
 PG_FUNCTION_INFO_V1(bson_dollar_json_schema);
 
 /*
- * implements the Mongo's $jsonSchema operator functionality
+ * implements the $jsonSchema operator functionality
  * in the runtime. It generates a Json Schema Tree (and store it in cache),
  * then validates the given document against the Json Schema Tree.
  */

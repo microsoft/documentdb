@@ -733,7 +733,7 @@ GetBsonTypeEnumFromBsonTypeString(const char *bsonTypeStr)
 	}
 	else if (!strcmp(bsonTypeStr, "javascriptWithScope"))
 	{
-		/* Deprecated in MongoDB 4.4 */
+		/* Deprecated */
 		return BsonTypeFlag_CODEWSCOPE;
 	}
 	else if (!strcmp(bsonTypeStr, "int"))
