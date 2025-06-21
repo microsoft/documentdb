@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/commands_common.c
+ * src/commands/commands_common.c
  *
  * Implementation of a set of common methods for commands in general.
  *
@@ -34,7 +34,7 @@ extern int MaxCustomCommandTimeout;
 extern bool EnableVariablesSupportForWriteCommands;
 
 /*
- *  This is a list of Mongo command options that are not currently supported.
+ *  This is a list of command options that are not currently supported.
  *  At runtime, we ignore these optional fields.
  *
  *  Note: Please keep this array sorted.

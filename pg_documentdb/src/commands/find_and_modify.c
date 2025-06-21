@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/find_and_modify.c
+ * src/commands/find_and_modify.c
  *
  * Implementation of findAndModify command.
  *
@@ -245,7 +245,6 @@ ParseFindAndModifyMessage(pgbson *message)
 
 		bool knownField = true;
 
-		/* Mongo accepts findAndModify with both casings */
 		if (strcmp(key, "findAndModify") == 0 ||
 			strcmp(key, "findandmodify") == 0)
 		{

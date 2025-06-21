@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/create_collection_view.c
+ * src/commands/create_collection_view.c
  *
  * Implementation of view and collection creation functions.
  *

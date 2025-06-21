@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/validate.c
+ * src/commands/validate.c
  *
  * Implementation of the validate command.
  *
@@ -266,7 +266,7 @@ CheckIndisvalid(uint64 collectionId, ValidateResult *result)
 			HeapTuple tuple = tuptable->vals[row];
 
 			/* There are two columns in the result
-			 * 1. index_name: Mongo name of the index
+			 * 1. index_name: name of the index
 			 * 2. indisvalid: if the index is valid in pg_index
 			 */
 			int columnNumber = 1;

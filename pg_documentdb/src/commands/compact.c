@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/compact.c
+ * src/commands/compact.c
  *
  * Implementation of the blocking compact command.
  *-------------------------------------------------------------------------

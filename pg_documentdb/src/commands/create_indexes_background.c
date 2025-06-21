@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/create_indexes_background.c
+ * src/commands/create_indexes_background.c
  *
  * Implementation of the create index / reindex operation in background.
  *

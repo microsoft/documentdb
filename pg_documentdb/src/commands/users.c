@@ -392,7 +392,7 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 
 /*
  * ParseCreateUserSpec parses the wire
- * protocol message createUser() which creates a mongo user
+ * protocol message createUser() which creates a user
  */
 static void
 ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
@@ -728,7 +728,7 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 
 /*
  * ParseDropUserSpec parses the wire
- * protocol message dropUser() which drops a mongo user
+ * protocol message dropUser() which drops a user
  */
 static char *
 ParseDropUserSpec(pgbson *dropSpec)
@@ -781,7 +781,7 @@ ParseDropUserSpec(pgbson *dropSpec)
 
 /*
  * documentdb_extension_update_user implements the core logic to update a user.
- * In MongoDB a user with userAdmin privileges or root privileges can change
+ * In Mongo community edition a user with userAdmin privileges or root privileges can change
  * other users passwords. In postgres a superuser can change any users password.
  * A user with CreateRole privileges can change pwds of roles they created. Given
  * that ApiAdminRole has neither create role nor superuser privileges in our case
@@ -851,7 +851,7 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 
 /*
  * ParseUpdateUserSpec parses the wire
- * protocol message updateUser() which drops a mongo user
+ * protocol message updateUser() which drops a user
  */
 static void
 ParseUpdateUserSpec(pgbson *updateSpec, UpdateUserSpec *spec)
@@ -1200,7 +1200,7 @@ ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 /*
  * This method is mostly copied from pg_be_scram_build_secret in PG. The only substantial change
  * is that we use a default salt length of 28 as opposed to 16 used by PG. This is to ensure
- * compatiblity with compass, legacy mongo shell, c drivers, php drivers.
+ * compatiblity with drivers that expect a salt length of 28.
  */
 static char *
 PrehashPassword(const char *password)
@@ -1886,7 +1886,7 @@ GetAllUsersInfo(void)
 
 
 /*
- * WriteRoles writes MongoDB role information to a BSON array writer based on the parent role.
+ * WriteRoles writes role information to a BSON array writer based on the parent role.
  * This consolidates the role mapping logic used by both usersInfo and connectionStatus commands.
  */
 static void

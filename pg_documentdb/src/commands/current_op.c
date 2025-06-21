@@ -2,7 +2,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/current_op.c
+ * src/commands/current_op.c
  *
  * Implementation of the current_op command.
  *-------------------------------------------------------------------------
@@ -74,7 +74,7 @@ typedef struct
 	/* Seconds that the command is running */
 	int secs_running;
 
-	/* The mongo specific operationId for the operation */
+	/* The operationId for the operation */
 	const char *operationId;
 
 	/* The raw mongo table (if it could be determined) */
@@ -92,10 +92,10 @@ typedef struct
 	/* The seconds since the backend last state change */
 	int64 state_change_since;
 
-	/* Mongo collection name determined from the table name */
+	/* collection name determined from the table name */
 	const char *processedMongoCollection;
 
-	/* Mongo collection name determined from the table name */
+	/* collection name determined from the table name */
 	const char *processedMongoDatabase;
 
 	/* During processing, whether or not to add index build stats */
@@ -648,13 +648,12 @@ WorkerGetBaseActivities()
 /*
  * Given an activity on a worker node via SingleWorkerActivity,
  * writes the activity to the target pgbson_writer. The activity
- * is written in the Mongo Compatible currentOp format.
+ * is written in a format compatible with the currentOp command output.
  */
 static void
 WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 						   pgbson_writer *singleActivityWriter)
 {
-	/* First step - detect the mongo collection */
 	DetectMongoCollection(workerActivity);
 
 	PgbsonWriterAppendUtf8(singleActivityWriter, "shard", 5, "defaultShard");
@@ -966,7 +965,7 @@ DetectApiInternalSchemaCommand(const char *topLevelQuery, const char *schemaName
  * Parses the "query" of the pg_stat_activity and returns the top level "op"
  * for that query. Also updates the "command" document for the operation in the
  * writer.
- * Note that beyond Mongo's commands, we add a "workerCommand" type for internal
+ * Note that beyond standard commands, we add a "workerCommand" type for internal
  * queries e.g. the actual CREATE INDEX or ALTER TABLE, or the update_one calls.
  * TODO: Can we figure out a way to do a binary search for this code?
  */

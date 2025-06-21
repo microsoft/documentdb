@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/coll_stats.c
+ * src/commands/coll_stats.c
  *
  * Implementation of the collStats command.
  *-------------------------------------------------------------------------
@@ -121,7 +121,7 @@ command_coll_stats(PG_FUNCTION_ARGS)
 	/* Truncate the fractional part of the scale */
 	scaleDouble = trunc(scaleDouble);
 
-	/* MongoDB docs don't mention this, but behaviour is to cap 'scale' to int32 */
+	/* The 'scale' value is capped to int32 for compatibility with expected behavior */
 	int32 scale = scaleDouble > INT32_MAX ? INT32_MAX :
 				  scaleDouble < INT32_MIN ? INT32_MIN :
 				  (int32) scaleDouble;
@@ -901,9 +901,9 @@ BuildEmptyResponseMessage(CollStatsResult *result)
 	PgbsonWriterInit(&writer);
 
 	/*
-	 * Note: Compared to non-empty response, MongoDB returns fewer fields in empty response,
-	 * and the sequence of fields is also not aligned with non-empty response.
-	 * Setting the writer to write Int32 as empty collection can fit within int32 range
+	 * Note: For empty collections, the response includes only a subset of fields,
+	 * and the order of fields may differ from the response for non-empty collections.
+	 * Values are written as Int32 since empty collections will always fit within this range.
 	 */
 	PgbsonWriterAppendUtf8(&writer, "ns", 2, result->ns);
 	PgbsonWriterAppendInt32(&writer, "size", 4, 0);

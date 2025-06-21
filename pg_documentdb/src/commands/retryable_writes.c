@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/transaction/retryable_writes.
+ * src/commands/retryable_writes.
  *
  * Implementation of retryable write bookkeeping.
  *
