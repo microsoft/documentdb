@@ -1049,7 +1049,7 @@ ProcessDollarType(const bson_value_t *currentValue, bson_value_t *result)
 {
 	bson_type_t type = currentValue->value_type;
 
-	/* We need to cover the case where the expression is a field path and it doesn't exist, native Mongo returns 'missing'.
+	/* We need to cover the case where the expression is a field path and it doesn't exist, for compatibility, the expected behavior is to return 'missing'.
 	 * However, 'missing' is not a valid type name for other ops, so we cover here rather than in the common BsonTypeName method. */
 	char *name = type == BSON_TYPE_EOD ?
 				 MISSING_TYPE_NAME : BsonTypeName(type);
@@ -1562,7 +1562,7 @@ ProcessDollarToDate(const bson_value_t *currentValue, bson_value_t *result)
 		return;
 	}
 
-	/* Native mongo doesn't support int32 -> date conversion yet. */
+	/* int32 -> date conversion is not allowed. */
 	switch (currentValue->value_type)
 	{
 		case BSON_TYPE_DOUBLE:
@@ -2109,13 +2109,13 @@ ConvertStringToDecimal128(const bson_value_t *value)
 
 
 /* Performs validation that the provided string doesn't represent a hex number.
- * We only check for lowercase 'x' to match native mongo. */
+ * Only lowercase 'x' is considered a valid hexadecimal prefix in this context. */
 static void
 ValidateStringIsNotHexBase(const bson_value_t *value)
 {
 	Assert(value->value_type == BSON_TYPE_UTF8);
 
-	/* Native mongo only identifies lowercase x as hexadecimal value. */
+	/* Validation checks for lowercase 'x' following a leading '0'. */
 	if (value->value.v_utf8.len >= 2 &&
 		value->value.v_utf8.str[0] == '0' &&
 		value->value.v_utf8.str[1] == 'x')
