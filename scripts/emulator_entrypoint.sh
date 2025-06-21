@@ -261,8 +261,8 @@ fi
 cp /home/documentdb/gateway/SetupConfiguration.json /home/documentdb/gateway/SetupConfiguration_temp.json
 
 if [ -n "${DOCUMENTDB_PORT:-}" ]; then
-    echo "Updating MongoListenPort in the configuration file..."
-    jq ".MongoListenPort = $DOCUMENTDB_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
+    echo "Updating GatewayListenPort in the configuration file..."
+    jq ".GatewayListenPort = $DOCUMENTDB_PORT" /home/documentdb/gateway/SetupConfiguration_temp.json > /home/documentdb/gateway/SetupConfiguration_temp.json.tmp && \
     mv /home/documentdb/gateway/SetupConfiguration_temp.json.tmp /home/documentdb/gateway/SetupConfiguration_temp.json
 fi
 
