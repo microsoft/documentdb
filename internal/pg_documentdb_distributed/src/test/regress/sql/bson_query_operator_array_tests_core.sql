@@ -1,61 +1,61 @@
 
 -- some documents with mixed types
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 1, "a": 1 }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 2, "a": -500 }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 3, "a": { "$numberLong": "1000" } }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 4, "a": true }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 5, "a": "some string" }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 6, "a": { "b": 1 } }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 7, "a": { "$date": {"$numberLong": "123456"} } }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 1, "value": 42 }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 2, "value": -999 }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 3, "value": { "longNum": "2048" } }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 4, "value": false }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 5, "value": "alpha beta" }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 6, "value": { "subfield": 7 } }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 7, "value": { "dateField": { "longNum": "654321" } } }');
 
 -- now insert some documents with arrays with those terms
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 100, "a": [ 1, "some other string", true ] }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 101, "a": [ true, -500, { "b": 1 }, 4, 5, 6 ] }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 102, "a": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 100, "value": [ 42, "bravo charlie", false ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 101, "value": [ false, -999, { "subfield": 7 }, 8, 9, 10 ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 102, "value": [ false, -999, { "subfield": 7 }, 42, 99, { "dateField": { "longNum": "654321" } } ] }');
 
 -- now insert some documents with arrays of arrays of those terms
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 200, "a": [ 1, [ true, "some string" ] ] }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 201, "a": [ true, -500, { "b": 1 }, [ 1, "some other string", true ] ] }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 202, "a": [ [ true, -500, { "b": 1 }, 4, 5, 6 ] ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 200, "value": [ 42, [ false, "alpha beta" ] ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 201, "value": [ false, -999, { "subfield": 7 }, [ 42, "bravo charlie", false ] ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 202, "value": [ [ false, -999, { "subfield": 7 }, 8, 9, 10 ] ] }');
 
 -- insert empty arrays
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 300, "a": [ ] }');
-SELECT documentdb_api.insert_one('comp_arrdb', 'composite_array_ops', '{ "_id": 301, "a": [ [], "stringValue" ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 300, "value": [ ] }');
+SELECT documentdb_api.insert_one('array_query_db', 'array_operator_tests', '{ "_id": 301, "value": [ [], "zuluValue" ] }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$eq": [ 1, "some other string", true ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$eq": [ 42, "bravo charlie", false ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gt": [ 1, "some other string", true ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$gt": [ 42, "bravo charlie", false ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gte": [ 1, "some other string", true ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$gte": [ 42, "bravo charlie", false ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gt": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$gt": [ false, -999, { "subfield": 7 }, 42, 99, { "dateField": { "longNum": "654321" } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$gte": [ true, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$gte": [ false, -999, { "subfield": 7 }, 42, 99, { "dateField": { "longNum": "654321" } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$lt": [ false, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$lt": [ true, -999, { "subfield": 7 }, 42, 99, { "dateField": { "longNum": "654321" } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$lte": [ false, -500, { "b": 1 }, 1, 10, { "$date": {"$numberLong": "123456"} } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$lte": [ true, -999, { "subfield": 7 }, 42, 99, { "dateField": { "longNum": "654321" } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$eq": [ ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$eq": [ ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$in": [ [ 1, "some other string", true ], [ 1, [ true, "some string" ] ] ]} } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$in": [ [ 42, "bravo charlie", false ], [ 42, [ false, "alpha beta" ] ] ]} } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$in": [ [ 1, "some other string", true ], [ ] ]} } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$in": [ [ 42, "bravo charlie", false ], [ ] ]} } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 3 } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$size": 3 } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 2 } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$size": 2 } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$size": 0 } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$size": 0 } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ 1, true ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$all": [ 42, false ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ 1 ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$all": [ 42 ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ { "$elemMatch": { "$gt": 0 } }, { "$elemMatch": { "b": 1 } } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$all": [ { "$elemMatch": { "$gt": 0 } }, { "$elemMatch": { "subfield": 7 } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$all": [ { "$elemMatch": { "$gt": 4, "$lt": 6 } }, { "$elemMatch": { "b": 1 } } ] } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$all": [ { "$elemMatch": { "$gt": 8, "$lt": 10 } }, { "$elemMatch": { "subfield": 7 } } ] } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$elemMatch": { "$gt": 4, "$lt": 6 } } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$elemMatch": { "$gt": 8, "$lt": 10 } } } }');
 
-SELECT document FROM bson_aggregation_find('comp_arrdb', '{ "find": "composite_array_ops", "filter": { "a": { "$elemMatch": { "b": { "$gt": 0 } } } } }');
+SELECT document FROM bson_aggregation_find('array_query_db', '{ "find": "array_operator_tests", "filter": { "value": { "$elemMatch": { "subfield": { "$gt": 0 } } } } }');
