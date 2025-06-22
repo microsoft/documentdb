@@ -492,7 +492,7 @@ HandleDensify(const bson_value_t *existingValue, Query *query,
 
 	RangeTblEntry *rte = linitial(query->rtable);
 
-	bool isMongoDataTable = rte->rtekind == RTE_RELATION;
+	bool isCollectionDataTable = rte->rtekind == RTE_RELATION;
 
 	pgbson *densifySpec = PgbsonInitFromDocumentBsonValue(existingValue);
 	Const *densifySpecConst = MakeBsonConst(densifySpec);
@@ -503,7 +503,7 @@ HandleDensify(const bson_value_t *existingValue, Query *query,
 
 	/*
 	 * Special case for range mode densify.
-	 * Mongo generates documents in the range even when the collection is
+	 * Generate documents in the range even when the collection is
 	 * - Non existing.
 	 * - Empty collection.
 	 * - Filtered documents are 0.
@@ -519,10 +519,10 @@ HandleDensify(const bson_value_t *existingValue, Query *query,
 		query = GenerateUnionAllWithSelectNullQuery(query, context);
 
 		/* We create union all query now its not a data table alone anymore */
-		isMongoDataTable = false;
+		isCollectionDataTable = false;
 	}
 
-	if (!isMongoDataTable)
+	if (!isCollectionDataTable)
 	{
 		query = MigrateQueryToSubQuery(query, context);
 	}
@@ -533,7 +533,7 @@ HandleDensify(const bson_value_t *existingValue, Query *query,
 	Expr *partitionByFieldsExpr = NULL;
 	SortBy *sortByExpr = NULL;
 	Oid densifyFunctionOid = InvalidOid;
-	GetDensifyQueryExprs(&arguments, context, docExpr, isMongoDataTable,
+	GetDensifyQueryExprs(&arguments, context, docExpr, isCollectionDataTable,
 						 &partitionByFieldsExpr, &sortByExpr, &densifyFunctionOid);
 
 	/* Add the window function for densify */
@@ -1397,7 +1397,7 @@ GenerateAndWriteDocumentsInRange(const bson_value_t *minValue, const
 	if (compareResult == 0)
 	{
 		/*
-		 * Mongodb retains the last seen value and maintains its type.
+		 * Retain the last seen value and maintains its type.
 		 * Copy the original value of max as this is matched completely
 		 * and then add the step to maintain type
 		 */
