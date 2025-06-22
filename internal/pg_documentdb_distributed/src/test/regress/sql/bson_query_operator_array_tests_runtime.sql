@@ -11,7 +11,7 @@ set enable_seqscan TO on;
 set documentdb.forceUseIndexIfAvailable to on;
 set documentdb.forceDisableSeqScan to off;
 
-SELECT documentdb_api.drop_collection('comp_arrdb', 'composite_array_ops') IS NOT NULL;
-SELECT documentdb_api.create_collection('comp_arrdb', 'composite_array_ops') IS NOT NULL;
+SELECT documentdb_api.drop_collection('array_query_db', 'array_operator_tests') IS NOT NULL;
+SELECT documentdb_api.create_collection('array_query_db', 'array_operator_tests') IS NOT NULL;
 
 \i sql/bson_query_operator_array_tests_core.sql
