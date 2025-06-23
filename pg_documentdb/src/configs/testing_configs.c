@@ -71,6 +71,9 @@ extern int32 PEC_InternalDocumentSourceDensifyMaxMemoryBytes;
 #define DEFAULT_FORCE_DISABLE_SEQ_SCAN false
 bool ForceDisableSeqScan = DEFAULT_FORCE_DISABLE_SEQ_SCAN;
 
+#define DEFAULT_CURRENTOP_ADD_SQL_COMMAND false
+bool CurrentOpAddSqlCommand = DEFAULT_CURRENTOP_ADD_SQL_COMMAND;
+
 void
 InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -240,5 +243,12 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Whether to force disable sequential type scans on the collection."),
 		NULL, &ForceDisableSeqScan, DEFAULT_FORCE_DISABLE_SEQ_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.currentOpAddSqlCommand", newGucPrefix),
+		gettext_noop(
+			"Whether to add the SQL command to the current operation view."),
+		NULL, &CurrentOpAddSqlCommand, DEFAULT_CURRENTOP_ADD_SQL_COMMAND,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

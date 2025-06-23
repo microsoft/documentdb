@@ -134,6 +134,7 @@ static void WriteGlobalPidOfLockingProcess(SingleWorkerActivity *activity,
 static void WriteIndexSpec(SingleWorkerActivity *activity, pgbson_writer *commandWriter);
 
 extern char *CurrentOpApplicationName;
+extern bool CurrentOpAddSqlCommand;
 
 
 /* Single node scenario - the global_pid can be assumed to be just the one for the coordinator */
@@ -752,6 +753,12 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 	if (waitingForLock)
 	{
 		WriteGlobalPidOfLockingProcess(workerActivity, singleActivityWriter);
+	}
+
+	if (CurrentOpAddSqlCommand)
+	{
+		/* If the command requested the SQL command, add it */
+		PgbsonWriterAppendUtf8(singleActivityWriter, "sql", 3, workerActivity->query);
 	}
 
 	/* If the command requested logging index build progress, query and log it */
