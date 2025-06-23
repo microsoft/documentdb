@@ -156,7 +156,7 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	PgbsonToSinglePgbsonElement(currentValue, &currentValueElement);
 	if (!isnull && currentValueElement.bsonValue.value_type != BSON_TYPE_NULL)
 	{
-		/* As Mongo does, the filled value should be numeric or nullish. */
+		/* The filled value should be numeric or nullish. */
 		if (!BsonValueIsNumber(&currentValueElement.bsonValue))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
@@ -234,7 +234,7 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	}
 
 	/**
-	 * As Mongo does, the filled value should be numeric or nullish.
+	 * The filled value should be numeric or nullish.
 	 */
 	if (!BsonValueIsNumber(&stateData->nextValue))
 	{
@@ -244,7 +244,7 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	}
 
 	/**
-	 * As Mongo does, if both values are not Deciaml128, double will be returned; otherwise, Decimal128 will be returned.
+	 * If both values are not Deciaml128, double will be returned; otherwise, Decimal128 will be returned.
 	 */
 	if (stateData->preValue.value_type != BSON_TYPE_DECIMAL128 &&
 		stateData->nextValue.value_type != BSON_TYPE_DECIMAL128)
