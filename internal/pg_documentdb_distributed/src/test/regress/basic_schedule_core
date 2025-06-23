@@ -28,8 +28,8 @@ test: bson_query_operator_elemmatch_tests_explain_runtime
 test: bson_query_operator_elemmatch_tests_runtime
 test: bson_query_operator_elemmatch_tests_explain_index
 test: bson_query_operator_elemmatch_tests_index
+test: bson_query_operator_elemmatch_explain_composite
 
-test: bson_aggregation_pipeline_tests_index_pushdown
 test: bson_aggregates_distinct_tests
 test: bson_dollar_ops_query_bits_tests_runtime command_insert_procedure
 test: bson_dollar_ops_query_bits_tests_index
@@ -45,7 +45,7 @@ test: bson_dollar_operators_negation_tests_explain_index
 test: bson_dollar_operators_negation_tests_explain_runtime
 test: bson_dollar_ops_collation_tests_runtime 
 
-test: create_indexes_cosmos_vector
+test: create_indexes_cosmos_vector bson_aggregation_pipeline_tests_index_pushdown
 test: bson_query_operator_geospatial_tests_index
 test: bson_query_operator_geospatial_tests_explain_index
 test: bson_query_operator_geospatial_tests_explain_runtime
@@ -82,7 +82,7 @@ test: commands_create_drop_indexes_b commands_drop_indexes commands_create_index
 test: andor and and3 or9 bson_query_operator_tests_parameterized bson_query_disable_seqscan_tests
 test: bson_hash_indexes commands_find_and_modify bson_unique_index
 test: regex5_tests_runtime regex_options_runtime
-test: regex5_tests_index regex_options_index regex
+test: regex5_tests_index regex_options_index regex bson_aggregation_pipeline_tests_point_read
 test: bson_index_selection_tests commands_shard_collection commands_update
 
 test: commands_create_indexes_background

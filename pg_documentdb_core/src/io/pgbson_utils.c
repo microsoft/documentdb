@@ -1029,9 +1029,11 @@ TraverseBsonCore(bson_iter_t *documentIterator, const StringView *traversePath,
 											   &remainingPath, state,
 											   executionFunctions,
 											   inArrayContextInner);
+			bool isArrayIndexSearch = true;
 			if (!executionFunctions->ContinueProcessIntermediateArray(state,
 																	  bson_iter_value(
-																		  documentIterator)))
+																		  documentIterator),
+																	  isArrayIndexSearch))
 			{
 				return false;
 			}
@@ -1069,8 +1071,10 @@ TraverseBsonCore(bson_iter_t *documentIterator, const StringView *traversePath,
 																 inArrayContextInner);
 
 				const bson_value_t *nestedValue = bson_iter_value(&nestedIterator);
+				bool isArrayIndexSearch = false;
 				if (!executionFunctions->ContinueProcessIntermediateArray(state,
-																		  nestedValue))
+																		  nestedValue,
+																		  isArrayIndexSearch))
 				{
 					return false;
 				}

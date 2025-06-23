@@ -50,7 +50,8 @@ static bool HashIndexVisitArrayField(pgbsonelement *element, const StringView *f
 									 int
 									 arrayIndex, void *state);
 static bool HashIndexContinueProcessIntermediateArray(void *state, const
-													  bson_value_t *value);
+													  bson_value_t *value,
+													  bool isArrayIndexSearch);
 
 /*
  * Extension functions for handling hash index execution when traversing bson documents.
@@ -447,7 +448,8 @@ HashIndexVisitArrayField(pgbsonelement *element, const StringView *filterPath, i
 
 /* This function throws errors on encountering an array path during has indexing */
 static bool
-HashIndexContinueProcessIntermediateArray(void *state, const bson_value_t *value)
+HashIndexContinueProcessIntermediateArray(void *state, const bson_value_t *value,
+										  bool isArrayIndexSearch)
 {
 	HashIndexTraverseState *hashState = (HashIndexTraverseState *) state;
 	ThrowErrorArraysNotSupported(hashState->indexPath, -1);

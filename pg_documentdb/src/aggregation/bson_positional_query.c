@@ -87,7 +87,8 @@ static bool PositionalQueryVisitArrayField(pgbsonelement *element, const
 										   StringView *filterPath,
 										   int arrayIndex, void *state);
 static bool PositionalQueryContinueProcessIntermediateArray(void *state, const
-															bson_value_t *value);
+															bson_value_t *value, bool
+															isArrayIndexSearch);
 static void PositionalSetIntermediateArrayIndex(void *state, int32_t index);
 
 /* --------------------------------------------------------- */
@@ -341,7 +342,8 @@ ProcessSingleFuncExpr(FuncExpr *expr, List **finalList, bool isArrayMatch, const
  */
 static bool
 PositionalQueryContinueProcessIntermediateArray(void *state, const
-												bson_value_t *value)
+												bson_value_t *value, bool
+												isArrayIndexSearch)
 {
 	TraverseBsonPositionalQualState *queryState =
 		(TraverseBsonPositionalQualState *) state;
