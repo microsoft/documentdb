@@ -221,13 +221,13 @@ IndexStatsWorker(void *fcinfoPointer)
 				MemoryContext spiContext = MemoryContextSwitchTo(priorMemoryContext);
 
 				bool useLibPq = false;
-				const char *mongoIndexName = ExtensionIndexOidGetIndexName(indexOid,
-																		   useLibPq);
-				if (mongoIndexName != NULL)
+				const char *collectionIndexName = ExtensionIndexOidGetIndexName(indexOid,
+																				useLibPq);
+				if (collectionIndexName != NULL)
 				{
 					pgbsonelement element = { 0 };
-					element.path = mongoIndexName;
-					element.pathLength = strlen(mongoIndexName);
+					element.path = collectionIndexName;
+					element.pathLength = strlen(collectionIndexName);
 					element.bsonValue.value_type = BSON_TYPE_INT64;
 					element.bsonValue.value.v_int64 = indexAccesses;
 
@@ -331,7 +331,7 @@ ParseWorkerResults(List *workerResults)
 
 /*
  * This takes the output from each worker and creates an aggregated view
- * which dumps one row per index in the Mongo compatible format
+ * which dumps one row per index in the wire compatible format
  */
 static void
 MergeWorkerResults(MongoCollection *collection, List *workerResults,

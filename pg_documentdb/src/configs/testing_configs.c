@@ -207,7 +207,7 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 	DefineCustomBoolVariable(
 		psprintf("%s.enableNativeColocation", prefix),
 		gettext_noop(
-			"Determines whether to turn on colocation of tables in a given mongo database (and disabled outside the database)"),
+			"Determines whether to turn on colocation of tables in a given collection database (and disabled outside the database)"),
 		NULL, &EnableNativeColocation, DEFAULT_ENABLE_NATIVE_COLOCATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 

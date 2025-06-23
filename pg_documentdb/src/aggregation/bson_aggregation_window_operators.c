@@ -37,27 +37,28 @@
 /* --------------------------------------------------------- */
 
 /*
- * Custom FRAMEOPTION flags relevant to mongo $setWindowFields stage.
+ * Custom FRAMEOPTION flags relevant to $setWindowFields stage.
  *
  * Note: Make sure these flag values adhere to the existing FRAMEOPTION flags defined in PG
  * nodes/parsenodes.h and no flag should overlap with existing flags.
  */
-typedef enum FRAMEOPTION_MONGO
+typedef enum FRAMEOPTION_DOCUMENTDB
 {
-	FRAMEOPTION_MONGO_INVALID = 0x0,
-	FRAMEOPTION_MONGO_RANGE_UNITS = 0x1000000,
-	FRAMEOPTION_MONGO_UNKNOWN_FIELDS = 0x2000000
-} FRAMEOPTION_MONGO;
+	FRAMEOPTION_DOCUMENTDB_INVALID = 0x0,
+	FRAMEOPTION_DOCUMENTDB_RANGE_UNITS = 0x1000000,
+	FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS = 0x2000000
+} FRAMEOPTION_DOCUMENTDB;
 
-#define FRAMEOPTION_MONGO_ONLY (FRAMEOPTION_MONGO_RANGE_UNITS | \
-								FRAMEOPTION_MONGO_UNKNOWN_FIELDS)
+#define FRAMEOPTION_DOCUMENTDB_ONLY (FRAMEOPTION_DOCUMENTDB_RANGE_UNITS | \
+									 FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS)
 
-/* Default Frame options for mongodb are documents window with unbounded preceding and unboudnded following */
-#define FRAMEOPTION_MONGO_SETWINDOWFIELDS_DEFAULT (FRAMEOPTION_NONDEFAULT | \
-												   FRAMEOPTION_ROWS | \
-												   FRAMEOPTION_START_UNBOUNDED_PRECEDING | \
-												   FRAMEOPTION_BETWEEN | \
-												   FRAMEOPTION_END_UNBOUNDED_FOLLOWING)
+/* Default Frame options for DocumentDB - documents window with unbounded preceding and unboudnded following */
+#define FRAMEOPTION_DOCUMENTDB_SETWINDOWFIELDS_DEFAULT (FRAMEOPTION_NONDEFAULT | \
+														FRAMEOPTION_ROWS | \
+														FRAMEOPTION_START_UNBOUNDED_PRECEDING \
+														| \
+														FRAMEOPTION_BETWEEN | \
+														FRAMEOPTION_END_UNBOUNDED_FOLLOWING)
 
 /* $setWindowFields `sort` options, required for the validation against different combinations
  * with range/documents based windows or window aggregation operators.
@@ -398,8 +399,8 @@ EnsureValidWindowSpec(int frameOptions)
 {
 	if ((frameOptions & FRAMEOPTION_ROWS) != FRAMEOPTION_ROWS &&
 		(frameOptions & FRAMEOPTION_RANGE) != FRAMEOPTION_RANGE &&
-		(frameOptions & FRAMEOPTION_MONGO_UNKNOWN_FIELDS) ==
-		FRAMEOPTION_MONGO_UNKNOWN_FIELDS)
+		(frameOptions & FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS) ==
+		FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS)
 	{
 		/* Only unknwon fields are provided */
 		ereport(ERROR, (
@@ -416,22 +417,23 @@ EnsureValidWindowSpec(int frameOptions)
 	}
 
 	if ((frameOptions & FRAMEOPTION_ROWS) == FRAMEOPTION_ROWS &&
-		(frameOptions & FRAMEOPTION_MONGO_UNKNOWN_FIELDS) ==
-		FRAMEOPTION_MONGO_UNKNOWN_FIELDS)
+		(frameOptions & FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS) ==
+		FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS)
 	{
 		/* Document window with unknown fields */
 		ThrowExtraInvalidFrameOptions("documents", "");
 	}
 
 	if ((frameOptions & FRAMEOPTION_RANGE) == FRAMEOPTION_RANGE &&
-		(frameOptions & FRAMEOPTION_MONGO_UNKNOWN_FIELDS) ==
-		FRAMEOPTION_MONGO_UNKNOWN_FIELDS)
+		(frameOptions & FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS) ==
+		FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS)
 	{
 		/* Range window with unknown field */
 		ThrowExtraInvalidFrameOptions("range", "besides 'unit'");
 	}
 
-	if ((frameOptions & FRAMEOPTION_MONGO_RANGE_UNITS) == FRAMEOPTION_MONGO_RANGE_UNITS &&
+	if ((frameOptions & FRAMEOPTION_DOCUMENTDB_RANGE_UNITS) ==
+		FRAMEOPTION_DOCUMENTDB_RANGE_UNITS &&
 		(frameOptions & FRAMEOPTION_RANGE) != FRAMEOPTION_RANGE)
 	{
 		/* Units without range */
@@ -514,7 +516,7 @@ HandleSetWindowFields(const bson_value_t *existingValue, Query *query,
 /*
  * $setWindowFields aggregation stage handler.
  * This function constructs the query AST for Window aggregation operators over a partition defined by the $setWindowFields spec.
- * MongoDB spec is:
+ * The spec is of the form:
  * {
  *     $setWindowFields:{
  *         partitionBy: <expression>,
@@ -895,12 +897,12 @@ UpdateWindowOperatorAndFrameOptions(const bson_value_t *windowOpValue,
 	if (frameOptions == 0)
 	{
 		/* If no frame options are set, then default to document unbounded, unbounded */
-		frameOptions = FRAMEOPTION_MONGO_SETWINDOWFIELDS_DEFAULT;
+		frameOptions = FRAMEOPTION_DOCUMENTDB_SETWINDOWFIELDS_DEFAULT;
 	}
 	*allFrameOptions |= frameOptions;
 
 	/* In the window frameOptions strip documentdb specific options */
-	windowClause->frameOptions = frameOptions & (~FRAMEOPTION_MONGO_ONLY);
+	windowClause->frameOptions = frameOptions & (~FRAMEOPTION_DOCUMENTDB_ONLY);
 
 	/* entry should not remain NULL at this point */
 	Assert(entry != NULL);
@@ -947,15 +949,15 @@ UpdatePartitionAndSortClauses(Query *query, Expr *docExpr,
 	if (sortOptions != NIL && list_length(sortOptions) > 0)
 	{
 		/*
-		 * In MongoDB all the sort clauses are common for all the window definitions.
+		 * The sort clauses are common for all the window definitions.
 		 * So we decide here which ORDER BY function is needed to be called based on the all
 		 * window definitions.
 		 * If all windows are document based : BsonOrderBy
 		 * If 1/more range windows : BsonOrderByPartition
 		 */
 		bool isRangeWindow = (allFrameOptions & FRAMEOPTION_RANGE) == FRAMEOPTION_RANGE;
-		bool isTimeRangeWindow = (allFrameOptions & FRAMEOPTION_MONGO_RANGE_UNITS) ==
-								 FRAMEOPTION_MONGO_RANGE_UNITS;
+		bool isTimeRangeWindow = (allFrameOptions & FRAMEOPTION_DOCUMENTDB_RANGE_UNITS) ==
+								 FRAMEOPTION_DOCUMENTDB_RANGE_UNITS;
 
 		ListCell *lc;
 		foreach(lc, sortOptions)
@@ -1165,7 +1167,7 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 			{
 				/* Set the range based frame offsets */
 				bool isTimeBasedRangeWindow = (*frameOptions &
-											   FRAMEOPTION_MONGO_RANGE_UNITS);
+											   FRAMEOPTION_DOCUMENTDB_RANGE_UNITS);
 				Oid inRangeFunctionOid = isTimeBasedRangeWindow ?
 										 BsonInRangeIntervalFunctionId() :
 										 BsonInRangeNumericFunctionId();
@@ -1320,7 +1322,7 @@ ThrowInvalidWindowValue(const char * windowType, const bson_value_t * value)
 
 /*
  * Update the window options for the given window operator and update the window clause
- * MongoDB spec of window operator is as follows:
+ * Spec of window operator is as follows:
  * {... window: { documnets: [start, end] }}
  * {... window: { range: [start, end], <unit: "unit">}}
  *
@@ -1358,7 +1360,7 @@ UpdateWindowOptions(const pgbsonelement *element, WindowClause *windowClause,
 		}
 		else if (strcmp(windowKey, "unit") == 0)
 		{
-			*frameOptions |= FRAMEOPTION_MONGO_RANGE_UNITS;
+			*frameOptions |= FRAMEOPTION_DOCUMENTDB_RANGE_UNITS;
 			if (windowValue->value_type != BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
@@ -1375,7 +1377,7 @@ UpdateWindowOptions(const pgbsonelement *element, WindowClause *windowClause,
 		}
 		else
 		{
-			*frameOptions |= FRAMEOPTION_MONGO_UNKNOWN_FIELDS;
+			*frameOptions |= FRAMEOPTION_DOCUMENTDB_UNKNOWN_FIELDS;
 		}
 	}
 
