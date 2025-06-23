@@ -389,11 +389,14 @@ UpdatePathsToForceRumIndexScanToBitmapHeapScan(PlannerInfo *root, RelOptInfo *re
 			 *  taking the BitmapHeapScan path only when the selectivity is low
 			 *  (more rows), and using IndexScan when selectivity is high (few rows).
 			 */
+			Path *origPath = inputPath;
 			inputPath = (Path *) create_bitmap_heap_path(root, rel,
 														 inputPath,
 														 rel->lateral_relids, 1.0,
 														 0);
 
+			/* Copy any param path info (lookup scenarios) */
+			inputPath->param_info = origPath->param_info;
 			cell->ptr_value = inputPath;
 		}
 	}

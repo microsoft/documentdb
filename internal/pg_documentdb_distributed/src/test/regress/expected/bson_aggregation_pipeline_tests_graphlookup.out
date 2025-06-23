@@ -391,9 +391,9 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson
                                                  Output: collection_0_2_1.document
                                                  ->  Bitmap Heap Scan on documentdb_data.documents_9123_912079 collection_0_2_1
                                                        Output: collection_0_2_1.document
-                                                       Recheck Cond: (documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_2_1.document, documentdb_api_internal.bson_expression_get("lookupRecursive_stage_1".document, '{ "name" : { "$makeArray" : "$friends" } }'::documentdb_core.bson, false, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson), 'name'::text) AND (collection_0_2_1.document OPERATOR(documentdb_api_catalog.@<=) '{ "hobbies" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                                       Recheck Cond: (collection_0_2_1.document OPERATOR(documentdb_api_catalog.@<=) '{ "hobbies" : { "$numberInt" : "3" } }'::documentdb_core.bson)
                                                        ->  Bitmap Index Scan on name_1_hobbies_1
-                                                             Index Cond: ((collection_0_2_1.document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_expression_get("lookupRecursive_stage_1".document, '{ "name" : { "$makeArray" : "$friends" } }'::documentdb_core.bson, false, '{ "now" : NOW_SYS_VARIABLE }'::documentdb_core.bson)) AND (collection_0_2_1.document OPERATOR(documentdb_api_catalog.@<=) '{ "hobbies" : { "$numberInt" : "3" } }'::documentdb_core.bson))
+                                                             Index Cond: (collection_0_2_1.document OPERATOR(documentdb_api_catalog.@<=) '{ "hobbies" : { "$numberInt" : "3" } }'::documentdb_core.bson)
                              ->  Sort
                                    Output: "graphLookup_stage_2".document, "graphLookup_stage_2"."baseDocId", "graphLookup_stage_2".depth
                                    Sort Key: "graphLookup_stage_2"."baseDocId", "graphLookup_stage_2".depth
