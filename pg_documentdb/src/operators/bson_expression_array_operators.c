@@ -286,7 +286,7 @@ static void ProcessDollarSortArray(bson_value_t *inputValue, SortContext *sortCo
 
 /*
  * Parses a $isArray expression.
- * $isArray is expressed as { "$isArray": <expression> }
+ * $isArray is expressed as { "$isArray": <> }
  */
 void
 ParseDollarIsArray(const bson_value_t *argument, AggregationExpressionData *data,
@@ -311,7 +311,7 @@ HandlePreParsedDollarIsArray(pgbson *doc, void *argument,
 
 /*
  * Parses a $size expression.
- * $size is expressed as { "$size": <expression> }
+ * $size is expressed as { "$size": <> }
  */
 void
 ParseDollarSize(const bson_value_t *argument, AggregationExpressionData *data,
@@ -336,7 +336,7 @@ HandlePreParsedDollarSize(pgbson *doc, void *argument,
 
 /*
  * Parses a $objectToArray expression.
- * $objectToArray is expressed as { "$objectToArray": <expression> }
+ * $objectToArray is expressed as { "$objectToArray": <> }
  * $objectToArray does not recursively apply to embedded document fields.
  * i.e:
  *   input: {"a": 1, "b": { "c": 2 } }
@@ -365,7 +365,7 @@ HandlePreParsedDollarObjectToArray(pgbson *doc, void *argument,
 
 /*
  * Parses a $arrayToObject expression.
- * $arrayToObject is expressed as { "$arrayToObject": [ [ {"k": "key", "v": <expression> }, ... ] ] } or
+ * $arrayToObject is expressed as { "$arrayToObject": [ [ {"k": "key", "v": <> }, ... ] ] } or
  * { "$arrayToObject": [ ["key", value], ... ]}
  */
 void
@@ -416,7 +416,7 @@ HandlePreParsedDollarArrayElemAt(pgbson *doc, void *argument,
 
 /*
  * Parses a $first expression.
- * $first is expressed as { "$first": [ <expression> ] }
+ * $first is expressed as { "$first": [ <> ] }
  */
 void
 ParseDollarFirst(const bson_value_t *argument, AggregationExpressionData *data,
@@ -439,7 +439,7 @@ HandlePreParsedDollarFirst(pgbson *doc, void *arguments,
 
 /*
  * Parses a $last expression.
- * $last is an alias of {$arrayElemAt: [ <expression>, -1 ]}, so we just redirect to that operator.
+ * $last is an alias of {$arrayElemAt: [ <>, -1 ]}, so we just redirect to that operator.
  */
 void
 ParseDollarLast(const bson_value_t *argument, AggregationExpressionData *data,
@@ -462,7 +462,7 @@ HandlePreParsedDollarLast(pgbson *doc, void *arguments,
 
 /*
  * Parses a $in expression.
- * $in is expressed as { "$in": [ <expression>, <array> ] }
+ * $in is expressed as { "$in": [ <>, <array> ] }
  */
 void
 ParseDollarIn(const bson_value_t *argument, AggregationExpressionData *data,
@@ -516,14 +516,12 @@ HandlePreParsedDollarIn(pgbson *doc, void *argument, ExpressionResult *expressio
 	AggregationExpressionData *firstArg = state->targetValue;
 	EvaluateAggregationExpressionData(firstArg, doc, &childResult, isNullOnEmpty);
 	bson_value_t firstValue = childResult.value;
-	bool hasFieldExpression = childResult.isFieldPathExpression;
 
 	ExpressionResultReset(&childResult);
 
 	AggregationExpressionData *secondArg = state->searchArray;
 	EvaluateAggregationExpressionData(secondArg, doc, &childResult, isNullOnEmpty);
 	bson_value_t secondValue = childResult.value;
-	hasFieldExpression = hasFieldExpression || childResult.isFieldPathExpression;
 
 	bson_value_t result;
 	ProcessDollarIn(&firstValue, &secondValue, state->collationString, &result);
@@ -710,7 +708,7 @@ HandlePreParsedDollarConcatArrays(pgbson *doc, void *arguments,
 
 
 /* Parses the $filter expression specified in the bson_value_t and stores it in the data argument.
- * $filter is expressed as { "$filter": { input: <array-expression>, cond: <expression>, as: <string>, limit: <num-expression> } }.
+ * $filter is expressed as { "$filter": { input: <array-expression>, cond: <>, as: <string>, limit: <num-expression> } }.
  */
 void
 ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
@@ -817,7 +815,7 @@ ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $filter expression.
- * $filter is expressed as { "$filter": { input: <array-expression>, cond: <expression>, as: <string>, limit: <num-expression> } }
+ * $filter is expressed as { "$filter": { input: <array-expression>, cond: <>, as: <string>, limit: <num-expression> } }
  * We evalute the condition with every element of the input array and filter elements when the expression evaluates to false.
  */
 void
@@ -867,7 +865,7 @@ HandlePreParsedDollarFilter(pgbson *doc, void *arguments,
 
 	bson_value_t evaluatedInputArg = childExpression.value;
 
-	/* In native mongo if the input array is null or an undefined path the result is null. */
+	/* If the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(&evaluatedInputArg))
 	{
 		bson_value_t nullValue = {
@@ -947,7 +945,6 @@ ParseDollarFirstN(const bson_value_t *inputDocument, AggregationExpressionData *
 	if (IsAggregationExpressionConstant(&arguments->input) &&
 		IsAggregationExpressionConstant(&arguments->elementsToFetch))
 	{
-		/* Validating the n expression to throw error codes wrt native mongo in case of discrepancy. */
 		ValidateElementForFirstAndLastN(&arguments->elementsToFetch.value,
 										"$firstN");
 
@@ -986,7 +983,6 @@ HandlePreParsedDollarFirstN(pgbson *doc, void *arguments,
 									  isNullOnEmpty);
 	bson_value_t evaluatedElementsToFetch = childExpression.value;
 
-	/* Validating the n expression to throw error codes wrt native mongo in case of discrepancy. */
 	ValidateElementForFirstAndLastN(&evaluatedElementsToFetch, "$firstN");
 
 	ExpressionResultReset(&childExpression);
@@ -1027,7 +1023,6 @@ ParseDollarLastN(const bson_value_t *inputDocument, AggregationExpressionData *d
 	if (IsAggregationExpressionConstant(&arguments->input) &&
 		IsAggregationExpressionConstant(&arguments->elementsToFetch))
 	{
-		/* Validating the n expression to throw error codes wrt native mongo in case of discrepancy. */
 		ValidateElementForFirstAndLastN(&arguments->elementsToFetch.value,
 										"$lastN");
 
@@ -1124,7 +1119,6 @@ HandlePreParsedDollarLastN(pgbson *doc, void *arguments,
 									  isNullOnEmpty);
 	bson_value_t evaluatedElementsToFetch = childExpression.value;
 
-	/* Validating the n expression to throw error codes wrt native mongo in case of discrepancy. */
 	ValidateElementForFirstAndLastN(&evaluatedElementsToFetch, "$lastN");
 
 	ExpressionResultReset(&childExpression);
@@ -1144,7 +1138,7 @@ HandlePreParsedDollarLastN(pgbson *doc, void *arguments,
 
 /*
  * Parses an $range expression.
- * $range is expressed as { "$range": [ <expression1>, <expression2>, <expression3 optional> ] }
+ * $range is expressed as { "$range": [ <>, <>, <optional> ] }
  */
 void
 ParseDollarRange(const bson_value_t *argument, AggregationExpressionData *data,
@@ -1205,7 +1199,7 @@ ParseDollarRange(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of an $range expression.
- * $range is expressed as { "$range": [ <expression1>, <expression2>, <expression3 optional> ] }
+ * $range is expressed as { "$range": [ <>, <>, <optional> ] }
  * We evaluate the inner expressions and then return the final array.
  */
 void
@@ -1253,7 +1247,7 @@ HandlePreParsedDollarRange(pgbson *doc, void *arguments,
 
 /*
  * This function parses the input for operator $min.
- * The input is specified of type {$min: <expression>} where expression can be any expression.
+ * The input is specified of type {$min: <>} where expression can be any expression.
  * In case the expression is an array it gives the minimum element in array otherwise returns the resolved expression as it is.
  */
 void
@@ -1288,7 +1282,7 @@ HandlePreParsedDollarMin(pgbson *doc, void *arguments,
 
 /*
  * This function parses the input for operator $max.
- * The input is specified of type {$max: <expression>} where expression can be any expression.
+ * The input is specified of type {$max: <>} where expression can be any expression.
  * In case the expression is an array it gives the maximum element in array otherwise returns the resolved expression as it is.
  */
 void
@@ -1323,7 +1317,7 @@ HandlePreParsedDollarMax(pgbson *doc, void *arguments,
 
 /*
  * This function parses the input for operator $sum.
- * The input is specified of type {$sum: <expression>} where expression can be any expression.
+ * The input is specified of type {$sum: <>} where expression can be any expression.
  * In case the expression is an array it gives the sum of elements in array.
  */
 void
@@ -1358,7 +1352,7 @@ HandlePreParsedDollarSum(pgbson *doc, void *arguments,
 
 /*
  * This function parses the input for operator $avg.
- * The input is specified of type {$sum: <expression>} where expression can be any expression.
+ * The input is specified of type {$sum: <>} where expression can be any expression.
  * In case the expression is an array it gives the sum of elements in array.
  */
 void
@@ -1718,7 +1712,7 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 /*
  * Evaluates the output of a $map expression.
  * $map is expressed as:
- * { $map: { input: <expression>, as: <string>, in: <expression> } }
+ * { $map: { input: <>, as: <string>, in: <> } }
  */
 void
 HandlePreParsedDollarMap(pgbson *doc, void *arguments,
@@ -1735,7 +1729,6 @@ HandlePreParsedDollarMap(pgbson *doc, void *arguments,
 
 	bson_value_t evaluatedInputArg = childExpression.value;
 
-	/* In native mongo if the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(&evaluatedInputArg))
 	{
 		bson_value_t nullValue = {
@@ -1871,7 +1864,7 @@ ParseDollarReduce(const bson_value_t *argument, AggregationExpressionData *data,
 /*
  * Evaluates the output of a $reduce expression.
  * $reduce is expressed as:
- * { $reduce: { input: <expression>, as: <string>, in: <expression> } }
+ * { $reduce: { input: <>, as: <string>, in: <> } }
  */
 void
 HandlePreParsedDollarReduce(pgbson *doc, void *arguments,
@@ -1888,7 +1881,7 @@ HandlePreParsedDollarReduce(pgbson *doc, void *arguments,
 
 	bson_value_t evaluatedInputArg = childExpression.value;
 
-	/* In native mongo if the input array is null or an undefined path the result is null. */
+	/* If the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(&evaluatedInputArg))
 	{
 		bson_value_t nullValue = {
@@ -1916,7 +1909,7 @@ HandlePreParsedDollarReduce(pgbson *doc, void *arguments,
 
 	bson_value_t evaluatedInitialValueArg = childExpression.value;
 
-	/* In native mongo if the input array is null or an undefined path the result is null. */
+	/* If the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(&evaluatedInitialValueArg))
 	{
 		bson_value_t nullValue = {
@@ -2067,7 +2060,7 @@ HandlePreParsedDollarSortArray(pgbson *doc, void *arguments,
 
 /*
  * This function parses the input for operator $zip.
- * The input to this function is of the following format { $zip: { inputs: <expression(array of arrays)>, useLongestLength: <bool>, defaults: <expression> } }.
+ * The input to this function is of the following format { $zip: { inputs: <array of arrays>, useLongestLength: <bool>, defaults: <> } }.
  * useLongestLength and defaults are optional arguments.
  * useLongestLength must be true if defaults is specified.
  */
@@ -2584,7 +2577,7 @@ ParseZipDefaultsArgument(int rowNum, bson_value_t evaluatedDefaultsArg, bool
 	bson_value_t *defaultsElements = (bson_value_t *) palloc0(rowNum *
 															  sizeof(bson_value_t));
 
-	/* In native mongo, if defaults is empty or not specified, $zip uses null as the default value. */
+	/* If defaults is empty or not specified, null is used as the default value. */
 	if (IsExpressionResultNullOrUndefined(&evaluatedDefaultsArg))
 	{
 		for (int i = 0; i < rowNum; i++)
@@ -2632,7 +2625,7 @@ ParseZipInputsArgument(int rowNum, bson_value_t evaluatedInputsArg, bool
 		/* The length of current subarray in inputs */
 		int currentSubArrayLen = 0;
 
-		/* In native mongo, if any of the inputs arrays resolves to a value of null or refers to a missing field, $zip returns null. */
+		/* If any of the inputs arrays resolves to a value of null or refers to a missing field, $zip returns null. */
 		if (IsExpressionResultNullOrUndefined(inputsElem))
 		{
 			ZipParseInputsResult nullValue;
@@ -2642,7 +2635,7 @@ ParseZipInputsArgument(int rowNum, bson_value_t evaluatedInputsArg, bool
 			return nullValue;
 		}
 
-		/* In native mongo, if any of the inputs arrays does not resolve to an array or null nor refers to a missing field, $zip returns an error. */
+		/* If any of the inputs arrays does not resolve to an array or null nor refers to a missing field, $zip returns an error. */
 		else if (inputsElem->value_type != BSON_TYPE_ARRAY)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34468), errmsg(
@@ -3241,7 +3234,7 @@ static void
 ProcessDollarSortArray(bson_value_t *inputValue, SortContext *sortContext,
 					   bson_value_t *result)
 {
-	/* In native mongo if the input array is null or an undefined path the result is null. */
+	/* If the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(inputValue))
 	{
 		result->value_type = BSON_TYPE_NULL;
@@ -3407,7 +3400,7 @@ ProcessDollarMaxAndMinN(bson_value_t *result, bson_value_t *evaluatedLimit,
 	}
 
 
-	/* In native mongo if the input array is null or an undefined path the result is null. */
+	/* If the input array is null or an undefined path the result is null. */
 	if (IsExpressionResultNullOrUndefined(evaluatedInput))
 	{
 		result->value_type = BSON_TYPE_NULL;
@@ -3881,11 +3874,11 @@ SetResultArrayForDollarRange(int32_t startValue, int32_t endValue, int32_t stepV
 
 
 /*
- * This function ensures the size of array should not exceed the limits for native mongo.
- * Currently, native mongo has checks the array size should not go beyond 100MB and 64MB when writing the array. 64MB is an optimization before writing.
- * All calculation in this function is done to compute the bytes used if the array were to be written.
- * This function computes size exactly replicating libbson bson_append_value functions used in  PgbsonArrayWriterWriteValue.
- * Size calculation logic is based on (size of empty array +  size of keys in array + size of values in array).
+ * This function ensures the size of the array does not exceed internal limits.
+ * The array size should not go beyond 100MB, with a 64MB limit as an optimization before writing.
+ * All calculations in this function compute the bytes used if the array were to be written.
+ * This function computes size to match the logic used in PgbsonArrayWriterWriteValue.
+ * Size calculation logic is based on (size of empty array + size of keys in array + size of values in array).
  */
 static void
 ValidateArraySizeLimit(int32_t startValue, int32_t endValue, int32_t stepValue)

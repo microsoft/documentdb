@@ -28,8 +28,7 @@ typedef void (*ProcessArithmeticOperatorTwoOperands)(void *state, bson_value_t *
 typedef bool (*ProcessArithmeticOperatorVariableOperands)(const
 														  bson_value_t *currentValue,
 														  void *state,
-														  bson_value_t *result, bool
-														  isFieldPathExpression);
+														  bson_value_t *result);
 
 /* State for $add operator */
 typedef struct DollarAddState
@@ -91,11 +90,9 @@ static void HandlePreParsedArithmeticVariableOperands(pgbson *doc, void *argumen
 													  ProcessArithmeticOperatorVariableOperands
 													  processOperatorFunc);
 static bool ProcessDollarAdd(const bson_value_t *currentElement, void *state,
-							 bson_value_t *result,
-							 bool isFieldPathExpression);
+							 bson_value_t *result);
 static bool ProcessDollarMultiply(const bson_value_t *currentElement, void *state,
-								  bson_value_t *result, bool
-								  isFieldPathExpression);
+								  bson_value_t *result);
 static void ProcessDollarSubtract(void *state, bson_value_t *result);
 static void ProcessDollarLog(void *state, bson_value_t *result);
 static void ProcessDollarPow(void *state, bson_value_t *result);
@@ -112,10 +109,8 @@ static void ProcessDollarLn(const bson_value_t *currentValue, bson_value_t *resu
 static void ProcessDollarAbs(const bson_value_t *currentValue, bson_value_t *result);
 static void ProcessDollarAddAccumulatedResult(void *state, bson_value_t *result);
 static bool CheckForDateOverflow(bson_value_t *value);
-static void ThrowIfNotNumeric(const bson_value_t *value, const char *operatorName,
-							  bool isFieldPathExpression);
-static void ThrowIfNotNumericOrDate(const bson_value_t *value, const char *operatorName,
-									bool isFieldPathExpression);
+static void ThrowIfNotNumeric(const bson_value_t *value, const char *operatorName);
+static void ThrowIfNotNumericOrDate(const bson_value_t *value, const char *operatorName);
 static void ThrowInvalidTypesForDollarSubtract(bson_value_t minuend,
 											   bson_value_t subtrahend);
 static int CompareBsonDecimal128ToZero(const bson_value_t *value,
@@ -126,7 +121,7 @@ static void RoundOrTruncateValue(bson_value_t *result,
 
 /*
  * Parses an $add expression and sets the parsed data in the data argument.
- * $add is expressed as { "$add": [ <expression1>, <expression2>, ... ] }
+ * $add is expressed as { "$add": [ <>, <>, ... ] }
  */
 void
 ParseDollarAdd(const bson_value_t *argument, AggregationExpressionData *data,
@@ -153,7 +148,7 @@ ParseDollarAdd(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of an $add expression.
- * Since $add is expressed as { "$add": [ <expression1>, <expression2>, ... ] }
+ * Since $add is expressed as { "$add": [ <>, <>, ... ] }
  * We evaluate the inner expressions and then return the addition of them.
  */
 void
@@ -188,7 +183,7 @@ HandlePreParsedDollarAdd(pgbson *doc, void *arguments,
 
 /*
  * Parses a $multiply expression and sets the parsed data in the data argument.
- * $multiply is expressed as { "$multiply": [ <expression1>, <expression2>, ... ] }
+ * $multiply is expressed as { "$multiply": [ <>, <>, ... ] }
  */
 void
 ParseDollarMultiply(const bson_value_t *argument, AggregationExpressionData *data,
@@ -204,7 +199,7 @@ ParseDollarMultiply(const bson_value_t *argument, AggregationExpressionData *dat
 
 /*
  * Evaluates the output of an $multiply expression.
- * Since $multiply is expressed as { "$multiply": [ <expression1>, <expression2>, ... ] }
+ * Since $multiply is expressed as { "$multiply": [ <>, <>, ... ] }
  * We evaluate the inner expressions and then return the product of them.
  */
 void
@@ -226,7 +221,7 @@ HandlePreParsedDollarMultiply(pgbson *doc, void *arguments,
 
 /*
  * Parses a $subtract expression and sets the parsed data in the data argument.
- * $subtract is expressed as { "$subtract": [ <expression1>, <expression2> ] }
+ * $subtract is expressed as { "$subtract": [ <>, <> ] }
  */
 void
 ParseDollarSubtract(const bson_value_t *argument, AggregationExpressionData *data,
@@ -239,7 +234,7 @@ ParseDollarSubtract(const bson_value_t *argument, AggregationExpressionData *dat
 
 /*
  * Evaluates the output of a $subtract expression.
- * Since $subtract is expressed as { "$subtract": [ <expression1>, <expression2> ] }
+ * Since $subtract is expressed as { "$subtract": [ <>, <> ] }
  * We evaluate the inner expressions and then return the difference of them.
  * $subtract accepts exactly 2 arguments.
  */
@@ -254,7 +249,7 @@ HandlePreParsedDollarSubtract(pgbson *doc, void *arguments,
 
 /*
  * Parses a $divide expression and sets the parsed data in the data argument.
- * $divide is expressed as { "$divide": [ <expression1>, <expression2> ] }
+ * $divide is expressed as { "$divide": [ <>, <> ] }
  */
 void
 ParseDollarDivide(const bson_value_t *argument, AggregationExpressionData *data,
@@ -267,7 +262,7 @@ ParseDollarDivide(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $divide expression.
- * Since $divide is expressed as { "$divide": [ <expression1>, <expression2> ] }
+ * Since $divide is expressed as { "$divide": [ <>, <> ] }
  * We evaluate the inner expressions and then return the division of them.
  * $divide accepts exactly 2 arguments.
  */
@@ -282,7 +277,7 @@ HandlePreParsedDollarDivide(pgbson *doc, void *arguments,
 
 /*
  * Evaluates the output of a $mod expression.
- * Since $mod is expressed as { "$mod": [ <expression1>, <expression2> ] }
+ * Since $mod is expressed as { "$mod": [ <>, <> ] }
  * We evaluate the inner expressions and then return the modulo of them.
  * $mod accepts exactly 2 arguments.
  */
@@ -297,7 +292,7 @@ ParseDollarMod(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $mod expression.
- * $mod is expressed as { "$mod": [ <expression1>, <expression2> ] }
+ * $mod is expressed as { "$mod": [ <>, <> ] }
  * We evaluate the inner expressions and set their mod value to the result.
  */
 void
@@ -311,7 +306,7 @@ HandlePreParsedDollarMod(pgbson *doc, void *arguments,
 
 /*
  * Parses a $pow expression and sets the parsed data in the data argument.
- * $pow is expressed as { "$pow": [ <expression1>, <expression2> ] }
+ * $pow is expressed as { "$pow": [ <>, <> ] }
  */
 void
 ParseDollarPow(const bson_value_t *argument, AggregationExpressionData *data,
@@ -324,7 +319,7 @@ ParseDollarPow(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $pow expression.
- * Since $pow is expressed as { "$pow": [ <number>, <exponent> ] }
+ * Since $pow is expressed as { "$pow": [ <>, <> ] }
  * We evaluate the inner expressions and elevate the number to the requested exponent.
  * $pow accepts exactly two arguments.
  */
@@ -339,7 +334,7 @@ HandlePreParsedDollarPow(pgbson *doc, void *arguments,
 
 /*
  * Parses a $log expression and sets the parsed data in the data argument.
- * $log is expressed as { "$log": [ <expression1>, <expression2> ] }
+ * $log is expressed as { "$log": [ <>, <> ] }
  */
 void
 ParseDollarLog(const bson_value_t *argument, AggregationExpressionData *data,
@@ -877,8 +872,7 @@ ParseArithmeticOperatorVariableOperands(const bson_value_t *argument,
 
 			bool continueEnumerating = processOperatorFunc(&currentData->value,
 														   state,
-														   &data->value,
-														   false);
+														   &data->value);
 			if (!continueEnumerating)
 			{
 				break;
@@ -919,9 +913,7 @@ HandlePreParsedArithmeticVariableOperands(pgbson *doc, void *arguments, void *st
 
 		bson_value_t currentValue = childResult.value;
 
-		bool continueEnumerating = processOperatorFunc(&currentValue, state, result,
-													   childResult.
-													   isFieldPathExpression);
+		bool continueEnumerating = processOperatorFunc(&currentValue, state, result);
 		if (!continueEnumerating)
 		{
 			return;
@@ -934,8 +926,7 @@ HandlePreParsedArithmeticVariableOperands(pgbson *doc, void *arguments, void *st
 
 /* Function that processes a single argument for $add and adds it to the current result. */
 static bool
-ProcessDollarAdd(const bson_value_t *currentElement, void *state, bson_value_t *result,
-				 bool isFieldPathExpression)
+ProcessDollarAdd(const bson_value_t *currentElement, void *state, bson_value_t *result)
 {
 	DollarAddState *addState = (DollarAddState *) state;
 
@@ -954,7 +945,7 @@ ProcessDollarAdd(const bson_value_t *currentElement, void *state, bson_value_t *
 		return true;
 	}
 
-	ThrowIfNotNumericOrDate(currentElement, "$add", isFieldPathExpression);
+	ThrowIfNotNumericOrDate(currentElement, "$add");
 
 	bson_value_t evaluatedValue = *currentElement;
 	if (evaluatedValue.value_type == BSON_TYPE_DATE_TIME)
@@ -1049,8 +1040,7 @@ ProcessDollarAddAccumulatedResult(void *state, bson_value_t *result)
 /* Function that processes a single element for the $multiply operator. */
 static bool
 ProcessDollarMultiply(const bson_value_t *currentElement, void *state,
-					  bson_value_t *result,
-					  bool isFieldPathExpression)
+					  bson_value_t *result)
 {
 	if (IsExpressionResultNullOrUndefined(currentElement))
 	{
@@ -1059,7 +1049,7 @@ ProcessDollarMultiply(const bson_value_t *currentElement, void *state,
 		return false;
 	}
 
-	ThrowIfNotNumeric(currentElement, "$multiply", isFieldPathExpression);
+	ThrowIfNotNumeric(currentElement, "$multiply");
 
 	bool convertInt64OverflowToDouble = true;
 	MultiplyWithFactorAndUpdate(result, currentElement, convertInt64OverflowToDouble);
@@ -1117,7 +1107,7 @@ ProcessDollarSubtract(void *state, bson_value_t *result)
 
 		SubtractNumberFromBsonValue(result, &subtrahend, &overflowedFromInt64Ignore);
 
-		/* Native mongo doesn't check for date overflow in $subtract. */
+		/* Do not check for date overflow in $subtract. */
 		if (isDateTimeResult)
 		{
 			int64_t dateTime = BsonValueAsInt64(result);
@@ -1169,7 +1159,7 @@ ProcessDollarDivide(void *state, bson_value_t *result)
 		}
 	}
 
-	/* Native mongo returns double for $divide unless one operand is decimal128 */
+	/* Return double for $divide unless one operand is decimal128 */
 	if (result->value_type == BSON_TYPE_DECIMAL128 ||
 		divisorValue.value_type == BSON_TYPE_DECIMAL128)
 	{
@@ -1616,13 +1606,8 @@ ProcessDollarLog(void *state, bson_value_t *result)
 								BsonValueToJsonForLogging(&baseValue))));
 		}
 
-		/* log of a specific base need to go through base conversion which can be calculated
-		 * with log10 or natural logarithm.
-		 * 1. logB(number) = log10(number) / log10(base)
-		 * 2. logB(number) = logn(number) / logn(base)
-		 * However using log10 can be more precise in the decimal digits in some cases
-		 * but in this case we use natural logarithm to match native mongo as JS Test depend
-		 * on that behavior.
+		/* Compute logarithm with arbitrary base using natural logarithms:
+		 * log_base(number) = log(number) / log(base)
 		 */
 		result->value.v_double = log(number) / log(base);
 	}
@@ -1776,7 +1761,7 @@ RoundOrTruncateValue(bson_value_t *result, DualArgumentExpressionState *dualStat
 															ConversionRoundingMode_Floor,
 															throwIfFailed);
 
-	/* In native mongo, it validates first if the precision value can be converted to long. */
+	/* Validate first if the precision value can be converted to long. */
 	if (!IsBsonValueFixedInteger(&precision))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARROUNDPRECISIONMUSTBEINTEGRAL),
@@ -1908,7 +1893,7 @@ ProcessDollarAbs(const bson_value_t *currentValue, bson_value_t *result)
 }
 
 
-/* Checks if we overflowed int64 or the value is NaN, which for a date, is an overflow in mongo. */
+/* Checks if we overflowed int64 or the value is NaN, which for a date, is an overflow. */
 static bool
 CheckForDateOverflow(bson_value_t *value)
 {
@@ -1940,56 +1925,29 @@ ThrowInvalidTypesForDollarSubtract(bson_value_t minuend, bson_value_t subtrahend
 
 /* Throws if the value is not numeric value. */
 static void
-ThrowIfNotNumeric(const bson_value_t *value, const char *operatorName,
-				  bool isFieldPathExpression)
+ThrowIfNotNumeric(const bson_value_t *value, const char *operatorName)
 {
 	if (!BsonValueIsNumber(value))
 	{
-		/* Mongo emits a different error message if the value is a field/operator expression
-		 * or just a constant value. */
-		if (!isFieldPathExpression)
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH), errmsg(
-								"%s only supports numeric types, not %s",
-								operatorName,
-								BsonTypeName(value->value_type))));
-		}
-		else
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH), errmsg(
-								"only numbers are allowed in an %s expression",
-								operatorName)));
-		}
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH), errmsg(
+							"%s only supports numeric types, not %s",
+							operatorName,
+							BsonTypeName(value->value_type))));
 	}
 }
 
 
 /* Throws if the value is not numeric or a date value. */
 static void
-ThrowIfNotNumericOrDate(const bson_value_t *value, const char *operatorName,
-						bool isFieldPathExpression)
+ThrowIfNotNumericOrDate(const bson_value_t *value, const char *operatorName)
 {
 	if (!BsonValueIsNumber(value) && value->value_type != BSON_TYPE_DATE_TIME)
 	{
-		/* Mongo emits a different error message if the value is a field/operator expression
-		 * or just a constant value. */
-		if (!isFieldPathExpression)
-		{
-			/* TODO: when we move to 6.1 the error code is TypeMismatch */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARADDNUMERICORDATETYPES),
-							errmsg(
-								"%s only supports numeric or date types, not %s",
-								operatorName,
-								BsonTypeName(value->value_type))));
-		}
-		else
-		{
-			/* TODO: when we move to 6.1 the error code is TypeMismatch */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARADDNUMERICORDATETYPES),
-							errmsg(
-								"only numbers and dates are allowed in %s expression",
-								operatorName)));
-		}
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
+						errmsg(
+							"%s only supports numeric or date types, not %s",
+							operatorName,
+							BsonTypeName(value->value_type))));
 	}
 }
 

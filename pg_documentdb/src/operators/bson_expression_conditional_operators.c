@@ -35,8 +35,8 @@ static SwitchEntry * ParseBranchForSwitch(bson_iter_t *iter, bool *allArgumentsC
 
 
 /*
- * Parses an $ifNull expression. expression and sets the parsed data in the data argument.
- * $ifNull is expressed as { "$ifNull": [ <expression1>, <expression2>, ..., <replacement-expression-if-null> ] }
+ * Parses an $ifNull expression and sets the parsed data in the data argument.
+ * $ifNull is expressed as { "$ifNull": [ <>, <>, ..., <result if null> ] }
  */
 void
 ParseDollarIfNull(const bson_value_t *argument, AggregationExpressionData *data,
@@ -88,7 +88,7 @@ ParseDollarIfNull(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $ifNull expression.
- * Since $ifNull is expressed as { "$ifNull": [ <expression1>, <expression2>, ..., <replacement-expression-if-null> ] }
+ * Since $ifNull is expressed as { "$ifNull": [ <>, <>, ..., <result if null> ] }
  * We evaluate every expression and return the first that is not null or undefined, otherwise we return the last expression in the array.
  * $ifNull requires at least 2 arguments.
  */
@@ -119,7 +119,7 @@ HandlePreParsedDollarIfNull(pgbson *doc, void *arguments,
 		idx++;
 	}
 
-	/* if the last argument resulted in EOD, native mongo doesn't return any result, i.e: missing field. */
+	/* if the last argument resulted in EOD, do not return any result (missing field). */
 	if (result.value_type != BSON_TYPE_EOD)
 	{
 		ExpressionResultSetValue(expressionResult, &result);
@@ -128,9 +128,9 @@ HandlePreParsedDollarIfNull(pgbson *doc, void *arguments,
 
 
 /*
- * Parses an $cond expression. expression and sets the parsed data in the data argument.
- * $cond is expressed as { "$cond": [ <if-expression>, <then-expression>, <else-expression> ] } or
- * { "$cond": { "if": <expression>, "then": <expression>, "else": <expression> }}
+ * Parses an $cond expression and sets the parsed data in the data argument.
+ * $cond is expressed as { "$cond": [ if, then, else ] } or
+ * { "$cond": { "if": <>, "then": <>, "else": <> }}
  */
 void
 ParseDollarCond(const bson_value_t *argument, AggregationExpressionData *data,
@@ -233,10 +233,10 @@ ParseDollarCond(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $cond expression.
- * Since $cond is expressed as { "$cond": [ <if-expression>, <then-expression>, <else-expression> ] } or
- * { "$cond": { "if": <expression>, "then": <expression>, "else": <expression> }}
- * We evaluate the <if-expression>, if its result is true we return the <then-expression>,
- * otherwise we return the <else-expression>.
+ * Since $cond is expressed as { "$cond": [ if, then, else ] } or
+ * { "$cond": { "if": <>, "then": <>, "else": <> }}
+ * We evaluate the if argument, if its result is true we return the then evaluated expression,
+ * otherwise we return the else evaluated expression.
  */
 void
 HandlePreParsedDollarCond(pgbson *doc, void *arguments,
@@ -277,7 +277,7 @@ HandlePreParsedDollarCond(pgbson *doc, void *arguments,
 
 /*
  * Parses an $switch expression. expression and sets the parsed data in the data argument.
- * $switch is expressed as { "$switch": { "branches": [ {"case": <expression>, "then": <expression>}, ...], "default": <expression>} }
+ * $switch is expressed as { "$switch": { "branches": [ {"case": <>, "then": <>}, ...], "default": <>} }
  */
 void
 ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
@@ -319,8 +319,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 															  &allArgumentsConstant,
 															  context);
 
-				/* First we need to parse the branches without evaluating them, as in native mongo,
-				 * parsing errors come first. */
+				/* First we need to parse the branches without evaluating them, as parsing errors come first. */
 				arguments = lappend(arguments, branchDef);
 			}
 		}
@@ -421,9 +420,9 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 
 /*
  * Evaluates the output of a $switch expression.
- * Since $switch is expressed as { "$switch": { "branches": [ {"case": <expression>, "then": <expression>}, ...], "default": <expression>} }
- * We evaluate the <case-expression> for each branch, if it is true we return the <then-expression>,
- * otherwise we return the <default-expression> if it exists.
+ * Since $switch is expressed as { "$switch": { "branches": [ {"case": <>, "then": <>}, ...], "default": <>} }
+ * We evaluate the case argument for each branch, if it is true we return the evaluated then for that branch,
+ * otherwise we return the evaluated default if it exists.
  */
 void
 HandlePreParsedDollarSwitch(pgbson *doc, void *arguments,
