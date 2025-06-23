@@ -113,6 +113,7 @@ typedef struct TraverseOrderByValidateState
 	CustomOrderByOptions options;
 	const char *collationString;
 	int32_t nestedArrayCount;
+	bool foundAsTopLevelPath;
 } TraverseOrderByValidateState;
 
 /* State for comparison operations of simple dollar operators
@@ -368,12 +369,14 @@ static void CompareSetTraverseResult(void *state, TraverseBsonResult compareResu
 static void CompareSetTraverseResultForNulls(void *state,
 											 TraverseBsonResult compareResult);
 static bool CompareContinueProcessIntermediateArray(void *state, const
-													bson_value_t *value);
+													bson_value_t *value, bool
+													isArrayIndexSearch);
 static bool OrderByVisitTopLevelField(pgbsonelement *element, const
 									  StringView *filterPath,
 									  void *state);
 static bool OrderByContinueProcessIntermediateArray(void *state, const
-													bson_value_t *value);
+													bson_value_t *value, bool
+													isArrayIndexSearch);
 static void OrderByHandleIntermediateArrayPathNotFound(void *state,
 													   int32_t arrayIndex, const
 													   StringView *remainingPath);
@@ -2541,7 +2544,7 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	bson_iter_t documentIterator;
 	pgbsonelement filterElement;
 	TraverseOrderByValidateState state = {
-		{ 0 }, NULL, { 0 }, options, collationString, 0
+		{ 0 }, NULL, { 0 }, options, collationString, 0, false
 	};
 
 	pgbson_writer writer;
@@ -3983,7 +3986,8 @@ CompareSetTraverseResult(void *state, TraverseBsonResult traverseResult)
  * Returns whether or not comparison searches should continue.
  */
 static bool
-CompareContinueProcessIntermediateArray(void *state, const bson_value_t *value)
+CompareContinueProcessIntermediateArray(void *state, const bson_value_t *value, bool
+										isArrayIndexSearch)
 {
 	TraverseValidateState *validateState = (TraverseValidateState *) state;
 	return validateState->compareResult != CompareResult_Match;
@@ -4047,6 +4051,12 @@ OrderByVisitTopLevelField(pgbsonelement *element, const
 	}
 
 	CompareForOrderBy(&element->bsonValue, validateState);
+
+	/* Track if we found ourselves without any intermediate arrays:
+	 * I.e. if the path is a.b then it is only reachable by "b" not being an array.
+	 * If the path is a.b.0 then 0 is a top level field of the array.
+	 */
+	validateState->foundAsTopLevelPath = true;
 	return true;
 }
 
@@ -4066,9 +4076,17 @@ OrderByVisitArrayField(pgbsonelement *element, const StringView *filterPath,
 
 static bool
 OrderByContinueProcessIntermediateArray(void *state, const
-										bson_value_t *value)
+										bson_value_t *value, bool isArrayIndexSearch)
 {
 	/* Orderby needs to continue traversing even after a match to see if there's better options */
+	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
+	if (!UseLegacyOrderByBehavior && validateState->foundAsTopLevelPath &&
+		isArrayIndexSearch)
+	{
+		/* We found a path and this is via the array index - we don't recurse again as documents */
+		return false;
+	}
+
 	return true;
 }
 
@@ -4085,15 +4103,12 @@ OrderByHandleIntermediateArrayPathNotFound(void *state,
 	}
 
 	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
-	if (validateState->nestedArrayCount > 0 &&
-		validateState->orderByValue.value_type != BSON_TYPE_EOD)
+	if (validateState->nestedArrayCount > 0)
 	{
-		return;
+		bson_value_t nullValue = { 0 };
+		nullValue.value_type = BSON_TYPE_NULL;
+		CompareForOrderBy(&nullValue, validateState);
 	}
-
-	bson_value_t nullValue = { 0 };
-	nullValue.value_type = BSON_TYPE_NULL;
-	CompareForOrderBy(&nullValue, validateState);
 }
 
 

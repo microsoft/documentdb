@@ -61,7 +61,8 @@ static bool InverseMatchVisitTopLevelField(pgbsonelement *element, const
 										   StringView *filterPath,
 										   void *state);
 static bool InverseMatchContinueProcessIntermediateArray(void *state, const
-														 bson_value_t *value);
+														 bson_value_t *value, bool
+														 isArrayIndexSearch);
 
 static const TraverseBsonExecutionFuncs InverseMatchExecutionFuncs = {
 	.ContinueProcessIntermediateArray = InverseMatchContinueProcessIntermediateArray,
@@ -337,7 +338,7 @@ InverseMatchVisitTopLevelField(pgbsonelement *element, const StringView *filterP
 /* This function stops the traversing of the bson in intermediate array fields. */
 static bool
 InverseMatchContinueProcessIntermediateArray(void *state, const
-											 bson_value_t *value)
+											 bson_value_t *value, bool isArrayIndexSearch)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 					errmsg(

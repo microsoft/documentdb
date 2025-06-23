@@ -38,7 +38,8 @@ static Datum BsonUnwindArray(PG_FUNCTION_ARGS, Tuplestorestate *tupleState,
 							 char *path, char *indexFieldName, bool
 							 preserveNullAndEmpty);
 static bool DistinctContinueProcessIntermediateArray(void *state, const
-													 bson_value_t *value);
+													 bson_value_t *value, bool
+													 isArrayIndexSearch);
 static void DistinctSetTraverseResult(void *state, TraverseBsonResult result);
 static bool DistinctVisitArrayField(pgbsonelement *element, const
 									StringView *traversePath, int
@@ -526,7 +527,8 @@ BsonUnwindEmptyArray(pgbson *document, char *path, char *indexFieldName)
  * Always true for distinct.
  */
 static bool
-DistinctContinueProcessIntermediateArray(void *state, const bson_value_t *value)
+DistinctContinueProcessIntermediateArray(void *state, const bson_value_t *value,
+										 bool isArrayIndexSearch)
 {
 	return true;
 }

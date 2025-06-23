@@ -543,7 +543,7 @@ FillPgbsonElementUnsafe(uint8_t *data, uint32_t data_len, pgbsonelement *element
 
 			int32_t totalcodeLength = *((int32_t *) data);
 			data += 4;
-			if (lengthLeft < totalcodeLength + 4)
+			if (lengthLeft < totalcodeLength)
 			{
 				return false;
 			}

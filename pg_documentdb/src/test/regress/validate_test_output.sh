@@ -28,6 +28,7 @@ validationExceptions="/sql/documentdb_test_helpers.sql /sql/public_api_schema.sq
 echo "Validating test file output"
 for validationFile in $(ls $scriptDir/expected/*.out); do
     fileName=$(basename $validationFile);
+    fileNameBase="${fileName%.out}";
     sqlFile="${fileName%.out}.sql";
     sqlExceptionStr="/sql/$sqlFile"
 
@@ -45,6 +46,17 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     if [[ $validationExceptions =~ $sqlExceptionStr ]]; then
         continue;
     fi;
+
+    # check if the base file is in the schedule
+    findResult=$(grep $fileNameBase *schedule || true)
+    if [ "$findResult" == "" ]; then
+        if [[ "$fileNameBase" =~ "pg15" ]] || [[ "$fileNameBase" =~ "pg16" ]] || [[ "$fileNameBase" =~ "pg17" ]]; then
+            echo "Skipping duplicate check for $fileNameBase"
+        else
+            echo "Test file '$validationFile' with name '$fileNameBase' is not in the schedule, please add it to the schedule";
+            exit 1;
+        fi
+    fi
 
     # Extract the actual collection ID (we'll use this to check for uniqueness).
     collectionIdOutput=$(grep 'documentdb.next_collection_id' $validationFile || true)
@@ -93,6 +105,23 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     collectionIndexIdOutput=${collectionIndexIdOutput/[\s|;]/};
     if [ "$collectionIndexIdOutput" != "$collectionIdOutput" ]; then
         echo "CollectionId and CollectionIndexId used in '$sqlFile' must match. CollectionId: $collectionIdOutput, CollectionIndexId: $collectionIndexIdOutput";
+        exit 1;
+    fi
+done
+
+# Now validate for every sql file there's an .out file unless excluded
+for sqlFile in $(ls $scriptDir/sql/*.sql); do
+    fileName=$(basename $sqlFile);
+    fileNameBase="${fileName%.sql}";
+    outFile="$scriptDir/expected/$fileNameBase.out";
+
+    if [[ "$fileName" =~ "explain_core.sql" ]]; then
+        echo "Skipping explain_core.sql validation";
+        continue;
+    fi
+
+    if [ ! -f "$outFile" ]; then
+        echo "Test file '$sqlFile' does not have a corresponding expected output file '$outFile'. Please add to the schedule file and run tests.";
         exit 1;
     fi
 done

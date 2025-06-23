@@ -67,7 +67,8 @@ static bool GeographyValidateTopLevelField(pgbsonelement *element, const
 										   StringView *filterPath,
 										   void *state);
 static bool ContinueProcessIntermediateArray(void *state, const
-											 bson_value_t *value);
+											 bson_value_t *value, bool
+											 isArrayIndexSearch);
 static bool BsonValueAddLegacyPointDatum(const bson_value_t *value,
 										 ProcessCommonGeospatialState *state,
 										 bool *isNull);
@@ -622,7 +623,8 @@ BsonValueAddLegacyPointDatum(const bson_value_t *value,
  * Continue always for intermediate arrays to find all possible points
  */
 static bool
-ContinueProcessIntermediateArray(void *state, const bson_value_t *value)
+ContinueProcessIntermediateArray(void *state, const bson_value_t *value,
+								 bool isArrayIndexSearch)
 {
 	ProcessCommonGeospatialState *processState = (ProcessCommonGeospatialState *) state;
 

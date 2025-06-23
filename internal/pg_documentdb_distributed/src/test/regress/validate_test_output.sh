@@ -37,15 +37,6 @@ for validationFileName in $(ls ./expected/*_tests_index_composite.out); do
     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
 done
 
-# TODO: Enable this
-# for validationFileName in $(ls ./expected/*_tests_explain_index_composite.out); do
-#     runtimeFileName=${validationFileName/_tests_explain_index_composite.out/_tests_explain_index.out};
-
-#     $diff -s -I 'SELECT documentdb_api_internal.create_indexes' -I 'set local enable_seqscan' -I 'documentdb.next_collection_id' -I 'set local enable_bitmapscan' -I 'set local documentdb.forceUseIndexIfAvailable' -I 'set local citus.enable_local_execution' -I '\\set' -I 'set enable_seqscan'  -I 'set documentdb.forceUseIndexIfAvailable' -I 'documentdb.enableGeospatial' \
-#         $validationFileName $runtimeFileName;
-#     if [ $? -ne 0 ]; then echo "Validation failed on '${validationFileName}' against '${runtimeFileName}' error code $?"; exit 1; fi;
-# done
-
 # Validate index_backcompat/index equivalence.
 for validationFileName in $(ls ./expected/*_tests_index_backcompat.out); do
     indexFileName=${validationFileName/_tests_index_backcompat.out/_tests_index.out};
@@ -74,6 +65,7 @@ skippedDuplicateCheckFile=""
 echo "Validating test file output"
 for validationFile in $(ls $scriptDir/expected/*.out); do
     fileName=$(basename $validationFile);
+    fileNameBase="${fileName%.out}";
     sqlFile="${fileName%.out}.sql";
     sqlExceptionStr="/sql/$sqlFile"
 
@@ -96,8 +88,26 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
         continue;
     fi;
 
+    # check if the base file is in the schedule
+    findResult=$(grep $fileNameBase basic_schedule_core || true)
+    fileNameMod=$(echo $fileNameBase | sed -E 's/_tests/!PG17_OR_HIGHER!_tests/g')
+
+    if [ "$findResult" == "" ]; then
+        # See if it exists with the !PG17_OR_HIGHER! macro
+        findResult=$(grep $fileNameMod basic_schedule_core || true)
+    fi
+
+    if [ "$findResult" == "" ]; then
+        if [[ "$fileNameBase" =~ "pg15" ]] || [[ "$fileNameBase" =~ "pg16" ]] || [[ "$fileNameBase" =~ "pg17" ]] || [[ "$fileNameBase" =~ "_explain" ]]; then
+            echo "Skipping schedule existence check for $fileNameBase"
+        else
+            echo "Test file '$validationFile' with name '$fileNameBase' or '$fileNameMod' is not in the schedule, please add it to the schedule";
+            exit 1;
+        fi
+    fi
+
     # Extract the actual collection ID (we'll use this to check for uniqueness).
-    collectionIdOutput=$(grep 'documentdb.next_collection_id' $validationFile || true)
+    collectionIdOutput=$(grep -m 1 'documentdb.next_collection_id' $validationFile || true)
 
     # Fail if not found.
     if [ "$collectionIdOutput" == "" ]; then
@@ -111,7 +121,7 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
 
     # Allow skipping unique checks
     skipUniqueCheck="false"
-    if [[ "$sqlFile" =~ "tests_runtime.sql" ]] || [[ "$sqlFile" =~ "tests_index_no_bitmap.sql" ]] || [[ "$sqlFile" =~ "tests_index.sql" ]] ||  [[ "$sqlFile" =~ "tests_index_backcompat.sql" ]] || [[ "$sqlFile" =~ "tests_pg17_explain" ]] || [[ "$sqlFile" =~ "tests_explain_index.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index_no_bitmap.sql" ]]; then
+    if [[ "$sqlFile" =~ "tests_runtime.sql" ]] || [[ "$sqlFile" =~ "explain_index_composite" ]] || [[ "$sqlFile" =~ "explain_index_comp_desc.sql" ]] || [[ "$sqlFile" =~ "tests_index_no_bitmap.sql" ]] || [[ "$sqlFile" =~ "tests_index.sql" ]] ||  [[ "$sqlFile" =~ "tests_index_backcompat.sql" ]] || [[ "$sqlFile" =~ "tests_pg17_explain" ]] || [[ "$sqlFile" =~ "tests_explain_index.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index_no_bitmap.sql" ]]; then
             skippedDuplicateCheckFile="$skippedDuplicateCheckFile $sqlFile"
             skipUniqueCheck="true"
     elif [[ "$sqlFile" =~ _pg[0-9]+.sql ]] && [[ ! "$sqlFile" =~ "_pg${pg_version}.sql" ]]; then
@@ -137,7 +147,7 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     fi
 
     # See if the index id is also set.
-    collectionIndexIdOutput=$(grep 'documentdb.next_collection_index_id' $validationFile || true)
+    collectionIndexIdOutput=$(grep -m 1 'documentdb.next_collection_index_id' $validationFile || true)
     if [ "$collectionIndexIdOutput" == "" ]; then
         echo "Test file '${sqlFile}' does not set next_collection_index_id: consider setting documentdb.next_collection_index_id";
         exit 1;
@@ -173,6 +183,23 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
         exit 1;
     else
         aggregateShardIdStr="$aggregateShardIdStr :$nextShardIdOutput:"
+    fi
+done
+
+# Now validate for every sql file there's an .out file unless excluded
+for sqlFile in $(ls $scriptDir/sql/*.sql); do
+    fileName=$(basename $sqlFile);
+    fileNameBase="${fileName%.sql}";
+    outFile="$scriptDir/expected/$fileNameBase.out";
+
+    if [[ "$fileName" =~ "_core.sql" ]] || [[ "$fileName" == "bson_query_operator_tests_insert.sql" ]]; then
+        echo "Skipping sql to out file validation on $fileName";
+        continue;
+    fi
+
+    if [ ! -f "$outFile" ]; then
+        echo "Test file '$sqlFile' does not have a corresponding expected output file '$outFile'. Please add to the schedule file and run tests.";
+        exit 1;
     fi
 done
 

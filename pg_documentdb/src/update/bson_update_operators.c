@@ -95,7 +95,8 @@ static void ValidateBitwiseInputParams(const MongoBitwiseOperatorType operatorTy
 static bool RenameVisitTopLevelField(pgbsonelement *element, const StringView *filterPath,
 									 void *state);
 static void RenameSetTraverseErrorResult(void *state, TraverseBsonResult traverseResult);
-static bool RenameProcessIntermediateArray(void *state, const bson_value_t *value);
+static bool RenameProcessIntermediateArray(void *state, const bson_value_t *value,
+										   bool isArrayIndexSearch);
 
 static bson_value_t RenameSourceGetValue(const pgbson *sourceDocument, const
 										 char *sourcePathString);
@@ -1100,7 +1101,8 @@ RenameSetTraverseErrorResult(void *state, TraverseBsonResult traverseResult)
  * This is only if we haven't already found the rename source.
  */
 static bool
-RenameProcessIntermediateArray(void *state, const bson_value_t *value)
+RenameProcessIntermediateArray(void *state, const bson_value_t *value, bool
+							   isArrayIndexSearch)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 					errmsg("The source field of a rename cannot be an array element")));

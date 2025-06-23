@@ -67,6 +67,13 @@ InitializeVersionCache(void)
 }
 
 
+bool
+IsVersionRefreshQueryString(const char *queryString)
+{
+	return queryString != NULL && strcmp(queryString, GetVersionRefreshQuery()) == 0;
+}
+
+
 /*
  * Returns true if the cluster version is exactly major.minor and >= patch
  */

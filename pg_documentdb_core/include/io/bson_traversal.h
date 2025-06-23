@@ -61,9 +61,14 @@ typedef struct TraverseBsonExecutionFuncs
 	/*
 	 * Given an intermediate array in the path, queries whether or not to continue processing the array
 	 * with the specified value.
+	 * isArrayIndexSearch is set to true if the traversal is done via the array index path i.e.
+	 * it'll be true if we were traversing a.b.0 and '0' is treated as an array index.
+	 * This will be false if the traversal is done via a.b.c where 'a' or 'b' are arrays and 'c' is
+	 * arrived via being a document in the array.
 	 * Returns true if comparison execution should continue.
 	 */
-	bool (*ContinueProcessIntermediateArray)(void *state, const bson_value_t *value);
+	bool (*ContinueProcessIntermediateArray)(void *state, const bson_value_t *value, bool
+											 isArrayIndexSearch);
 
 	/*
 	 * An optional function: On an intermediate array visit, marks the array index that is currently

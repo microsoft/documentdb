@@ -411,6 +411,13 @@ CurrentOpWorkerCore(void *specPointer)
 			continue;
 		}
 
+		if (activity->query != NULL &&
+			IsVersionRefreshQueryString(activity->query))
+		{
+			/* Skip version refresh query calls */
+			continue;
+		}
+
 		/* by default we would want to just send the activity up - but we really
 		 * need to post-process the activity here. This is because things like
 		 * index progress need to be handled fully on the worker (the tables aren't
