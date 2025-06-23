@@ -773,7 +773,7 @@ pg_attribute_noreturn() ThrowLocation5439015Error(bson_type_t foundType, char * 
 
 /* Helper method that throws common ConversionFailure when a timezone string is not parseable by format. */
 static inline void
-pg_attribute_noreturn() ThrowMongoConversionErrorForTimezoneIdentifier(
+pg_attribute_noreturn() ThrowDocumentDbConversionErrorForTimezoneIdentifier(
 	char * dateString,
 	int sizeOfDateString,
 	int * indexOfDateStringIter)
@@ -1151,7 +1151,7 @@ HandlePreParsedDollarIsoDayOfWeek(pgbson *doc, void *arguments,
 
 /*
  * Parses a $dateToString expression.
- * $datToString is expressed as { "$dateToString": { date: <dateExpression>, [ format: <strExpression>, timezone: <tzExpression>, onNull: <expression> ] } }
+ * $dateToString is expressed as { "$dateToString": { date: <date>, [ format: <str>, timezone: <str>, onNull: <> ] } }
  * We validate the input document and return the string with the specified timezone using the specified format if any.
  * If no format is specified the default format is: %Y-%m-%dT%H:%M:%S.%LZ
  */
@@ -1224,7 +1224,7 @@ ParseDollarDateToString(const bson_value_t *argument, AggregationExpressionData 
 
 		if (IsAggregationExpressionConstant(formatData))
 		{
-			/* Match native mongo, if any argument is null when evaluating, bail and don't evaluate the rest of the args. */
+			/* If any argument is null when evaluating, bail and don't evaluate the rest of the args. */
 			if (IsExpressionResultNullOrUndefined(&formatData->value))
 			{
 				data->value = onNullResult;
@@ -1623,8 +1623,7 @@ ParseDollarDateToParts(const bson_value_t *argument, AggregationExpressionData *
 
 		if (IsAggregationExpressionConstant(isoData))
 		{
-			/* Match native mongo, if iso8601 resolves to null or undefined, we bail before
-			 * evaluating the other arguments and return null. */
+			/* If iso8601 resolves to null or undefined, return null before evaluating other arguments. */
 			if (!GetIsIsoRequested(&isoData->value, &isIsoRequested))
 			{
 				data->value = nullValue;
@@ -1731,7 +1730,7 @@ HandlePreParsedDollarDateToParts(pgbson *doc, void *arguments,
 		EvaluateAggregationExpressionData(isoData, doc, &childResult,
 										  hasNullOrUndefined);
 
-		/* Match native mongo, if iso8601 resolves to null or undefined, we bail before
+		/* If iso8601 resolves to null or undefined, bail before
 		 * evaluating the other arguments and return null. */
 		if (!GetIsIsoRequested(&childResult.value, &isIsoRequested))
 		{
@@ -1929,7 +1928,7 @@ HandlePreParsedDatePartOperator(pgbson *doc, void *arguments, const char *operat
 
 
 /* This method parses the single date part operators argument.
- * which can be <expression>, [ <expression> ], { date: <expression>, timezone: <stringExpression> }
+ * which can be <date>, [ <date> ] or { date: <date>, timezone: <str> }
  * it does not validate that the date expression is a valid date expression, it just returns it in the specified pointer. */
 static bool
 ParseDatePartOperatorArgument(const bson_value_t *operatorValue, const char *operatorName,
@@ -2204,7 +2203,7 @@ GetDatePartResult(bson_value_t *dateValue, ExtensionTimezone timezone, DatePart 
 
 	if (datePart == DatePart_IsoWeekYear)
 	{
-		/* $isoWeekYear is a long in native mongo */
+		/* $isoWeekYear should be a long. */
 		result->value_type = BSON_TYPE_INT64;
 		result->value.v_int64 = (int64_t) datePartResult;
 	}
@@ -2679,7 +2678,7 @@ GetPgTimestampFromEpochWithoutTimezone(int64_t epochInMs, ExtensionTimezone time
 
 
 /* Parses a timezone string that can be a utc offset or an Olson timezone identifier.
- * If it represents a utc offset it throws if it doesn't follow the mongo valid offset format: +/-[hh], +/-[hh][mm] or +/-[hh]:[mm].
+ * If it represents a utc offset it throws if it doesn't follow the valid offset format: +/-[hh], +/-[hh][mm] or +/-[hh]:[mm].
  * Otherwise, it throws if the timezone doesn't exist. */
 static ExtensionTimezone
 ParseTimezone(StringView timezone)
@@ -2698,10 +2697,10 @@ ParseTimezone(StringView timezone)
 	}
 	else
 	{
-		/* We've got an Timezone Identifier or an offset without a sign (which is not valid in native Mongo). */
+		/* We've got a timezone identifier or an offset without a sign (which is not valid here). */
 
-		/* pg_tzset also accepts UTC offsets but format is different and more permisive than MongoDB,
-		* so in case we got a result, we just check if it was an offset without a sign. i.e: 08:09 */
+		/* pg_tzset also accepts UTC offsets but format is different and more permissive,
+		 * so in case we got a result, we just check if it was an offset without a sign. i.e: 08:09 */
 		const char *p = timezone.string;
 		bool isOffset = true;
 		while (*p)
@@ -2761,8 +2760,8 @@ DetermineUtcOffsetForEpochWithTimezone(int64_t epochInMs, ExtensionTimezone time
 }
 
 
-/* Given a Utc offset string following mongo valid offsets, returns the offset difference in milliseconds.
- * Throws for non valid utc offsets. */
+/* Given a UTC offset string following valid offset formats, returns the offset difference in milliseconds.
+ * Throws for non valid UTC offsets. */
 static int64_t
 ParseUtcOffset(StringView offset)
 {
@@ -2921,13 +2920,10 @@ GetDatePartFromPgTimestamp(Datum pgTimestamp, DatePart datePart)
 
 		case DatePart_Week:
 		{
-			/* In postgres the week part follows the ISO 8601 week numbering. Which start on Mondays and
+			/* In Postgres, the week part follows the ISO 8601 week numbering, which starts on Mondays and
 			 * the first week of a year contains January 4 of that year. In other words, the first Thursday
-			 * of a year is in week 1 of that year. So it is possible for early-January dates to be part of the 52nd or 53rd week
-			 * of the previous year and for late-December dates to be part of the first week of the next year. i.e: 2005-01-01
-			 * in ISO 8601 is part of the 53rd week of year 2004, in this case we should return 1 as we don't want the ISO week numbering.
-			 * Native mongo for non-ISO weeks, weeks begin on Sundays and the first week begins the first Sunday of the year, days preceding
-			 * the first Sunday of the year are in week 0. */
+			 * of a year is in week 1 of that year. For non-ISO weeks, weeks begin on Sundays and the first week
+			 * begins the first Sunday of the year; days preceding the first Sunday of the year are in week 0. */
 
 			uint32_t dayOfYear = GetDatePartFromPgTimestamp(pgTimestamp,
 															DatePart_DayOfYear);
@@ -2964,7 +2960,7 @@ GetDatePartFromPgTimestamp(Datum pgTimestamp, DatePart datePart)
 
 	if (datePart == DatePart_DayOfWeek)
 	{
-		/* Postgres range for dow is 0-6 and native mongo uses 1-7 range */
+		/* Postgres range for dow is 0-6; adjust to 1-7 range */
 		result = result + 1;
 	}
 
@@ -4634,11 +4630,11 @@ ParseDollarDateAdd(const bson_value_t *argument, AggregationExpressionData *data
 
 
 /* This function tells if the timestamp supplied with the timezone for dateAdd needs to be adjusted.
- * This returns 1 or -1 if needs to be adjusted which is the amount of hour to add or subtract from result timestamp.
- * In case we do need need to adjust we return 0
- * This takes into account that timezone is applied only above days unit i.e for day, week , month, etc.
- * Also, it only adjusts the timezone with the DST offset if olson timezone is specified.
- * Timezone is applied only when post adding interval we are entering DST or DST is ending as per mongo behaviour.
+ * This returns 1 or -1 if needs to be adjusted, which is the amount of hour to add or subtract from result timestamp.
+ * In case we do not need to adjust, we return 0.
+ * This takes into account that timezone is applied only above days unit (i.e., for day, week, month, etc.).
+ * Also, it only adjusts the timezone with the DST offset if an Olson timezone is specified.
+ * Timezone is applied only when, after adding the interval, we are entering or leaving DST.
  */
 static int
 GetAdjustHourWithTimezoneForDateAddSubtract(Datum startTimestamp, Datum
@@ -5219,7 +5215,7 @@ HandlePreParsedDollarDateDiff(pgbson *doc, void *arguments,
 
 /*
  * This function takes in the input arguments and then parses the expression for dollar date diff.
- * The input exresssion is of the format $dateDiff : {startDate: <Expression>, endDate: <expression>, unit: <Expression> , timezone: <tzExpression>, startOfWeek: <string>}
+ * The input exresssion is of the format $dateDiff : {startDate: <>, endDate: <>, unit: <str> , timezone: <str>, startOfWeek: <str>}
  */
 void
 ParseDollarDateDiff(const bson_value_t *argument, AggregationExpressionData *data,
@@ -6393,9 +6389,10 @@ ParseUtcOffsetForDateString(char *dateString, int sizeOfDateString,
 	if (*timezoneOffsetLen < 2)
 	{
 		CONDITIONAL_EREPORT(isOnErrorPresent,
-							ThrowMongoConversionErrorForTimezoneIdentifier(dateString,
-																		   sizeOfDateString,
-																		   indexOfDateStringIter));
+							ThrowDocumentDbConversionErrorForTimezoneIdentifier(
+								dateString,
+								sizeOfDateString,
+								indexOfDateStringIter));
 		*isInputValid = false;
 		return;
 	}

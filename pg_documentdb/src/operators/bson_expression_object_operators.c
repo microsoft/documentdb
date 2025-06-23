@@ -208,7 +208,7 @@ HandlePreParsedDollarMergeObjects(pgbson *doc, void *arguments,
 
 
 /* Parses the $setField expression specified in the bson_value_t.
- * $setField is expressed as { "field": <const expression>, "input": <document> can also be "$$ROOT", "value": <expression> can also be "$$REMOVE" } }
+ * $setField is expressed as { "field": constant, "input": document can also be "$$ROOT", "value": <> can also be "$$REMOVE" } }
  */
 void
 ParseDollarSetField(const bson_value_t *argument, AggregationExpressionData *data,
@@ -222,7 +222,7 @@ ParseDollarSetField(const bson_value_t *argument, AggregationExpressionData *dat
 /*
  * Handles executing a pre-parsed $setField expression.
  * $setField is expressed as:
- * $setField { "field": <const expression>, "input": <document> can also be "$$ROOT", "value": <expression> can also be "$$REMOVE" } }
+ * $setField { "field": constant, "input": document can also be "$$ROOT", "value": <> can also be "$$REMOVE" } }
  * We evalute the value and add the field/value into the "input" document.  If the value is a special term "$$REMOVE", we remove instead.
  */
 void
@@ -237,7 +237,7 @@ HandlePreParsedDollarSetField(pgbson *doc, void *arguments,
 
 /*
  * Parses the $unsetField expression specified in the bson_value_t.
- * $unsetField { "field": <const expression>, "input": <document> can also be "$$ROOT" } }
+ * $unsetField { "field": constant, "input": document can also be "$$ROOT" } }
  */
 void
 ParseDollarUnsetField(const bson_value_t *argument, AggregationExpressionData *data,
@@ -251,7 +251,7 @@ ParseDollarUnsetField(const bson_value_t *argument, AggregationExpressionData *d
 /*
  * Handles executing a pre-parsed $unsetField expression.
  * $unsetField is expressed as:
- * $unsetField { "field": <const expression>, "input": <document> can also be "$$ROOT" } }
+ * $unsetField { "field": constant, "input": document can also be "$$ROOT" } }
  */
 void
 HandlePreParsedDollarUnsetField(pgbson *doc, void *arguments,
@@ -266,7 +266,7 @@ HandlePreParsedDollarUnsetField(pgbson *doc, void *arguments,
 /*
  * Parses the $getField expression specified in the bson_value_t.
  * 1. full expression
- * $getField { "field": <const expression>, "input": <document> default to be "$$CURRENT" } }
+ * $getField { "field": constant, "input": document default to be "$$CURRENT" } }
  *      example: {"$getField": {"field": "a", "input": "$$CURRENT"}}
  * 2. shorthand expression
  * $getField: <const expression of field> to retirved field from $$CURRENT
@@ -391,14 +391,13 @@ ParseDollarGetField(const bson_value_t *argument, AggregationExpressionData *dat
 	}
 
 	/* if the value type of input is not an object, do nothing to return missing */
-	/* which is not the same with mongodb documentation. */
 }
 
 
 /*
  * Handles executing a pre-parsed $getField expression.
  * $getField is expressed as:
- * $getField { "field": <const expression>, "input": <document> default to be "$$CURRENT" } }
+ * $getField { "field": constant, "input": document default to be "$$CURRENT" } }
  * or $getField: <const expression of field> to retirved field from $$CURRENT
  */
 void
@@ -431,7 +430,6 @@ HandlePreParsedDollarGetField(pgbson *doc, void *arguments,
 	}
 
 	/* If the field is not found, or input is missing or doesn't resolve to an object, do nothing to return missing directly */
-	/* which is not the same with mongodb documentation. */
 }
 
 
@@ -441,8 +439,8 @@ HandlePreParsedDollarGetField(pgbson *doc, void *arguments,
 
 /*
  * Parses the $setField and $unsetField expression specified in the bson_value_t.
- * $setField { "field": <const expression>, "input": <document> can also be "$$ROOT", "value": <expression> can also be "$$REMOVE" } }
- * $unsetField { "field": <const expression>, "input": <document> can also be "$$ROOT" } }
+ * $setField { "field": constant, "input": document can also be "$$ROOT", "value": <> can also be "$$REMOVE" } }
+ * $unsetField { "field": constant, "input": document can also be "$$ROOT" } }
  */
 static void
 ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
@@ -593,11 +591,11 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 /*
  * Handles executing a pre-parsed $setField and $unsetField expression.
  * $setField is expressed as:
- * $setField { "field": <const expression>, "input": <document> can also be "$$ROOT", "value": <expression> can also be "$$REMOVE" } }
+ * $setField { "field": constant, "input": document can also be "$$ROOT", "value": <> can also be "$$REMOVE" } }
  * We evalute the value and add the field/value into the "input" document.  If the value is a special term "$$REMOVE", we remove instead.
  *
  * $unsetField is expressed as:
- * $unsetField { "field": <const expression>, "input": <document> can also be "$$ROOT" } }
+ * $unsetField { "field": constant, "input": document can also be "$$ROOT" } }
  */
 static void
 HandlePreParsedDollarSetFieldOrUnsetFieldCore(pgbson *doc, void *arguments,
@@ -786,12 +784,11 @@ ProcessResultForDollarSetFieldOrUnsetField(bson_value_t field, bson_value_t inpu
 	bool removeOperation = false;
 
 	/* When $$REMOVE is evaluated in the current expression resolution process the
-	 * system variable will resolve to EOD which we take advantage of as in mongo
-	 * if you had a "value" field that was null, then we are to act as remove requested.
-	 * So both are able to be processed by compare with EOD. */
+	 * system variable will resolve to EOD. If you have a "value" field that is null,
+	 * then we are to act as remove requested. Both are able to be processed by compare with EOD. */
 	if (value.value_type == BSON_TYPE_EOD)
 	{
-		removeOperation = true;  /* mongodb will have a unknown/null $var remove the value */
+		removeOperation = true;
 	}
 
 	/* if input is null, return null */
@@ -876,8 +873,8 @@ AppendDocumentForMergeObjects(const bson_value_t *currentValue, bool isConstant,
 		 * $mergeObjects processes an array of documents, iterating over the top-level fields of each document and adding them to the hash table.
 		 * For example, given a document {a: {b: {c: 1}}}, the hash table will store the top-level field 'a' with its value.
 		 *
-		 *  Mongo $mergeObject merge Objects on top level only and does not merge nested objects.
-		 *  e.g. {a: {b: 1}} and {a: {c: 2}} will result in {a: {c: 2}}.
+		 *  We should merge objects at the top level only.
+		 *  For example, {a: {b: 1}} and {a: {c: 2}} will result in {a: {c: 2}}.
 		 */
 		while (bson_iter_next(&docIter))
 		{

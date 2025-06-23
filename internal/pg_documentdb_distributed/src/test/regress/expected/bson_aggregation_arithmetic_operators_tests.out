@@ -192,15 +192,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$add": [ {"$date": "2019-
 
 -- Should error with non-numeric or date expressions
 SELECT * FROM bson_dollar_project('{"a":{ }, "b": null}', '{"result": { "$add": [ "$a", 922, 1 ]}}');
-ERROR:  only numbers and dates are allowed in $add expression
+ERROR:  $add only supports numeric or date types, not object
 SELECT * FROM bson_dollar_project('{"a": 1, "b": false}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  only numbers and dates are allowed in $add expression
+ERROR:  $add only supports numeric or date types, not bool
 SELECT * FROM bson_dollar_project('{"a": 1, "b": "false"}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  only numbers and dates are allowed in $add expression
+ERROR:  $add only supports numeric or date types, not string
 SELECT * FROM bson_dollar_project('{"a": 1, "b": [2, 3]}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  only numbers and dates are allowed in $add expression
+ERROR:  $add only supports numeric or date types, not array
 SELECT * FROM bson_dollar_project('{"a":[1,2]}', '{"result": { "$add": [ "$a.0", "$a.1", 0 ]}}');
-ERROR:  only numbers and dates are allowed in $add expression
+ERROR:  $add only supports numeric or date types, not array
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", "string" ]}}');
 ERROR:  $add only supports numeric or date types, not string
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", true ]}}');
@@ -547,21 +547,21 @@ SELECT * FROM bson_dollar_project('{"a":1 }', '{"result": { "$multiply": [ "$a",
 
 -- Should error if no number is provided
 SELECT * FROM bson_dollar_project('{"a":{ }}', '{"result": { "$multiply": [ "$a", 922 ]}}');
-ERROR:  only numbers are allowed in an $multiply expression
+ERROR:  $multiply only supports numeric types, not object
 SELECT * FROM bson_dollar_project('{"a": 1, "b": false}', '{"result": { "$multiply": [ "$a", "$b"]}}');
-ERROR:  only numbers are allowed in an $multiply expression
+ERROR:  $multiply only supports numeric types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$multiply": [ "string", 1]}}');
 ERROR:  $multiply only supports numeric types, not string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$multiply": [ 1, "string"]}}');
 ERROR:  $multiply only supports numeric types, not string
 SELECT * FROM bson_dollar_project('{"a":[1,2]}', '{"result": { "$multiply": [ "$a.0", 2 ]}}');
-ERROR:  only numbers are allowed in an $multiply expression
+ERROR:  $multiply only supports numeric types, not array
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$multiply": [ "$a", true ]}}');
 ERROR:  $multiply only supports numeric types, not bool
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$multiply": [ "$a", {} ]}}');
 ERROR:  $multiply only supports numeric types, not object
 SELECT * FROM bson_dollar_project('{"a":{}}', '{"result": { "$multiply": [ "$a", 32 ]}}');
-ERROR:  only numbers are allowed in an $multiply expression
+ERROR:  $multiply only supports numeric types, not object
 -- $divide operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1, 1]}}');
             bson_dollar_project             

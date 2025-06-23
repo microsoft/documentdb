@@ -55,7 +55,7 @@ typedef void (*ParseAggregationExpressionFunc)(const bson_value_t *argument,
  */
 typedef struct
 {
-	/* The mongodb name of the operator (e.g. $literal) */
+	/* The name of the operator (e.g. $literal) */
 	const char *operatorName;
 
 	/* Function pointer to parse the aggregation expression. */
@@ -66,7 +66,7 @@ typedef struct
 
 	/* The feature counter type in order to report feature usage telemetry. */
 	FeatureType featureCounterId;
-} MongoOperatorExpression;
+} DocumentDbOperatorExpression;
 
 
 /*
@@ -170,7 +170,7 @@ static void CreateProjectionTreeStateForPartitionByFields(
  *  Keep this list lexicographically sorted by the operator name,
  *  as it is binary searched on the key to find the handler.
  */
-static MongoOperatorExpression OperatorExpressions[] = {
+static DocumentDbOperatorExpression OperatorExpressions[] = {
 	{ "$_bucketInternal", &ParseDollarBucketInternal,
 	  &HandlePreParsedDollarBucketInternal,
 	  INTERNAL_FEATURE_TYPE },
@@ -420,7 +420,7 @@ static MongoOperatorExpression OperatorExpressions[] = {
 	{ "$strcasecmp", &ParseDollarStrCaseCmp, &HandlePreParsedDollarStrCaseCmp,
 	  FEATURE_AGG_OPERATOR_STRCASECMP },
 	{ "$substr", &ParseDollarSubstrBytes, &HandlePreParsedDollarSubstrBytes,
-	  FEATURE_AGG_OPERATOR_SUBSTR }, /* MongoDB treats $substr the same as $substrBytes, including error messages */
+	  FEATURE_AGG_OPERATOR_SUBSTR }, /* $substr is the same as $substrBytes */
 	{ "$substrBytes", &ParseDollarSubstrBytes, &HandlePreParsedDollarSubstrBytes,
 	  FEATURE_AGG_OPERATOR_SUBSTRBYTES },
 	{ "$substrCP", &ParseDollarSubstrCP, &HandlePreParsedDollarSubstrCP,
@@ -479,7 +479,7 @@ static MongoOperatorExpression OperatorExpressions[] = {
 };
 
 static int NumberOfOperatorExpressions = sizeof(OperatorExpressions) /
-										 sizeof(MongoOperatorExpression);
+										 sizeof(DocumentDbOperatorExpression);
 
 static const StringView CurrentVariableName =
 {
@@ -553,7 +553,7 @@ PG_FUNCTION_INFO_V1(bson_expression_map);
 
 /*
  * bson_expression_get evaluates a bson expression from a given
- * document. This follows operator expressions as per mongo aggregation expressions.
+ * document. This follows operator expressions as per aggregation expressions.
  * The input is expected to be a bson document with a single value
  * e.g. { "sum": "$a.b"}
  * A fourth argument of the collation string could be provided in which case it will be appended
@@ -800,7 +800,7 @@ bson_expression_partition_by_fields_get(PG_FUNCTION_ARGS)
 
 /*
  * bson_expression_map evaluates a bson expression from a given array of
- * document. This follows operator expressions as per mongo aggregation expressions.
+ * document. This follows operator expressions as per aggregation expressions.
  * The input document should be a document containing the given field name that
  * points to an array of documents.
  * e.g. { "array": [{"_id": 1 ...}, {"_id": 2 ...}, ...]}
@@ -1317,8 +1317,8 @@ ReportOperatorExpressonSyntaxError(const char *fieldA, bson_iter_t *fieldBIter, 
 static int
 CompareOperatorExpressionByName(const void *a, const void *b)
 {
-	return strcmp((*(MongoOperatorExpression *) a).operatorName,
-				  (*(MongoOperatorExpression *) b).operatorName);
+	return strcmp((*(DocumentDbOperatorExpression *) a).operatorName,
+				  (*(DocumentDbOperatorExpression *) b).operatorName);
 }
 
 
@@ -2166,13 +2166,13 @@ ParseFixedArgumentsForExpression(const bson_value_t *argumentValue, int
 
 	int numArgs = BsonDocumentValueCountKeys(argumentValue);
 
-	/* In order to match native mongo, we need to do this in 2 passes.
+	/* To ensure correct error reporting, we need to do this in 2 passes.
 	 * First pass to validate number of args is correct.
 	 * Second pass evaluate the expressions.
 	 * We need to do it in 2 different passes as if we evaluate
 	 * expressions in the first pass and a nested expression throws an error
 	 * we would report that error, rather than the wrong number of args error,
-	 * and native mongo's wrong number of args error always wins. */
+	 * and the wrong number of args error should always take precedence. */
 	if (numArgs != numberOfExpectedArgs)
 	{
 		ThrowExpressionTakesExactlyNArgs(operatorName, numberOfExpectedArgs, numArgs);
@@ -2454,18 +2454,19 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 		}
 
 		expressionData->kind = AggregationExpressionKind_Operator;
-		MongoOperatorExpression searchKey = {
+		DocumentDbOperatorExpression searchKey = {
 			.operatorName = operatorKey,
 			.handlePreParsedOperatorFunc = NULL,
 			.parseAggregationExpressionFunc = NULL,
 		};
 
-		MongoOperatorExpression *pItem = (MongoOperatorExpression *) bsearch(&searchKey,
-																			 OperatorExpressions,
-																			 NumberOfOperatorExpressions,
-																			 sizeof(
-																				 MongoOperatorExpression),
-																			 CompareOperatorExpressionByName);
+		DocumentDbOperatorExpression *pItem = (DocumentDbOperatorExpression *) bsearch(
+			&searchKey,
+			OperatorExpressions,
+			NumberOfOperatorExpressions,
+			sizeof(
+				DocumentDbOperatorExpression),
+			CompareOperatorExpressionByName);
 
 		if (pItem == NULL)
 		{
@@ -2547,10 +2548,10 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 		ereport(DEBUG3, (errmsg("Optimizing document expression into constant.")));
 
 		/* We write the tree instead of just copying the input value for 2 reasons:
-		 * 1. Document keys need to be deduplicated to match native Mongo. Since we've built the tree already and that deduplicates keys, we use it.
+		 * 1. Document keys need to be deduplicated for compatibility. Since we've built the tree already and that deduplicates keys, we use it.
 		 * 2. If it is a constant document, it could've had nested operators that were transformed to a constant
 		 * as the result of evaluating that operator is always constant. So we need to write the value from the parsed tree
-		 * instead of just copying the input value. i.e: { "a": { $literal: "foo" } }, needs to evaluate to { "a": "foo" }. */
+		 * instead of just copying the input value. For example: { "a": { $literal: "foo" } }, needs to evaluate to { "a": "foo" }. */
 		pgbson_writer writer;
 		PgbsonWriterInit(&writer);
 
@@ -2705,13 +2706,13 @@ ParseRangeArgumentsForExpression(const bson_value_t *argumentValue,
 	}
 	else
 	{
-		/* In order to match native mongo, we need to do this in 2 passes.
+		/* To ensure correct error reporting, we need to do this in 2 passes.
 		 * First pass to validate number of args is correct.
 		 * Second pass evaluate the expressions.
 		 * We need to do it in 2 different passes as if we evaluate
 		 * expressions in the first pass and a nested expression throws an error
 		 * we would report that error, rather than the wrong number of args error,
-		 * and native mongo's wrong number of args error always wins. */
+		 * and the wrong number of args error should always take precedence. */
 		int numArgs = BsonDocumentValueCountKeys(argumentValue);
 
 		if (numArgs < minRequiredArgs || numArgs > maxRequiredArgs)
