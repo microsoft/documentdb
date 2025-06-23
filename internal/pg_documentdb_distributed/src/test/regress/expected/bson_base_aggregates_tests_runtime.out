@@ -374,6 +374,11 @@ SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregates
  { "" : { "$numberInt" : "5" } }
 (1 row)
 
+ROLLBACK;
+BEGIN;
+-- avoid sequential scan (likely to be preferred on small tables)
+set local enable_seqscan to off;
+set local documentdb.forceUseIndexIfAvailable to on;
 EXPLAIN (COSTS OFF) SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregatesWithIndex');
                                 QUERY PLAN                                
 ---------------------------------------------------------------------
@@ -408,6 +413,11 @@ SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregates
  { "" : { "$numberInt" : "5" } }
 (1 row)
 
+ROLLBACK;
+BEGIN;
+-- avoid sequential scan (likely to be preferred on small tables)
+set local enable_seqscan to off;
+set local documentdb.forceUseIndexIfAvailable to on;
 EXPLAIN (COSTS OFF) SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregatesWithIndex');
                                    QUERY PLAN                                    
 ---------------------------------------------------------------------
@@ -440,6 +450,11 @@ SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregates
  { "" : { "$numberInt" : "5" } }
 (1 row)
 
+ROLLBACK;
+BEGIN;
+-- avoid sequential scan (likely to be preferred on small tables)
+set local enable_seqscan to off;
+set local documentdb.forceUseIndexIfAvailable to on;
 EXPLAIN (COSTS OFF) SELECT BSONSUM('{ "": 1 }') FROM documentdb_api.collection('db', 'testAggregatesWithIndex');
                                         QUERY PLAN                                         
 ---------------------------------------------------------------------
