@@ -232,8 +232,10 @@ BEGIN
     )::public.geography;
     EXCEPTION WHEN OTHERS THEN
         errorMessage := SQLERRM;
-        IF errorMessage LIKE '%Self-intersection at%' THEN
-            errorMessage := REGEXP_REPLACE(errorMessage, '[0-9]+(\.[0-9]+)? [0-9]+(\.[0-9]+)?', '<longitude> <latitude>');
+        IF errorMessage LIKE '%Self-intersection at%' OR errorMessage LIKE '%geometry is invalid%' THEN
+            -- We are only showing that after segmentize the geometry is invalid, the actual error message is irrelevant
+            -- because the next test shows ST_MAKEVALID fixes this
+            errorMessage := 'Invalid geometry found after segmentize.';
         END IF;
         RAISE EXCEPTION '%', errorMessage using ERRCODE = SQLSTATE;
 END $$;
