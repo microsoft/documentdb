@@ -577,7 +577,7 @@ ValidateAndSetLeafNodeData(BsonPathNode *childNode, const bson_value_t *value,
  *  Update node type after a child has been added to a node.
  *  Additionally detects any path collision when a Leaf Node set by a previous path has a conflicting specification.
  *  e.g., if we have "a.b": 1, "a.b.1" : 1, we report a path collision. Note that, find() had a last writer wins
- *  behavior until Mongo 5.0. Since Mongo 5.0 both project() and find() exhibits the same behavior.
+ *  behavior earlier. But going forward both project() and find() exhibits the same behavior.
  *
  * relativePath is the path to given node within the innermost document.
  *
