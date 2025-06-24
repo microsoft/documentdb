@@ -5,8 +5,6 @@
  *
  * Implementation and Definitions for a custom scan for extension that handles cursors.
  *
- * For more details see /docs/indexing/cursors.md
- *
  *-------------------------------------------------------------------------
  */
 

@@ -715,7 +715,6 @@ command_create_indexes_background_internal(PG_FUNCTION_ARGS)
 	 * - if we encounter with definition of a field more than once, or
 	 * - if there is a syntax error in the prior definitions. e.g.:
 	 *   {"createIndexes": 1, "createIndexes": "my_collection_name"}
-	 * as Mongo does.
 	 */
 	pgbson *arg = PgbsonDeduplicateFields(PG_GETARG_PGBSON(1));
 	bool *snapshotSet = (bool *) palloc0(sizeof(bool));
@@ -1148,7 +1147,7 @@ IsSkippableError(int targetErrorCode, char *errMsg)
 		if (EreportCodeIsDocumentDBError(targetErrorCode) &&
 			targetErrorCode != ERRCODE_DOCUMENTDB_INTERNALERROR)
 		{
-			/* Mongo errors that are not internal errors are skippable */
+			/* Errors that are not internal errors are skippable */
 			return true;
 		}
 

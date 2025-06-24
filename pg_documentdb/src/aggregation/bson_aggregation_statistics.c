@@ -419,14 +419,14 @@ bson_covariance_pop_final(PG_FUNCTION_ARGS)
 		}
 		else if (covarianceState->count == 0)
 		{
-			/* Mongo returns null for empty sets or wrong input field count */
+			/* Returns null for empty sets or wrong input field count */
 			finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 			PG_RETURN_POINTER(PgbsonElementToPgbson(&finalValue));
 		}
 		else if (covarianceState->count == 1)
 		{
-			/* Mongo returns 0 for single numeric value */
-			/* return double even if the value is decimal128 */
+			/* Returns 0 for single numeric value */
+			/* Return double even if the value is decimal128 */
 			finalValue.bsonValue.value_type = BSON_TYPE_DOUBLE;
 			finalValue.bsonValue.value.v_double = 0;
 			PG_RETURN_POINTER(PgbsonElementToPgbson(&finalValue));
@@ -464,7 +464,7 @@ bson_covariance_pop_final(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		/* Mongo returns null for empty sets */
+		/* Returns null for empty sets */
 		finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 	}
 
@@ -500,7 +500,7 @@ bson_covariance_samp_final(PG_FUNCTION_ARGS)
 		else if (covarianceState->count == 0 ||
 				 covarianceState->count == 1)
 		{
-			/* Mongo returns null for empty sets, single numeric value or wrong input field count */
+			/* Returns null for empty sets, single numeric value or wrong input field count */
 			finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 			PG_RETURN_POINTER(PgbsonElementToPgbson(&finalValue));
 		}
@@ -535,7 +535,7 @@ bson_covariance_samp_final(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		/* Mongo returns null for empty sets */
+		/* Returns null for empty sets */
 		finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 	}
 
@@ -595,7 +595,7 @@ bson_std_dev_pop_samp_transition(PG_FUNCTION_ARGS)
 	pgbsonelement currentValueElement;
 	PgbsonToSinglePgbsonElement(currentValue, &currentValueElement);
 
-	/* mongo ignores non-numeric values */
+	/* Ignore non-numeric values */
 	if (BsonValueIsNumber(&currentValueElement.bsonValue))
 	{
 		CalculateSFuncForCovarianceOrVarianceWithYCAlgr(&currentValueElement.bsonValue,
@@ -716,12 +716,12 @@ bson_std_dev_pop_final(PG_FUNCTION_ARGS)
 		}
 		else if (stdDevState->count == 0)
 		{
-			/* Mongo returns $null for empty sets */
+			/* Returns $null for empty sets */
 			finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 		}
 		else if (stdDevState->count == 1)
 		{
-			/* Mongo returns 0 for single numeric value */
+			/* Returns 0 for single numeric value */
 			finalValue.bsonValue.value_type = BSON_TYPE_DOUBLE;
 			finalValue.bsonValue.value.v_double = 0.0;
 		}
@@ -743,7 +743,7 @@ bson_std_dev_pop_final(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		/* Mongo returns $null for empty sets */
+		/* Returns $null for empty sets */
 		finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 	}
 
@@ -772,7 +772,7 @@ bson_std_dev_samp_final(PG_FUNCTION_ARGS)
 		if (stdDevState->count == 0 ||
 			stdDevState->count == 1)
 		{
-			/* Mongo returns $null for empty sets or single numeric value */
+			/* Returns $null for empty sets or single numeric value */
 			finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 		}
 		else if (IsBsonValueInfinity(&stdDevState->sxy))
@@ -798,7 +798,7 @@ bson_std_dev_samp_final(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		/* Mongo returns $null for empty sets */
+		/* Returns $null for empty sets */
 		finalValue.bsonValue.value_type = BSON_TYPE_NULL;
 	}
 
