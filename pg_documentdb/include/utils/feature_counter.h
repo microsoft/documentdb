@@ -3,7 +3,7 @@
  *
  * include/utils/feature_counter.h
  *
- * Utilities for mongo feature usage tracking.
+ * Utilities for feature usage tracking.
  *
  *-------------------------------------------------------------------------
  */
@@ -338,7 +338,7 @@ typedef enum
 	FEATURE_STAGE_UNSET,
 	FEATURE_STAGE_UNWIND,
 	FEATURE_STAGE_VECTOR_SEARCH_KNN,
-	FEATURE_STAGE_VECTOR_SEARCH_MONGO,
+	FEATURE_STAGE_VECTOR_SEARCH_NATIVE,
 
 	/* Feature counter region - Update operators */
 	FEATURE_UPDATE_OPERATOR_GEN_EMBEDDINGS,
