@@ -198,7 +198,8 @@ bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath,
 										   List *sortDetails,
 										   int32_t *maxPathKeySupported);
 
-int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions);
+int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
+										int8_t *sortDirection);
 
 bool PathHasArrayIndexElements(const StringView *path);
 

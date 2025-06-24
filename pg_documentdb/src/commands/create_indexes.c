@@ -188,6 +188,7 @@ extern bool SkipFailOnCollation;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
 extern bool DefaultUseCompositeOpClass;
+extern bool EnableDescendingCompositeIndex;
 
 char *AlternateIndexHandler = NULL;
 
@@ -1974,7 +1975,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 									"enableCompositeTerm is not supported with wildcard indexes.")));
 			}
 
-			if (keyPath->sortDirection != 1)
+			if (keyPath->sortDirection != 1 && !EnableDescendingCompositeIndex)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
@@ -5345,7 +5346,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			 !unique && !indexDefKey->isWildcard &&
 			 !indexDefKey->hasTextIndexes && !indexDefKey->hasHashedIndexes &&
 			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex &&
-			 !indexDefKey->hasDescendingIndex)
+			 (!indexDefKey->hasDescendingIndex || EnableDescendingCompositeIndex))
 	{
 		if (indexDefWildcardProjTree)
 		{
@@ -5355,7 +5356,12 @@ GenerateIndexExprStr(char *indexAmSuffix,
 								"or a non-root wildcard index")));
 		}
 
-		List *keyPathStrings = NIL;
+		pgbson_writer elementListWriter;
+		PgbsonWriterInit(&elementListWriter);
+
+		pgbson_array_writer arrayWriter;
+		PgbsonWriterStartArray(&elementListWriter, "", 0, &arrayWriter);
+
 		ListCell *keyPathCell = NULL;
 		foreach(keyPathCell, indexDefKey->keyPathList)
 		{
@@ -5374,7 +5380,19 @@ GenerateIndexExprStr(char *indexAmSuffix,
 											"wildcard index")));
 					}
 
-					keyPathStrings = lappend(keyPathStrings, keyPath);
+					if (indexKeyPath->sortDirection == 1)
+					{
+						PgbsonArrayWriterWriteUtf8(&arrayWriter, keyPath);
+					}
+					else
+					{
+						pgbson_writer sortWriter;
+						PgbsonArrayWriterStartDocument(&arrayWriter, &sortWriter);
+						PgbsonWriterAppendInt32(&sortWriter, keyPath, -1,
+												indexKeyPath->sortDirection);
+						PgbsonArrayWriterEndDocument(&arrayWriter, &sortWriter);
+					}
+
 					break;
 				}
 
@@ -5387,6 +5405,8 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			}
 		}
 
+		PgbsonWriterEndArray(&elementListWriter, &arrayWriter);
+		bson_value_t arrayValue = PgbsonArrayWriterGetValue(&arrayWriter);
 		sprintf(indexTermSizeLimitArg, ",tl=%u", ComputeIndexTermLimit(
 					COMPOUND_INDEX_TERM_SIZE_LIMIT));
 		appendStringInfo(indexExprStr,
@@ -5394,8 +5414,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 						 firstColumnWritten ? "," : "",
 						 ApiInternalSchemaNameV2,
 						 indexAmSuffix,
-						 quote_literal_cstr(
-							 StringListGetBsonArrayRepr(keyPathStrings)),
+						 quote_literal_cstr(BsonValueToJsonForLogging(&arrayValue)),
 						 indexTermSizeLimitArg);
 	}
 	else

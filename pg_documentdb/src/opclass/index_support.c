@@ -706,14 +706,6 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		pgbsonelement sortElement;
 		PgbsonToSinglePgbsonElement(
 			DatumGetPgBson(secondConst->constvalue), &sortElement);
-
-		int32_t sortDirection = BsonValueAsInt32(&sortElement.bsonValue);
-		if (sortDirection != 1)
-		{
-			/* Don't yet handle other sorts */
-			return;
-		}
-
 		SortIndexInputDetails *sortDetailsInput =
 			palloc0(sizeof(SortIndexInputDetails));
 		sortDetailsInput->sortPath = sortElement.path;
@@ -2177,10 +2169,18 @@ ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
 	pgbsonelement sortElement;
 	PgbsonToSinglePgbsonElement(DatumGetPgBson(queryValue), &sortElement);
 
-	int32_t pathIndex = GetCompositeOpClassColumnNumber(sortElement.path, options);
+	int8_t sortDirection;
+	int32_t pathIndex = GetCompositeOpClassColumnNumber(sortElement.path, options,
+														&sortDirection);
 	if (pathIndex != 0)
 	{
 		/* For a full scan, only push the first index */
+		return NULL;
+	}
+
+	int32_t querySortDirection = BsonValueAsInt32(&sortElement.bsonValue);
+	if (querySortDirection != sortDirection)
+	{
 		return NULL;
 	}
 

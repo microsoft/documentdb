@@ -541,12 +541,14 @@ PgbsonElementWriterWriteSQLValue(pgbson_element_writer *writer,
 		bool *val_is_null_marker;
 		int val_count;
 
-		bool arrayByVal = false;
-		int elementLength = -1;
 		Oid arrayElementType = ARR_ELEMTYPE(val_array);
+		bool arrayByVal = false;
+		int16 elementLength = -1;
+		char typAlign;
+		get_typlenbyvalalign(arrayElementType, &elementLength, &arrayByVal, &typAlign);
 		deconstruct_array(val_array,
 						  arrayElementType, elementLength, arrayByVal,
-						  TYPALIGN_INT, &val_datums, &val_is_null_marker,
+						  typAlign, &val_datums, &val_is_null_marker,
 						  &val_count);
 
 		pgbson_array_writer arrayWriter;

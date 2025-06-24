@@ -29,6 +29,10 @@
  * Note that subsequent metadata values can use intermediate values.
  * IndexTermPartialUndefinedValue uses 2 flags that were not used earlier
  * and so is safe to use as a new value.
+ * The descending metadata values are also treated as flags style. This is
+ * primarily from a perf standpoint to say descending terms are those that
+ * are `>= 0x80` but there's not a need for 1:1 mapping. We do retain the 1:1
+ * mapping so that back-compat flag checks work.
  */
 typedef enum IndexTermMetadata
 {
@@ -42,12 +46,21 @@ typedef enum IndexTermMetadata
 
 	IndexTermUndefinedValue = 0x08,
 
-	IndexTermPartialUndefinedValue = 12,
+	IndexTermPartialUndefinedValue = 0x0C,
+
+	IndexTermDescending = 0x80,
+
+	IndexTermDescendingTruncated = 0x81,
+
+	IndexTermDescendingUndefinedValue = 0x88,
+
+	IndexTermDescendingPartialUndefinedValue = 0x8C,
 } IndexTermMetadata;
 
 extern bool EnableIndexTermTruncationOnNestedObjects;
 extern bool IndexTermUseUnsafeTransform;
 extern int IndexTermCompressionThreshold;
+extern bool EnableDescendingCompositeIndex;
 
 /* --------------------------------------------------------- */
 /* Forward Declaration */
@@ -179,26 +192,11 @@ CompareCompositeIndexTerms(bytea *left, bytea *right)
 }
 
 
-/*
- * Implements the core logic for comparing index terms.
- * Index terms are compared first by path, then value.
- * If the values are equal, a truncated value is considered greater than
- * a non-truncated value.
- */
-int32_t
-CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
-					 bool *isComparisonValid)
+inline static int32_t
+CompareIndexTermPathAndValue(const BsonIndexTerm *leftTerm, const
+							 BsonIndexTerm *rightTerm,
+							 bool *isComparisonValid)
 {
-	/* First compare metadata - metadata terms are less than all terms */
-	if (leftTerm->isIndexTermMetadata ^ rightTerm->isIndexTermMetadata)
-	{
-		/* If left is metadata and right is not metadata this will be
-		 * 1 - 0 == 1 so return -1 (left < right )
-		 */
-		return (int32_t) rightTerm->isIndexTermMetadata -
-			   (int32_t) leftTerm->isIndexTermMetadata;
-	}
-
 	/* Compare path */
 	StringView leftView = {
 		.length = leftTerm->element.pathLength, .string = leftTerm->element.path
@@ -209,7 +207,7 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 	int32_t cmp = CompareStringView(&leftView, &rightView);
 	if (cmp != 0)
 	{
-		PG_RETURN_INT32(cmp);
+		return cmp;
 	}
 
 	/* We explicitly ignore the validity of the comparisons since this is applying
@@ -226,18 +224,18 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 	/*
 	 * Everything is equal by value - if one of them is undefined, compare at this point
 	 */
-	if (leftTerm->isValueUndefined ^ rightTerm->isValueUndefined)
+	if (IsIndexTermValueUndefined(leftTerm) ^ IsIndexTermValueUndefined(rightTerm))
 	{
 		/* If one of them is undefined, it is less than the other */
-		return (int32_t) rightTerm->isValueUndefined -
-			   (int32_t) leftTerm->isValueUndefined;
+		return (int32_t) IsIndexTermValueUndefined(rightTerm) -
+			   (int32_t) IsIndexTermValueUndefined(leftTerm);
 	}
 
-	if (leftTerm->isValueMaybeUndefined ^ rightTerm->isValueMaybeUndefined)
+	if (IsIndexTermMaybeUndefined(leftTerm) ^ IsIndexTermMaybeUndefined(rightTerm))
 	{
 		/* If one of them is maybe undefined, it is less than the other */
-		return (int32_t) rightTerm->isValueMaybeUndefined -
-			   (int32_t) leftTerm->isValueMaybeUndefined;
+		return (int32_t) IsIndexTermMaybeUndefined(rightTerm) -
+			   (int32_t) IsIndexTermMaybeUndefined(leftTerm);
 	}
 
 	/* Both terms are equal by value - compare for truncation */
@@ -248,6 +246,41 @@ CompareBsonIndexTerm(BsonIndexTerm *leftTerm, BsonIndexTerm *rightTerm,
 	}
 
 	return 0;
+}
+
+
+/*
+ * Implements the core logic for comparing index terms.
+ * Index terms are compared first by path, then value.
+ * If the values are equal, a truncated value is considered greater than
+ * a non-truncated value.
+ */
+int32_t
+CompareBsonIndexTerm(const BsonIndexTerm *leftTerm, const BsonIndexTerm *rightTerm,
+					 bool *isComparisonValid)
+{
+	/* First compare metadata - metadata terms are less than all terms */
+	if (leftTerm->isIndexTermMetadata ^ rightTerm->isIndexTermMetadata)
+	{
+		/* If left is metadata and right is not metadata this will be
+		 * 1 - 0 == 1 so return -1 (left < right )
+		 */
+		return (int32_t) rightTerm->isIndexTermMetadata -
+			   (int32_t) leftTerm->isIndexTermMetadata;
+	}
+
+	/* If it's not a metadata term, then ensure that we don't compare asc/desc mixed */
+	bool isLeftDescending = IsIndexTermValueDescending(leftTerm);
+	if (isLeftDescending ^ IsIndexTermValueDescending(rightTerm))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Cannot compare ascending and descending index terms")));
+	}
+
+	int32_t compare = CompareIndexTermPathAndValue(leftTerm, rightTerm,
+												   isComparisonValid);
+
+	return isLeftDescending ? -compare : compare;
 }
 
 
@@ -278,7 +311,31 @@ IsSerializedIndexTermTruncated(bytea *indexTermSerialized)
 	/* size must be bigger than metadata + bson overhead */
 	Assert(indexTermSize > (sizeof(uint8_t) + 5));
 
-	return (IndexTermMetadata) buffer[0] == IndexTermTruncated;
+	return (IndexTermMetadata) buffer[0] == IndexTermTruncated ||
+		   (IndexTermMetadata) buffer[0] == IndexTermDescendingTruncated;
+}
+
+
+bool
+IsIndexTermMaybeUndefined(const BsonIndexTerm *indexTerm)
+{
+	return indexTerm->termMetadata == IndexTermPartialUndefinedValue ||
+		   indexTerm->termMetadata == IndexTermDescendingPartialUndefinedValue;
+}
+
+
+bool
+IsIndexTermValueUndefined(const BsonIndexTerm *indexTerm)
+{
+	return indexTerm->termMetadata == IndexTermUndefinedValue ||
+		   indexTerm->termMetadata == IndexTermDescendingUndefinedValue;
+}
+
+
+bool
+IsIndexTermValueDescending(const BsonIndexTerm *indexTerm)
+{
+	return indexTerm->termMetadata >= IndexTermDescending;
 }
 
 
@@ -297,10 +354,10 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	/* First we have the metadata */
 	indexTerm->isIndexTermTruncated = false;
 	indexTerm->isIndexTermMetadata = false;
-	indexTerm->isValueUndefined = false;
-	indexTerm->isValueMaybeUndefined = false;
+	indexTerm->termMetadata = buffer[0];
 	switch ((IndexTermMetadata) buffer[0])
 	{
+		case IndexTermDescendingTruncated:
 		case IndexTermTruncated:
 		{
 			indexTerm->isIndexTermTruncated = true;
@@ -313,21 +370,7 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 			break;
 		}
 
-		case IndexTermUndefinedValue:
-		{
-			indexTerm->isValueUndefined = true;
-			break;
-		}
-
-		case IndexTermPartialUndefinedValue:
-		{
-			indexTerm->isValueMaybeUndefined = true;
-			break;
-		}
-
 		default:
-		case IndexTermComposite:
-		case IndexTermNoMetadata:
 		{
 			break;
 		}
@@ -1393,6 +1436,39 @@ BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 	else if (termMetadata == IndexTermIsMetadata)
 	{
 		indexTerm->isIndexTermMetadata = true;
+	}
+
+	/* Patch term metadata for descending */
+	if (createMetadata->isDescending)
+	{
+		switch (termMetadata)
+		{
+			case IndexTermNoMetadata:
+			case IndexTermTruncated:
+			case IndexTermPartialUndefinedValue:
+			case IndexTermUndefinedValue:
+			{
+				termMetadata |= IndexTermDescending;
+				break;
+			}
+
+			case IndexTermIsMetadata:
+			{
+				/* This is a metadata term, so we don't need to patch it */
+				break;
+			}
+
+			default:
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+								errmsg("Unexpected term metadata %d for descending index",
+									   termMetadata),
+								errdetail_log(
+									"Unexpected term metadata %d for descending index",
+									termMetadata)));
+				break;
+			}
+		}
 	}
 
 	uint32_t dataSize = PgbsonWriterGetSize(&writer);
