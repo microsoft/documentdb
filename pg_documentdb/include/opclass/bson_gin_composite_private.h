@@ -20,8 +20,7 @@ typedef struct CompositeSingleBound
 
 	/* The processed bound (post truncation if any) */
 	bytea *serializedTerm;
-	bson_value_t processedBoundValue;
-	bool isProcessedValueTruncated;
+	BsonIndexTerm indexTermValue;
 } CompositeSingleBound;
 
 typedef struct IndexRecheckArgs
@@ -59,6 +58,7 @@ typedef struct PathScanTermMap
 
 typedef struct CompositeQueryMetaInfo
 {
+	int32_t numIndexPaths;
 	bool hasTruncation;
 	int32_t truncationTermIndex;
 	bool requiresRuntimeRecheck;
@@ -69,9 +69,8 @@ typedef struct CompositeQueryMetaInfo
 
 typedef struct CompositeQueryRunData
 {
-	CompositeIndexBounds indexBounds[INDEX_MAX_KEYS];
-	int32_t numIndexPaths;
 	CompositeQueryMetaInfo *metaInfo;
+	CompositeIndexBounds indexBounds[FLEXIBLE_ARRAY_MEMBER];
 } CompositeQueryRunData;
 
 typedef struct CompositeIndexBoundsSet
@@ -104,10 +103,10 @@ bool IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 
 bytea * BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 										   IndexTermCreateMetadata *metadata,
-										   bool *hasInequalityMatch);
+										   bool *hasInequalityMatch, int8_t *sortOrders);
 
 bool UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
-							   IndexTermCreateMetadata *metadata);
+							   IndexTermCreateMetadata *metadata, int8_t *sortOrders);
 
 
 void ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,

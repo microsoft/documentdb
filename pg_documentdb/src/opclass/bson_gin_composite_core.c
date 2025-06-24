@@ -137,20 +137,21 @@ GetTypeUpperBound(bson_type_t type)
 
 bytea *
 BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
-								   IndexTermCreateMetadata *metadata,
-								   bool *hasInequalityMatch)
+								   IndexTermCreateMetadata *baseMetadata,
+								   bool *hasInequalityMatch, int8_t *sortOrders)
 {
 	bytea *lowerBoundDatums[INDEX_MAX_KEYS] = { 0 };
 
 	bool hasTruncation = false;
-	for (int i = 0; i < runData->numIndexPaths; i++)
+	for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
 	{
 		runData->metaInfo->requiresRuntimeRecheck =
 			runData->metaInfo->requiresRuntimeRecheck ||
 			runData->indexBounds[i].
 			requiresRuntimeRecheck;
 		hasTruncation = hasTruncation ||
-						runData->indexBounds[i].lowerBound.isProcessedValueTruncated;
+						runData->indexBounds[i].lowerBound.indexTermValue.
+						isIndexTermTruncated;
 
 		/* If both lower and upper bound match it's equality */
 		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD &&
@@ -166,26 +167,42 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 		}
 
 		*hasInequalityMatch = true;
-		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD)
+
+		CompositeSingleBound boundToUse = runData->indexBounds[i].lowerBound;
+
+		/* All possible values term to use when all values are valid for this key */
+		pgbsonelement termElement = { 0 };
+		termElement.path = "$";
+		termElement.pathLength = 1;
+		termElement.bsonValue.value_type = BSON_TYPE_MINKEY;
+
+		IndexTermCreateMetadata termMetadata = *baseMetadata;
+
+		/* In this path, we use upper bound for descending and lower bound for ascending */
+		if (sortOrders[i] < 0)
 		{
-			/* There exists a lower bound for this key */
-			lowerBoundDatums[i] = runData->indexBounds[i].lowerBound.serializedTerm;
+			boundToUse = runData->indexBounds[i].upperBound;
+			termElement.bsonValue.value_type = BSON_TYPE_MAXKEY;
+			termMetadata.isDescending = true;
+		}
+
+		if (boundToUse.bound.value_type != BSON_TYPE_EOD)
+		{
+			/* There exists a bound for this key */
+			lowerBoundDatums[i] = boundToUse.serializedTerm;
 		}
 		else
 		{
 			/* All possible values are valid for this key */
-			pgbsonelement termElement = { 0 };
-			termElement.path = "$";
-			termElement.pathLength = 1;
-			termElement.bsonValue.value_type = BSON_TYPE_MINKEY;
 			BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement,
-																		metadata);
+																		&termMetadata);
 			lowerBoundDatums[i] = serialized.indexTermVal;
 		}
 	}
 
 	BsonIndexTermSerialized ser = SerializeCompositeBsonIndexTerm(lowerBoundDatums,
-																  runData->numIndexPaths);
+																  runData->metaInfo->
+																  numIndexPaths);
 	return ser.indexTermVal;
 }
 
@@ -200,7 +217,7 @@ UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
 	int32_t originalPermutation = permutation;
 
 	/* Take one term per path */
-	for (int i = 0; i < runData->numIndexPaths; i++)
+	for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
 	{
 		/* This is the index'th term for the current path */
 		if (termMap[i].numTermsPerPath == 0)
@@ -363,27 +380,29 @@ PickVariableBoundsForOrderedScan(VariableIndexBounds *variableBounds,
 
 bool
 UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
-						  IndexTermCreateMetadata *metadata)
+						  IndexTermCreateMetadata *basePathMetadata, int8_t *sortOrders)
 {
 	bool hasTruncation = false;
 	for (int i = 0; i < numPaths; i++)
 	{
+		IndexTermCreateMetadata metadata = *basePathMetadata;
+		metadata.isDescending = (sortOrders[i] < 0);
 		if (queryBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD)
 		{
 			ProcessBoundForQuery(&queryBounds[i].lowerBound,
-								 metadata);
+								 &metadata);
 			hasTruncation = hasTruncation ||
 							queryBounds[i].lowerBound.
-							isProcessedValueTruncated;
+							indexTermValue.isIndexTermTruncated;
 		}
 
 		if (queryBounds[i].upperBound.bound.value_type != BSON_TYPE_EOD)
 		{
 			ProcessBoundForQuery(&queryBounds[i].upperBound,
-								 metadata);
+								 &metadata);
 			hasTruncation = hasTruncation ||
 							queryBounds[i].upperBound.
-							isProcessedValueTruncated;
+							indexTermValue.isIndexTermTruncated;
 		}
 	}
 
@@ -738,12 +757,12 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 			if (!*exists)
 			{
 				/* exists: false, matches all values except that are defined */
-				return compareTerm->isValueUndefined;
+				return IsIndexTermValueUndefined(compareTerm);
 			}
 			else
 			{
 				/* exists: true, check that it's not undefined */
-				return !compareTerm->isValueUndefined;
+				return !IsIndexTermValueUndefined(compareTerm);
 			}
 		}
 
@@ -772,7 +791,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 				/* if the value is *maybe* undefined then there's another value that's defined
 				 * let the other value determine matched-ness
 				 */
-				return !compareTerm->isValueMaybeUndefined;
+				return !IsIndexTermMaybeUndefined(compareTerm);
 			}
 
 			return !BsonValueEquals(&compareTerm->element.bsonValue, notEqualQuery);
@@ -884,20 +903,9 @@ ProcessBoundForQuery(CompositeSingleBound *bound, const IndexTermCreateMetadata 
 
 	BsonIndexTermSerialized serialized = SerializeBsonIndexTerm(&termElement, metadata);
 	bound->serializedTerm = serialized.indexTermVal;
-	if (serialized.isIndexTermTruncated)
-	{
-		/* preserve and store the value */
-		BsonIndexTerm term;
-		InitializeBsonIndexTerm(serialized.indexTermVal, &term);
-		bound->processedBoundValue = term.element.bsonValue;
-		bound->isProcessedValueTruncated = term.isIndexTermTruncated;
-	}
-	else
-	{
-		/* Just keep the original */
-		bound->processedBoundValue = bound->bound;
-		bound->isProcessedValueTruncated = false;
-	}
+
+	/* preserve and store the value */
+	InitializeBsonIndexTerm(serialized.indexTermVal, &bound->indexTermValue);
 }
 
 

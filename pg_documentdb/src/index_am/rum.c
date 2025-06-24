@@ -36,6 +36,7 @@ extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
 extern bool ForceRumOrderedIndexScan;
+extern bool EnableDescendingCompositeIndex;
 
 bool RumHasMultiKeyPaths = false;
 
@@ -303,17 +304,28 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 	{
 		SortIndexInputDetails *sortDetailsInput = (SortIndexInputDetails *) lfirst(
 			sortCell);
-		if (sortDetailsInput->sortPathKey->pk_strategy != 1)
+
+		int8_t sortDirection = 0;
+		int32_t orderbyColumnNumber = GetCompositeOpClassColumnNumber(
+			sortDetailsInput->sortPath,
+			options, &sortDirection);
+		if (orderbyColumnNumber < 0)
+		{
+			/* If the order by path does not match the index, we can't push down any further keys */
+			break;
+		}
+
+		/* If the sort doesn't match the index, then break */
+		int32_t sortBtreeStrategy = sortDirection < 0 ? BTGreaterStrategyNumber :
+									BTLessStrategyNumber;
+		if (sortDetailsInput->sortPathKey->pk_strategy != sortBtreeStrategy)
 		{
 			break;
 		}
 
-		int32_t orderbyColumnNumber = GetCompositeOpClassColumnNumber(
-			sortDetailsInput->sortPath,
-			options);
-		if (orderbyColumnNumber < 0)
+		if (sortBtreeStrategy == BTGreaterStrategyNumber &&
+			!EnableDescendingCompositeIndex)
 		{
-			/* If the order by path does not match the index, we can't push down any further keys */
 			break;
 		}
 

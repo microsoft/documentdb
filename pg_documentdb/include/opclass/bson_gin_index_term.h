@@ -24,16 +24,8 @@ typedef struct BsonIndexTerm
 	/* Whether or not it's a metadata term */
 	bool isIndexTermMetadata;
 
-	/* Whether or not an undefined term is due to the
-	 * value being undefined (as opposed to the listeral
-	 * undefined).
-	 */
-	bool isValueUndefined;
-
-	/* Special case of an undefined value in an array that
-	 * has a defined value.
-	 */
-	bool isValueMaybeUndefined;
+	/* The metadata for the term */
+	uint8_t termMetadata;
 
 	/* The index term element */
 	pgbsonelement element;
@@ -87,8 +79,32 @@ typedef struct IndexTermCreateMetadata
 
 	/* The index version for this index */
 	IndexOptionsVersion indexVersion;
+
+	/* Whether or not the term is for a descending index */
+	bool isDescending;
 } IndexTermCreateMetadata;
 
+
+bool IsIndexTermTruncated(const BsonIndexTerm *indexTerm);
+
+
+/* Special case of an undefined value in an array that
+ * has a defined value.
+ */
+bool IsIndexTermMaybeUndefined(const BsonIndexTerm *indexTerm);
+
+
+/* Whether or not an undefined term is due to the
+ * value being undefined (as opposed to the listeral
+ * undefined).
+ */
+bool IsIndexTermValueUndefined(const BsonIndexTerm *indexTerm);
+
+
+/*
+ * Whether or not the index term is compared in a descending manner.
+ */
+bool IsIndexTermValueDescending(const BsonIndexTerm *indexTerm);
 
 bool IsSerializedIndexTermComposite(bytea *indexTermSerialized);
 bool IsSerializedIndexTermTruncated(bytea *indexTermSerialized);
@@ -118,7 +134,7 @@ Datum GenerateRootTruncatedTerm(const IndexTermCreateMetadata *);
 Datum GenerateRootMultiKeyTerm(const IndexTermCreateMetadata *);
 Datum GenerateValueUndefinedTerm(const IndexTermCreateMetadata *termData);
 Datum GenerateValueMaybeUndefinedTerm(const IndexTermCreateMetadata *termData);
-int32_t CompareBsonIndexTerm(BsonIndexTerm *left, BsonIndexTerm *right,
+int32_t CompareBsonIndexTerm(const BsonIndexTerm *left, const BsonIndexTerm *right,
 							 bool *isComparisonValid);
 
 #endif
