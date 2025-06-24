@@ -51,18 +51,18 @@
 #include "planner/documents_custom_planner.h"
 
 
-typedef enum MongoQueryFlag
+typedef enum DocumentDbQueryFlag
 {
 	HAS_QUERY_OPERATOR = 1 << 0,
-	HAS_MONGO_COLLECTION_RTE = 1 << 2,
+	HAS_DOCUMENTDB_COLLECTION_RTE = 1 << 2,
 	HAS_CURSOR_STATE_PARAM = 1 << 3,
 	HAS_CURSOR_FUNC = 1 << 4,
 	HAS_AGGREGATION_FUNCTION = 1 << 5,
 	HAS_NESTED_AGGREGATION_FUNCTION = 1 << 6,
 	HAS_QUERY_MATCH_FUNCTION = 1 << 7
-} MongoQueryFlag;
+} DocumentDbQueryFlag;
 
-typedef struct ReplaceMongoCollectionContext
+typedef struct ReplaceDocumentDbCollectionContext
 {
 	/* whether or not the collection is non-existent function */
 	bool isNonExistentCollection;
@@ -72,30 +72,33 @@ typedef struct ReplaceMongoCollectionContext
 
 	/* The query associated with this context */
 	Query *query;
-} ReplaceMongoCollectionContext;
+} ReplaceDocumentDbCollectionContext;
 
 /*
- * State that tracks the MongoQueryFlags walker
+ * State that tracks the DocumentDbQueryFlags walker
  */
-typedef struct MongoQueryFlagsState
+typedef struct DocumentDbQueryFlagsState
 {
 	/* Output: The set of flags encountered */
-	int mongoQueryFlags;
+	int documentDbQueryFlags;
 
 	/* The current depth (intermediate state during walking) */
 	int queryDepth;
-} MongoQueryFlagsState;
+} DocumentDbQueryFlagsState;
 
-static bool MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags);
-static int MongoQueryFlags(Query *query);
+static bool DocumentDbQueryFlagsWalker(Node *node, DocumentDbQueryFlagsState *queryFlags);
+static int DocumentDbQueryFlags(Query *query);
 static bool IsReadWriteCommand(Query *query);
-static Query * ReplaceMongoCollectionFunction(Query *query, ParamListInfo boundParams,
-											  bool *isNonExistentCollection);
-static bool ReplaceMongoCollectionFunctionWalker(Node *node,
-												 ReplaceMongoCollectionContext *context);
+static Query * ReplaceDocumentDbCollectionFunction(Query *query, ParamListInfo
+												   boundParams,
+												   bool *isNonExistentCollection);
+static bool ReplaceDocumentDbCollectionFunctionWalker(Node *node,
+													  ReplaceDocumentDbCollectionContext *
+													  context);
 static bool HasUnresolvedExternParamsWalker(Node *expression, ParamListInfo boundParams);
-static bool IsRTEShardForMongoCollection(RangeTblEntry *rte, bool *isMongoDataNamespace,
-										 uint64 *collectionId);
+static bool IsRTEShardForDocumentDbCollection(RangeTblEntry *rte,
+											  bool *isDocumentDbDataNamespace,
+											  uint64 *collectionId);
 static bool ProcessWorkerWriteQueryPath(PlannerInfo *root, RelOptInfo *rel, Index rti,
 										RangeTblEntry *rte);
 static inline bool IsAMergeOuterQuery(PlannerInfo *root, RelOptInfo *rel);
@@ -139,7 +142,7 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 
 		if (parse->commandType != CMD_INSERT)
 		{
-			queryFlags = MongoQueryFlags(parse);
+			queryFlags = DocumentDbQueryFlags(parse);
 		}
 
 		if (queryFlags & HAS_AGGREGATION_FUNCTION)
@@ -158,7 +161,7 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 
 		/* replace the @@ operators and inject shard_key_value filters */
 		if (queryFlags & HAS_QUERY_OPERATOR ||
-			queryFlags & HAS_MONGO_COLLECTION_RTE ||
+			queryFlags & HAS_DOCUMENTDB_COLLECTION_RTE ||
 			queryFlags & HAS_QUERY_MATCH_FUNCTION)
 		{
 			parse = (Query *) ReplaceBsonQueryOperators(parse, boundParams);
@@ -168,10 +171,10 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 		/* this is to handle cases where there's an invalid query against a collection */
 		/* that doesn't exist. We need to error out from the invalid query first */
 		/* (see count11.js) */
-		if (queryFlags & HAS_MONGO_COLLECTION_RTE)
+		if (queryFlags & HAS_DOCUMENTDB_COLLECTION_RTE)
 		{
-			parse = ReplaceMongoCollectionFunction(parse, boundParams,
-												   &isNonExistentCollection);
+			parse = ReplaceDocumentDbCollectionFunction(parse, boundParams,
+														&isNonExistentCollection);
 		}
 
 		/* replace parameters in cursor_state calls, we need the values during planning */
@@ -635,14 +638,14 @@ static void
 ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 							 RangeTblEntry *rte)
 {
-	bool isMongoDataNamespace = false;
+	bool isDocumentDbDataNamespace = false;
 	uint64 collectionId = 0;
-	bool isShardQuery = IsRTEShardForMongoCollection(rte, &isMongoDataNamespace,
-													 &collectionId);
+	bool isShardQuery = IsRTEShardForDocumentDbCollection(rte, &isDocumentDbDataNamespace,
+														  &collectionId);
 
-	if (!isMongoDataNamespace)
+	if (!isDocumentDbDataNamespace)
 	{
-		/* Skip looking for queries not pertaining to mongo data tables */
+		/* Skip looking for queries not pertaining to documentdb data tables */
 		return;
 	}
 
@@ -684,7 +687,7 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 											 &indexContext);
 
 	/* If the query is operating on the shard of a distributed table
-	 * (or a normal non mongo-table), then we swap this out with the operators
+	 * (or a normal non documentdb-table), then we swap this out with the operators
 	 */
 	if (indexContext.primaryKeyLookupPath != NULL)
 	{
@@ -775,17 +778,17 @@ ExtensionRelPathlistHook(PlannerInfo *root, RelOptInfo *rel, Index rti,
 
 
 /*
- * MongoQueryFlags determines whether the given query tree contains
+ * DocumentDbQueryFlags determines whether the given query tree contains
  * extension-specific constructs that are relevant to the planner.
  */
 static int
-MongoQueryFlags(Query *query)
+DocumentDbQueryFlags(Query *query)
 {
-	MongoQueryFlagsState queryFlags = { 0 };
+	DocumentDbQueryFlagsState queryFlags = { 0 };
 
-	MongoQueryFlagsWalker((Node *) query, &queryFlags);
+	DocumentDbQueryFlagsWalker((Node *) query, &queryFlags);
 
-	return queryFlags.mongoQueryFlags;
+	return queryFlags.documentDbQueryFlags;
 }
 
 
@@ -800,11 +803,11 @@ IsAggregationFunction(Oid funcId)
 
 
 /*
- * MongoQueryFlagsWalker determines whether the given expression tree contains
+ * DocumentDbQueryFlagsWalker determines whether the given expression tree contains
  * extension-specific constructs that are relevant to the planner.
  */
 static bool
-MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
+DocumentDbQueryFlagsWalker(Node *node, DocumentDbQueryFlagsState *queryFlags)
 {
 	CHECK_FOR_INTERRUPTS();
 
@@ -817,9 +820,9 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 	{
 		RangeTblEntry *rte = (RangeTblEntry *) node;
 
-		if (IsMongoCollectionBasedRTE(rte))
+		if (IsDocumentDbCollectionBasedRTE(rte))
 		{
-			queryFlags->mongoQueryFlags |= HAS_MONGO_COLLECTION_RTE;
+			queryFlags->documentDbQueryFlags |= HAS_DOCUMENTDB_COLLECTION_RTE;
 		}
 		else if (rte->rtekind == RTE_FUNCTION &&
 				 list_length(rte->functions) == 1)
@@ -848,11 +851,11 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 			{
 				if (queryFlags->queryDepth > 1)
 				{
-					queryFlags->mongoQueryFlags |= HAS_NESTED_AGGREGATION_FUNCTION;
+					queryFlags->documentDbQueryFlags |= HAS_NESTED_AGGREGATION_FUNCTION;
 				}
 				else
 				{
-					queryFlags->mongoQueryFlags |= HAS_AGGREGATION_FUNCTION;
+					queryFlags->documentDbQueryFlags |= HAS_AGGREGATION_FUNCTION;
 				}
 
 				return true;
@@ -867,7 +870,7 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 
 		if (opExpr->opno == BsonQueryOperatorId())
 		{
-			queryFlags->mongoQueryFlags |= HAS_QUERY_OPERATOR;
+			queryFlags->documentDbQueryFlags |= HAS_QUERY_OPERATOR;
 		}
 
 		return false;
@@ -878,12 +881,12 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 
 		if (funcExpr->funcid == ApiCursorStateFunctionId())
 		{
-			queryFlags->mongoQueryFlags |= HAS_CURSOR_FUNC;
+			queryFlags->documentDbQueryFlags |= HAS_CURSOR_FUNC;
 
 			Node *queryNode = lsecond(funcExpr->args);
 			if (IsA(queryNode, Param))
 			{
-				queryFlags->mongoQueryFlags |= HAS_CURSOR_STATE_PARAM;
+				queryFlags->documentDbQueryFlags |= HAS_CURSOR_STATE_PARAM;
 			}
 		}
 
@@ -892,7 +895,7 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
 		{
-			queryFlags->mongoQueryFlags |= HAS_QUERY_MATCH_FUNCTION;
+			queryFlags->documentDbQueryFlags |= HAS_QUERY_MATCH_FUNCTION;
 		}
 
 		return false;
@@ -900,13 +903,13 @@ MongoQueryFlagsWalker(Node *node, MongoQueryFlagsState *queryFlags)
 	else if (IsA(node, Query))
 	{
 		queryFlags->queryDepth++;
-		bool result = query_tree_walker((Query *) node, MongoQueryFlagsWalker,
+		bool result = query_tree_walker((Query *) node, DocumentDbQueryFlagsWalker,
 										queryFlags, QTW_EXAMINE_RTES_BEFORE);
 		queryFlags->queryDepth--;
 		return result;
 	}
 
-	return expression_tree_walker(node, MongoQueryFlagsWalker, queryFlags);
+	return expression_tree_walker(node, DocumentDbQueryFlagsWalker, queryFlags);
 }
 
 
@@ -962,37 +965,38 @@ IsReadWriteCommand(Query *query)
 
 
 /*
- * ReplaceMongoCollectionFunction replaces all occurences of the
+ * ReplaceDocumentDbCollectionFunction replaces all occurences of the
  * ApiSchema.collection() function call with the corresponding
  * table.
  */
 static Query *
-ReplaceMongoCollectionFunction(Query *query, ParamListInfo boundParams,
-							   bool *isNonExistentCollection)
+ReplaceDocumentDbCollectionFunction(Query *query, ParamListInfo boundParams,
+									bool *isNonExistentCollection)
 {
 	/*
 	 * We will change a function RTE into a relation RTE so we can use
 	 * a regular walker that does not copy the whole query tree.
 	 */
-	ReplaceMongoCollectionContext context =
+	ReplaceDocumentDbCollectionContext context =
 	{
 		.boundParams = boundParams,
 		.isNonExistentCollection = false,
 		.query = query
 	};
-	ReplaceMongoCollectionFunctionWalker((Node *) query, &context);
+	ReplaceDocumentDbCollectionFunctionWalker((Node *) query, &context);
 	*isNonExistentCollection = context.isNonExistentCollection;
 	return query;
 }
 
 
 /*
- * ReplaceMongoCollectionFunctionWalker recurses into the input to replace
+ * ReplaceDocumentDbCollectionFunctionWalker recurses into the input to replace
  * all occurences of the ApiSchema.collection() function call with the corresponding
  * table.
  */
 static bool
-ReplaceMongoCollectionFunctionWalker(Node *node, ReplaceMongoCollectionContext *context)
+ReplaceDocumentDbCollectionFunctionWalker(Node *node,
+										  ReplaceDocumentDbCollectionContext *context)
 {
 	CHECK_FOR_INTERRUPTS();
 
@@ -1005,7 +1009,7 @@ ReplaceMongoCollectionFunctionWalker(Node *node, ReplaceMongoCollectionContext *
 	{
 		RangeTblEntry *rte = (RangeTblEntry *) node;
 
-		if (IsResolvableMongoCollectionBasedRTE(rte, context->boundParams))
+		if (IsResolvableDocumentDbCollectionBasedRTE(rte, context->boundParams))
 		{
 			/* extract common arguments for collection-based RTE of the form ApiSchema.*collection*(db, coll, ..) */
 			RangeTblFunction *rangeTableFunc = linitial(rte->functions);
@@ -1025,10 +1029,10 @@ ReplaceMongoCollectionFunctionWalker(Node *node, ReplaceMongoCollectionContext *
 			if (collection == NULL)
 			{
 				/*
-				 * MongoDB treats non-existent collections as empty.
+				 * non-existent collections should be treated as empty.
 				 * Here we replace the ApiSchema.collection() function call
 				 * empty_data_table() which returns an response mimicking SELECT
-				 * from an empty mongo data collection.
+				 * from an empty documentdb data collection.
 				 */
 				funcExpr->funcid = BsonEmptyDataTableFunctionId();
 				funcExpr->args = NIL;
@@ -1062,13 +1066,13 @@ ReplaceMongoCollectionFunctionWalker(Node *node, ReplaceMongoCollectionContext *
 		Query *originalQuery = context->query;
 		context->query = (Query *) node;
 		bool result = query_tree_walker((Query *) node,
-										ReplaceMongoCollectionFunctionWalker,
+										ReplaceDocumentDbCollectionFunctionWalker,
 										context, QTW_EXAMINE_RTES_BEFORE);
 		context->query = originalQuery;
 		return result;
 	}
 
-	return expression_tree_walker(node, ReplaceMongoCollectionFunctionWalker,
+	return expression_tree_walker(node, ReplaceDocumentDbCollectionFunctionWalker,
 								  context);
 }
 
@@ -1090,16 +1094,16 @@ GetConstParamValue(Node *param, ParamListInfo boundParams)
 
 
 /*
- * IsResolvableMongoCollectionBasedRTE returns whether the given node is a function RTE
+ * IsResolvableDocumentDbCollectionBasedRTE returns whether the given node is a function RTE
  * of the form ApiSchema.*collection*('db', 'coll', ...).
  *
  * Otherwise, we return false, thereby allowing the RTE_FUNCTION to be called directly, and not
  * changing it to a RTE_RELATION.
  */
 bool
-IsResolvableMongoCollectionBasedRTE(RangeTblEntry *rte, ParamListInfo boundParams)
+IsResolvableDocumentDbCollectionBasedRTE(RangeTblEntry *rte, ParamListInfo boundParams)
 {
-	if (!IsMongoCollectionBasedRTE(rte))
+	if (!IsDocumentDbCollectionBasedRTE(rte))
 	{
 		return false;
 	}
@@ -1139,11 +1143,11 @@ IsResolvableMongoCollectionBasedRTE(RangeTblEntry *rte, ParamListInfo boundParam
 
 
 /*
- * IsMongoCollectionBasedRTE returns whether the given node is a
+ * IsDocumentDbCollectionBasedRTE returns whether the given node is a
  * collection() RTE.
  */
 bool
-IsMongoCollectionBasedRTE(RangeTblEntry *rte)
+IsDocumentDbCollectionBasedRTE(RangeTblEntry *rte)
 {
 	if (rte->rtekind != RTE_FUNCTION)
 	{
@@ -1205,10 +1209,11 @@ ExtensionExplainGetIndexName(Oid indexId)
 	if (IsDocumentDBApiExtensionActive())
 	{
 		bool useLibPQ = true;
-		const char *mongoIndexName = ExtensionIndexOidGetIndexName(indexId, useLibPQ);
-		if (mongoIndexName != NULL)
+		const char *documentDbIndexName = ExtensionIndexOidGetIndexName(indexId,
+																		useLibPQ);
+		if (documentDbIndexName != NULL)
 		{
-			return mongoIndexName;
+			return documentDbIndexName;
 		}
 	}
 
@@ -1222,7 +1227,7 @@ ExtensionExplainGetIndexName(Oid indexId)
 
 
 /*
- * Given a postgres index name, returns the corresponding mongo index name if available.
+ * Given a postgres index name, returns the corresponding documentdb index name if available.
  */
 const char *
 GetDocumentDBIndexNameFromPostgresIndex(const char *pgIndexName, bool useLibPq)
@@ -1260,7 +1265,7 @@ GetDocumentDBIndexNameFromPostgresIndex(const char *pgIndexName, bool useLibPq)
 	else if (strncmp(pgIndexName, DOCUMENT_DATA_PRIMARY_KEY_FORMAT_PREFIX,
 					 strlen(DOCUMENT_DATA_PRIMARY_KEY_FORMAT_PREFIX)) == 0)
 	{
-		/* this is the _id index on mongo */
+		/* this is the _id index */
 		return ID_INDEX_NAME;
 	}
 
@@ -1269,7 +1274,7 @@ GetDocumentDBIndexNameFromPostgresIndex(const char *pgIndexName, bool useLibPq)
 
 
 /*
- * Retrieves the "mongo" index name for a given indexId.
+ * Retrieves the "documentdb" index name for a given indexId.
  * This is retrieved by using the collection_indexes table
  * every time. Introduces an option to use libPQ or SPI.
  *
@@ -1367,7 +1372,7 @@ CheckRelNameValidity(const char *relName, uint64_t *collectionId)
 	 */
 	char *numEndPointer = NULL;
 	uint64 parsedCollectionId = strtoull(&relName[10], &numEndPointer, 10);
-	if (IsShardTableForMongoTable(relName, numEndPointer))
+	if (IsShardTableForDocumentDbTable(relName, numEndPointer))
 	{
 		*collectionId = parsedCollectionId;
 		return true;
@@ -1379,7 +1384,7 @@ CheckRelNameValidity(const char *relName, uint64_t *collectionId)
 
 /*
  * Returns true if the relation of RTE pointed to
- * is a Mongo table base collection. e.g.
+ * is a DocumentDB table base collection. e.g.
  * for ApiDataSchemaName.documents_1 -> false (if sharding is enabled)
  * but
  * ApiDataSchemaName.documents_1_1034 -> true
@@ -1393,8 +1398,8 @@ CheckRelNameValidity(const char *relName, uint64_t *collectionId)
  * For more details see bson_query_index_selection_sharded_tests.sql
  */
 static bool
-IsRTEShardForMongoCollection(RangeTblEntry *rte, bool *isMongoDataNamespace,
-							 uint64 *collectionId)
+IsRTEShardForDocumentDbCollection(RangeTblEntry *rte, bool *isDocumentDbDataNamespace,
+								  uint64 *collectionId)
 {
 	if (rte->rtekind != RTE_RELATION ||
 		rte->relkind != RELKIND_RELATION)
@@ -1405,8 +1410,8 @@ IsRTEShardForMongoCollection(RangeTblEntry *rte, bool *isMongoDataNamespace,
 	Oid tableOid = rte->relid;
 	Oid relNamespace = get_rel_namespace(tableOid);
 
-	*isMongoDataNamespace = relNamespace == ApiDataNamespaceOid();
-	if (!*isMongoDataNamespace)
+	*isDocumentDbDataNamespace = relNamespace == ApiDataNamespaceOid();
+	if (!*isDocumentDbDataNamespace)
 	{
 		return false;
 	}
@@ -1647,7 +1652,7 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 	if (rte->rtekind != RTE_FUNCTION || list_length(rte->functions) != 1)
 	{
 		ereport(ERROR, (errmsg(
-							"Aggregation pipeline node should select from the Mongo aggregation function kind %d. This is unexpected",
+							"Aggregation pipeline node should select from the aggregation function kind %d. This is unexpected",
 							rte->rtekind)));
 	}
 
@@ -1731,11 +1736,12 @@ ExpandAggregationFunction(Query *query, ParamListInfo boundParams, PlannedStmt *
 	if (queryData.cursorKind == QueryCursorType_PointRead)
 	{
 		/* Assert we're a shard query */
-		bool isMongoDataNamespace;
+		bool isDocumentDbDataNamespace;
 		uint64_t collectionId;
-		bool isShardQuery = IsRTEShardForMongoCollection(linitial(finalQuery->rtable),
-														 &isMongoDataNamespace,
-														 &collectionId);
+		bool isShardQuery = IsRTEShardForDocumentDbCollection(linitial(
+																  finalQuery->rtable),
+															  &isDocumentDbDataNamespace,
+															  &collectionId);
 
 		if (!isShardQuery)
 		{

@@ -71,7 +71,7 @@ Datum RunQueryWithSequentialModification(const char *query, int expectedSPIOK,
  * is run).
  * the documents table name and the substring where the collectionId was found is provided as an input.
  */
-bool IsShardTableForMongoTable(const char *relName, const char *numEndPointer);
+bool IsShardTableForDocumentDbTable(const char *relName, const char *numEndPointer);
 
 
 /* Section: Create Table Extension points */

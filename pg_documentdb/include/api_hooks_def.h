@@ -147,10 +147,10 @@ typedef void (*AllowNestedDistributionInCurrentTransaction_HookType)(void);
 extern AllowNestedDistributionInCurrentTransaction_HookType
 	allow_nested_distribution_in_current_transaction_hook;
 
-typedef bool (*IsShardTableForMongoTable_HookType)(const char *relName, const
-												   char *numEndPointer);
+typedef bool (*IsShardTableForDocumentDbTable_HookType)(const char *relName, const
+														char *numEndPointer);
 
-extern IsShardTableForMongoTable_HookType is_shard_table_for_mongo_table_hook;
+extern IsShardTableForDocumentDbTable_HookType is_shard_table_for_documentdb_table_hook;
 
 typedef void (*HandleColocation_HookType)(MongoCollection *collection,
 										  const bson_value_t *colocationOptions);

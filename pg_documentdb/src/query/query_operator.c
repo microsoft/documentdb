@@ -904,7 +904,7 @@ ReplaceBsonQueryOperatorsMutator(Node *node, ReplaceBsonQueryOperatorsContext *c
 			varno++;
 
 			RangeTblEntry *rte = (RangeTblEntry *) lfirst(rteCell);
-			if (!IsResolvableMongoCollectionBasedRTE(rte, context->boundParams))
+			if (!IsResolvableDocumentDbCollectionBasedRTE(rte, context->boundParams))
 			{
 				continue;
 			}
@@ -3098,7 +3098,7 @@ GetCollectionReferencedByDocumentVar(Expr *documentExpr,
 
 	/* find the FROM ApiSchema.collection(...) clause to which document refers */
 	RangeTblEntry *rte = rt_fetch(documentVar->varno, currentQuery->rtable);
-	if (!IsResolvableMongoCollectionBasedRTE(rte, boundParams))
+	if (!IsResolvableDocumentDbCollectionBasedRTE(rte, boundParams))
 	{
 		return NULL;
 	}
@@ -3119,7 +3119,7 @@ GetCollectionReferencedByDocumentVar(Expr *documentExpr,
 static MongoCollection *
 GetCollectionForRTE(RangeTblEntry *rte, ParamListInfo boundParams)
 {
-	Assert(IsResolvableMongoCollectionBasedRTE(rte, boundParams));
+	Assert(IsResolvableDocumentDbCollectionBasedRTE(rte, boundParams));
 
 	RangeTblFunction *rangeTableFunc = linitial(rte->functions);
 	FuncExpr *funcExpr = (FuncExpr *) rangeTableFunc->funcexpr;

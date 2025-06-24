@@ -72,14 +72,13 @@ typedef struct NodeInfo
 	bool isactive;
 
 	/*
-	 * The formatted "Mongo compatible" node name
+	 * The formatted node name
 	 * uses node_<clusterName>_<nodeId>
 	 */
 	const char *mongoNodeName;
 
 	/*
-	 * The logical shard for the node in Mongo output
-	 * Uses "shard_<groupId>"
+	 * The logical shard for the node "shard_<groupId>"
 	 */
 	const char *mongoShardName;
 } NodeInfo;
@@ -112,7 +111,7 @@ static void WriteShardMap(pgbson_writer *writer, List *groupNodes);
 static void WriteShardList(pgbson_writer *writer, List *groupNodes);
 
 /*
- * Implements the mongo wire-protocol getShardMap command
+ * Implements the getShardMap command
  */
 Datum
 command_get_shard_map(PG_FUNCTION_ARGS)
@@ -287,12 +286,12 @@ HandleDistributedColocation(MongoCollection *collection, const
 												 targetWithNamespace);
 
 		/* Get the colocationId of the changes table */
-		char *mongoDataWithNamespace = psprintf("%s.changes", ApiDataSchemaName);
+		char *documentdbDataWithNamespace = psprintf("%s.changes", ApiDataSchemaName);
 		RangeVar *rangeVar = makeRangeVar(ApiDataSchemaName, "changes", -1);
 		Oid changesRelId = RangeVarGetRelid(rangeVar, AccessShareLock, false);
 
 		int colocationIdOfChangesTable = GetColocationForTable(changesRelId, "changes",
-															   mongoDataWithNamespace);
+															   documentdbDataWithNamespace);
 		if (colocationId == colocationIdOfChangesTable)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
@@ -495,7 +494,7 @@ RewriteListCollectionsQueryForDistribution(Query *source)
 /*
  * The config.shards query in a distributed query scenario
  * will end up querying the pg_dist_node table to get the list of shards
- * and output them in a mongo compatible format.
+ * and output them in a compatible format.
  */
 static Query *
 RewriteConfigShardsQueryForDistribution(Query *baseQuery)

@@ -33,7 +33,7 @@ ModifyTableColumnNames_HookType modify_table_column_names_hook = NULL;
 RunQueryWithNestedDistribution_HookType run_query_with_nested_distribution_hook = NULL;
 AllowNestedDistributionInCurrentTransaction_HookType
 	allow_nested_distribution_in_current_transaction_hook = NULL;
-IsShardTableForMongoTable_HookType is_shard_table_for_mongo_table_hook = NULL;
+IsShardTableForDocumentDbTable_HookType is_shard_table_for_documentdb_table_hook = NULL;
 HandleColocation_HookType handle_colocation_hook = NULL;
 RewriteListCollectionsQueryForDistribution_HookType rewrite_list_collections_query_hook =
 	NULL;
@@ -196,11 +196,11 @@ RunQueryWithSequentialModification(const char *query, int expectedSPIOK, bool *i
  * the documents table name and the substring where the collectionId was found is provided as an input.
  */
 bool
-IsShardTableForMongoTable(const char *relName, const char *numEndPointer)
+IsShardTableForDocumentDbTable(const char *relName, const char *numEndPointer)
 {
-	if (is_shard_table_for_mongo_table_hook != NULL)
+	if (is_shard_table_for_documentdb_table_hook != NULL)
 	{
-		return is_shard_table_for_mongo_table_hook(relName, numEndPointer);
+		return is_shard_table_for_documentdb_table_hook(relName, numEndPointer);
 	}
 
 	/* Without distribution all documents_ tables are shard tables */

@@ -153,7 +153,7 @@ RunQueryWithSequentialModificationCore(const char *query, int expectedSPIOK, boo
 
 
 static bool
-IsShardTableForMongoTableCore(const char *relName, const char *numEndPointer)
+IsShardTableForDocumentDbTableCore(const char *relName, const char *numEndPointer)
 {
 	/* It's definitely a documents query - it's a shard query if there's a documents_<num>_<num>
 	 * So treat it as such if there's 2 '_'.
@@ -643,7 +643,7 @@ InitializeDocumentDBDistributedHooks(void)
 		RunMultiValueQueryWithNestedDistributionCore;
 	allow_nested_distribution_in_current_transaction_hook =
 		AllowNestedDistributionInCurrentTransactionCore;
-	is_shard_table_for_mongo_table_hook = IsShardTableForMongoTableCore;
+	is_shard_table_for_documentdb_table_hook = IsShardTableForDocumentDbTableCore;
 	try_get_shard_name_for_unsharded_collection_hook =
 		TryGetShardNameForUnshardedCollectionCore;
 	get_distributed_application_name_hook = GetDistributedApplicationNameCore;
