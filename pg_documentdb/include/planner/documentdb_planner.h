@@ -32,9 +32,9 @@ PlannedStmt * DocumentDBApiPlanner(Query *parse, const char *queryString, int
 								   ParamListInfo boundParams);
 void ExtensionRelPathlistHook(PlannerInfo *root, RelOptInfo *rel, Index rti,
 							  RangeTblEntry *rte);
-bool IsMongoCollectionBasedRTE(RangeTblEntry *rte);
-bool IsResolvableMongoCollectionBasedRTE(RangeTblEntry *rte,
-										 ParamListInfo boundParams);
+bool IsDocumentDbCollectionBasedRTE(RangeTblEntry *rte);
+bool IsResolvableDocumentDbCollectionBasedRTE(RangeTblEntry *rte,
+											  ParamListInfo boundParams);
 const char * ExtensionExplainGetIndexName(Oid indexId);
 Const * GetConstParamValue(Node *param, ParamListInfo boundParams);
 
