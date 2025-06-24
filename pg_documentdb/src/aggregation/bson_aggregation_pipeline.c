@@ -837,7 +837,7 @@ static const AggregationStageDefinition StageDefinitions[] =
 	},
 	{
 		.stage = "$vectorSearch",
-		.mutateFunc = &HandleMongoNativeVectorSearch,
+		.mutateFunc = &HandleNativeVectorSearch,
 		.requiresPersistentCursor = &RequiresPersistentCursorTrue,
 
 		/* can always be inlined since it doesn't change the projector */

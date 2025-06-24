@@ -278,9 +278,9 @@ Query * HandleMerge(const bson_value_t *existingValue, Query *query,
 Query * HandleOut(const bson_value_t *existingValue, Query *query,
 				  AggregationPipelineBuildContext *context);
 
-/* atlas vector search related aggregation stages */
-Query * HandleMongoNativeVectorSearch(const bson_value_t *existingValue, Query *query,
-									  AggregationPipelineBuildContext *context);
+/* Native vector search related aggregation stages */
+Query * HandleNativeVectorSearch(const bson_value_t *existingValue, Query *query,
+								 AggregationPipelineBuildContext *context);
 
 /* Metadata based query generators */
 Query * GenerateConfigDatabaseQuery(AggregationPipelineBuildContext *context);

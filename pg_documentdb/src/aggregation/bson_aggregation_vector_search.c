@@ -63,7 +63,7 @@ typedef enum VectorSearchSpecType
 
 	VectorSearchSpecType_KnnBeta = 2,
 
-	VectorSearchSpecType_MongoNative = 3
+	VectorSearchSpecType_Native = 3
 } VectorSearchSpecType;
 
 /* Context used in replacing the expressions on filtered vector search */
@@ -115,10 +115,10 @@ static void AddNullVectorCheckToQuery(Query *query, const Expr *vectorSortExpr);
 
 static TargetEntry * AddSortByToQuery(Query *query, const Expr *vectorSortExpr);
 
-static void ParseAndValidateMongoNativeVectorSearchSpec(const bson_value_t *
-														nativeVectorSearchSpec,
-														VectorSearchOptions *
-														vectorSearchOptions);
+static void ParseAndValidateNativeVectorSearchSpec(const bson_value_t *
+												   nativeVectorSearchSpec,
+												   VectorSearchOptions *
+												   vectorSearchOptions);
 
 static void ParseAndValidateIndexSpecificOptions(
 	VectorSearchOptions *vectorSearchOptions);
@@ -320,8 +320,8 @@ HandleSearch(const bson_value_t *existingValue, Query *query,
  * For additional details see query_operator.c
  */
 Query *
-HandleMongoNativeVectorSearch(const bson_value_t *existingValue, Query *query,
-							  AggregationPipelineBuildContext *context)
+HandleNativeVectorSearch(const bson_value_t *existingValue, Query *query,
+						 AggregationPipelineBuildContext *context)
 {
 	RangeTblEntry *rte = linitial(query->rtable);
 	if (rte->rtekind != RTE_RELATION || rte->tablesample != NULL ||
@@ -331,14 +331,14 @@ HandleMongoNativeVectorSearch(const bson_value_t *existingValue, Query *query,
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg("$vectorSearch must be the first stage in the pipeline")));
 	}
-	ReportFeatureUsage(FEATURE_STAGE_VECTOR_SEARCH_MONGO);
+	ReportFeatureUsage(FEATURE_STAGE_VECTOR_SEARCH_NATIVE);
 
 	VectorSearchOptions vectorSearchOptions = { 0 };
 	vectorSearchOptions.resultCount = -1;
 	vectorSearchOptions.queryVectorLength = -1;
 
-	ParseAndValidateMongoNativeVectorSearchSpec(existingValue,
-												&vectorSearchOptions);
+	ParseAndValidateNativeVectorSearchSpec(existingValue,
+										   &vectorSearchOptions);
 
 	return HandleVectorSearchCore(query, &vectorSearchOptions, context);
 }
@@ -1238,13 +1238,13 @@ AddSortByToQuery(Query *query, const Expr *vectorSortExpr)
 
 
 /**
- * parse the atlas search spec to cosmos search spec
- * And generate equivalent cosmos search query spec from the atlas search spec.
+ * parse the native search spec to cosmos search spec
+ * And generate equivalent cosmos search query spec from the native search spec.
  * Set the vectorSearchOptions with the generated cosmos search query spec.
  */
 static void
-ParseAndValidateMongoNativeVectorSearchSpec(const bson_value_t *nativeVectorSearchSpec,
-											VectorSearchOptions *vectorSearchOptions)
+ParseAndValidateNativeVectorSearchSpec(const bson_value_t *nativeVectorSearchSpec,
+									   VectorSearchOptions *vectorSearchOptions)
 {
 	EnsureTopLevelFieldValueType("vectorSearch", nativeVectorSearchSpec,
 								 BSON_TYPE_DOCUMENT);

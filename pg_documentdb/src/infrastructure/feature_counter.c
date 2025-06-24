@@ -3,7 +3,7 @@
  *
  * src/oss_backend/infrastructure/feature_counter.c
  *
- * Utilities to count and log which Mongo feature is being used by a customer
+ * Utilities to count and log which feature is being used by a customer
  *
  *-------------------------------------------------------------------------
  */
@@ -351,7 +351,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_STAGE_UNSET] = "unset",
 	[FEATURE_STAGE_UNWIND] = "unwind",
 	[FEATURE_STAGE_VECTOR_SEARCH_KNN] = "vector_search_knn",
-	[FEATURE_STAGE_VECTOR_SEARCH_MONGO] = "vector_search_mongo",
+	[FEATURE_STAGE_VECTOR_SEARCH_NATIVE] = "vector_search_native",
 
 	/* Feature Mapping region - Update operators */
 	[FEATURE_UPDATE_OPERATOR_GEN_EMBEDDINGS] = "update_operator_vector_gen_embeddings",
