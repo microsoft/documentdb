@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_sorted_accumulator.c
+ * src/aggregation/bson_sorted_accumulator.c
  *
  * Functions related to custom aggregates for group by
  * accumulator with sort specification:
@@ -987,7 +987,7 @@ BsonOrderFinal(PG_FUNCTION_ARGS, bool isSingle)
 
 		if (isSingle)
 		{
-			/* Mongo returns $null for empty sets */
+			/* Returns $null for empty sets */
 			pgbsonelement finalValue;
 			finalValue.path = "";
 			finalValue.pathLength = 0;
@@ -1260,7 +1260,7 @@ BsonOrderFinalOnSorted(PG_FUNCTION_ARGS, bool isSingle)
 
 		if (isSingle)
 		{
-			/* Mongo returns $null for empty sets */
+			/* Returns $null for empty sets */
 			pgbsonelement finalValue;
 			finalValue.path = "";
 			finalValue.pathLength = 0;

@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_tree.c
+ * src/aggregation/bson_tree.c
  *
  * Functions to create, modify and query bson projection path trees.
  *

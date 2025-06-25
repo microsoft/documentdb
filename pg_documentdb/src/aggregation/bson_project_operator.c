@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_project_operator.c
+ * src/aggregation/bson_project_operator.c
  *
  * Handler Functions for find projection operators
  *
@@ -803,8 +803,7 @@ PositionalHandlerFunc(const bson_value_t *sourceValue,
  *
  * In an exclusion projection the matched elements are written to main `writer` which follows
  * document order.
- * Otherwise a new pgbson_writer is allocated and stored in a list in the same order of projection spec
- * to match native mongo behavior
+ * Otherwise a new pgbson_writer is allocated and stored in a list in the same order of projection spec.
  */
 static void
 ElemMatchHandlerFunc(const bson_value_t *sourceValue,
