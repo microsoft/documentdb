@@ -79,6 +79,7 @@ ANALYZE documentdb_data.documents_7311;
 ANALYZE documentdb_data.documents_7312;
 BEGIN;
 set local enable_seqscan to off;
+set local documentdb.enableLookupInnerJoin to on;
 SELECT document FROM bson_aggregation_pipeline('lookupdb', 
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                     document                                                                                                                    

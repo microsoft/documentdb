@@ -112,6 +112,9 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 #define DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN false
 bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
 
+#define DEFAULT_LOOKUP_ENABLE_INNER_JOIN false
+bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
+
 
 /*
  * SECTION: Aggregation & Query feature flags
@@ -585,6 +588,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to use the new elemMatch index pushdown logic."),
 		NULL, &UseNewElemMatchIndexPushdown,
 		DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableLookupInnerJoin", newGucPrefix),
+		gettext_noop(
+			"Whether or not to enable lookup inner join."),
+		NULL, &EnableLookupInnerJoin,
+		DEFAULT_LOOKUP_ENABLE_INNER_JOIN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

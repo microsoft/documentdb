@@ -261,6 +261,9 @@ AddExplainCustomPathCore(List *pathList)
 
 		/* move the 'projection' from the path to the custom path. */
 		path->pathtarget = inputPath->pathtarget;
+
+		/* Copy the param paths */
+		path->param_info = inputPath->param_info;
 		customPath->custom_paths = list_make1(inputPath);
 		customPath->path.pathkeys = inputPath->pathkeys;
 

@@ -51,6 +51,7 @@ const int MaximumLookupPipelineDepth = 20;
 extern bool EnableLookupIdJoinOptimizationOnCollation;
 extern bool EnableNowSystemVariable;
 extern bool EnableMatchWithLetInLookup;
+extern bool EnableLookupInnerJoin;
 
 /*
  * Struct having parsed view of the
@@ -97,7 +98,11 @@ typedef struct
 typedef struct
 {
 	bool isLookupUnwind;
-	bool useInnerJoin;
+
+	/*
+	 * Only applicable for Lookup Unwind combination.
+	 */
+	bool preserveNullAndEmptyArrays;
 } LookupContext;
 
 typedef struct LookupOptimizationArgs
@@ -399,11 +404,7 @@ HandleLookup(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_LOOKUP);
 
-	LookupContext lookupContext = {
-		.isLookupUnwind = false,
-		.useInnerJoin = false
-	};
-
+	LookupContext lookupContext = { 0 };
 	return HandleLookupCore(existingValue, query, context, &lookupContext);
 }
 
@@ -439,9 +440,7 @@ HandleLookupUnwind(const bson_value_t *existingValue, Query *query,
 
 	LookupContext lookupContext = {
 		.isLookupUnwind = true,
-
-		/* Use INNER JOIN if we don't want to preserve empty array */
-		.useInnerJoin = !preserveNullAndEmptyArrays
+		.preserveNullAndEmptyArrays = preserveNullAndEmptyArrays
 	};
 	return HandleLookupCore(&lookupSpec, query, context, &lookupContext);
 }
@@ -2598,9 +2597,10 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 	MakeBsonJoinVarsFromQuery(rightQueryRteIndex, rightQuery, &outputVars,
 							  &outputColNames, &rightJoinCols);
 
+	bool useInnerJoin = !lookupContext->preserveNullAndEmptyArrays &&
+						EnableLookupInnerJoin;
 	RangeTblEntry *joinRte = MakeLookupJoinRte(outputVars, outputColNames, leftJoinCols,
-											   rightJoinCols,
-											   lookupContext->useInnerJoin);
+											   rightJoinCols, useInnerJoin);
 
 
 	lookupQuery->rtable = list_make3(leftTree, rightTree, joinRte);
@@ -2784,9 +2784,12 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 		 * that means we are performing a LEFT JOIN but if the left documnets don't match with anything
 		 * on the right we still need to write the left documents. So we will need to replace the rightOutput
 		 * expression to a coalesce(rightOutput, {}) expression.
+		 *
+		 * Similarly, if `preserveNullAndEmptyArrays: false` we will need to filter out all the non-matching
+		 * NULL documents from the right query i.e. righQuery.document IS NOT NULL
 		 */
 		Expr *rightDocExpr = lsecond(mergeDocumentsArgs);
-		if (!lookupContext->useInnerJoin)
+		if (lookupContext->preserveNullAndEmptyArrays)
 		{
 #if PG_VERSION_NUM >= 160000
 
@@ -2804,6 +2807,19 @@ ProcessLookupCoreWithLet(Query *query, AggregationPipelineBuildContext *context,
 			Expr *coalesceExpr = GetEmptyBsonCoalesce(rightDocExpr);
 			list_nth_cell(mergeDocumentsArgs, 1)->ptr_value = coalesceExpr;
 		}
+		else if (!useInnerJoin)
+		{
+			NullTest *nullTest = makeNode(NullTest);
+			nullTest->argisrow = false;
+			nullTest->nulltesttype = IS_NOT_NULL;
+			nullTest->arg = rightDocExpr;
+
+			List *existingQuals = make_ands_implicit(
+				(Expr *) lookupQuery->jointree->quals);
+			existingQuals = lappend(existingQuals, nullTest);
+			lookupQuery->jointree->quals = (Node *) make_ands_explicit(existingQuals);
+		}
+
 		mergeDocumentsArgs = lappend(mergeDocumentsArgs,
 									 MakeTextConst(lookupArgs->lookupAs.string,
 												   lookupArgs->lookupAs.length));
