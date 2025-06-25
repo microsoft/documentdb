@@ -361,7 +361,7 @@ ERROR:  Error in specification { "key" : { "non_id1.$**" : 1 }, "name" : "ttl_id
 -- 15. Unsupported ttl index scenarios
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttl4": "hashed"}, "name": "ttl_index4", "expireAfterSeconds": 100}]}', true);
 ERROR:  Creating a hash index as ttl index is not supported.
--- 16. Behavioral difference with Native Sharded Mongo
+-- 16. Behavioral difference with sharded reference implementation
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttlnew": 1}, "name": "ttl_new_index1", "sparse" : true, "expireAfterSeconds" : 10}]}', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------

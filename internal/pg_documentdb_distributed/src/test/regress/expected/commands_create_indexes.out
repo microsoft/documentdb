@@ -374,7 +374,7 @@ SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', '
 -- not the same index since this specifies partialFilterExpression
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"start_path": 1}, "name": "my_idx_14", "partialFilterExpression": {"a": 1}}]}', true);
 ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "start_path" : 1 }, "name" : "my_idx_14", "partialFilterExpression" : { "a" : 1 } }, existing index: { "v" : 2, "key" : { "start_path" : 1 }, "name" : "my_idx_14" }
--- valid mongo index type in specification, which are not supported yet
+-- valid index type in the reference implementation, which are not supported yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a$**": "2d"}, "name": "my_idx_2d"}]}', true);
                                                                                                     create_indexes_non_concurrently                                                                                                     
 ---------------------------------------------------------------------
