@@ -136,7 +136,7 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$b.$**": 1}, "name": "my_idx_12"}]}');
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.": 1}, "name": "my_idx_12"}]}');
 
--- valid mongo index type in specification, which are not supported yet
+-- valid index type in the reference implementation, which are not supported yet
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**": "2d"}, "name": "my_idx_2d"}]}');
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**": "2dsphere"}, "name": "my_idx_2dsphere"}]}');
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**": "text"}, "name": "my_idx_text"}]}');

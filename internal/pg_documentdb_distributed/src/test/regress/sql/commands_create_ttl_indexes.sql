@@ -167,7 +167,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 -- 15. Unsupported ttl index scenarios
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttl4": "hashed"}, "name": "ttl_index4", "expireAfterSeconds": 100}]}', true);
 
--- 16. Behavioral difference with Native Sharded Mongo
+-- 16. Behavioral difference with sharded reference implementation
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttlnew": 1}, "name": "ttl_new_index1", "sparse" : true, "expireAfterSeconds" : 10}]}', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttlnew": 1}, "name": "ttl_new_index2", "sparse" : false, "expireAfterSeconds" : 10}]}', true);
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"ttlnew": 1}, "name": "ttl_new_index3", "expireAfterSeconds": 100, "sparse" : true, "unique" : true}]}', true);

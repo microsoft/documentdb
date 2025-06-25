@@ -473,7 +473,7 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
  { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.\" : 1 }, \"name\" : \"my_idx_12\" } :: caused by :: Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
--- valid mongo index type in specification, which are not supported yet
+-- valid index type in the reference implementation, which are not supported yet
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a$**": "2d"}, "name": "my_idx_2d"}]}');
                                                                                                                  retval                                                                                                                 | ok |                                     requests                                     
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------------------------------------------------------------------------------
