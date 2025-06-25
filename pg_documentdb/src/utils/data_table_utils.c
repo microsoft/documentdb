@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/commands/data_table_utils.c
+ * src/utils/data_table_utils.c
  *
  * Implementation of utility functions for data table.
  *-------------------------------------------------------------------------

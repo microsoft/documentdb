@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_query.c
+ * src/aggregation/bson_query.c
  *
  * Implementation of bson query operation.
  *
@@ -78,8 +78,7 @@ TraverseQueryDocumentAndGetId(bson_iter_t *queryDocument, bson_value_t *idValue,
  * calls the ProcessQueryValueFunc with the value for that given query. Walks any
  * $and, and individual filters (which are implicitly $ands), and any $or that has
  * exactly one item (since a $or with 1 item can be used to infer fields).
- * if isUpsert is true and querySpec has $expr operator then will throw an error,
- * this is to match the native mongo behaviour in case of upsert
+ * if isUpsert is true and querySpec has $expr operator then will throw an error.
  *
  * processFilterFunc use to set set queryHasNonIdFilters to true for certain operators like $gt, $lt, $expr.
  * This ensures that we use the @@ operator to get an exact match later while building Update query.
@@ -157,7 +156,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 					 bson_iter_recurse(queryDocument, &orIterator) &&
 					 BsonIterSearchKeyRecursive(&orIterator, "$expr"))
 			{
-				/* to match native mongo 5.0 behaviour throw an error in case of upsert if querySpec holds $expr */
+				/* Throw an error in case of upsert if querySpec holds $expr */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_QUERYFEATURENOTALLOWED),
 								errmsg(
 									"$expr is not allowed in the query predicate for an upsert")));
@@ -172,7 +171,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 		{
 			if (isUpsert)
 			{
-				/* to match native mongo 5.0 behaviour throw an error in case of upsert if querySpec holds $expr */
+				/* Throw an error in case of upsert if querySpec holds $expr */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_QUERYFEATURENOTALLOWED),
 								errmsg(
 									"$expr is not allowed in the query predicate for an upsert")));
@@ -196,7 +195,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 				/*      { _id: {a: 10, b: 20} }          Object as value */
 				/*      { _id: {$eq: 10, b: 20} }        Error Case      */
 				/*      { _id: {a: 10, $eq: 20} }        Not Error Case  */
-				/*      { $ref: "foo", $id: ObjectId("4c48d04cd33a5a92628c9af6") } */
+				/*      { $ref: "foo", $id: ObjectId("49d4j9jdjd949djd9449jd") } */
 				bool isEmptyDoc = true;
 				while (bson_iter_next(&idIterator))
 				{
@@ -263,8 +262,8 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 										  (strcmp(op, "$id") == 0)))
 					{
 						/* handle $ref case */
-						/* { $ref: "foo", $id: ObjectId("4c48d04cd33a5a92628c9af6") } */
-						/* { $id: ObjectId("4c48d04cd33a5a92628c9af6"), $ref: "foo" } */
+						/* { $ref: "foo", $id: ObjectId("49d4j9jdjd949djd9449jd") } */
+						/* { $id: ObjectId("49d4j9jdjd949djd9449jd"), $ref: "foo" } */
 						bson_iter_t refIterator = idIterator;
 
 						if (!bson_iter_next(&refIterator))
@@ -335,8 +334,8 @@ ProcessIdInQuery(void *context, const char *path, const bson_value_t *value)
 
 	if (idContext->foundMultipleIds)
 	{
-		/* already found multiple values */
-		/* we need to set it to true in case of multiple ID's as to match against multiple _id we need @@ filter */
+		/* already found multiple values. We need to set it to true in case
+		 * of multiple ID's as to match against multiple _id we need @@ filter */
 		idContext->queryHasNonIdFilters = true;
 		return;
 	}
@@ -369,8 +368,9 @@ ProcessIdInQuery(void *context, const char *path, const bson_value_t *value)
 
 
 /*
- * When traversing the query specification, we need to set queryHasNonIdFilters to true for certain operators like $gt, $lt, $expr.
- * This ensures that we use the @@ operator to get an exact match later while building Update query.
+ * When traversing the query specification, we need to set queryHasNonIdFilters to true for certain
+ * operators like $gt, $lt, $expr. This ensures that we use the @@ operator to get an exact match later
+ * while building Update query.
  */
 static void
 SetQueryHasNonIdFilters(void *context)

@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/oss_backend/commands/create_indexes.c
+ * src/commands/create_indexes.c
  *
  * Implementation of the create index / reindex operation.
  *
@@ -166,7 +166,7 @@ typedef struct
 } MongoIndexSupport;
 
 
-/* Different types of indexes supported by Mongo
+/* Different types of indexes supported
  */
 static const MongoIndexSupport MongoIndexSupportedList[] =
 {
@@ -201,7 +201,8 @@ char *AlternateIndexHandler = NULL;
 #define REINDEX_SUCCESSFUL_DEBUGMSG \
 	"reindexed all collection indexes"
 
-/* We hardcode the rum index size limit at the point in time we defined the limit to not break backward compat if RUM suddenly changes the limit to allow larger index terms. */
+/* We hardcode the rum index size limit at the point in time we defined the limit to not break backward
+ * compat if RUM suddenly changes the limit to allow larger index terms. */
 #define _RUM_TERM_SIZE_LIMIT 2712
 
 /* Simple index terms have an overhead of 8 bytes so we need to substract that from the actual limit */
@@ -632,7 +633,6 @@ command_create_indexes(const CallStmt *callStmt, ProcessUtilityContext context,
 	 * - if we encounter with definition of a field more than once, or
 	 * - if there is a syntax error in the prior definitions. e.g.:
 	 *   {"createIndexes": 1, "createIndexes": "my_collection_name"}
-	 * as Mongo does.
 	 */
 	pgbson *arg = PgbsonDeduplicateFields(PG_GETARG_PGBSON(1));
 	CreateIndexesArg createIndexesArg = ParseCreateIndexesArg(dbNameDatum,
@@ -684,7 +684,7 @@ command_reindex(const CallStmt *callStmt,
 	bool isTopLevel = (context == PROCESS_UTILITY_TOPLEVEL);
 
 	/*
-	 * Mongo only supports reindex outside a transaction block
+	 * Reindex is oly supported outside a transaction block
 	 */
 	if (IsInTransactionBlock(isTopLevel))
 	{
@@ -1137,7 +1137,7 @@ reindex_concurrently(Datum dbNameDatum, Datum collectionNameDatum)
 	 * That way, other sessions querying index metadata can take our indexes
 	 * into the account for various purposes.
 	 *
-	 * If any of the index is still building then throw relevant mongo error
+	 * If any of the index is still building then throw relevant DocumentDB error
 	 */
 	int ignore;
 	if (!SetIndexesAsBuildInProgress(indexIdList, &ignore))
@@ -1405,7 +1405,7 @@ ParseCreateIndexesArg(Datum dbNameDatum, pgbson *arg)
 
 /*
  * ParseIndexDefDocument is a wrapper around ParseIndexDefDocumentInternal
- * that extends error messages related with Mongo errors that might be thrown
+ * that extends error messages related with DocumentDB errors that might be thrown
  * when parsing "indexes" field of "arg" document passed to
  * dbCommand/createIndexes.
  */
@@ -1605,7 +1605,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 		else if (strcmp(indexDefDocKey, "weights") == 0)
 		{
-			/* Special case, mongo allows "weight": "$**" */
+			/* Special case, "weight": "$**"  is allowed */
 			if (bson_iter_type(&indexDefDocIter) == BSON_TYPE_UTF8 &&
 				strcmp(bson_iter_utf8(&indexDefDocIter, NULL), "$**") == 0)
 			{
@@ -1653,7 +1653,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 		else if (strcmp(indexDefDocKey, "ns") == 0)
 		{
-			/* This is ignored by Mongodb */
+			/* This is a no-op */
 			continue;
 		}
 		else if (strcmp(indexDefDocKey, "cosmosSearchOptions") == 0)
@@ -1761,7 +1761,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 															  &indexDefDocIter));
 			if (sphereIndexVersion != 3)
 			{
-				/* Mongo supports [1, 2, 3] version for 2dsphere index, but we only support the latest which is 3*/
+				/* Only version 3 of 2dsphere index is supported currently */
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg("unsupported geo index version found, "
@@ -1769,9 +1769,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			}
 		}
 		/*
-		 * These are non documented Mongo 2dsphere index options
-		 * We don't know what these are used for but JStest jstests\core\geo_s2index.js
-		 * validates this, so we just parse it for validity and then ignore these
+		 * This is parse-only and no-op currently
 		 */
 		else if (strcmp(indexDefDocKey, "finestIndexedLevel") == 0)
 		{
@@ -1794,6 +1792,9 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			*(indexDef->finestIndexedLevel) = BsonValueAsInt32(bson_iter_value(
 																   &indexDefDocIter));
 		}
+		/*
+		 * This is parse-only and no-op currently
+		 */
 		else if (strcmp(indexDefDocKey, "coarsestIndexedLevel") == 0)
 		{
 			EnsureIndexDefDocFieldConvertibleToBool(&indexDefDocIter);
@@ -2058,8 +2059,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	{
 		if (indexDef->unique == BoolIndexOption_True)
 		{
-			/* TODO: Mongo supports the unique option with 2d index, but we dont know how to support
-			 * unique indexes with GIST
+			/*
+			 * TODO: Support unique indexes with GIST
 			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg(
@@ -2090,8 +2091,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	{
 		if (indexDef->unique == BoolIndexOption_True)
 		{
-			/* TODO: Mongo supports the unique option with 2dsphere index, but we dont how to support
-			 * unique indexes with GIST
+			/*
+			 * TODO: Support unique indexes with GIST
 			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg(
@@ -2197,11 +2198,11 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	 * Below are the check we peform on TTL index spec
 	 *  1. TTL index is not allowed on composite keys. TTL index needs to be single field.
 	 *  2. TTL index can't be defined on _id. If the spec contains multiple _id fields and nothing else
-	 * it is considered a single field spec to match mongo error reporting.
-	 *  3. TTL index can't be a wildcard index
+	 * it is considered a single field spec.
+	 *  3. TTL index can't be a wildcard index.
 	 *
 	 * FYI: 1. Unique and Sparse are valid options for ttl index
-	 *       2. TTL index can be of type hash
+	 *       2. TTL index can be of type hash.
 	 */
 
 	if (isTTLIndex)
@@ -2224,7 +2225,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			totalIndexKeyPath++;
 		}
 
-		/* "key" : { "_id" : 1, "_id" : 1 }. Native Mongo error sees this spec as a single-field spec on _id. */
+		/* "key" : { "_id" : 1, "_id" : 1 } is considered as single-field spec on _id. */
 		if (totalIdKeyPath == totalIndexKeyPath)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDINDEXSPECIFICATIONOPTION),
@@ -2247,17 +2248,15 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 
 		/*
-		 *  Native Mongo supports creating a ttl index as hash index. We can support this too but it is not
-		 *  performant based on our current approch. If the ttl index is a hash index - searching for all
-		 *  the expired documents would require a scan, as range queries are not supported on hash indexes.
+		 *  While can support creating a ttl index as hash index, it is not performant based on our current approch.
+		 *  If the ttl index is a hash index - searching for all the expired documents would require a scan, as range
+		 *  queries are not supported on hash indexes.
 		 *
 		 *  It is possible to create a parallel b-tree based index - that way we can use the b-tree index to search
 		 *  for the expired documents while supporting a ttl hash index. At some point, if we decide to support
 		 *  "ttl hash indexes" - this may be one of the approaches to try.
 		 *
-		 *  In fact, Mongo's official documentation suggests a similar approch for getting around uniqueness guarantee
-		 *  issues related to hash indexes. They suggest creating a parallel non-hashed index to enforce uniqueness,
-		 *  if one needs a hash index with unique keys.
+		 *  With Hash indexes uniqueness guarantee becomes another challenge, which needs to addressed creatively as well.
 		 */
 		if (indexDef->key->hasHashedIndexes)
 		{
@@ -2522,7 +2521,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 
 		/*
 		 * TODO: Also need to parse value of indexDefKeyIter for the index
-		 *       ordering direction, i.e.: (1 or -1), but our bson GIN/RUM operators
+		 *       ordering direction, i.e., (1 or -1), but our bson GIN/RUM operators
 		 *       anyway don't know how to handle the ordering yet.
 		 *
 		 * Validating the value of indexDefKeyIter which could also be a text that determines
@@ -3044,8 +3043,8 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
  * parsing value of pgbson iterator that points to the "wildcardProjection"
  * field of an index definiton document.
  *
- * Also extends error messages related with Mongo errors that might be thrown
- * when parsing "wildcardProjection" field of an index specification document.
+ * Also extends error messages that might be thrown when parsing "wildcardProjection"
+ * field of an index specification document.
  */
 static BsonIntermediatePathNode *
 ParseIndexDefWildcardProjDoc(const bson_iter_t *indexDefDocIter)
@@ -3154,9 +3153,7 @@ CheckWildcardProjectionTree(const BsonIntermediatePathNode *wildcardProjectionTr
 	 *
 	 * In that case, we expect ParseIndexDefKeyDocument to throw an error
 	 * instead of this function since we don't want to wrap the error message
-	 * via ParseIndexDefWildcardProjDoc in that case. This is to throw the
-	 * same error message that Mongo throws for empty "wildcardProjection"
-	 * specification.
+	 * via ParseIndexDefWildcardProjDoc in that case.
 	 */
 	if (!IntermediateNodeHasChildren(wildcardProjectionTree))
 	{
@@ -3241,12 +3238,6 @@ CheckWildcardProjectionTreeInternal(const BsonIntermediatePathNode *treeParentNo
 
 			case NodeType_LeafField:
 			{
-				/*
-				 * kBanComputedFields might or might not be a config that
-				 * Mongo allows users to specify, not sure .. But for now,
-				 * here we use exactly the same error message that Mongo
-				 * does.
-				 */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
 									"Bad projection specification, cannot use computed fields when parsing a spec in kBanComputedFields mode")));
@@ -3658,7 +3649,7 @@ GetPartFilterExprNodeReprWalker(Node *node, void *contextArg)
 	PartFilterExprNodeReprWalkerContext *context =
 		(PartFilterExprNodeReprWalkerContext *) contextArg;
 
-	/* use 4 spaces --not tabs-- per indentation level as Mongo does */
+	/* use 4 spaces -- not tabs -- per indentation level */
 	StringInfo indentStr = makeStringInfo();
 	appendStringInfoSpaces(indentStr, 4 * context->indentationLevel);
 
@@ -3849,7 +3840,7 @@ CheckForConflictsAndPruneExistingIndexes(uint64 collectionId, List *indexDefList
 	 * one within the list.
 	 *
 	 * Note that this must be done after prunning away the indexes that already
-	 * exist (i.e.: after above loop) as Mongo does.
+	 * exist (i.e., after above loop).
 	 */
 	for (int i = 0; i < list_length(prunedIndexDefList); i++)
 	{
@@ -3882,10 +3873,7 @@ CheckForConflictsAndPruneExistingIndexes(uint64 collectionId, List *indexDefList
 				}
 
 				/*
-				 * While Mongo simply skips creating identical indexes if the
-				 * matching index was created before, it throws an hard error
-				 * if the create_indexes() command itself attempts creating
-				 * identical indexes.
+				 * Throw error if indentical index exists
 				 */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INDEXALREADYEXISTS),
 								errmsg("Identical index already exists: %s",
@@ -3929,7 +3917,7 @@ CheckForConflictsAndPruneExistingIndexes(uint64 collectionId, List *indexDefList
  * Returns true if there is an index with given name(*) and equivalent index
  * options; indicating that caller should skip creating this index.
  * (*): Note that for plain _id indexes, we assume both indexes are identical
- *      even if their names are different as Mongo does.
+ *      even if their names are different.
  *
  * Returns false if there is no name or option conflicting index; meaning
  * that it's safe to create given index.
@@ -3959,7 +3947,7 @@ CheckIndexSpecConflictWithExistingIndexes(uint64 collectionId, const IndexSpec *
 
 			/*
 			 * If it's a plain _id index, then we assume both indexes are
-			 * identical even if their names are different as Mongo does.
+			 * identical even if their names are different.
 			 */
 			IndexSpec idIndexSpec = MakeIndexSpecForBuiltinIdIndex();
 			IndexOptionsEquivalency equivalency = IndexSpecOptionsAreEquivalent(indexSpec,
@@ -4066,7 +4054,7 @@ ThrowIndexOptionsConflictError(const char *existingIndexName)
  * ThrowSameIndexNameWithDifferentOptionsError throws a
  * MongoIndexOptionsConflict error based on given IndexSpec's.
  *
- * Not every index option in Mongo makes two indexes different. That means,
+ * Not every index option makes two indexes different. That means,
  * the options that IndexSpecOptionsAreEquivalent() doesn't compare are not
  * expected to be different if IndexSpecOptionsAreEquivalent() returns true
  * for two indexes.
@@ -4738,14 +4726,12 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 	else if (indexDef->key->has2dIndex)
 	{
 		/*
-		 * Mongo `2d` indexes work on planar coordinate pairs, these are always sparse and
-		 * ignore any sparse options passed in.
+		 * We restrict the behavior to `2d` indexes work on planar coordinate pairs, these are
+		 * always sparse and ignore any sparse options passed in. Note that, however, PostGIS can
+		 * create indexes for 2d, 3d and even 4d spatial points.
 		 *
-		 * PostGIS can create indexes for 2d, 3d and even 4d spatial points but since mongo
-		 * only uses 2d space we restrict the behavior to it.
-		 *
-		 * Since Mongo 2d indexes are `sparse` in nature, we make sure that our 2d index is also sparse
-		 * by adding this `ApiCatalogSchemaName.bson_validate_geometry(document, %s::text) IS NOT NULL` predicate
+		 * To support 2d indexes that are `sparse` in nature, we add a
+		 * `ApiCatalogSchemaName.bson_validate_geometry(document, %s::text) IS NOT NULL` predicate
 		 * in the CREATE INDEX statement, this adds an overhead for us to match this predicate in our query'
 		 * but postgres has a special case for `IS NULL` statements, if the functions are `strict` then they
 		 * simply pass the `IS NULL` predicate of CREATE INDEX.
@@ -5292,7 +5278,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			}
 
 			/*
-			 * Default behavior for "_id" field inclusion in Mongo is "exclude",
+			 * Default behavior for "_id" field inclusion is to "exclude",
 			 * so need to set "includeid" to false if it hasn't been specified
 			 * at all.
 			 */
@@ -5745,24 +5731,24 @@ TryDropCollectionIndexes(uint64 collectionId, List *indexIdList, List *indexIsUn
  * after an unsuccessful reindex operation.
  *
  * REINDEX CONCURRENTLY has below steps run in separate transactions:
- * 1. Add a transient index definition that has same index name suffixed with "ccnew".
- * 2. A first pass builds the new index from original,
+ * S1. Add a transient index definition that has same index name suffixed with "ccnew".
+ * S2. A first pass builds the new index from original,
  * and "indisready" is set to true to update new index for new updates and inserts.
- * 3. A second pass is performed to add tuples which were added when first pass was executing.
- * 4. New index is marked valid by setting "indisvalid" to true, and index names are renamed.
- * The old index is suffixed "ccold", i.e. documents_1_rum_index -> documents_1_rum_index_ccold.
- * The new index name suffix "ccnew" is removed, i.e  documents_1_rum_index_ccnew -> documents_1_rum_index.
- * 5. Old "ccold" suffixed index is removed.
+ * S3. A second pass is performed to add tuples which were added when first pass was executing.
+ * S4. New index is marked valid by setting "indisvalid" to true, and index names are renamed.
+ * The old index is suffixed "ccold", i.e., documents_1_rum_index -> documents_1_rum_index_ccold.
+ * The new index name suffix "ccnew" is removed, i.e.,  documents_1_rum_index_ccnew -> documents_1_rum_index.
+ * S5. Old "ccold" suffixed index is removed.
  *
- * Now we didn't bother finding the invalid indexes first and then dropping them and
+ * We don't find the invalid indexes first and then drop them, instead, we
  * only try to drop the "ccnew" or "ccold" suffixed indexes because:
  *
- * 1. There can be no case where both "ccold" and "ccnew" suffixed indexes will persist because of
- * Step 4 and that too is run in a transaction.
- * 2. "ccold" suffixed index remains then it means error occured at Step 5 and REINDEX was succefully able to
- * build the new index but failed to drop the old index which should be dropped in this method.
- * 3. "ccnew" suffixed index remains then it means error occured before Step 4 somewhere and REINDEX was not
- * able to build the new index which is invalid and should be dropped
+ * B1. There can't be any case where both "ccold" and "ccnew" suffixed indexes will remain in a committed state because of
+ * Step S4 which is run in a transaction.
+ * B2. If "ccold" suffixed index remains after step S5, it means that an error has occured at Step S5, and REINDEX
+ * was succefully able to build the new index but failed to drop the old index which should be dropped in this method.
+ * B3. If a "ccnew" suffixed index remains after step S5,then it means that an error occured before Step S4 somewhere
+ * and REINDEX was not able to build the new index which is invalid and should be dropped.
  */
 static void
 TryDropFailedCollectionIndexesAfterReIndex(uint64 collectionId,
@@ -5789,7 +5775,7 @@ TryDropFailedCollectionIndexesAfterReIndex(uint64 collectionId,
 pgbson *
 MakeCreateIndexesMsg(CreateIndexesResult *result)
 {
-	/* Sharded mongo responses are of the form
+	/* Response for sharded collection is of the form
 	 * {
 	 *   raw: {
 	 *     "shardId": {

@@ -289,8 +289,8 @@ bson_dollar_lookup_expression_eval_merge(PG_FUNCTION_ARGS)
 		variableSpec = PgbsonInitEmpty();
 	}
 
-	/* First project the input variable spec (pathSpec) to evaluate it's expressions using the current variable spec as a variable context in case
-	 * the current lookup spec has variable references to the parent lookup spec. */
+	/* First project the input variable spec (pathSpec) to evaluate it's expressions using the current variable spec
+	 * as a variable context in case the current lookup spec has variable references to the parent lookup spec. */
 	context.skipParseAggregationExpressions = false;
 
 	/* Add the time system variables to the context. */
@@ -746,19 +746,20 @@ bson_dollar_set(PG_FUNCTION_ARGS)
 
 
 /*
- * bson_dollar_replace_root performs
+ * bson_dollar_replace_root performs the following:
  *      (1) evaluates the newRoot Expression provided by the spec and projects the evaluated
- * document as the new document.
- *      (2) It throws an error if the evaluated expression is not a document.
+ *          document as the new document.
+ *      (2) throws an error if the evaluated expression is not a document.
  *
- *   Spec: { $replaceRoot: { newRoot: <replacementDocument> } }
+ * Query semantics: { $replaceRoot: { newRoot: <newDocument> } }
  * ReplaceRoot performs a projection of one or more paths given a source document and a replaceRoot
- * specification as a bson iterator.
+ * stage as a bson iterator.
+ *
  *      sourceDocument => Single bson document
  *      replaceRootSpecIter => Projection specification
  *		forceProjectId => whether _id needs to be projected as well.
  *
- *      example replaceRoot Spec:   Example 1: { 'newRoot' :  { "a" : "$b" } }
+ *      example replaceRoot query:  Example 1: { 'newRoot' :  { "a" : "$b" } }
  *                                  Example 2: { 'newRoot' :  "$a.b" }
  *                                  Example 3: { 'newRoot' :  { "a" : "$b", [ "$x", {} ], { "c" : "d" } } }
  */
@@ -916,7 +917,7 @@ GetBsonValueForReplaceRoot(bson_iter_t *replaceRootIterator, bson_value_t *value
 	{
 		const char *path = bson_iter_key(replaceRootIterator);
 
-		/* Mongo behavior: replaceRoot spec can't have anything other field than "newRoot" */
+		/* replaceRoot spec can't have anything other field than "newRoot" */
 		if (strcmp(path, "newRoot") != 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
@@ -939,8 +940,7 @@ GetBsonValueForReplaceRoot(bson_iter_t *replaceRootIterator, bson_value_t *value
 
 
 /*
- * Ref: docs/lookup.md
- * Mongo $lookup semantics: For each document from a collection t1, find all documents from a
+ * $lookup query semantics: For each document from a collection t1, find all documents from a
  * collection t2, where t1.localField = t2.foreignField.
  *
  * We implement this by iterating over all documents in t1, a generating a filter expression,
@@ -1009,11 +1009,10 @@ bson_dollar_lookup_extract_filter_array(PG_FUNCTION_ARGS)
 
 
 /*
- * Ref: docs/lookup.md
- * Mongo $lookup semantics: For each document from a collection t1, find all documents from a
+ * $lookup query semantics: For each document from a collection t1, find all documents from a
  * collection t2, where t1.localField = t2.foreignField.
  *
- * After the matching is done bson_dollar_lookup_project() formats the output according to Mongo spec.
+ * After the matching is done bson_dollar_lookup_project() formats the output appropriately.
  *
  * Details about the formatting logic is encoded in BsonLookUpProject(), which is called from this function.
  */
@@ -1046,12 +1045,12 @@ bson_dollar_lookup_project(PG_FUNCTION_ARGS)
 
 
 /*
- * This UDF is primarily perform checks on whether the document produced by
- * the facet stage is under 16MB. Note that the check is controlled by the
- * parameter validateDocumentSize. It is set to true, by the gateway when
- * facet is the last stage of an aggregation pipeline. If, facet is not the last
- * stage of the pipeline, we skip the check facet could be followed by an $unwind
- * to yield smaller documents.
+ * Test only : This UDF is primarily perform checks on whether the document produced by
+ * the facet stage is under 16 MB when facet is the last stage.
+ *
+ * This is not used in product code path any more as the cursor logic makes sure that per
+ * row output size is under 16 MB limit. So, if there is a single document exceeding 16 MB,
+ * appropriate error will be thrown.
  */
 Datum
 bson_dollar_facet_project(PG_FUNCTION_ARGS)
@@ -1228,8 +1227,8 @@ BuildRedactState(BsonReplaceRootRedactState *redactState, const bson_value_t *re
 /*
  * Given a document and a redact state, evaluate the document with the redact expression in state.
  * Recursively evaluate any nested documents or documents in arrays when the result returned is $$DESCEND.
- * Set boolean shouldPrune to true if the result returned is $$PRUNE, so that we can go back and prune the document along with its key at upper level.
- * see redact.md for more details.
+ * Set boolean shouldPrune to true if the result returned is $$PRUNE, so that we can go back and prune the
+ * document along with its key at upper level.
  */
 static pgbson *
 EvaluateRedactDocument(pgbson *document, const BsonReplaceRootRedactState *state,
@@ -1367,7 +1366,8 @@ EvaluateRedactDocument(pgbson *document, const BsonReplaceRootRedactState *state
 
 /*
  * Handles the projection of an array field for the $redact stage.
- * There is a recursive call to EvaluateRedactDocument for nested documents and recursive calls to EvaluateRedactArray for nested arrays.
+ * There is a recursive call to EvaluateRedactDocument for nested
+ * documents and recursive calls to EvaluateRedactArray for nested arrays.
  */
 static void
 EvaluateRedactArray(const bson_value_t *array, const BsonReplaceRootRedactState *state,
@@ -1590,10 +1590,12 @@ TryInlineProjection(Node *currentExprNode, Oid functionOid, const
 	}
 
 	/*
-	 * TODO: AddFields followed by add fields, in this case, we can concat the 2 together
-	 * only if the second one doesn't reference the firstone. Without validating this we can't
-	 * inline.
-	 * currentExpr->funcid == BsonDollarAddFieldsFunctionOid() && functionOid == BsonDollarAddFieldsFunctionOid()
+	 * TODO: AddFields followed byAddFields, in this case, we can concat the 2 together
+	 * only if the second one doesn't reference the first one. Without validating this
+	 * we can't inline.
+	 *
+	 * currentExpr->funcid == BsonDollarAddFieldsFunctionOid() &&
+	 *  functionOid == BsonDollarAddFieldsFunctionOid()
 	 */
 	return false;
 }
@@ -1617,7 +1619,8 @@ BuildBsonPathTreeForDollarProject(BsonProjectionQueryState *state,
 
 /*
  * Given a projection spec iterator, builds a BsonPathTree
- * for the purpose of find projection and its operators e.g. $slice, $elemMatch, $(positional)
+ * for the purpose of find projection and its operators
+ * e.g.,  $slice, $elemMatch, $(positional)
  */
 static void
 BuildBsonPathTreeForDollarProjectFind(BsonProjectionQueryState *state,
@@ -1857,11 +1860,10 @@ BsonLookUpGetFilterExpression(pgbson *sourceDocument,
 
 
 /*
- * Ref: docs/lookup.md
- * Mongo $lookup semantics: For each document from a collection t1, find all documents from a
+ * $lookup semantics: For each document from a collection d1, find all documents from a
  * collection t2, where t1.localField = t2.foreignField.
  *
- * After the matching is done bson_dollar_lookup_project() formats the output according to Mongo spec.
+ * After the matching is done bson_dollar_lookup_project() formats the output appropriately.
  *
  * Input to the method:
  *      1. A document from the t1
@@ -2006,11 +2008,11 @@ TraverseDocumentAndWriteLookupIndexCondition(pgbson_array_writer *arrayWriter,
 				bson_iter_t arrayElementInterator;
 				if (bson_iter_recurse(documentIterator, &arrayElementInterator))
 				{
-					/* If the current path ('a.0' or 'a.1.x' or 'a.b.0') matches an array (i.e., path 'a' points to an array) */
-					/* we explore the next path segment. If the next path segment is an array index ( '0', or '1' in the first */
-					/* two cases), we only traverse the array element pointed by the 'array index path'. Additionally we */
-					/* also advance the path (e.g., NULL, 'x', 'b.0' accordingly). If the path is NULL, we print and terminate, */
-					/* otherwise we traverse recursively. */
+					/* If the current path ('a.0' or 'a.1.x' or 'a.b.0') matches an array (i.e., path 'a' points to an array)
+					 * we explore the next path segment. If the next path segment is an array index ( '0', or '1' in the first
+					 * two cases), we only traverse the array element pointed by the 'array index path'. Additionally we
+					 * also advance the path (e.g., NULL, 'x', 'b.0' accordingly). If the path is NULL, we print and terminate,
+					 * otherwise we traverse recursively. */
 					char *arrayIndexSubstring = memchr(path, '.', pathLength);
 					int32_t arrayIndex = -1;
 
@@ -2085,7 +2087,8 @@ TraverseDocumentAndWriteLookupIndexCondition(pgbson_array_writer *arrayWriter,
 /*
  * Walks the bson document that specifies the unset specification and builds a tree
  * with the projection data.
- * e.g. "a.b.c" and "a.d.e" will produce a -> b,d; b->c; d->e
+ *
+ * e.g.,  "a.b.c" and "a.d.e" will produce a -> b,d; b->c; d->e
  * This will allow us to walk the documents later and produce a single projection spec.
  */
 static BsonIntermediatePathNode *
@@ -2189,10 +2192,11 @@ AdjustPathProjectionsForId(BsonIntermediatePathNode *tree,
 	}
 	else
 	{
-		/* if { _id: 0 } and no field projections exist. */
-		/* in this case, this means project the rest of the document */
-		/* if it has { _id: 0 } and any field projections, the document is not projected at all. */
-		/* Note we don't set hasExclusion if there were any other inclusions already specified. */
+		/* if { _id: 0 } and no field projections exist.
+		 * in this case, this means project the rest of the document
+		 * if it has { _id: 0 } and any field projections, the document is not projected at all.
+		 * Note we don't set hasExclusion if there were any other inclusions already specified.
+		 */
 		if (!hasInclusion && idField->nodeType == NodeType_LeafExcluded)
 		{
 			*hasIdExclusion = true;
@@ -2238,8 +2242,9 @@ ProjectCurrentIteratorFieldToWriter(bson_iter_t *documentIterator,
 			continue;
 		}
 
-		/* field is a match. */
-		/* field is a perfect match - add it. */
+		/* field is a match.
+		 * field is a perfect match - add it.
+		 */
 		switch (child->nodeType)
 		{
 			case NodeType_LeafExcluded:
@@ -2473,10 +2478,11 @@ TraverseArrayAndAppendToWriter(bson_iter_t *parentIterator,
 			return;
 		}
 
-		/* for arrays, we walk every object and insert it. if there are matches they are written in. */
-		/* Note: for arrays, array indexes are not considered in the match. */
-		/* so a.0 does NOT match the 0th index of an array - instead it matches a field in a nested object */
-		/* with the path "0". */
+		/* for arrays, we walk every object and insert it. if there are matches they are written in.
+		 * Note: for arrays, array indexes are not considered in the match.
+		 * so a.0 does NOT match the 0th index of an array - instead it matches a field in a nested object
+		 * with the path "0".
+		 */
 		while (bson_iter_next(&childIter))
 		{
 			ProjectCurrentArrayIterToWriter(&childIter, arrayWriter,
@@ -2513,7 +2519,7 @@ ProjectCurrentArrayIterToWriter(bson_iter_t *arrayIter,
 	 */
 
 	/*
-	 * Mongo projection behavior (for operators like, project, addFields)
+	 * Projection behavior (for operators like, project, addFields)
 	 *
 	 *  document (D): { b: [1, 2, 3] }
 	 *      path Node:  b.c = 1
@@ -2722,7 +2728,6 @@ ProjectGeonearDocument(const GeonearDistanceState *state, pgbson *document)
 
 	/*
 	 * Add location to the document first if distance and loc fields are same then loc field gets the priority
-	 * aggregation/sources/geonear/distancefield_and_includelocs.js
 	 */
 	if (state->includeLocs.length > 0 && state->includeLocs.string != NULL)
 	{

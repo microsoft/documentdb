@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_positional_query.c
+ * src/aggregation/bson_positional_query.c
  *
  * Implementation of the BSON Positional $ operator (shared between projection and update)
  *
@@ -32,7 +32,7 @@
  */
 typedef struct BsonPositionalQueryQual
 {
-	/* The path to the query filter (e.g. a.b.c) */
+	/* The path to the query filter (e.g., a.b.c) */
 	const char *path;
 
 	/* The expression to evaluate for this filter */

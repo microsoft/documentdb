@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_first_last.c
+ * src/aggregation/bson_first_last.c
  *
  * Functions related to custom aggregates for group by
  * accumulator first, last.
