@@ -37,7 +37,7 @@ Optional arguments:
                         Defaults to default_user
                         Overrides USERNAME environment variable.
   --password            Specify the password for the DocumentDB emulator.
-                        Defaults to Admin100
+                        REQUIRED - No default password is provided for security.
                         Overrides PASSWORD environment variable.
   --create-user         Specify whether to create a user. 
                         Defaults to true.
@@ -153,9 +153,16 @@ export DATA_PATH=${DATA_PATH:-/data}
 export DOCUMENTDB_PORT=${DOCUMENTDB_PORT:-10260}
 export POSTGRESQL_PORT=${POSTGRESQL_PORT:-9712}
 export USERNAME=${USERNAME:-default_user}
-export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
+
+# Validate required parameters
+if [ -z "${PASSWORD:-}" ]; then
+    echo "Error: PASSWORD is required. Please provide a password using --password argument or PASSWORD environment variable."
+    echo "For security reasons, no default password is provided."
+    exit 1
+fi
+
 echo "Using username: $USERNAME"
 echo "Using owner: $OWNER"
 echo "Using data path: $DATA_PATH"
