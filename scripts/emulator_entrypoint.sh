@@ -37,7 +37,7 @@ Optional arguments:
                         Defaults to default_user
                         Overrides USERNAME environment variable.
   --password            Specify the password for the DocumentDB emulator.
-                        REQUIRED - No default password is provided for security.
+                        REQUIRED.
                         Overrides PASSWORD environment variable.
   --create-user         Specify whether to create a user. 
                         Defaults to true.
