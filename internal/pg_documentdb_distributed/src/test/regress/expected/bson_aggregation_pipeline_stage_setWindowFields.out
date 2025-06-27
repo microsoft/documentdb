@@ -858,7 +858,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
  { "_id" : { "$numberInt" : "12" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "512" }, "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "totalInGroup" : { "$numberInt" : "4" } }
 (13 rows)
 
--- current in range doesn't mean current row its always the first peer which has same sort by value. This differs from MongoDB
+-- "CURRENT ROW" in a range frame does not always refer to the current physical row; it refers to the first peer with the same sort key value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": { "date": 1 }, "output": {"totalInGroup": { "$sum": 1, "window": {"range": ["current", "current"], "unit": "day"}}}}}]}');
                                                                                                             document                                                                                                            
@@ -7617,7 +7617,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
  { "_id" : { "$numberInt" : "12" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "512" }, "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "totalInGroup" : { "$numberInt" : "503" } }
 (13 rows)
 
--- current in range doesn't mean current row its always the first peer which has same sort by value. This differs from MongoDB
+-- "CURRENT ROW" in a range frame does not always refer to the current physical row; it refers to the first peer with the same sort key value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": { "date": 1 }, "output": {"totalInGroup": { "$max": "$quantity", "window": {"range": ["current", "current"], "unit": "day"}}}}}]}');
                                                                                                              document                                                                                                             
@@ -8029,7 +8029,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
  { "_id" : { "$numberInt" : "12" }, "a" : "ghi", "cost" : { "$numberInt" : "4" }, "quantity" : { "$numberInt" : "512" }, "date" : { "$date" : { "$numberLong" : "1718842600000" } }, "totalInGroup" : { "$numberInt" : "512" } }
 (13 rows)
 
--- current in range doesn't mean current row its always the first peer which has same sort by value. This differs from MongoDB
+-- "CURRENT ROW" in a range frame does not always refer to the current physical row; it refers to the first peer with the same sort key value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": { "date": 1 }, "output": {"totalInGroup": { "$max": "$quantity", "window": {"range": ["current", "current"], "unit": "day"}}}}}]}');
                                                                                                              document                                                                                                             
