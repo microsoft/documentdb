@@ -73,6 +73,9 @@ pub trait SetupConfiguration: DynClone + Send + Sync + Debug {
     /// Returns the name of the Gateway application.
     fn application_name(&self) -> &str;
 
+    /// Returns the time to wait for PostgreSQL to start up before giving up.
+    fn postgres_startup_wait_time_seconds(&self) -> u64;
+
     /// Provides a way to downcast the trait object to a concrete type.
     fn as_any(&self) -> &dyn std::any::Any;
 }

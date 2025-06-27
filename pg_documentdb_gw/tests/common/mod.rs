@@ -6,9 +6,12 @@ use documentdb_gateway::configuration::{
 };
 use documentdb_gateway::error::Result;
 use documentdb_gateway::postgres::{create_query_catalog, ConnectionPool, DocumentDBDataClient};
-use documentdb_gateway::{get_service_context, populate_ssl_certificates, QueryCatalog};
+use documentdb_gateway::{
+    run_server,
+    startup::{get_service_context, populate_ssl_certificates, AUTHENTICATION_MAX_CONNECTIONS},
+    QueryCatalog,
+};
 
-use documentdb_gateway::{run_server, AUTHENTICATION_MAX_CONNECTIONS};
 use mongodb::options::{Tls, TlsOptions};
 use mongodb::{
     options::{AuthMechanism, ClientOptions, Credential, ServerAddress},

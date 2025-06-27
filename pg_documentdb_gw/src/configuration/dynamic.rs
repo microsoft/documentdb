@@ -11,6 +11,8 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use bson::RawBson;
 
+use crate::startup::{AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS};
+
 use super::version::Version;
 
 pub const POSTGRES_RECOVERY_KEY: &str = "IsPostgresInRecovery";
@@ -76,6 +78,15 @@ pub trait DynamicConfiguration: Send + Sync + Debug {
             .as_deref()
             .and_then(Version::parse)
             .unwrap_or(Version::Seven)
+    }
+
+    async fn system_connection_budget(&self) -> usize {
+        let min_system_connections =
+            (SYSTEM_REQUESTS_MAX_CONNECTIONS + AUTHENTICATION_MAX_CONNECTIONS) as i32;
+        let system_connection_budget = self
+            .get_i32("systemConnectionBudget", min_system_connections)
+            .await;
+        system_connection_budget as usize
     }
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
