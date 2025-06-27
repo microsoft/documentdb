@@ -6,7 +6,7 @@
  *-------------------------------------------------------------------------
  */
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::{PgDocument, QueryCatalog};
 use crate::{
@@ -14,8 +14,8 @@ use crate::{
     error::Result,
     requests::{RequestInfo, RequestIntervalKind},
 };
-use deadpool_postgres::{Hook, HookError, Runtime};
-use tokio::task::JoinHandle;
+use deadpool_postgres::Runtime;
+use tokio::{sync::RwLock, task::JoinHandle};
 use tokio_postgres::{
     types::{ToSql, Type},
     NoTls, Row,
@@ -23,12 +23,40 @@ use tokio_postgres::{
 
 pub type InnerConnection = deadpool_postgres::Object;
 
-pub fn pg_configuration(sc: &dyn SetupConfiguration) -> tokio_postgres::Config {
+pub fn pg_configuration(
+    setup_configuration: &dyn SetupConfiguration,
+    query_catalog: &QueryCatalog,
+    user: &str,
+    pass: Option<&str>,
+    application_name: String,
+) -> tokio_postgres::Config {
     let mut config = tokio_postgres::Config::new();
+
+    let command_timeout_ms =
+        Duration::from_secs(setup_configuration.postgres_command_timeout_secs())
+            .as_millis()
+            .to_string();
+
+    let transaction_timeout_ms =
+        Duration::from_secs(setup_configuration.transaction_timeout_secs())
+            .as_millis()
+            .to_string();
+
     config
-        .host(sc.postgres_host_name())
-        .port(sc.postgres_port())
-        .dbname(sc.postgres_database());
+        .host(setup_configuration.postgres_host_name())
+        .port(setup_configuration.postgres_port())
+        .dbname(setup_configuration.postgres_database())
+        .user(user)
+        .application_name(&application_name)
+        .options(
+            &query_catalog
+                .set_search_path_and_timeout(&command_timeout_ms, &transaction_timeout_ms),
+        );
+
+    if let Some(pass) = pass {
+        config.password(pass);
+    }
+
     config
 }
 
@@ -36,63 +64,65 @@ pub fn pg_configuration(sc: &dyn SetupConfiguration) -> tokio_postgres::Config {
 #[derive(Debug)]
 pub struct ConnectionPool {
     pool: deadpool_postgres::Pool,
+    last_used: RwLock<Instant>,
     _reaper: JoinHandle<()>,
 }
 
 impl ConnectionPool {
     pub fn new_with_user(
-        sc: &dyn SetupConfiguration,
+        setup_configuration: &dyn SetupConfiguration,
         query_catalog: &QueryCatalog,
         user: &str,
         pass: Option<&str>,
         application_name: String,
         max_size: usize,
     ) -> Result<Self> {
-        let mut config = pg_configuration(sc);
-        config.application_name(&application_name);
+        let config = pg_configuration(
+            setup_configuration,
+            query_catalog,
+            user,
+            pass,
+            application_name,
+        );
 
-        config.user(user);
-        if let Some(pass) = pass {
-            config.password(pass);
-        }
         let manager = deadpool_postgres::Manager::new(config, NoTls);
 
-        // Clone query_catalog to be used in the post_create hook
-        let query_catalog_clone = query_catalog.clone();
         let builder = deadpool_postgres::Pool::builder(manager)
-            .post_create(Hook::async_fn(move |m, _| {
-                let timeout_ms = Duration::from_secs(120).as_millis().to_string();
-                let query = query_catalog_clone.set_search_path_and_timeout(&timeout_ms);
-                Box::pin(async move {
-                    m.batch_execute(&query).await.map_err(HookError::Backend)?;
-                    Ok(())
-                })
-            }))
-            .create_timeout(Some(Duration::from_secs(5)))
-            .wait_timeout(Some(Duration::from_secs(5)))
-            .recycle_timeout(Some(Duration::from_secs(5)))
             .runtime(Runtime::Tokio1)
-            .max_size(max_size);
+            .max_size(max_size)
+            // The time to wait while trying to establish a connection before terminating the attempt
+            .wait_timeout(Some(Duration::from_secs(15)));
         let pool = builder.build()?;
 
         let pool_copy = pool.clone();
         let reaper = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(30));
-            let max_age = Duration::from_secs(60);
+            // how many seconds to wait before pruning idle connections that are beyond idle lifetime
+            let mut prune_interval = tokio::time::interval(Duration::from_secs(10));
+            // how long a connection can be idle before it is pruned
+            let idle_connection_max_age = Duration::from_secs(300);
             loop {
-                interval.tick().await;
-                pool_copy.retain(|_, metrics| metrics.last_used() < max_age);
+                prune_interval.tick().await;
+                pool_copy
+                    .retain(|_, conn_metrics| conn_metrics.last_used() < idle_connection_max_age);
             }
         });
 
         Ok(ConnectionPool {
             pool,
+            last_used: RwLock::new(Instant::now()),
             _reaper: reaper,
         })
     }
 
     pub async fn get_inner_connection(&self) -> Result<InnerConnection> {
+        let mut write_lock = self.last_used.write().await;
+        *write_lock = Instant::now();
         Ok(self.pool.get().await?)
+    }
+
+    pub async fn last_used(&self) -> Instant {
+        let read_lock = self.last_used.read().await;
+        *read_lock
     }
 }
 

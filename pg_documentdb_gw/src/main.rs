@@ -12,11 +12,13 @@ use std::{env, path::PathBuf, sync::Arc};
 
 use documentdb_gateway::{
     configuration::{DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration},
-    get_service_context, populate_ssl_certificates,
-    postgres::{create_query_catalog, ConnectionPool, DocumentDBDataClient},
+    postgres::{create_query_catalog, DocumentDBDataClient},
     run_server,
     shutdown_controller::SHUTDOWN_CONTROLLER,
-    AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
+    startup::{
+        create_postgres_object, get_service_context, get_system_connection_pool,
+        populate_ssl_certificates, AUTHENTICATION_MAX_CONNECTIONS, SYSTEM_REQUESTS_MAX_CONNECTIONS,
+    },
 };
 
 use tokio::signal;
@@ -56,28 +58,30 @@ async fn main() {
 
     let query_catalog = create_query_catalog();
 
-    let postgres_system_user = setup_configuration.postgres_system_user();
     let system_requests_pool = Arc::new(
-        ConnectionPool::new_with_user(
+        get_system_connection_pool(
             &setup_configuration,
             &query_catalog,
-            &postgres_system_user,
-            None,
-            format!("{}-SystemRequests", setup_configuration.application_name()),
+            "SystemRequests",
             SYSTEM_REQUESTS_MAX_CONNECTIONS,
         )
-        .expect("Failed to create system requests pool"),
+        .await,
     );
     log::trace!("System requests pool initialized");
 
-    let dynamic_configuration = PgConfiguration::new(
-        &query_catalog,
+    let dynamic_configuration = create_postgres_object(
+        || async {
+            PgConfiguration::new(
+                &query_catalog,
+                &setup_configuration,
+                &system_requests_pool,
+                "documentdb.",
+            )
+            .await
+        },
         &setup_configuration,
-        &system_requests_pool,
-        "documentdb.",
     )
-    .await
-    .unwrap();
+    .await;
 
     let certificate_options = if let Some(co) = setup_configuration.certificate_options() {
         co
@@ -85,15 +89,13 @@ async fn main() {
         populate_ssl_certificates().await.unwrap()
     };
 
-    let authentication_pool = ConnectionPool::new_with_user(
+    let authentication_pool = get_system_connection_pool(
         &setup_configuration,
         &query_catalog,
-        &postgres_system_user,
-        None,
-        format!("{}-PreAuthRequests", setup_configuration.application_name()),
+        "PreAuthRequests",
         AUTHENTICATION_MAX_CONNECTIONS,
     )
-    .expect("Failed to create authentication pool");
+    .await;
     log::trace!("Authentication pool initialized");
 
     let service_context = get_service_context(

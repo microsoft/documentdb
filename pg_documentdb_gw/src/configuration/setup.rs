@@ -43,6 +43,7 @@ pub struct DocumentDBSetupConfiguration {
     pub dynamic_configuration_file: String,
     pub dynamic_configuration_refresh_interval_secs: Option<u32>,
     pub postgres_command_timeout_secs: Option<u64>,
+    pub postgres_startup_wait_time_seconds: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -136,5 +137,9 @@ impl SetupConfiguration for DocumentDBSetupConfiguration {
         self.application_name
             .as_deref()
             .unwrap_or("DocumentDBGateway")
+    }
+
+    fn postgres_startup_wait_time_seconds(&self) -> u64 {
+        self.postgres_startup_wait_time_seconds.unwrap_or(60)
     }
 }

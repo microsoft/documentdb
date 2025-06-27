@@ -189,9 +189,10 @@ impl QueryCatalog {
     }
 
     // Client getters
-    pub fn set_search_path_and_timeout(&self, timeout: &str) -> String {
+    pub fn set_search_path_and_timeout(&self, timeout: &str, transaction_timeout: &str) -> String {
         self.set_search_path_and_timeout
             .replace("{timeout}", timeout)
+            .replace("{transaction_timeout}", transaction_timeout)
     }
 
     // Cursor getters
@@ -373,7 +374,7 @@ pub fn create_query_catalog() -> QueryCatalog {
             cursor_get_more: "SELECT cursorPage, continuation FROM documentdb_api.cursor_get_more($1, $2, $3)".to_string(),
 
             // client.rs
-            set_search_path_and_timeout: "SET search_path = documentdb_api_catalog,documentdb_api,public;SET statement_timeout = {timeout}".to_string(),
+            set_search_path_and_timeout: "-c search_path=documentdb_api_catalog,documentdb_api,public -c statement_timeout={timeout} -c idle_in_transaction_session_timeout={transaction_timeout}".to_string(),
 
             // data_description.rs
             drop_database: "SELECT documentdb_api.drop_database($1)".to_string(),

@@ -8,7 +8,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use configuration::{CertificateOptions, DynamicConfiguration, SetupConfiguration};
+use configuration::CertificateOptions;
 use either::Either::{Left, Right};
 use error::ErrorCode;
 use log::{error, log_enabled, warn};
@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::context::{ConnectionContext, ServiceContext};
 use crate::error::{DocumentDBError, Result};
-use crate::postgres::{ConnectionPool, PgDataClient};
+use crate::postgres::PgDataClient;
 use crate::requests::RequestType;
 
 pub use crate::postgres::QueryCatalog;
@@ -45,10 +45,8 @@ pub mod protocol;
 pub mod requests;
 pub mod responses;
 pub mod shutdown_controller;
+pub mod startup;
 pub mod telemetry;
-
-pub const SYSTEM_REQUESTS_MAX_CONNECTIONS: usize = 2;
-pub const AUTHENTICATION_MAX_CONNECTIONS: usize = 5;
 
 pub async fn run_server<T>(
     sc: ServiceContext,
@@ -90,43 +88,6 @@ where
             Ok(false) => break Ok(()),
         }
     }
-}
-
-pub fn get_service_context(
-    setup_configuration: Box<dyn SetupConfiguration>,
-    dynamic: Arc<dyn DynamicConfiguration>,
-    query_catalog: QueryCatalog,
-    system_requests_pool: Arc<ConnectionPool>,
-    authentication_pool: ConnectionPool,
-) -> ServiceContext {
-    ServiceContext::new(
-        setup_configuration.clone(),
-        Arc::clone(&dynamic),
-        query_catalog.clone(),
-        Arc::clone(&system_requests_pool),
-        authentication_pool,
-    )
-}
-
-#[cfg(debug_assertions)]
-pub async fn populate_ssl_certificates() -> Result<CertificateOptions> {
-    use rcgen::{generate_simple_self_signed, CertifiedKey};
-
-    let subject_alt_names = vec!["localhost".to_string()];
-    let CertifiedKey { cert, key_pair } = generate_simple_self_signed(subject_alt_names).unwrap();
-    tokio::fs::write("./cert.pem", cert.pem()).await?;
-    tokio::fs::write("./key.pem", key_pair.serialize_pem()).await?;
-    Ok(CertificateOptions {
-        cert_type: "pem_file".to_string(),
-        file_path: "./cert.pem".to_string(),
-        key_file_path: "./key.pem".to_string(),
-        ca_path: None,
-    })
-}
-
-#[cfg(not(debug_assertions))]
-pub async fn populate_ssl_certificates() -> Result<CertificateOptions> {
-    panic!("Release builds must provide SSL certificate options.")
 }
 
 async fn listen_for_connections<T>(

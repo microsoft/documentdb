@@ -19,7 +19,7 @@ use crate::{
 
 use super::{CursorStore, CursorStoreEntry, TransactionStore};
 
-type ClientKey = (Cow<'static, str>, Cow<'static, str>);
+type ClientKey = (Cow<'static, str>, Cow<'static, str>, usize);
 
 pub struct ServiceContextInner {
     pub setup_configuration: Box<dyn SetupConfiguration>,
@@ -68,9 +68,10 @@ impl ServiceContext {
     }
 
     pub async fn get_data_pool(&self, user: &str, pass: &str) -> Result<Arc<ConnectionPool>> {
+        let max_connections = self.dynamic_configuration().max_connections().await;
         let read_lock = self.0.user_data_pools.read().await;
 
-        match read_lock.get(&(Cow::Borrowed(user), Cow::Borrowed(pass))) {
+        match read_lock.get(&(Cow::Borrowed(user), Cow::Borrowed(pass), max_connections)) {
             None => Err(DocumentDBError::internal_error(
                 "Connection pool missing for user.".to_string(),
             )),
@@ -142,26 +143,30 @@ impl ServiceContext {
     }
 
     pub async fn allocate_data_pool(&self, user: &str, pass: &str) -> Result<()> {
-        if self
-            .0
-            .user_data_pools
-            .read()
-            .await
-            .contains_key(&(Cow::Borrowed(user), Cow::Borrowed(pass)))
-        {
+        let max_connections = self.dynamic_configuration().max_connections().await;
+
+        if self.0.user_data_pools.read().await.contains_key(&(
+            Cow::Borrowed(user),
+            Cow::Borrowed(pass),
+            max_connections,
+        )) {
             return Ok(());
         }
 
         let mut write_lock = self.0.user_data_pools.write().await;
         let _ = write_lock.insert(
-            (Cow::Owned(user.to_owned()), Cow::Owned(pass.to_owned())),
+            (
+                Cow::Owned(user.to_owned()),
+                Cow::Owned(pass.to_owned()),
+                max_connections,
+            ),
             Arc::new(ConnectionPool::new_with_user(
                 self.setup_configuration(),
                 self.query_catalog(),
                 user,
                 Some(pass),
                 format!("{}-Data", self.setup_configuration().application_name()),
-                self.dynamic_configuration().max_connections().await,
+                self.get_real_max_connections(max_connections).await,
             )?),
         );
         Ok(())
@@ -188,11 +193,51 @@ impl ServiceContext {
             &self.setup_configuration().postgres_system_user(),
             None,
             format!("{}-Data", self.setup_configuration().application_name()),
-            max_connections,
+            self.get_real_max_connections(max_connections).await,
         )?);
 
         write_lock.insert(max_connections, Arc::clone(&system_shared_pool));
 
         Ok(Arc::clone(&system_shared_pool))
+    }
+
+    async fn get_real_max_connections(&self, max_connections: usize) -> usize {
+        let system_connection_budget = self
+            .dynamic_configuration()
+            .system_connection_budget()
+            .await;
+        let mut real_max_connections = max_connections - system_connection_budget;
+        if real_max_connections < system_connection_budget {
+            real_max_connections = system_connection_budget;
+        }
+        real_max_connections
+    }
+
+    pub async fn clean_unused_pools(&self, max_age: Duration) {
+        {
+            let mut user_pools_write_lock = self.0.user_data_pools.write().await;
+            let mut keys_to_remove = Vec::new();
+            for (key, pool) in user_pools_write_lock.iter() {
+                if pool.last_used().await.elapsed() > max_age {
+                    keys_to_remove.push(key.clone());
+                }
+            }
+            for key in keys_to_remove {
+                user_pools_write_lock.remove(&key);
+            }
+        }
+
+        {
+            let mut system_shared_write_lock = self.0.system_shared_pools.write().await;
+            let mut keys_to_remove = Vec::new();
+            for (key, pool) in system_shared_write_lock.iter() {
+                if pool.last_used().await.elapsed() > max_age {
+                    keys_to_remove.push(*key);
+                }
+            }
+            for key in keys_to_remove {
+                system_shared_write_lock.remove(&key);
+            }
+        }
     }
 }
