@@ -38,6 +38,7 @@
 #include "utils/version_utils.h"
 #include "query/bson_compare.h"
 #include "index_am/index_am_utils.h"
+#include "query/bson_dollar_selectivity.h"
 
 typedef struct
 {
@@ -202,6 +203,8 @@ extern bool EnableVectorForceIndexPushdown;
 extern bool EnableGeonearForceIndexPushdown;
 extern bool EnableIndexOperatorBounds;
 extern bool UseNewElemMatchIndexPushdown;
+extern bool DisableDollarSupportFuncSelectivity;
+extern bool EnableNewOperatorSelectivityMode;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -226,7 +229,7 @@ Datum
 dollar_support(PG_FUNCTION_ARGS)
 {
 	Node *supportRequest = (Node *) PG_GETARG_POINTER(0);
-	List *responseNodes = NIL;
+	Pointer responsePointer = NULL;
 	if (IsA(supportRequest, SupportRequestIndexCondition))
 	{
 		/* Try to convert operator/function call to index conditions */
@@ -244,16 +247,37 @@ dollar_support(PG_FUNCTION_ARGS)
 			if (IsA(finalNode, BoolExpr))
 			{
 				BoolExpr *boolExpr = (BoolExpr *) finalNode;
-				responseNodes = boolExpr->args;
+				responsePointer = (Pointer) boolExpr->args;
 			}
 			else
 			{
-				responseNodes = list_make1(finalNode);
+				responsePointer = (Pointer) list_make1(finalNode);
+			}
+		}
+	}
+	else if (IsA(supportRequest, SupportRequestSelectivity))
+	{
+		SupportRequestSelectivity *req = (SupportRequestSelectivity *) supportRequest;
+		if (!DisableDollarSupportFuncSelectivity && EnableNewOperatorSelectivityMode)
+		{
+			const MongoIndexOperatorInfo *indexOperator =
+				GetMongoIndexOperatorInfoByPostgresFuncId(req->funcid);
+			if (indexOperator != NULL && indexOperator->indexStrategy !=
+				BSON_INDEX_STRATEGY_INVALID)
+			{
+				/* See plancat.c function_selectivity */
+				const double defaultFuncExprSelectivity = 0.3333333;
+				Oid selectivityOpExpr = GetMongoQueryOperatorOid(indexOperator);
+				double selectivity = GetDollarOperatorSelectivity(
+					req->root, selectivityOpExpr, req->args, req->inputcollid,
+					req->varRelid, defaultFuncExprSelectivity);
+				req->selectivity = selectivity;
+				responsePointer = (Pointer) req;
 			}
 		}
 	}
 
-	PG_RETURN_POINTER(responseNodes);
+	PG_RETURN_POINTER(responsePointer);
 }
 
 

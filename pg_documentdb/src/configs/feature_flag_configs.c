@@ -99,6 +99,9 @@ bool ForceRumOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
 #define DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY false
 bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
 
+#define DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY false
+bool DisableDollarSupportFuncSelectivity = DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY;
+
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN true
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 
@@ -282,6 +285,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Determines whether to use the new selectivity logic."),
 		NULL, &EnableNewOperatorSelectivityMode,
 		DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.disableDollarSupportFuncSelectivity", newGucPrefix),
+		gettext_noop(
+			"Disables the selectivity calculation for dollar support functions - override on top of enableNewSelectivityMode."),
+		NULL, &DisableDollarSupportFuncSelectivity,
+		DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
