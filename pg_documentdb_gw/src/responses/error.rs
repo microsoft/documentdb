@@ -161,13 +161,13 @@ impl CommandError {
         state: &SqlState,
         msg: &str,
     ) -> Option<Self> {
-        if let Some((known, known_msg, code)) =
+        if let Some((code, code_name, error_msg)) =
             PgResponse::known_pg_error(context, state, msg).await
         {
             Some(CommandError::new(
-                known,
-                code.unwrap_or("Backend error".to_string()),
-                known_msg.unwrap_or(msg.to_string()),
+                code,
+                code_name.unwrap_or("Backend error".to_string()),
+                error_msg.to_string(),
             ))
         } else {
             None
