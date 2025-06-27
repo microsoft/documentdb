@@ -358,7 +358,7 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop("The size in bytes above which index terms will be compressed."),
 		NULL,
 		&IndexTermCompressionThreshold,
-		DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD, 256,
+		DEFAULT_INDEX_TERM_COMPRESSION_THRESHOLD, 128,
 		INT_MAX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 

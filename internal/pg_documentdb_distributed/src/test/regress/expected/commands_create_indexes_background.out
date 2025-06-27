@@ -844,8 +844,8 @@ SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
  schedule  |            jobname            
 ---------------------------------------------------------------------
- 2 seconds | documentdb_index_build_task_1
- 2 seconds | documentdb_index_build_task_2
+ 1 seconds | documentdb_index_build_task_1
+ 1 seconds | documentdb_index_build_task_2
 (2 rows)
 
 -- now set guc values and verify that they take effect
@@ -858,7 +858,7 @@ SELECT FROM documentdb_api_internal.schedule_background_index_build_jobs(true);
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
  schedule  |            jobname            
 ---------------------------------------------------------------------
- 2 seconds | documentdb_index_build_task_1
+ 1 seconds | documentdb_index_build_task_1
 (1 row)
 
 SET LOCAL documentdb.maxNumActiveUsersIndexBuilds TO 1;
@@ -877,7 +877,7 @@ ROLLBACK;
 SELECT schedule, jobname FROM cron.job WHERE jobname LIKE 'documentdb_index_build_task_%' ORDER BY jobId;
  schedule  |            jobname            
 ---------------------------------------------------------------------
- 2 seconds | documentdb_index_build_task_1
- 2 seconds | documentdb_index_build_task_2
+ 1 seconds | documentdb_index_build_task_1
+ 1 seconds | documentdb_index_build_task_2
 (2 rows)
 
