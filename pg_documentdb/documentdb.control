@@ -1,5 +1,5 @@
 comment = 'API surface for DocumentDB for PostgreSQL'
-default_version = '0.105-0'
+default_version = '0.106-0'
 module_pathname = '$libdir/pg_documentdb'
 relocatable = false
 superuser = true
