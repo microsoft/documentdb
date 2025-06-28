@@ -46,6 +46,8 @@
 #include "api_hooks.h"
 #include "schema_validation/schema_validation.h"
 #include "operators/bson_expr_eval.h"
+#include "planner/documentdb_planner.h"
+#include "optimizer/plancat.h"
 
 /*
  * BatchInsertionSpec describes a batch of insert operations.
@@ -132,6 +134,16 @@ static Datum CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryCon
 static inline List * CreateValuesListForInsert(Const *shardKey, Expr *objectId,
 											   Expr *document, AttrNumber
 											   creationTimeVarAttNum);
+static uint64_t ExecuteLocalShardInsertPlan(PlannedStmt *queryPlan, ParamListInfo
+											paramListInfo);
+static PlannedStmt * CreateLocalShardInsertPlan(MongoCollection *collection, Oid
+												shardOid, List *valuesLists);
+static inline RangeTblEntry * CreateValueRteForInsert(MongoCollection *collection,
+													  List *valuesLists);
+static inline List * CreateTargetListForInsert(MongoCollection *collection);
+static inline RangeTblEntry * CreateBaseTableRteForInsert(MongoCollection *collection, Oid
+														  shardOid,
+														  List **optionalPermInfos);
 
 /*
  * ApiGucPrefix.enable_create_collection_on_insert GUC determines whether
@@ -141,6 +153,7 @@ bool EnableCreateCollectionOnInsert = true;
 extern bool UseLocalExecutionShardQueries;
 extern bool EnableBypassDocumentValidation;
 extern bool EnableSchemaValidation;
+extern bool EnableInsertCustomPlan;
 
 /*
  * command_insert handles the insert command invocation through a PostgreSQL function.
@@ -581,8 +594,22 @@ DoMultiInsertWithoutTransactionId(MongoCollection *collection, List *inserts, Oi
 		}
 
 		paramListInfo->numParams = paramIndex;
-		Query *query = CreateInsertQuery(collection, shardOid, valuesList);
-		uint64_t rowsProcessed = RunInsertQuery(query, paramListInfo);
+
+		uint64_t rowsProcessed = 0;
+		if (!EnableInsertCustomPlan || shardOid == InvalidOid)
+		{
+			Query *query = CreateInsertQuery(collection, shardOid,
+											 valuesList);
+			rowsProcessed = RunInsertQuery(query, paramListInfo);
+		}
+		else
+		{
+			ThrowIfWriteCommandNotAllowed();
+
+			PlannedStmt *queryPlan = CreateLocalShardInsertPlan(collection,
+																shardOid, valuesList);
+			rowsProcessed = ExecuteLocalShardInsertPlan(queryPlan, paramListInfo);
+		}
 
 		/* Merge inner batchResult with outer batchResult */
 		batchResult->rowsInserted += rowsProcessed;
@@ -868,21 +895,39 @@ ProcessInsertion(MongoCollection *collection,
 		 * have that call INSERT - we can just do that directly from the coordinator (which probably
 		 * saves one query parsing and planning per document).
 		 */
-		ParamListInfo paramListInfo = makeParamList(2);
-		paramListInfo->numParams = 2;
 		Const *shardKeyConst = makeConst(INT8OID, -1, InvalidOid, 8,
 										 Int64GetDatum(shardKeyHash), false, true);
+
+		List *singleInsertList = NULL;
+		uint64_t insertResult = 0;
+
+		ParamListInfo paramListInfo = makeParamList(2);
+		paramListInfo->numParams = 2;
 		Expr *objectidParam = CreateBsonParam(0, paramListInfo, objectIdPtr);
 		Expr *documentParam = CreateBsonParam(1, paramListInfo, insertDoc);
 
-		List *singleInsertList = CreateValuesListForInsert(shardKeyConst, objectidParam,
-														   documentParam,
-														   collection->
-														   mongoDataCreationTimeVarAttrNumber);
+		singleInsertList = CreateValuesListForInsert(shardKeyConst, objectidParam,
+													 documentParam,
+													 collection->
+													 mongoDataCreationTimeVarAttrNumber);
 
-		Query *query = CreateInsertQuery(collection, optionalInsertShardOid, list_make1(
-											 singleInsertList));
-		uint64_t insertResult = RunInsertQuery(query, paramListInfo);
+		if (!EnableInsertCustomPlan || optionalInsertShardOid == InvalidOid)
+		{
+			Query *query = CreateInsertQuery(collection, optionalInsertShardOid,
+											 list_make1(
+												 singleInsertList));
+			insertResult = RunInsertQuery(query, paramListInfo);
+		}
+		else
+		{
+			ThrowIfWriteCommandNotAllowed();
+
+			PlannedStmt *queryPlan = CreateLocalShardInsertPlan(collection,
+																optionalInsertShardOid,
+																list_make1(
+																	singleInsertList));
+			insertResult = ExecuteLocalShardInsertPlan(queryPlan, paramListInfo);
+		}
 		pfree(paramListInfo);
 		list_free_deep(singleInsertList);
 		return insertResult;
@@ -1345,114 +1390,24 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 	query->querySource = QSRC_ORIGINAL;
 	query->canSetTag = true;
 
-	/* Make the base table RTE */
-	RangeTblEntry *rte = makeNode(RangeTblEntry);
-	List *colNames = list_make3(makeString("shard_key_value"), makeString("object_id"),
-								makeString("document"));
-
-
-	if (collection->mongoDataCreationTimeVarAttrNumber == 4)
-	{
-		colNames = lappend(colNames, makeString("creation_time"));
-	}
-	else if (collection->mongoDataCreationTimeVarAttrNumber == 5)
-	{
-		/* If "creation_time" is the fifth column, then we should include "change_description" in the RTE. */
-		colNames = ModifyTableColumnNames(colNames);
-	}
-
-	rte->rtekind = RTE_RELATION;
-	rte->relid = collection->relationId;
-
-	/* If there is a shardOid and we can thunk directly to the shard,
-	 * then set it. This will point the insert to the shard directly and avoid
-	 * going through citus distributed planning.
-	 */
-	if (shardOid != InvalidOid)
-	{
-		rte->relid = shardOid;
-	}
-
-	rte->alias = rte->eref = makeAlias("collection", colNames);
-	rte->lateral = false;
-	rte->inFromCl = false;
-	rte->relkind = RELKIND_RELATION;
-	rte->functions = NIL;
-	rte->inh = true;
 #if PG_VERSION_NUM >= 160000
-	RTEPermissionInfo *permInfo = addRTEPermissionInfo(&query->rteperminfos, rte);
-	permInfo->requiredPerms = ACL_INSERT;
+	RangeTblEntry *rte = CreateBaseTableRteForInsert(collection, shardOid,
+													 &query->rteperminfos);
 #else
-	rte->requiredPerms = ACL_INSERT;
+	RangeTblEntry *rte = CreateBaseTableRteForInsert(collection, shardOid, NULL);
 #endif
 
-	rte->rellockmode = RowExclusiveLock;
-	query->rtable = lappend(query->rtable, rte);
+	RangeTblEntry *valuesRte = CreateValueRteForInsert(collection, valuesLists);
+
+	query->rtable = list_make2(rte, valuesRte);
 	query->resultRelation = 1;
-
-	/* Make the VALUES RTE */
-	List *valuesColNames = list_make3(makeString("shard_key_value"),
-									  makeString("object_id"),
-									  makeString("document"));
-
-	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
-	{
-		valuesColNames = lappend(valuesColNames, makeString("creation_time"));
-	}
-
-	RangeTblEntry *valuesRte = makeNode(RangeTblEntry);
-	valuesRte->rtekind = RTE_VALUES;
-	valuesRte->alias = valuesRte->eref = makeAlias("values", valuesColNames);
-	valuesRte->lateral = false;
-	valuesRte->inFromCl = false;
-	valuesRte->values_lists = valuesLists;
-	valuesRte->inh = false;
-	valuesRte->inFromCl = true;
-
-	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
-	{
-		valuesRte->coltypes = list_make4_oid(INT8OID, BsonTypeId(), BsonTypeId(),
-											 TIMESTAMPTZOID);
-		valuesRte->coltypmods = list_make4_int(-1, -1, -1, -1);
-		valuesRte->colcollations = list_make4_oid(InvalidOid, InvalidOid, InvalidOid,
-												  InvalidOid);
-	}
-	else
-	{
-		valuesRte->coltypes = list_make3_oid(INT8OID, BsonTypeId(), BsonTypeId());
-		valuesRte->coltypmods = list_make3_int(-1, -1, -1);
-		valuesRte->colcollations = list_make3_oid(InvalidOid, InvalidOid, InvalidOid);
-	}
-	query->rtable = lappend(query->rtable, valuesRte);
 
 	RangeTblRef *valuesRteRef = makeNode(RangeTblRef);
 	valuesRteRef->rtindex = 2;
 	List *fromList = list_make1(valuesRteRef);
 
 	query->jointree = makeFromExpr(fromList, NULL);
-
-	/* Now create the targetlist */
-	query->targetList = list_make3(
-		makeTargetEntry((Expr *) makeVar(2, 1, INT8OID, -1, InvalidOid, 0),
-						DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER,
-						"shard_key_value", false),
-		makeTargetEntry((Expr *) makeVar(2, 2, BsonTypeId(), -1, InvalidOid, 0),
-						DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER, "object_id",
-						false),
-		makeTargetEntry((Expr *) makeVar(2, 3, BsonTypeId(), -1, InvalidOid, 0),
-						DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER, "document",
-						false)
-		);
-
-	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
-	{
-		query->targetList = lappend(query->targetList,
-									makeTargetEntry((Expr *) makeVar(2, 4, TIMESTAMPTZOID,
-																	 -1, InvalidOid, 0),
-													collection->
-													mongoDataCreationTimeVarAttrNumber,
-													"creation_time", false));
-	}
+	query->targetList = CreateTargetListForInsert(collection);
 
 	/* In order to use a portal & SPI we create a returning list of a const */
 	query->returningList = list_make1(
@@ -1508,6 +1463,112 @@ RunInsertQuery(Query *insertQuery, ParamListInfo paramListInfo)
 }
 
 
+/*
+ * CreateLocalShardInsertPlan
+ *
+ * Creates a PlannedStmt for inserting into a local shard table directly.
+ * This avoids planning phase.
+ *
+ * Returns:
+ *   PlannedStmt* - The planned statement ready for execution.
+ */
+static PlannedStmt *
+CreateLocalShardInsertPlan(MongoCollection *collection, Oid shardOid,
+						   List *valuesLists)
+{
+	const Cost startupCost = 0.0; /* No startup cost for VALUES scan */
+	const Cost totalCost = 0.0125; /* Arbitrary small cost for the VALUES scan */
+	const Cardinality planRows = list_length(valuesLists);
+	int planWidth = get_relation_data_width(shardOid, NULL);
+	const Index relationRelId = 1; /* RTE index for the base table */
+	const Index valueListRelId = 2; /* RTE index for the VALUES list */
+
+	PlannedStmt *stmt = makeNode(PlannedStmt);
+#if PG_VERSION_NUM >= 160000
+	RangeTblEntry *relationRte = CreateBaseTableRteForInsert(collection, shardOid,
+															 &stmt->permInfos);
+#else
+	RangeTblEntry *relationRte = CreateBaseTableRteForInsert(collection, shardOid, NULL);
+#endif
+	RangeTblEntry *valuesRte = CreateValueRteForInsert(collection, valuesLists);
+	List *targetList = CreateTargetListForInsert(collection);
+
+
+	/* Create the ValuesScan node for the VALUES RTE */
+	ValuesScan *vscan = makeNode(ValuesScan);
+	vscan->scan.scanrelid = valueListRelId;
+	vscan->values_lists = copyObject(valuesRte->values_lists);
+	valuesRte->values_lists = NULL;
+
+	Plan *vplan = &vscan->scan.plan;
+	vplan->startup_cost = startupCost;
+	vplan->total_cost = totalCost;
+	vplan->plan_rows = planRows;
+	vplan->plan_width = planWidth;
+	vplan->targetlist = targetList;
+
+	/* Create the ModifyTable node for the insert operation */
+	ModifyTable *mt = makeNode(ModifyTable);
+	mt->operation = CMD_INSERT;
+	mt->canSetTag = true;
+	mt->resultRelations = list_make1_int(relationRelId);
+	mt->plan.lefttree = (Plan *) vscan;
+	mt->plan.total_cost = totalCost;
+	mt->plan.plan_rows = planRows;
+	mt->plan.plan_width = planWidth;
+	mt->nominalRelation = relationRelId;
+
+	/* Fill in the PlannedStmt */
+	stmt->commandType = CMD_INSERT;
+	stmt->canSetTag = true;
+	stmt->planTree = (Plan *) mt;
+	stmt->rtable = list_make2(relationRte, valuesRte);
+	stmt->resultRelations = list_make1_int(relationRelId);
+	stmt->relationOids = list_make1_oid(relationRte->relid);
+
+	return stmt;
+}
+
+
+/*
+ * Executes a local insert plan for a sharded table using the provided PlannedStmt.
+ * Returns the number of rows processed.
+ */
+static uint64_t
+ExecuteLocalShardInsertPlan(PlannedStmt *queryPlan, ParamListInfo paramListInfo)
+{
+	ScanDirection scanDirection = ForwardScanDirection;
+	QueryEnvironment *queryEnv = create_queryEnv();
+	int eflags = 0;
+
+	MemoryContext localContext = AllocSetContextCreate(CurrentMemoryContext,
+													   "DocumentDBExecutePlan",
+													   ALLOCSET_DEFAULT_SIZES);
+	MemoryContext oldContext = MemoryContextSwitchTo(localContext);
+	DestReceiver *receiver = CreateDestReceiver(DestNone);
+
+	/* Create a QueryDesc for the query */
+	QueryDesc *queryDesc = CreateQueryDesc(queryPlan, "",
+										   GetActiveSnapshot(), InvalidSnapshot,
+										   receiver, paramListInfo,
+										   queryEnv, 0);
+
+	ExecutorStart(queryDesc, eflags);
+	ExecutorRun(queryDesc, scanDirection, 0L, true);
+
+	uint64_t numRowsProcessed = queryDesc->estate->es_processed;
+
+	ExecutorFinish(queryDesc);
+	ExecutorEnd(queryDesc);
+
+	FreeQueryDesc(queryDesc);
+	MemoryContextSwitchTo(oldContext);
+	MemoryContextDelete(localContext);
+
+	return numRowsProcessed;
+}
+
+
 /* indicates the presence of a creation_time column in the table, either at attribute number 4 or 5 */
 static inline List *
 CreateValuesListForInsert(Const *shardKey, Expr *objectId, Expr *document, AttrNumber
@@ -1524,4 +1585,127 @@ CreateValuesListForInsert(Const *shardKey, Expr *objectId, Expr *document, AttrN
 	{
 		return list_make3(shardKey, objectId, document);
 	}
+}
+
+
+/* Build RangeTblEntry for base table */
+static inline RangeTblEntry *
+CreateBaseTableRteForInsert(MongoCollection *collection, Oid shardOid,
+							List **optionalPermInfos)
+{
+	RangeTblEntry *rte = makeNode(RangeTblEntry);
+	List *colNames = list_make3(makeString("shard_key_value"), makeString("object_id"),
+								makeString("document"));
+
+
+	if (collection->mongoDataCreationTimeVarAttrNumber == 4)
+	{
+		colNames = lappend(colNames, makeString("creation_time"));
+	}
+	else if (collection->mongoDataCreationTimeVarAttrNumber == 5)
+	{
+		/* If "creation_time" is the fifth column, then we should include "change_description" in the RTE. */
+		colNames = ModifyTableColumnNames(colNames);
+	}
+
+	rte->rtekind = RTE_RELATION;
+	rte->relid = collection->relationId;
+
+	/* If there is a shardOid and we can thunk directly to the shard,
+	 * then set it. This will point the insert to the shard directly and avoid
+	 * going through citus distributed planning.
+	 */
+	if (shardOid != InvalidOid)
+	{
+		rte->relid = shardOid;
+	}
+
+	rte->alias = rte->eref = makeAlias("collection", colNames);
+	rte->lateral = false;
+	rte->inFromCl = false;
+	rte->relkind = RELKIND_RELATION;
+	rte->functions = NIL;
+	rte->inh = true;
+	rte->rellockmode = RowExclusiveLock;
+
+#if PG_VERSION_NUM >= 160000
+	RTEPermissionInfo *permInfo = addRTEPermissionInfo(optionalPermInfos, rte);
+	permInfo->requiredPerms = ACL_INSERT;
+#else
+	rte->requiredPerms = ACL_INSERT;
+#endif
+
+	return rte;
+}
+
+
+/* Build RangeTblEntry for values */
+static inline RangeTblEntry *
+CreateValueRteForInsert(MongoCollection *collection, List *valuesLists)
+{
+	/* Build the VALUES RTE */
+	List *valuesColNames = list_make3(makeString("shard_key_value"),
+									  makeString("object_id"),
+									  makeString("document"));
+
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		valuesColNames = lappend(valuesColNames, makeString("creation_time"));
+	}
+
+	RangeTblEntry *valuesRte = makeNode(RangeTblEntry);
+	valuesRte->rtekind = RTE_VALUES;
+	valuesRte->alias = valuesRte->eref = makeAlias("values", valuesColNames);
+	valuesRte->lateral = false;
+	valuesRte->inFromCl = true;
+	valuesRte->values_lists = valuesLists;
+	valuesRte->inh = false;
+
+	/* Set column types and widths */
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		valuesRte->coltypes = list_make4_oid(INT8OID, BsonTypeId(), BsonTypeId(),
+											 TIMESTAMPTZOID);
+		valuesRte->coltypmods = list_make4_int(-1, -1, -1, -1);
+		valuesRte->colcollations = list_make4_oid(InvalidOid, InvalidOid, InvalidOid,
+												  InvalidOid);
+	}
+	else
+	{
+		valuesRte->coltypes = list_make3_oid(INT8OID, BsonTypeId(), BsonTypeId());
+		valuesRte->coltypmods = list_make3_int(-1, -1, -1);
+		valuesRte->colcollations = list_make3_oid(InvalidOid, InvalidOid, InvalidOid);
+	}
+
+	return valuesRte;
+}
+
+
+/* Build targetList for insert */
+static inline List *
+CreateTargetListForInsert(MongoCollection *collection)
+{
+	List *targetList = list_make3(
+		makeTargetEntry((Expr *) makeVar(2, 1, INT8OID, -1, InvalidOid, 0),
+						DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER,
+						"shard_key_value", false),
+		makeTargetEntry((Expr *) makeVar(2, 2, BsonTypeId(), -1, InvalidOid, 0),
+						DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER, "object_id",
+						false),
+		makeTargetEntry((Expr *) makeVar(2, 3, BsonTypeId(), -1, InvalidOid, 0),
+						DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER, "document",
+						false)
+		);
+
+	if (collection->mongoDataCreationTimeVarAttrNumber != -1)
+	{
+		targetList = lappend(targetList,
+							 makeTargetEntry((Expr *) makeVar(2, 4, TIMESTAMPTZOID, -1,
+															  InvalidOid, 0),
+											 collection->
+											 mongoDataCreationTimeVarAttrNumber,
+											 "creation_time", false));
+	}
+
+	return targetList;
 }
