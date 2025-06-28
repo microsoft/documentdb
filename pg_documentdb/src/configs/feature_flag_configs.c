@@ -115,6 +115,9 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 #define DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN false
 bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
 
+#define DEFAULT_ENABLE_INSERT_CUSTOM_PLAN true
+bool EnableInsertCustomPlan = DEFAULT_ENABLE_INSERT_CUSTOM_PLAN;
+
 #define DEFAULT_LOOKUP_ENABLE_INNER_JOIN false
 bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
 
@@ -623,5 +626,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to force RUM ordered index scan for rum indexes."),
 		NULL, &ForceRumOrderedIndexScan,
 		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableInsertCustomPlan", newGucPrefix),
+		gettext_noop(
+			"Whether to use custom insert plan for insert commands."),
+		NULL, &EnableInsertCustomPlan,
+		DEFAULT_ENABLE_INSERT_CUSTOM_PLAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
