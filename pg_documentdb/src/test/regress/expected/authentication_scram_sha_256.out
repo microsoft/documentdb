@@ -263,6 +263,13 @@ LOG:  Client proof verification failed.
  false
 (1 row)
 
+-- Test with isNativeAuthEnabled set to OFF
+SET documentdb.isNativeAuthEnabled TO OFF;
+SELECT test_documentdb_scram_sha256_dual_api('testuser', '<password_placeholder111>');
+ERROR:  Native authentication is disabled on cluster. Enable native authentication or use Entra ID authentication.
+CONTEXT:  SQL statement "SELECT documentdb_api_internal.authenticate_with_scram_sha256(p_user_name, auth_message, client_proof)"
+PL/pgSQL function test_documentdb_scram_sha256_dual_api(text,text) line 42 at SQL statement
+SET documentdb.isNativeAuthEnabled TO ON;
 -- DROP THE USERS CREATED FOR THE TEST
 DROP role "testuser";
 DROP role "test""user";

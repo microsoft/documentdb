@@ -17,6 +17,7 @@
 #include "common/hmac.h"   /* Postgres hmac functions */
 #include "utils/varlena.h" /* Postgres variable-length builtIn types functions*/
 #include "common/cryptohash.h"
+#include "utils/documentdb_errors.h"
 
 /* Including Postgresql headers for test helper functions.*/
 #include "common/saslprep.h" /* Postgres SASLprep normalization functions */
@@ -113,6 +114,10 @@ typedef struct ScramState
 
 /* ------------------------------------------------------------------------- */
 
+/* GUC that controls whether native authentication is enabled*/
+extern bool IsNativeAuthEnabled;
+
+/* ------------------------------------------------------------------------- */
 
 /* STATIC FUNCTION DECLARATIONS */
 
@@ -246,6 +251,13 @@ command_authenticate_with_scram_sha256(PG_FUNCTION_ARGS)
 	memset(&authResult, 0, sizeof(ScramAuthResult));
 	authResult.serverSignature = "";
 
+	if (!IsNativeAuthEnabled)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+						errmsg(
+							"Native authentication is disabled on cluster. Enable native authentication or use Entra ID authentication.")));
+	}
+
 	/* User Name */
 	if (PG_ARGISNULL(0))
 	{
@@ -336,6 +348,13 @@ command_authenticate_with_scram_sha256(PG_FUNCTION_ARGS)
 Datum
 command_authenticate_with_pwd(PG_FUNCTION_ARGS)
 {
+	if (!IsNativeAuthEnabled)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+						errmsg(
+							"Native authentication is disabled on cluster. Enable native authentication or use Entra ID authentication.")));
+	}
+
 	/* User Name */
 	if (PG_ARGISNULL(0))
 	{

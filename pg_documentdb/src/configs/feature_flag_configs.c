@@ -35,6 +35,9 @@ bool EnableUsernamePasswordConstraints = DEFAULT_ENABLE_USERNAME_PASSWORD_CONSTR
 #define DEFAULT_ENABLE_USERS_INFO_PRIVILEGES true
 bool EnableUsersInfoPrivileges = DEFAULT_ENABLE_USERS_INFO_PRIVILEGES;
 
+#define DEFAULT_ENABLE_NATIVE_AUTHENTICATION true
+bool IsNativeAuthEnabled = DEFAULT_ENABLE_NATIVE_AUTHENTICATION;
+
 
 /*
  * SECTION: Vector Search flags
@@ -570,6 +573,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Determines whether the usersInfo command returns privileges."),
 		NULL, &EnableUsersInfoPrivileges,
 		DEFAULT_ENABLE_USERS_INFO_PRIVILEGES,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.isNativeAuthEnabled", newGucPrefix),
+		gettext_noop(
+			"Determines whether native authentication is enabled."),
+		NULL, &IsNativeAuthEnabled,
+		DEFAULT_ENABLE_NATIVE_AUTHENTICATION,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
