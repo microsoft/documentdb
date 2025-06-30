@@ -88,6 +88,7 @@ pub struct QueryCatalog {
     pub drop_user: String,
     pub update_user: String,
     pub users_info: String,
+    pub connection_status: String,
 
     // tests
     pub create_db_user: String,
@@ -329,6 +330,10 @@ impl QueryCatalog {
         &self.users_info
     }
 
+    pub fn connection_status(&self) -> &str {
+        &self.connection_status
+    }
+
     pub fn create_db_user(&self, user: &str, pass: &str) -> String {
         self.create_db_user
             .replace("{user}", user)
@@ -423,6 +428,7 @@ pub fn create_query_catalog() -> QueryCatalog {
             drop_user: "SELECT documentdb_api.drop_user($1)".to_string(),
             update_user: "SELECT documentdb_api.update_user($1)".to_string(),
             users_info: "SELECT documentdb_api.users_info($1)".to_string(),
+            connection_status: "SELECT documentdb_api.connection_status($1)".to_string(),
 
             // tests
             create_db_user: "CREATE ROLE \"{user}\" WITH LOGIN INHERIT PASSWORD '{pass}' IN ROLE documentdb_readonly_role; 

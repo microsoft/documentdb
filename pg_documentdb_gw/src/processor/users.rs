@@ -57,3 +57,14 @@ pub async fn process_users_info(
         .execute_users_info(request, request_info, connection_context)
         .await
 }
+
+pub async fn process_connection_status(
+    request: &Request<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &mut ConnectionContext,
+    pg_data_client: &impl PgDataClient,
+) -> Result<Response, DocumentDBError> {
+    pg_data_client
+        .execute_connection_status(request, request_info, connection_context)
+        .await
+}
