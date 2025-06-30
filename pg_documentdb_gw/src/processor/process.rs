@@ -66,7 +66,15 @@ pub async fn process_request(
                 )
                 .await
             }
-            RequestType::ConnectionStatus => constant::process_connection_status(),
+            RequestType::ConnectionStatus => {
+                users::process_connection_status(
+                    request,
+                    request_info,
+                    connection_context,
+                    &pg_data_client,
+                )
+                .await
+            }
             RequestType::Count => {
                 data_management::process_count(
                     request,

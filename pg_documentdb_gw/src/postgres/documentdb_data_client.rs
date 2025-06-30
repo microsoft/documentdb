@@ -1010,4 +1010,27 @@ impl PgDataClient for DocumentDBDataClient {
 
         Ok(())
     }
+
+    async fn execute_connection_status(
+        &self,
+        request: &Request<'_>,
+        request_info: &mut RequestInfo<'_>,
+        connection_context: &ConnectionContext,
+    ) -> Result<Response> {
+        let connection_status_rows = self
+            .pull_connection(connection_context)
+            .await?
+            .query(
+                connection_context
+                    .service_context
+                    .query_catalog()
+                    .connection_status(),
+                &[Type::BYTEA],
+                &[&PgDocument(request.document())],
+                Timeout::command(request_info.max_time_ms),
+                request_info,
+            )
+            .await?;
+        Ok(Response::Pg(PgResponse::new(connection_status_rows)))
+    }
 }
