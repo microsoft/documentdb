@@ -27,7 +27,7 @@ BuildRequires:  pkg-config
 
 Requires:       (postgresql%{pg_version} or percona-postgresql%{pg_version})
 Requires:       (postgresql%{pg_version}-server or percona-postgresql%{pg_version}-server)
-Requires:       (pgvector_%{pg_version} or percona-pgvector%{pg_version})
+Requires:       (pgvector_%{pg_version} or percona-pgvector_%{pg_version})
 Requires:       pg_cron_%{pg_version}
 Requires:       postgis34_%{pg_version}
 Requires:       rum_%{pg_version}
