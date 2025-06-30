@@ -181,6 +181,11 @@ SELECT test_documentdb_scram_sha256_dual_api('test\user', '<password_placeholder
 -- Failed test for incorrect password
 SELECT test_documentdb_scram_sha256_dual_api('test\user', '<password_placeholder111>');
 
+-- Test with isNativeAuthEnabled set to OFF
+SET documentdb.isNativeAuthEnabled TO OFF;
+SELECT test_documentdb_scram_sha256_dual_api('testuser', '<password_placeholder111>');
+SET documentdb.isNativeAuthEnabled TO ON;
+
 -- DROP THE USERS CREATED FOR THE TEST
 DROP role "testuser";
 DROP role "test""user";
