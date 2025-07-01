@@ -1,5 +1,4 @@
 # OpenTelemetry Comprehensive Instrumentation for DocumentDB Gateway
-## Phase 2 Implementation Design
 
 ## Executive Summary
 
@@ -138,19 +137,19 @@ where
     R: AsyncRead + AsyncWrite + Unpin + Send,
 {
     // Start a server span for the incoming request
-    let ctx = connection_context.telemetry.start_request_span(
+    let conn_ctx = connection_context.telemetry.start_request_span(
         header.op_code.to_string().as_str(),
         header
     );
-    let _guard = ctx.span().enter();
+    let _guard = conn_ctx.span().enter();
     
     // Process the request with traced context
-    ctx.span().add_event("reading_request_body", vec![]);
+    conn_ctx.span().add_event("reading_request_body", vec![]);
     
     // Processing logic with tracing annotations
-    match process_request(stream, header, &ctx).await {
-        Ok(_) => ctx.span().set_status(Status::Ok),
-        Err(e) => ctx.span().set_status(Status::Error(e.to_string()))
+    match process_request(stream, header, &conn_ctx).await {
+        Ok(_) => conn_ctx.span().set_status(Status::Ok),
+        Err(e) => conn_ctx.span().set_status(Status::Error(e.to_string()))
     }
     
     Ok(())
@@ -194,7 +193,7 @@ Our gateway will implement a sophisticated context propagation strategy that bri
 
 Following FerretDB's analysis, our implementation acknowledges several limitations:
 
-1. **Comment Field Support**: Not all MongoDB operations support comment fields (e.g., `insert`, `listCollections`)
+1. **Comment Field Support**: Not all MongoDB operations support comment fields
 2. **Driver Compatibility**: Some MongoDB drivers handle comments as strings only, requiring careful JSON encoding/decoding
 3. **Protocol Extensions**: No standardized approach exists for database context propagation (W3C Trace Context Protocols Registry gap)
 
@@ -204,7 +203,7 @@ To address these limitations, our implementation will:
 
 - **Graceful Degradation**: Continue functioning when comment-based context is unavailable
 - **Multiple Propagation Methods**: Support various context injection strategies as they become available
-- **Standards Compliance**: Ready to adopt future W3C standards for database context propagation
+- **Standards Compliance**: Ready to adopt future W3C standards for database context propagation (https://www.w3.org/TR/trace-context/)
 - **Extensible Design**: Architecture allows for additional propagation mechanisms
 
 This approach ensures comprehensive trace correlation while acknowledging the practical constraints of MongoDB wire protocol context propagation.
@@ -272,9 +271,9 @@ Example of recording metrics with trace context:
 
 ```rust
 // Record with current trace context to enable correlation
-let ctx = Context::current();
+let trace_context = Context::current();
 self.request_duration.record(
-    &ctx,
+    &trace_context,
     duration_ms,
     &[KeyValue::new("operation", op_type.to_string())]
 );
@@ -286,7 +285,7 @@ We will enhance the existing `OpenTelemetryProvider` to integrate all three tele
 
 1. **Maintain Tracer Instance**: For creating and managing trace spans
 2. **Hold Meter Provider**: For registering and recording metrics
-3. **Context Management**: Extract and propagate context across boundaries
+3. **Context Management**: Extract and propagate W3C context (parent/child span IDs) across boundaries
 4. **Trace-Log Correlation**: Inject trace IDs into log records
 5. **Resource Attribution**: Add consistent service and environment information
 
@@ -297,13 +296,13 @@ Example of the enhanced `emit_request_event` method:
 ```rust
 async fn emit_request_event(&self, ctx: &ConnectionContext, header: &Header, request: Option<&Request<'_>>, ...) {
     // Extract trace context from request
-    let context = extract_context_from_request(header);
+    let trace_context = extract_context_from_request(header);
     
     // Record metrics with context
-    self.record_request_metrics(&context, duration_ms, ctx.current_region());
+    self.record_request_metrics(&trace_context, duration_ms, ctx.current_region());
     
     // Log with trace correlation
-    info!(trace_id = context.span().span_context().trace_id().to_string(),
+    info!(trace_id = trace_context.span().span_context().trace_id().to_string(),
           operation = request.map(|r| r.request_type().as_str()).unwrap_or("unknown"),
           "Request completed");
 }
@@ -511,17 +510,9 @@ scrape_configs:
 7. **Capacity Planning**: Data-driven insights for resource allocation
 8. **Cross-Team Collaboration**: Shared observability data for development and operations
 
-## Implementation Plan
-
-1. **Phase 2a**: Add distributed tracing infrastructure and basic spans
-2. **Phase 2b**: Implement context propagation within the gateway
-3. **Phase 2c**: Add structured logging with trace correlation
-4. **Phase 2d**: Extend metrics with additional operational indicators
-5. **Phase 2e**: Implement backend context propagation (MongoDB to PostgreSQL)
-6. **Phase 2f**: Set up sample dashboards and alerting rules
 
 ## Conclusion
 
-The comprehensive OpenTelemetry instrumentation plan builds on the foundation established in Phase 1, adding distributed tracing and structured logging to complete the observability triad. By exporting all telemetry via OTLP, we ensure compatibility with a wide range of backend systems while maintaining a unified approach to observability.
+By exporting all telemetry via OTLP, we ensure compatibility with a wide range of backend systems while maintaining a unified approach to observability.
 
 This implementation will provide operators and developers with unprecedented visibility into the DocumentDB gateway's behavior, enabling faster troubleshooting, more informed decision-making, and ultimately a more reliable service for end users.
