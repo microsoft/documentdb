@@ -9,15 +9,16 @@
 use std::{str::from_utf8, sync::Arc};
 
 use bson::{rawdoc, spec::BinarySubtype};
+use protocol::header::Header;
 use rand::Rng;
 use tokio_postgres::types::Type;
 
 use crate::{
-    context::ConnectionContext,
+    context::{ConnectionContext, RequestContext},
     error::{DocumentDBError, ErrorCode, Result},
     postgres::{PgDataClient, PgDocument},
     processor,
-    protocol::OK_SUCCEEDED,
+    protocol::{self, OK_SUCCEEDED},
     requests::{Request, RequestInfo, RequestType},
     responses::{RawResponse, Response},
 };
@@ -81,6 +82,7 @@ impl AuthState {
 pub async fn process<T>(
     connection_context: &mut ConnectionContext,
     request: &Request<'_>,
+    header: &Header,
 ) -> Result<Response>
 where
     T: PgDataClient,
@@ -89,17 +91,13 @@ where
         return Ok(response);
     }
 
-    let request_info = request.extract_common();
+    let mut request_info = request.extract_common()?;
     if request.request_type().allowed_unauthorized() {
         let service_context = Arc::clone(&connection_context.service_context);
         let data_client = T::new_unauthorized(&service_context).await?;
-        return processor::process_request(
-            request,
-            &mut request_info?,
-            connection_context,
-            data_client,
-        )
-        .await;
+        let mut request_context: RequestContext<'_> =
+            RequestContext::new(None, header, connection_context, &mut request_info);
+        return processor::process_request(request, &mut request_context, data_client).await;
     }
 
     Err(DocumentDBError::unauthorized(format!(

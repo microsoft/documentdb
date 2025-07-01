@@ -6,14 +6,16 @@
  *-------------------------------------------------------------------------
  */
 
-mod connection;
+mod connection_context;
 mod cursor;
-mod service;
+mod request_context;
+mod service_context;
 mod transaction;
 
 pub use cursor::{Cursor, CursorStore, CursorStoreEntry};
 
 pub use transaction::{RequestTransactionInfo, Transaction, TransactionStore};
 
-pub use connection::ConnectionContext;
-pub use service::ServiceContext;
+pub use connection_context::ConnectionContext;
+pub use request_context::RequestContext;
+pub use service_context::ServiceContext;
