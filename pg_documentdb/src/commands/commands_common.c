@@ -296,9 +296,9 @@ GetWriteErrorFromErrorData(ErrorData *errorData, int writeErrorIdx)
 		ThrowErrorData(errorData);
 	}
 
-	if (errorData->sqlerrcode == ERRCODE_INTERNAL_ERROR)
+	if (errorData->sqlerrcode == ERRCODE_INTERNAL_ERROR && errorData->message != NULL)
 	{
-		if (errorData->message != NULL && strcmp(errorData->message, "Lost Path") == 0)
+		if (strcmp(errorData->message, "Lost Path") == 0)
 		{
 			/*
 			 * We need to throw this updated error and retry at the gateway
@@ -307,6 +307,17 @@ GetWriteErrorFromErrorData(ErrorData *errorData, int writeErrorIdx)
 			errorData->message =
 				"An invalid/lost index path for the write operation was detected."
 				" Please retry the operation.";
+			ereport(LOG, (errmsg("%s", errorData->message)));
+			ThrowErrorData(errorData);
+		}
+		else if (strcmp(errorData->message, "invalid offset on rumpage") == 0)
+		{
+			/*
+			 * We need to throw this updated error and retry at the gateway
+			 */
+			errorData->sqlerrcode = ERRCODE_INDEX_LOSTPATH;
+			errorData->message =
+				"The index page was split while a query was in progress";
 			ereport(LOG, (errmsg("%s", errorData->message)));
 			ThrowErrorData(errorData);
 		}
