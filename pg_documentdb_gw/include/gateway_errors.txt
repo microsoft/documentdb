@@ -16,7 +16,6 @@ TransactionTooOld,00000,225
 NoSuchTransaction,00000,251
 TransactionCommitted,00000,256
 TooManyLogicalSessions,00000,261
-Location13103,00000,13103
 OutOfDiskSpace,53100,14031
 ReauthenticationRequired,00000,391
 InvalidPassword,28P01,392
