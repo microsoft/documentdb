@@ -18,7 +18,7 @@ use once_cell::sync::Lazy;
 use serde_json::Value;
 
 use crate::{
-    context::ConnectionContext,
+    context::RequestContext,
     error::{DocumentDBError, Result},
     postgres::PgDataClient,
     protocol::OK_SUCCEEDED,
@@ -111,9 +111,8 @@ fn write_output_stage(
 #[async_recursion]
 pub async fn process_explain(
     request: &Request<'_>,
-    request_info: &mut RequestInfo<'_>,
     verbosity: Option<Verbosity>,
-    connection_context: &ConnectionContext,
+    request_context: &mut RequestContext<'_>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     if let Some(result) = request.document().into_iter().next() {
@@ -133,9 +132,8 @@ pub async fn process_explain(
                     // Recurse with the sub command
                     process_explain(
                         &Request::Raw(RequestType::Explain, explain_doc, request.extra()),
-                        request_info,
                         Some(verbosity),
-                        connection_context,
+                        request_context,
                         pg_data_client,
                     )
                     .await
@@ -148,43 +146,25 @@ pub async fn process_explain(
             "aggregate" => {
                 run_explain(
                     request,
-                    request_info,
                     "pipeline",
                     verbosity,
-                    connection_context,
+                    request_context,
                     pg_data_client,
                 )
                 .await
             }
             "find" => {
-                run_explain(
-                    request,
-                    request_info,
-                    "find",
-                    verbosity,
-                    connection_context,
-                    pg_data_client,
-                )
-                .await
+                run_explain(request, "find", verbosity, request_context, pg_data_client).await
             }
             "count" => {
-                run_explain(
-                    request,
-                    request_info,
-                    "count",
-                    verbosity,
-                    connection_context,
-                    pg_data_client,
-                )
-                .await
+                run_explain(request, "count", verbosity, request_context, pg_data_client).await
             }
             "distinct" => {
                 run_explain(
                     request,
-                    request_info,
                     "distinct",
                     verbosity,
-                    connection_context,
+                    request_context,
                     pg_data_client,
                 )
                 .await
@@ -225,23 +205,22 @@ impl Verbosity {
 
 async fn run_explain(
     request: &Request<'_>,
-    request_info: &mut RequestInfo<'_>,
     query_base: &str,
     verbosity: Verbosity,
-    connection_context: &ConnectionContext,
+    request_context: &mut RequestContext<'_>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (explain_response, query) = pg_data_client
         .execute_explain(
             request,
-            request_info,
+            request_context.request_info,
             query_base,
             verbosity,
-            connection_context,
+            request_context.connection_context,
         )
         .await?;
 
-    let dynamic_config = connection_context.dynamic_configuration();
+    let dynamic_config = request_context.connection_context.dynamic_configuration();
 
     match explain_response {
         Some(content) => {
@@ -258,12 +237,15 @@ async fn run_explain(
             let (collection_name, subtype) = get_subtype_and_collection_name(request)?;
             let mut explain = transform_explain(
                 content,
-                request_info.db()?,
+                request_context.request_info.db()?,
                 collection_name,
                 subtype,
                 query_base,
                 verbosity,
-                connection_context.service_context.query_catalog(),
+                request_context
+                    .connection_context
+                    .service_context
+                    .query_catalog(),
             )
             .await?;
 
@@ -286,7 +268,7 @@ async fn run_explain(
                         &query,
                         explain_content.expect("Set during developer explain"),
                         request.document(),
-                        request_info,
+                        request_context.request_info,
                     ),
                 )
             }

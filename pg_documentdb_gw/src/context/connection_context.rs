@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/context/connection.rs
+ * src/context/connection_context.rs
  *
  *-------------------------------------------------------------------------
  */
@@ -60,7 +60,7 @@ impl ConnectionContext {
 
     pub async fn add_cursor(
         &self,
-        conn: Option<Arc<Connection>>,
+        connection: Option<Arc<Connection>>,
         cursor: Cursor,
         user: &str,
         db: &str,
@@ -69,7 +69,7 @@ impl ConnectionContext {
     ) {
         let key = (cursor.cursor_id, user.to_string());
         let value = CursorStoreEntry {
-            conn,
+            connection,
             cursor,
             db: db.to_string(),
             collection: collection.to_string(),

@@ -77,7 +77,10 @@ impl PgResponse {
     }
 
     /// In certain cases, write errors need to be walked through to convert PG error codes to Gatway ones.
-    pub async fn transform_write_errors(self, context: &ConnectionContext) -> Result<Response> {
+    pub async fn transform_write_errors(
+        self,
+        connection_context: &ConnectionContext,
+    ) -> Result<Response> {
         if let Ok(Some(_)) = self.as_raw_document()?.get("writeErrors") {
             // TODO: Conceivably faster without conversion to document
             let mut response = Document::try_from(self.as_raw_document()?)?;
@@ -86,7 +89,7 @@ impl PgResponse {
             })?;
 
             for value in write_errors {
-                self.transform_error(context, value).await?;
+                self.transform_error(connection_context, value).await?;
             }
             let raw = RawDocumentBuf::from_document(&response)?;
             return Ok(Response::Raw(RawResponse(raw)));
@@ -94,7 +97,11 @@ impl PgResponse {
         Ok(Response::Pg(self))
     }
 
-    async fn transform_error(&self, context: &ConnectionContext, bson: &mut Bson) -> Result<()> {
+    async fn transform_error(
+        &self,
+        connection_context: &ConnectionContext,
+        bson: &mut Bson,
+    ) -> Result<()> {
         let doc = bson
             .as_document_mut()
             .ok_or(DocumentDBError::internal_error(
@@ -105,9 +112,12 @@ impl PgResponse {
             DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
         })?;
 
-        if let Some((known, opt, error_code)) =
-            PgResponse::known_pg_error(context, &PgResponse::i32_to_postgres_sqlstate(code)?, &msg)
-                .await
+        if let Some((known, opt, error_code)) = PgResponse::known_pg_error(
+            connection_context,
+            &PgResponse::i32_to_postgres_sqlstate(code)?,
+            &msg,
+        )
+        .await
         {
             if known == ErrorCode::WriteConflict as i32
                 || known == ErrorCode::InternalError as i32

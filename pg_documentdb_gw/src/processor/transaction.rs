@@ -7,22 +7,21 @@
  */
 
 use crate::{
-    context::ConnectionContext,
+    context::RequestContext,
     error::{DocumentDBError, ErrorCode, Result},
     postgres::PgDataClient,
-    requests::{Request, RequestInfo, RequestType},
+    requests::{Request, RequestType},
     responses::Response,
 };
 
 // Create the transaction if required, and populate the context information with the transaction info
 pub async fn handle(
     request: &Request<'_>,
-    request_info: &RequestInfo<'_>,
-    connection_context: &mut ConnectionContext,
+    request_context: &mut RequestContext<'_>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<()> {
-    connection_context.transaction = None;
-    if let Some(request_transaction_info) = &request_info.transaction_info {
+    request_context.connection_context.transaction = None;
+    if let Some(request_transaction_info) = &request_context.request_info.transaction_info {
         if request_transaction_info.auto_commit {
             return Ok(());
         }
@@ -64,14 +63,18 @@ pub async fn handle(
             ));
         }
 
-        let session_id = request_info
+        let session_id = request_context
+            .request_info
             .session_id
             .expect("Given that there's a transaction, there must be a session")
             .to_vec();
-        let store = connection_context.service_context.transaction_store();
+        let store = request_context
+            .connection_context
+            .service_context
+            .transaction_store();
         let transaction_result = store
             .create(
-                connection_context,
+                request_context.connection_context,
                 request_transaction_info,
                 session_id.clone(),
                 pg_data_client,
@@ -94,29 +97,36 @@ pub async fn handle(
             };
         }
 
-        connection_context.transaction =
+        request_context.connection_context.transaction =
             Some((session_id, request_transaction_info.transaction_number));
     }
     Ok(())
 }
 
-pub async fn process_commit(context: &mut ConnectionContext) -> Result<Response> {
-    if let Some((session_id, _)) = context.transaction.as_ref() {
-        let store = context.service_context.transaction_store();
+pub async fn process_commit(request_context: &RequestContext<'_>) -> Result<Response> {
+    if let Some((session_id, _)) = request_context.connection_context.transaction.as_ref() {
+        let store = request_context
+            .connection_context
+            .service_context
+            .transaction_store();
         store.commit(session_id).await?;
     }
     Ok(Response::ok())
 }
 
-pub async fn process_abort(context: &mut ConnectionContext) -> Result<Response> {
-    let (session_id, _) = context
+pub async fn process_abort(request_context: &RequestContext<'_>) -> Result<Response> {
+    let (session_id, _) = request_context
+        .connection_context
         .transaction
         .as_ref()
         .ok_or(DocumentDBError::internal_error(
             "Transaction information was not populated for abort.".to_string(),
         ))?;
 
-    let store = context.service_context.transaction_store();
+    let store = request_context
+        .connection_context
+        .service_context
+        .transaction_store();
     store.abort(session_id).await?;
     Ok(Response::ok())
 }

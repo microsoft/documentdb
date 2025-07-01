@@ -11,30 +11,30 @@ use std::sync::Arc;
 use bson::{rawdoc, RawArrayBuf};
 
 use crate::{
-    context::{ConnectionContext, Cursor, CursorStoreEntry},
+    context::{Cursor, CursorStoreEntry, RequestContext},
     error::{DocumentDBError, ErrorCode, Result},
     postgres::{Connection, PgDataClient, PgDocument},
     protocol::OK_SUCCEEDED,
-    requests::{Request, RequestInfo},
+    requests::Request,
     responses::{PgResponse, RawResponse, Response},
 };
 
 pub async fn save_cursor(
-    connection_context: &ConnectionContext,
+    request_context: &mut RequestContext<'_>,
     connection: Arc<Connection>,
     response: &PgResponse,
-    request_info: &RequestInfo<'_>,
 ) -> Result<()> {
     if let Some((persist, cursor)) = response.get_cursor()? {
         let connection = if persist { Some(connection) } else { None };
-        connection_context
+        request_context
+            .connection_context
             .add_cursor(
                 connection,
                 cursor,
-                connection_context.auth_state.username()?,
-                request_info.db()?,
-                request_info.collection()?,
-                request_info.session_id.map(|v| v.to_vec()),
+                request_context.connection_context.auth_state.username()?,
+                request_context.request_info.db()?,
+                request_context.request_info.collection()?,
+                request_context.request_info.session_id.map(|v| v.to_vec()),
             )
             .await;
     }
@@ -43,7 +43,7 @@ pub async fn save_cursor(
 
 pub async fn process_kill_cursors(
     request: &Request<'_>,
-    connection_context: &ConnectionContext,
+    request_context: &mut RequestContext<'_>,
 ) -> Result<Response> {
     let _ = request
         .document()
@@ -69,9 +69,13 @@ pub async fn process_kill_cursors(
         ))?;
         cursor_ids.push(cursor);
     }
-    let (removed_cursors, missing_cursors) = connection_context
+    let (removed_cursors, missing_cursors) = request_context
+        .connection_context
         .service_context
-        .kill_cursors(connection_context.auth_state.username()?, &cursor_ids)
+        .kill_cursors(
+            request_context.connection_context.auth_state.username()?,
+            &cursor_ids,
+        )
         .await;
     let mut removed_cursor_buf = RawArrayBuf::new();
     for cursor in removed_cursors {
@@ -93,8 +97,7 @@ pub async fn process_kill_cursors(
 
 pub async fn process_get_more(
     request: &Request<'_>,
-    request_info: &mut RequestInfo<'_>,
-    connection_context: &ConnectionContext,
+    request_context: &mut RequestContext<'_>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut id = None;
@@ -110,14 +113,18 @@ pub async fn process_get_more(
         "getMore not present in document".to_string(),
     ))?;
     let CursorStoreEntry {
-        conn: cursor_connection,
+        connection: cursor_connection,
         cursor,
         db,
         collection,
         session_id,
         ..
-    } = connection_context
-        .get_cursor(id, connection_context.auth_state.username()?)
+    } = request_context
+        .connection_context
+        .get_cursor(
+            id,
+            request_context.connection_context.auth_state.username()?,
+        )
         .await
         .ok_or(DocumentDBError::documentdb_error(
             ErrorCode::CursorNotFound,
@@ -127,25 +134,26 @@ pub async fn process_get_more(
     let results = pg_data_client
         .execute_cursor_get_more(
             request,
-            request_info,
+            request_context.request_info,
             &db,
             &cursor,
             &cursor_connection,
-            connection_context,
+            request_context.connection_context,
         )
         .await?;
 
     if let Some(row) = results.first() {
         let continuation: Option<PgDocument> = row.try_get(1)?;
         if let Some(continuation) = continuation {
-            connection_context
+            request_context
+                .connection_context
                 .add_cursor(
                     cursor_connection,
                     Cursor {
                         cursor_id: id,
                         continuation: continuation.0.to_raw_document_buf(),
                     },
-                    connection_context.auth_state.username()?,
+                    request_context.connection_context.auth_state.username()?,
                     &db,
                     &collection,
                     session_id,
