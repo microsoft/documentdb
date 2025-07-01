@@ -1,4 +1,5 @@
 ### documentdb v1.106-0 (Unreleased) ###
+- Add internal extension that provides extensions to the `rum` index. *[Feature]*
 
 ### documentdb v0.105-0 (Unreleased) ###
 * Support `$bucketAuto` aggregation stage, with granularity types: `POWERSOF2`, `1-2-5`, `R5`, `R10`, `R20`, `R40`, `R80`, `E6`, `E12`, `E24`, `E48`, `E96`, `E192` *[Feature]*
