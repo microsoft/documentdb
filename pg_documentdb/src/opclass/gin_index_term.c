@@ -57,7 +57,6 @@ typedef enum IndexTermMetadata
 	IndexTermDescendingPartialUndefinedValue = 0x8C,
 } IndexTermMetadata;
 
-extern bool EnableIndexTermTruncationOnNestedObjects;
 extern bool IndexTermUseUnsafeTransform;
 extern int IndexTermCompressionThreshold;
 extern bool EnableDescendingCompositeIndex;
@@ -570,13 +569,6 @@ TruncateNestedEntry(pgbson_element_writer *elementWriter, const
 
 		case BSON_TYPE_DOCUMENT:
 		{
-			if (!EnableIndexTermTruncationOnNestedObjects)
-			{
-				*forceAsNotTruncated = true;
-				PgbsonElementWriterWriteValue(elementWriter, currentValue);
-				return false;
-			}
-
 			/* See details about size constant in SerializeTermToWriter() */
 			int32_t fixedTermLimit = 17;
 			int32_t softLimit = sizeBudgetForElementWriter - fixedTermLimit;
@@ -599,13 +591,6 @@ TruncateNestedEntry(pgbson_element_writer *elementWriter, const
 
 		case BSON_TYPE_ARRAY:
 		{
-			if (!EnableIndexTermTruncationOnNestedObjects)
-			{
-				*forceAsNotTruncated = true;
-				PgbsonElementWriterWriteValue(elementWriter, currentValue);
-				return false;
-			}
-
 			/* See details about size constant in SerializeTermToWriter() */
 			int32_t fixedTermSize = 21;
 			int32_t loweredSizeLimit = sizeBudgetForElementWriter - fixedTermSize;

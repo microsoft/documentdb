@@ -801,15 +801,8 @@ MakeActionWhenMatched(WhenMatchedAction whenMatched, Var *sourceDocVar, Var *tar
 												 Int32GetDatum(whenMatched),
 												 false, true);
 	List *args = NIL;
-	if (IsClusterVersionAtleast(DocDB_V0, 102, 0))
-	{
-		args = list_make5(sourceDocVar, targetDocVar, inputActionForWhenMathced,
-						  schemaValidatorInfoConst, validationLevelConst);
-	}
-	else
-	{
-		args = list_make3(sourceDocVar, targetDocVar, inputActionForWhenMathced);
-	}
+	args = list_make5(sourceDocVar, targetDocVar, inputActionForWhenMathced,
+					  schemaValidatorInfoConst, validationLevelConst);
 
 	FuncExpr *resultExpr = makeFuncExpr(
 		BsonDollarMergeHandleWhenMatchedFunctionOid(), BsonTypeId(), args, InvalidOid,
@@ -879,15 +872,8 @@ MakeActionWhenNotMatched(WhenNotMatchedAction whenNotMatched, Var *sourceDocVar,
 
 	/* let's build func expr for `document` column */
 	List *argsForAddObjecIdFunc = NIL;
-	if (IsClusterVersionAtleast(DocDB_V0, 102, 0))
-	{
-		argsForAddObjecIdFunc = list_make3(sourceDocVar, generatedObjectIdVar,
-										   schemaValidatorInfoConst);
-	}
-	else
-	{
-		argsForAddObjecIdFunc = list_make2(sourceDocVar, generatedObjectIdVar);
-	}
+	argsForAddObjecIdFunc = list_make3(sourceDocVar, generatedObjectIdVar,
+									   schemaValidatorInfoConst);
 
 	FuncExpr *addObjecIdFuncExpr = makeFuncExpr(
 		BsonDollarMergeAddObjectIdFunctionOid(), BsonTypeId(), argsForAddObjecIdFunc,
@@ -2179,5 +2165,5 @@ ParseOutStage(const bson_value_t *existingValue, const char *currentNameSpace,
 static inline bool
 CheckSchemaValidationEnabledForDollarMergeOut(void)
 {
-	return EnableSchemaValidation && IsClusterVersionAtleast(DocDB_V0, 102, 0);
+	return EnableSchemaValidation;
 }

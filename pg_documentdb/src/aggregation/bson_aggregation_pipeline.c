@@ -2369,7 +2369,7 @@ HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 	bool addOnlyVariableSpecArg = context->variableSpec != NULL && functionOidWithLet !=
 								  NULL;
 
-	if (addLetAndCollationArg && IsClusterVersionAtleast(DocDB_V0, 102, 0))
+	if (addLetAndCollationArg)
 	{
 		Const *collationConst = MakeTextConst(context->collationString, strlen(
 												  context->collationString));
@@ -3264,8 +3264,7 @@ HandleRedact(const bson_value_t *existingValue, Query *query,
 							  (Expr *) MakeBsonConst(PgbsonInitEmpty()) :
 							  context->variableSpec;
 
-	if (IsClusterVersionAtleast(DocDB_V0, 102, 0) &&
-		IsCollationApplicable(context->collationString))
+	if (IsCollationApplicable(context->collationString))
 	{
 		Const *collationStringConst = MakeTextConst(context->collationString, strlen(
 														context->collationString));
@@ -3329,8 +3328,7 @@ HandleProjectFind(const bson_value_t *existingValue, const bson_value_t *queryVa
 
 	List *args;
 	Oid funcOid = BsonDollarProjectFindFunctionOid();
-	if (IsCollationApplicable(context->collationString) &&
-		IsClusterVersionAtleast(DocDB_V0, 102, 0))
+	if (IsCollationApplicable(context->collationString))
 	{
 		pgbson *queryDoc = queryValue->value_type == BSON_TYPE_EOD ? PgbsonInitEmpty() :
 						   PgbsonInitFromDocumentBsonValue(queryValue);

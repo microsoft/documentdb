@@ -153,6 +153,9 @@ int MaxAllowedCursorIntermediateFileSizeMB =
 #define DEFAULT_MAX_CURSOR_FILE_COUNT 5000
 int MaxCursorFileCount = DEFAULT_MAX_CURSOR_FILE_COUNT;
 
+#define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
+bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
+
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -431,5 +434,12 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 			"Maximum number of cursor files allowed. set to 0 to disable cursor file limit."),
 		NULL, &MaxCursorFileCount,
 		DEFAULT_MAX_CURSOR_FILE_COUNT, 0, INT_MAX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableStatementTimeout", newGucPrefix),
+		gettext_noop(
+			"Whether to enable per statement backend timeout override in the backend."),
+		NULL, &EnableBackendStatementTimeout, DEFAULT_ENABLE_STATEMENT_TIMEOUT,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

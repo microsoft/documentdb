@@ -111,8 +111,6 @@ typedef struct IdFilterWalkerContext
 extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
-extern bool EnableIndexOperatorBounds;
-extern bool ExpandDollarAllInQueryOperator;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -1891,11 +1889,9 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				 * on them, we need a ScalarArrayOpExpr - do this with a custom bson type
 				 * that we can then remove in the relpathlist to avoid runtime evaluation
 				 */
-				if (EnableIndexOperatorBounds && context->simplifyOperators &&
+				if (context->simplifyOperators &&
 					context->coerceOperatorExprIfApplicable &&
 					context->inputType == MongoQueryOperatorInputType_Bson &&
-					(IsClusterVersionAtLeastPatch(DocDB_V0, 101, 1) ||
-					 IsClusterVersionAtleast(DocDB_V0, 102, 0)) &&
 					operator->operatorType == QUERY_OPERATOR_IN &&
 					!hasRegex)
 				{
@@ -1961,8 +1957,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				}
 			}
 
-			if (ExpandDollarAllInQueryOperator &&
-				context->simplifyOperators &&
+			if (context->simplifyOperators &&
 				context->inputType == MongoQueryOperatorInputType_Bson)
 			{
 				return ExpandExprForDollarAll(path, operatorDocIterator,

@@ -201,7 +201,6 @@ static const int ForceIndexOperatorsCount = sizeof(ForceIndexOperatorSupport) /
 
 extern bool EnableVectorForceIndexPushdown;
 extern bool EnableGeonearForceIndexPushdown;
-extern bool EnableIndexOperatorBounds;
 extern bool UseNewElemMatchIndexPushdown;
 extern bool DisableDollarSupportFuncSelectivity;
 extern bool EnableNewOperatorSelectivityMode;
@@ -1408,10 +1407,7 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 	}
 	else if (IsA(clause, ScalarArrayOpExpr))
 	{
-		if (EnableIndexOperatorBounds &&
-			(IsClusterVersionAtLeastPatch(DocDB_V0, 101, 1) ||
-			 IsClusterVersionAtleast(DocDB_V0, 102, 0)) &&
-			context->inputData.isShardQuery && trimClauses)
+		if (context->inputData.isShardQuery && trimClauses)
 		{
 			ScalarArrayOpExpr *arrayOpExpr = (ScalarArrayOpExpr *) clause;
 			if (arrayOpExpr->opno == BsonIndexBoundsEqualOperatorId())

@@ -2,7 +2,6 @@ SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documen
 SET citus.next_shard_id TO 640000;
 SET documentdb.next_collection_id TO 6400;
 SET documentdb.next_collection_index_id TO 6400;
-SET documentdb.enableIndexTermTruncationOnNestedObjects to on;
 -- Set configs to something reasonable for testing.
 set documentdb.indexTermLimitOverride to 100;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "index_truncation_tests", "indexes": [ { "key": { "ikey": 1 }, "name": "ikey_1", "enableLargeIndexKeys": true } ] }');
@@ -3410,4 +3409,3 @@ SELECT length(bson_dollar_project(term, '{ "t": 0 }')::bytea), term FROM documen
      12 | { "" : [  ], "t" : false }
 (56 rows)
 
-SET documentdb.enableIndexTermTruncationOnNestedObjects to off;

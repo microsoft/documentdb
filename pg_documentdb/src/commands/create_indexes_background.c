@@ -109,7 +109,6 @@ typedef enum BackgroundIndexRunStatus
 
 extern int MaxIndexBuildAttempts;
 extern int IndexQueueEvictionIntervalInSec;
-extern bool SkipCreateIndexesOnCreateCollection;
 extern bool EnableMultipleIndexBuildsPerRun;
 
 /* Do not retry the index build if error code belongs to following list. */
@@ -1001,7 +1000,7 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 	/* If we created the collection in this transaction, just create the indexes
 	 * in the same transaction.
 	 */
-	if (result.createdCollectionAutomatically && !SkipCreateIndexesOnCreateCollection)
+	if (result.createdCollectionAutomatically)
 	{
 		ereport(LOG, (errmsg(
 						  "Building indexes inline due to create collection for collection "
