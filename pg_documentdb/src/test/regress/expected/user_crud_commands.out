@@ -58,6 +58,9 @@ SELECT documentdb_api.users_info('{"usersInfo":"test_user2"}');
  { "users" : [ { "_id" : "admin.test_user2", "userId" : "admin.test_user2", "user" : "test_user2", "db" : "admin", "roles" : [ { "role" : "readWriteAnyDatabase", "db" : "admin" }, { "role" : "clusterAdmin", "db" : "admin" } ] } ], "ok" : { "$numberInt" : "1" } }
 (1 row)
 
+--Try to create a readOnly user without passing in the role as  part of an array
+SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"Valid$123Pass", "roles":{"role":"readAnyDatabase","db":"admin"}}');
+ERROR:  'roles' field must be an array
 --Create a user with a blocked prefix
 SELECT documentdb_api.create_user('{"createUser":"documentdb_user2", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
 ERROR:  Invalid username, use a different username.

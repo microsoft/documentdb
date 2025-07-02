@@ -429,6 +429,13 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 		}
 		else if (strcmp(key, "roles") == 0)
 		{
+			if (!BSON_ITER_HOLDS_ARRAY(&createIter))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"'roles' field must be an array")));
+			}
+
 			spec->roles = *bson_iter_value(&createIter);
 
 			if (IsBsonValueEmptyDocument(&spec->roles))
