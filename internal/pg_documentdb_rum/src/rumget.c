@@ -25,7 +25,7 @@
 #if PG_VERSION_NUM >= 150000
 #include "common/pg_prng.h"
 #endif
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 /* GUC parameter */
 int RumFuzzySearchLimit = 0;

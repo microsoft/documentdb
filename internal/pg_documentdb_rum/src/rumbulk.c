@@ -15,7 +15,7 @@
 
 #include "utils/datum.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 #define DEF_NENTRY 2048         /* RumEntryAccumulator allocation quantum */
 #define DEF_NPTR 5              /* ItemPointer initial allocation quantum */

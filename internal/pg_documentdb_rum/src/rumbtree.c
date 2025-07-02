@@ -17,7 +17,7 @@
 #include "miscadmin.h"
 #include "storage/predicate.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 /*
  * Locks buffer by needed method for search.

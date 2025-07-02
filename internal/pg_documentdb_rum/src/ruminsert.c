@@ -22,7 +22,7 @@
 #include "miscadmin.h"
 #include "utils/datum.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 typedef struct
 {

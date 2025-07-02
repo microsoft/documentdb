@@ -11,6 +11,8 @@
  *-------------------------------------------------------------------------
  */
 
+ #define HAVE_VISIBILITY_ATTRIBUTE 1
+
 #include "postgres.h"
 
 #include "access/htup_details.h"
@@ -28,7 +30,19 @@
 #include "utils/syscache.h"
 #include "utils/typcache.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
+
+
+/* PG16 defined visibility for PGDLLEXPORT properly, for PG15, we need to set it */
+#if PG_VERSION_NUM < 160000
+#undef PGDLLEXPORT
+#ifdef HAVE_VISIBILITY_ATTRIBUTE
+#define PGDLLEXPORT __attribute__((visibility("default")))
+#else
+#define PGDLLEXPORT
+#endif
+#endif
+
 
 PG_MODULE_MAGIC;
 
@@ -39,45 +53,21 @@ PG_FUNCTION_INFO_V1(documentdb_rumhandler);
 /* Kind of relation optioms for rum index */
 static relopt_kind rum_relopt_kind;
 
-static const struct config_enum_entry rum_array_similarity_function_opts[] =
-{
-	{ "cosine", SMT_COSINE, false },
-	{ "jaccard", SMT_JACCARD, false },
-	{ "overlap", SMT_OVERLAP, false },
-	{ NULL, 0, false }
-};
-
 /*
  * Module load callback
  */
-void
+PGDLLEXPORT void
 _PG_init(void)
 {
 	/* Define custom GUC variables. */
-	DefineCustomIntVariable("rum_fuzzy_search_limit",
+	DefineCustomIntVariable("documentdb_rum.rum_fuzzy_search_limit",
 							"Sets the maximum allowed result for exact search by RUM.",
 							NULL,
 							&RumFuzzySearchLimit,
 							0, 0, INT_MAX,
 							PGC_USERSET, 0,
 							NULL, NULL, NULL);
-
-	DefineCustomRealVariable("rum.array_similarity_threshold",
-							 "Sets the array similarity threshold.",
-							 NULL,
-							 &RumArraySimilarityThreshold,
-							 RUM_SIMILARITY_THRESHOLD_DEFAULT, 0.0, 1.0,
-							 PGC_USERSET, 0,
-							 NULL, NULL, NULL);
-
-	DefineCustomEnumVariable("rum.array_similarity_function",
-							 "Sets the array similarity function.",
-							 NULL,
-							 &RumArraySimilarityFunction,
-							 RUM_SIMILARITY_FUNCTION_DEFAULT,
-							 rum_array_similarity_function_opts,
-							 PGC_USERSET, 0,
-							 NULL, NULL, NULL);
+	MarkGUCPrefixReserved("documentdb_rum");
 
 	rum_relopt_kind = add_reloption_kind();
 
@@ -109,7 +99,7 @@ _PG_init(void)
  * RUM handler function: return IndexAmRoutine with access method parameters
  * and callbacks.
  */
-Datum
+PGDLLEXPORT Datum
 documentdb_rumhandler(PG_FUNCTION_ARGS)
 {
 	IndexAmRoutine *amroutine = makeNode(IndexAmRoutine);
@@ -154,6 +144,9 @@ documentdb_rumhandler(PG_FUNCTION_ARGS)
 	amroutine->aminitparallelscan = NULL;
 	amroutine->amparallelrescan = NULL;
 #endif
+
+	/* Allow operator classes to define custom opclass-options */
+	amroutine->amoptsprocnum = RUM_OPTS_PROC;
 
 	PG_RETURN_POINTER(amroutine);
 }

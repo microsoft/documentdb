@@ -19,7 +19,7 @@
 #include "storage/lmgr.h"
 #include "storage/predicate.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 typedef struct
 {

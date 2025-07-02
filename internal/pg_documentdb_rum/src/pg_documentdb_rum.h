@@ -855,7 +855,8 @@ extern RumItem * rumGetBAEntry(BuildAccumulator *accum,
 #define RUM_ORDERING_PROC 8
 #define RUM_OUTER_ORDERING_PROC 9
 #define RUM_ADDINFO_JOIN 10
-#define RUMNProcs 10
+#define RUM_OPTS_PROC 11
+#define RUMNProcs 12
 
 /* rum_arr_utils.c */
 typedef enum SimilarityType
@@ -871,8 +872,6 @@ typedef enum SimilarityType
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
-extern float8 RumArraySimilarityThreshold;
-extern int RumArraySimilarityFunction;
 
 
 /*
