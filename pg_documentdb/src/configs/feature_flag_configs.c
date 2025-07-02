@@ -76,25 +76,9 @@ bool EnableVectorCalculateDefaultSearchParameter =
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
-/* Remove after v105 */
-#define DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH true
-bool EnableRumInOperatorFastPath = DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH;
-
-/* Remove after v104 */
-#define DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS true
-bool EnableIndexTermTruncationOnNestedObjects =
-	DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS;
-
-/* Remove after v104 */
-#define DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS true
-bool EnableIndexOperatorBounds = DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS;
-
-/* Remove after v105 */
+/* Remove after v106 */
 #define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
 bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
-
-#define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
-bool ForceRumOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
 
 /*
  * SECTION: Planner feature flags
@@ -105,6 +89,7 @@ bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
 #define DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY false
 bool DisableDollarSupportFuncSelectivity = DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY;
 
+/* Remove after v110 */
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN true
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
 
@@ -139,20 +124,16 @@ bool EnableMatchWithLetInLookup =
 #define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
 bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
+/* Remove after v106 */
 #define DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN true
 bool UseRawExecutorForQueryPlan = DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN;
 
 #define DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS false
 bool UseFileBasedPersistedCursors = DEFAULT_USE_FILE_BASED_PERSISTED_CURSORS;
 
+/* Remove after v108 */
 #define DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS true
 bool EnableFileBasedPersistedCursors = DEFAULT_ENABLE_FILE_BASED_PERSISTED_CURSORS;
-
-#define DEFAULT_ENABLE_COMPACT_COMMAND false
-bool EnableCompact = DEFAULT_ENABLE_COMPACT_COMMAND;
-
-#define DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR true
-bool ExpandDollarAllInQueryOperator = DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR;
 
 #define DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR false
 bool UseLegacyOrderByBehavior = DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR;
@@ -196,10 +177,6 @@ bool EnableMergeTargetCreation = DEFAULT_ENABLE_MERGE_TARGET_CREATION;
 #define DEFAULT_ENABLE_MERGE_ACROSS_DB true
 bool EnableMergeAcrossDB = DEFAULT_ENABLE_MERGE_ACROSS_DB;
 
-/* Move to system configs after v104 */
-#define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
-bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
-
 #define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
 bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
@@ -207,22 +184,23 @@ bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRAD
 bool EnableDataTableWithoutCreationTime =
 	DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME;
 
+/* Remove after v108 */
 #define DEFAULT_ENABLE_MULTIPLE_INDEX_BUILDS_PER_RUN true
 bool EnableMultipleIndexBuildsPerRun = DEFAULT_ENABLE_MULTIPLE_INDEX_BUILDS_PER_RUN;
 
-/* Remove after v105 */
+/* Remove after v106 */
 #define DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY false
 bool SkipEnforceTransactionReadOnly = DEFAULT_SKIP_ENFORCE_TRANSACTION_READ_ONLY;
 
-#define DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION false
-bool SkipCreateIndexesOnCreateCollection =
-	DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION;
-
+/* Remove after v107 */
 #define DEFAULT_USE_NEW_SHARD_KEY_CALCULATION true
 bool UseNewShardKeyCalculation = DEFAULT_USE_NEW_SHARD_KEY_CALCULATION;
 
 #define DEFAULT_ENABLE_BUCKET_AUTO_STAGE true
 bool EnableBucketAutoStage = DEFAULT_ENABLE_BUCKET_AUTO_STAGE;
+
+#define DEFAULT_ENABLE_COMPACT_COMMAND false
+bool EnableCompact = DEFAULT_ENABLE_COMPACT_COMMAND;
 
 /* FEATURE FLAGS END */
 
@@ -313,17 +291,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableRumInOperatorFastPath", newGucPrefix),
-		gettext_noop(
-			"Allow rum in operator fast path."),
-		NULL,
-		&EnableRumInOperatorFastPath,
-		DEFAULT_ENABLE_RUM_IN_OPERATOR_FAST_PATH,
-		PGC_USERSET,
-		0,
-		NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.enableMergeTargetCreation", newGucPrefix),
 		gettext_noop(
 			"Enables support for target collection creation."),
@@ -385,14 +352,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.enableIndexTermTruncationOnNestedObjects", newGucPrefix),
-		gettext_noop(
-			"Determines whether to truncate index terms with nested objects (arrays/objects of arrays/objects)"),
-		NULL, &EnableIndexTermTruncationOnNestedObjects,
-		DEFAULT_ENABLE_INDEX_TERM_TRUNCATION_NESTED_OBJECTS,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.skipFailOnCollation", newGucPrefix),
 		gettext_noop(
 			"Determines whether we can skip failing when collation is specified but collation is not supported"),
@@ -413,13 +372,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Enables support for the $$NOW time system variable."),
 		NULL, &EnableNowSystemVariable,
 		DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableStatementTimeout", newGucPrefix),
-		gettext_noop(
-			"Whether to enable per statement backend timeout override in the backend."),
-		NULL, &EnableBackendStatementTimeout, DEFAULT_ENABLE_STATEMENT_TIMEOUT,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -452,14 +404,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable let variables and $$NOW support for write (update, delete, findAndModify) commands. Only support for delete is available now."),
 		NULL, &EnableVariablesSupportForWriteCommands,
 		DEFAULT_ENABLE_VARIABLES_SUPPORT_FOR_WRITE_COMMANDS,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableindexboundsoperators", newGucPrefix),
-		gettext_noop(
-			"Whether or not to enable in indexbounds tracking for partial filter expressions."),
-		NULL, &EnableIndexOperatorBounds,
-		DEFAULT_ENABLE_INDEX_OPERATOR_BOUNDS,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -528,14 +472,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		);
 
 	DefineCustomBoolVariable(
-		psprintf("%s.skipCreateIndexesOnCreateCollection", newGucPrefix),
-		gettext_noop(
-			"Whether or not to skip creating indexes on create collection."),
-		NULL, &SkipCreateIndexesOnCreateCollection,
-		DEFAULT_SKIP_CREATE_INDEXES_ON_CREATE_COLLECTION,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
 		psprintf("%s.useFileBasedPersistedCursors", newGucPrefix),
 		gettext_noop(
 			"Whether or not to use file based persisted cursors."),
@@ -557,14 +493,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable compact command."),
 		NULL, &EnableCompact,
 		DEFAULT_ENABLE_COMPACT_COMMAND,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.expandDollarAllInQueryOperator", newGucPrefix),
-		gettext_noop(
-			"Whether or not to expand $all in query operator."),
-		NULL, &ExpandDollarAllInQueryOperator,
-		DEFAULT_EXPAND_DOLLAR_ALL_IN_QUERY_OPERATOR,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
@@ -629,14 +557,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to enable the $bucketAuto stage."),
 		NULL, &EnableBucketAutoStage,
 		DEFAULT_ENABLE_BUCKET_AUTO_STAGE,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.forceRumOrderedIndexScan", newGucPrefix),
-		gettext_noop(
-			"Whether to force RUM ordered index scan for rum indexes."),
-		NULL, &ForceRumOrderedIndexScan,
-		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

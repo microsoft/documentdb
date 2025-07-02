@@ -127,7 +127,6 @@ typedef struct DollarExistsQueryData
 
 extern bool EnableGenerateNonExistsTerm;
 extern bool EnableCollation;
-extern bool EnableRumInOperatorFastPath;
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -699,8 +698,7 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 				(DollarArrayOpQueryData *) (extra_data[numKeys]);
 
 			*recheck = false;
-			if (EnableRumInOperatorFastPath &&
-				!isPreconsistent &&
+			if (!isPreconsistent &&
 				!queryData->arrayHasNull &&
 				!queryData->arrayHasRegex &&
 				!queryData->arrayHasTruncation)

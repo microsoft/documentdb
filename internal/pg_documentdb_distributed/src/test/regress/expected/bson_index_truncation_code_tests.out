@@ -575,7 +575,6 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('
 -- EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('db', 'index_truncation_code_tests') WHERE document @@ '{ "ikey": { "$ne": { "$code" : "eyAiYSI6ICIxMjM0NSIsICJiIjogMTIzMTIzMTIzMjExMjMxIH0=" } } }';
 -- EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM documentdb_api.collection('db', 'index_truncation_code_tests') WHERE document @@ '{ "ikey": { "$all": [{ "$code" : "dGhpcyBpcyBhIHRlc3Qgc3RyaW5n" }, { "$code" : "MTIzNDUxMjM0NQ==" }] } }';
 -- insert $code BSON data in nested documents/arrays with different leaf types
-SET documentdb.enableIndexTermTruncationOnNestedObjects to ON;
 SET documentdb.indexTermLimitOverride to 100;
 /* create index on key 'ikey2' */
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "index_truncation_code_tests_2", "indexes": [ { "key": { "ikey2" : 1 }, "name": "ikey_2", "enableLargeIndexKeys": true } ] }');
