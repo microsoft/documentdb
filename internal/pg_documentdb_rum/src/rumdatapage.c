@@ -15,6 +15,9 @@
 
 #include "pg_documentdb_rum.h"
 
+/* Test GUC to test data page splits */
+int RumDataPageIntermediateSplitSize = -1;
+
 static BlockNumber dataGetLeftMostPage(RumBtree btree, Page page);
 static BlockNumber dataGetRightMostPage(RumBtree btree, Page page);
 
@@ -878,6 +881,12 @@ dataIsEnoughSpace(RumBtree btree, Buffer buf, OffsetNumber off)
 		{
 			return true;
 		}
+	}
+	else if (RumDataPageIntermediateSplitSize > 1 &&
+			 RumPageGetOpaque(page)->maxoff > RumDataPageIntermediateSplitSize)
+	{
+		/* Test only guc to force split intermediate pages */
+		return false;
 	}
 	else if (sizeof(PostingItem) <= RumDataPageGetFreeSpace(page))
 	{

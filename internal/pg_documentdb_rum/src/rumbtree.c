@@ -363,7 +363,15 @@ rumFindParents(RumBtree btree, RumBtreeStack *stack,
 			blkno = RumPageGetOpaque(page)->rightlink;
 			if (blkno == InvalidBlockNumber)
 			{
-				UnlockReleaseBuffer(buffer);
+				/* Link not present in this level */
+				LockBuffer(buffer, RUM_UNLOCK);
+
+				/* Do not release pin on the root buffer */
+				if (buffer != root->buffer)
+				{
+					ReleaseBuffer(buffer);
+				}
+
 				break;
 			}
 			buffer = rumStep(buffer, btree->index, RUM_EXCLUSIVE,

@@ -43,7 +43,6 @@
 #endif
 #endif
 
-
 PG_MODULE_MAGIC;
 
 void _PG_init(void);
@@ -59,15 +58,43 @@ static relopt_kind rum_relopt_kind;
 PGDLLEXPORT void
 _PG_init(void)
 {
+#define RUM_GUC_PREFIX "documentdb_rum"
+#define DOCUMENTDB_RUM_GUC_PREFIX "documentdb_rum"
+
 	/* Define custom GUC variables. */
-	DefineCustomIntVariable("documentdb_rum.rum_fuzzy_search_limit",
+	DefineCustomIntVariable(RUM_GUC_PREFIX "rum_fuzzy_search_limit",
 							"Sets the maximum allowed result for exact search by RUM.",
 							NULL,
 							&RumFuzzySearchLimit,
 							0, 0, INT_MAX,
 							PGC_USERSET, 0,
 							NULL, NULL, NULL);
-	MarkGUCPrefixReserved("documentdb_rum");
+
+	DefineCustomIntVariable(RUM_GUC_PREFIX ".data_page_posting_tree_size",
+							"Test GUC that sets the data page size before splits.",
+							NULL,
+							&RumDataPageIntermediateSplitSize,
+							-1, -1, INT_MAX,
+							PGC_USERSET, 0,
+							NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(DOCUMENTDB_RUM_GUC_PREFIX ".rum_use_new_vacuum_scan",
+							 "Sets whether or not to use the new vacuum scan for posting trees",
+							 NULL,
+							 &RumUseNewVacuumScan,
+							 RUM_USE_NEW_VACUUM_SCAN,
+							 PGC_USERSET, 0,
+							 NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".enable_rum_refind_leaf_on_entry_next_item",
+		"Sets whether or not to refind the leaf page on entry next item",
+		NULL,
+		&RumEnableRefindLeafOnEntryNextItem,
+		RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
 
 	rum_relopt_kind = add_reloption_kind();
 
@@ -146,7 +173,7 @@ documentdb_rumhandler(PG_FUNCTION_ARGS)
 #endif
 
 	/* Allow operator classes to define custom opclass-options */
-	amroutine->amoptsprocnum = RUM_OPTS_PROC;
+	amroutine->amoptsprocnum = RUM_INDEX_CONFIG_PROC;
 
 	PG_RETURN_POINTER(amroutine);
 }

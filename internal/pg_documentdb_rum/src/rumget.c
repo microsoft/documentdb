@@ -29,6 +29,8 @@
 
 /* GUC parameter */
 int RumFuzzySearchLimit = 0;
+bool RumEnableRefindLeafOnEntryNextItem =
+	RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM;
 
 static bool scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item,
 					 bool equalOk);
@@ -975,6 +977,21 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 
 		LockBuffer(entry->buffer, RUM_SHARE);
 		page = BufferGetPage(entry->buffer);
+
+		/* If the page got split by the time we get here, then refind the leftmost page */
+		while (!RumPageIsLeaf(page) && RumEnableRefindLeafOnEntryNextItem)
+		{
+			RumBtreeData btree;
+			BlockNumber newBlock;
+			Buffer newBuffer;
+			rumPrepareDataScan(&btree, rumstate->index, entry->attnum, rumstate);
+			newBlock = btree.getLeftMostPage(&btree, page);
+			newBuffer = ReadBuffer(btree.index, newBlock);
+			LockBuffer(newBuffer, RUM_SHARE);
+			UnlockReleaseBuffer(entry->buffer);
+			entry->buffer = newBuffer;
+			page = BufferGetPage(entry->buffer);
+		}
 
 		PredicateLockPage(rumstate->index, BufferGetBlockNumber(entry->buffer), snapshot);
 
