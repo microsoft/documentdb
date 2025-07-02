@@ -30,6 +30,9 @@ SELECT documentdb_api.create_user('{"createUser":"test_user2", "pwd":"test_passw
 --Verify that the user is created
 SELECT documentdb_api.users_info('{"usersInfo":"test_user2"}');
 
+--Try to create a readOnly user without passing in the role as  part of an array
+SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"Valid$123Pass", "roles":{"role":"readAnyDatabase","db":"admin"}}');
+
 --Create a user with a blocked prefix
 SELECT documentdb_api.create_user('{"createUser":"documentdb_user2", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
 
