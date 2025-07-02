@@ -25,7 +25,7 @@
 #include "utils/pg_rusage.h"
 #include "utils/tuplesort.h"
 
-#include "rum.h"                /* RumItem */
+#include "pg_documentdb_rum.h"                /* RumItem */
 
 #if PG_VERSION_NUM >= 160000
 

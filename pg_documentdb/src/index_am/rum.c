@@ -204,9 +204,66 @@ LoadRumRoutine(void)
 {
 	bool missingOk = false;
 	void **ignoreLibFileHandle = NULL;
-	Datum (*rumhandler) (FunctionCallInfo) =
-		load_external_function("$libdir/rum", "rumhandler", !missingOk,
-							   ignoreLibFileHandle);
+
+	/* Load the rum handler function from the shared library
+	 * Allow overrides via the documentdb_rum extension
+	 */
+
+	Datum (*rumhandler) (FunctionCallInfo);
+
+	ereport(LOG, (errmsg("Loading RUM handler with DocumentDBRumLibraryLoadOption: %d",
+						 DocumentDBRumLibraryLoadOption)));
+	switch (DocumentDBRumLibraryLoadOption)
+	{
+		case RumLibraryLoadOption_RequireDocumentDBRum:
+		{
+			rumhandler = load_external_function("$libdir/pg_documentdb_rum",
+												"documentdb_rumhandler", !missingOk,
+												ignoreLibFileHandle);
+			ereport(LOG, (errmsg(
+							  "Loaded documentdb_rumhandler successfully via pg_documentdb_rum")));
+			break;
+		}
+
+		case RumLibraryLoadOption_PreferDocumentDBRum:
+		{
+			rumhandler = load_external_function("$libdir/pg_documentdb_rum",
+												"documentdb_rumhandler", missingOk,
+												ignoreLibFileHandle);
+
+			if (rumhandler == NULL)
+			{
+				rumhandler = load_external_function("$libdir/rum", "rumhandler",
+													!missingOk,
+													ignoreLibFileHandle);
+				ereport(LOG,
+						(errmsg(
+							 "Loaded documentdb_rum handler successfully via rum as a fallback")));
+			}
+			else
+			{
+				ereport(LOG,
+						(errmsg(
+							 "Loaded documentdb_rumhandler successfully via pg_documentdb_rum")));
+			}
+
+			break;
+		}
+
+		case RumLibraryLoadOption_None:
+		{
+			rumhandler = load_external_function("$libdir/rum", "rumhandler", !missingOk,
+												ignoreLibFileHandle);
+			ereport(LOG, (errmsg("Loaded documentdb_rum handler successfully via rum")));
+			break;
+		}
+
+		default:
+		{
+			ereport(ERROR, (errmsg("Unknown RUM library load option: %d",
+								   DocumentDBRumLibraryLoadOption)));
+		}
+	}
 
 	LOCAL_FCINFO(fcinfo, 0);
 

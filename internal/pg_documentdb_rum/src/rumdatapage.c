@@ -13,7 +13,7 @@
 
 #include "postgres.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 static BlockNumber dataGetLeftMostPage(RumBtree btree, Page page);
 static BlockNumber dataGetRightMostPage(RumBtree btree, Page page);

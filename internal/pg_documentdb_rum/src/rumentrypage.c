@@ -13,7 +13,7 @@
 
 #include "postgres.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 /*
  * Read item pointers with additional information from leaf data page.

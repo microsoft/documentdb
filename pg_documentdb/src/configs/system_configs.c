@@ -14,6 +14,7 @@
 #include <limits.h>
 #include "configs/config_initialization.h"
 #include "vector/vector_configs.h"
+#include "index_am/documentdb_rum.h"
 
 /*
  * Externally defined GUC constants
@@ -153,8 +154,18 @@ int MaxAllowedCursorIntermediateFileSizeMB =
 #define DEFAULT_MAX_CURSOR_FILE_COUNT 5000
 int MaxCursorFileCount = DEFAULT_MAX_CURSOR_FILE_COUNT;
 
+#define DEFAULT_RUM_LIBRARY_LOAD_OPTION RumLibraryLoadOption_None
+RumLibraryLoadOptions DocumentDBRumLibraryLoadOption = DEFAULT_RUM_LIBRARY_LOAD_OPTION;
+
 #define DEFAULT_ENABLE_STATEMENT_TIMEOUT true
 bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
+
+static struct config_enum_entry rum_load_options[4] = {
+	{ "none", RumLibraryLoadOption_None, false },
+	{ "prefer_documentdb_rum", RumLibraryLoadOption_PreferDocumentDBRum, false },
+	{ "require_documentdb_rum", RumLibraryLoadOption_RequireDocumentDBRum, false },
+	{ NULL, 0, false }
+};
 
 void
 InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
@@ -435,6 +446,14 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 		NULL, &MaxCursorFileCount,
 		DEFAULT_MAX_CURSOR_FILE_COUNT, 0, INT_MAX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomEnumVariable(
+		psprintf("%s.rum_library_load_option", newGucPrefix),
+		gettext_noop("Specifies the RUM library load option for DocumentDB."),
+		NULL, (int *) &DocumentDBRumLibraryLoadOption,
+		DEFAULT_RUM_LIBRARY_LOAD_OPTION,
+		rum_load_options,
+		PGC_POSTMASTER, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
 		psprintf("%s.enableStatementTimeout", newGucPrefix),

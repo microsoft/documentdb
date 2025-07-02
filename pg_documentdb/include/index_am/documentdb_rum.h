@@ -41,9 +41,24 @@ typedef struct RumIndexArrayStateFuncs
 } RumIndexArrayStateFuncs;
 
 
+/* How to load the RUM library into the process */
+typedef enum RumLibraryLoadOptions
+{
+	/* Apply no customizations - load the default RUM lib */
+	RumLibraryLoadOption_None = 0,
+
+	/* Prefer to load the custom documentdb_rum if available and fall back */
+	RumLibraryLoadOption_PreferDocumentDBRum = 1,
+
+	/* Require hte custom documentdb_rum */
+	RumLibraryLoadOption_RequireDocumentDBRum = 2,
+} RumLibraryLoadOptions;
+
+
 /* Registers an extensibility that handles index array deduplication */
 void RegisterIndexArrayStateFuncs(RumIndexArrayStateFuncs *funcs);
 
+extern RumLibraryLoadOptions DocumentDBRumLibraryLoadOption;
 void LoadRumRoutine(void);
 IndexAmRoutine *GetRumIndexHandler(PG_FUNCTION_ARGS);
 

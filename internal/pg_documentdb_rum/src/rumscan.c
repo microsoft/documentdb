@@ -16,7 +16,7 @@
 #include "access/relscan.h"
 #include "pgstat.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 IndexScanDesc
 rumbeginscan(Relation rel, int nkeys, int norderbys)

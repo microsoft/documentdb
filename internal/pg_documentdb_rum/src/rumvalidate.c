@@ -26,7 +26,7 @@
 #endif
 #include "utils/syscache.h"
 
-#include "rum.h"
+#include "pg_documentdb_rum.h"
 
 /*
  * Validator for a RUM opclass.
