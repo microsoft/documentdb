@@ -855,7 +855,7 @@ extern RumItem * rumGetBAEntry(BuildAccumulator *accum,
 #define RUM_ORDERING_PROC 8
 #define RUM_OUTER_ORDERING_PROC 9
 #define RUM_ADDINFO_JOIN 10
-#define RUM_OPTS_PROC 11
+#define RUM_INDEX_CONFIG_PROC 11
 #define RUMNProcs 12
 
 /* rum_arr_utils.c */
@@ -868,10 +868,15 @@ typedef enum SimilarityType
 
 #define RUM_SIMILARITY_FUNCTION_DEFAULT SMT_COSINE
 #define RUM_SIMILARITY_THRESHOLD_DEFAULT 0.5
+#define RUM_USE_NEW_VACUUM_SCAN true
+#define RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM true
 
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
+extern int RumDataPageIntermediateSplitSize;
+extern bool RumUseNewVacuumScan;
+extern bool RumEnableRefindLeafOnEntryNextItem;
 
 
 /*
