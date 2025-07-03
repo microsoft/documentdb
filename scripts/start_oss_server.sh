@@ -147,8 +147,8 @@ if [ "$allowExternalAccess" == "true" ]; then
 
   echo "${green}Configuring PostgreSQL to allow access from any IP address${reset}"
   echo "listen_addresses = '*'" >> $postgresConfigFile
-  echo "host all all 0.0.0.0/0 trust" >> $hbaConfigFile
-  echo "host all all ::0/0 trust" >> $hbaConfigFile
+  echo "host all all 0.0.0.0/0 scram-sha-256" >> $hbaConfigFile
+  echo "host all all ::0/0 scram-sha-256" >> $hbaConfigFile
 fi
 
 userName=$(whoami)

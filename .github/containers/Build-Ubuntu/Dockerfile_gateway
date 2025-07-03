@@ -59,7 +59,6 @@ ENV ENFORCE_SSL="true" \
     ENABLE_TELEMETRY="false" \
     LOG_LEVEL="info" \
     USERNAME="default_user" \
-    PASSWORD="Admin100" \
     CREATE_USER="true" \
     START_POSTGRESQL="true" \
     POSTGRESQL_PORT="9712" \

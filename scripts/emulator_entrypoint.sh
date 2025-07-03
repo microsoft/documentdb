@@ -30,14 +30,14 @@ Optional arguments:
                         Overrides PORT environment variable.
   --enable-telemetry    Enable telemetry data sent to the usage colletor (Azure Application Insights). 
                         Overrides ENABLE_TELEMETRY environment variable.
-  --log-level           The verbosity of logs that will be emitted by the emulator and data explorer.
+  --log-level           The verbosity of logs that will be emitted.
                         Overrides LOG_LEVEL environment variable.
                           quiet, error, warn, info (default), debug, trace
-  --username            Specify the username for the DocumentDB emulator.
+  --username            Specify the username for the DocumentDB.
                         Defaults to default_user
                         Overrides USERNAME environment variable.
-  --password            Specify the password for the DocumentDB emulator.
-                        Defaults to Admin100
+  --password            Specify the password for the DocumentDB.
+                        REQUIRED.
                         Overrides PASSWORD environment variable.
   --create-user         Specify whether to create a user. 
                         Defaults to true.
@@ -46,7 +46,7 @@ Optional arguments:
   --pg-port             Specify the port for the PostgreSQL server.
                         Defaults to 9712.
                         Overrides PG_PORT environment variable.
-  --owner               Specify the owner of the DocumentDB emulator.
+  --owner               Specify the owner of the DocumentDB.
                         Overrides OWNER environment variable.
                         defaults to documentdb.
   --allow-external-connections
@@ -58,8 +58,8 @@ EOF
 }
 
 if [[ -f "/version.txt" ]]; then
-  DocumentDB_EMULATOR_RELEASE_VERSION=$(cat /version.txt)
-  echo "Release Version: $DocumentDB_EMULATOR_RELEASE_VERSION"
+  DocumentDB_RELEASE_VERSION=$(cat /version.txt)
+  echo "Release Version: $DocumentDB_RELEASE_VERSION"
 fi
 
 # Handle arguments
@@ -156,6 +156,13 @@ export USERNAME=${USERNAME:-default_user}
 export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
+
+# Validate required parameters
+if [ -z "${PASSWORD:-}" ]; then
+    echo "Error: PASSWORD is required. Please provide a password using --password argument or PASSWORD environment variable."
+    exit 1
+fi
+
 echo "Using username: $USERNAME"
 echo "Using owner: $OWNER"
 echo "Using data path: $DATA_PATH"
