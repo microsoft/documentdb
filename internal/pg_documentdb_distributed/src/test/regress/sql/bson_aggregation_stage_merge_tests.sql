@@ -8,14 +8,9 @@ SET documentdb.next_collection_index_id TO 7850;
 SELECT documentdb_api.insert_one('sourceDB','withoutFlag',' { "_id" :  1, "country" : "India", "state" : "Rajasthan", "Code" : "RJ03" }', NULL);
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
 
---set Feature flag for $merge across DB support
-SET documentdb.enableMergeAcrossDB TO ON;
-
 --Test without Enabling flag for $merge stage target collection creation 
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
 
---set Feature flag for $merge stage target collection creation 
-SET documentdb.enableMergeTargetCreation TO ON;
 -- custom udf testing
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_add_object_id('{"_id" :  1, "a" : 1}', documentdb_api_internal.bson_dollar_merge_generate_object_id('{"a" : "dummy bson"}'));
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_add_object_id('{"a" : 1, "_id" :  1}', documentdb_api_internal.bson_dollar_merge_generate_object_id('{"a" : "dummy bson"}'));
@@ -578,7 +573,6 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "optionNotSuppor
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "optionNotSupported", "pipeline": [  { "$match": { "name": "test" } }, {  "$graphLookup":  {"from": "optionNotSupported",  "startWith": "$id",  "connectFromField": "id", "connectToField": "ReportsTo", "as": "reportingHierarchy"}}, {"$merge":{ "into": "targetDataReplace"}}], "cursor": { "batchSize": 1 } }', 4294967294);
 
 -- simple test case target database is not same as source database
-SET documentdb.enableMergeAcrossDB TO OFF;
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "sourceDumpData", "pipeline": [ {"$merge" : { "into": {"db" : "targetDB" , "coll" : "targetDumpData"}, "on" : "_id", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 
 

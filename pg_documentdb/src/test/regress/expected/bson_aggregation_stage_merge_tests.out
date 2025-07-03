@@ -10,14 +10,19 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge target collection create not supported yet, Please create target collection first and try again
---set Feature flag for $merge across DB support
-SET documentdb.enableMergeAcrossDB TO ON;
+NOTICE:  creating collection
+                                                                cursorpage                                                                 | continuation | persistconnection | cursorid 
+-------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.withoutFlag", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 --Test without Enabling flag for $merge stage target collection creation 
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge target collection create not supported yet, Please create target collection first and try again
---set Feature flag for $merge stage target collection creation 
-SET documentdb.enableMergeTargetCreation TO ON;
+                                                                cursorpage                                                                 | continuation | persistconnection | cursorid 
+-------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.withoutFlag", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 -- custom udf testing
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_add_object_id('{"_id" :  1, "a" : 1}', documentdb_api_internal.bson_dollar_merge_generate_object_id('{"a" : "dummy bson"}'));
                  bson_dollar_merge_add_object_id                  
@@ -1209,30 +1214,30 @@ EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "agg
 NOTICE:  creating collection
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
- Merge on documents_780052
+ Merge on documents_780053
    ->  Nested Loop Left Join
-         Join Filter: (documents_780052.object_id = bson_get_value(collection.document, '_id'::text))
-         ->  Bitmap Heap Scan on documents_780051 collection
-               Recheck Cond: (shard_key_value = '780051'::bigint)
+         Join Filter: (documents_780053.object_id = bson_get_value(collection.document, '_id'::text))
+         ->  Bitmap Heap Scan on documents_780052 collection
+               Recheck Cond: (shard_key_value = '780052'::bigint)
                ->  Bitmap Index Scan on _id_
-                     Index Cond: (shard_key_value = '780051'::bigint)
+                     Index Cond: (shard_key_value = '780052'::bigint)
          ->  Materialize
-               ->  Bitmap Heap Scan on documents_780052
-                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+               ->  Bitmap Heap Scan on documents_780053
+                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
 (12 rows)
 
 --explain when merge is not first stage of pipeline
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{ "$match" : {"_id" :1}}, {"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
                                                                         QUERY PLAN                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
- Merge on documents_780052
+ Merge on documents_780053
    ->  Nested Loop Left Join
-         ->  Index Scan using _id_ on documents_780051 collection
-               Index Cond: ((shard_key_value = '780051'::bigint) AND (object_id = '{ "" : { "$numberInt" : "1" } }'::bson))
-         ->  Index Scan using _id_ on documents_780052
-               Index Cond: ((shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint) AND (object_id = bson_get_value(collection.document, '_id'::text)))
+         ->  Index Scan using _id_ on documents_780052 collection
+               Index Cond: ((shard_key_value = '780052'::bigint) AND (object_id = '{ "" : { "$numberInt" : "1" } }'::bson))
+         ->  Index Scan using _id_ on documents_780053
+               Index Cond: ((shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint) AND (object_id = bson_get_value(collection.document, '_id'::text)))
 (6 rows)
 
 -- Let's look at explain plan for sharded collection
@@ -1245,15 +1250,15 @@ SELECT documentdb_api.shard_collection('db', 'sourceExplain', '{ "a": "hashed" }
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "whenMatched" : "replace" }} ] }');
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
- Merge on documents_780052
+ Merge on documents_780053
    ->  Nested Loop Left Join
-         Join Filter: (documents_780052.object_id = bson_get_value(collection.document, '_id'::text))
-         ->  Seq Scan on documents_780051 collection
+         Join Filter: (documents_780053.object_id = bson_get_value(collection.document, '_id'::text))
+         ->  Seq Scan on documents_780052 collection
          ->  Materialize
-               ->  Bitmap Heap Scan on documents_780052
-                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+               ->  Bitmap Heap Scan on documents_780053
+                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
 (9 rows)
 
 -- Let's look at explain plan for when on field is indexed
@@ -1273,15 +1278,15 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "sourceExplain", "pipeline": [{"$merge" : { "into": "explainTarget", "on" : "a", "whenMatched" : "replace" }} ] }');
                                                                      QUERY PLAN                                                                      
 -----------------------------------------------------------------------------------------------------------------------------------------------------
- Merge on documents_780052
+ Merge on documents_780053
    ->  Nested Loop Left Join
-         Join Filter: bson_dollar_merge_join(documents_780052.document, bson_dollar_extract_merge_filter(collection.document, 'a'::text), 'a'::text)
-         ->  Seq Scan on documents_780051 collection
+         Join Filter: bson_dollar_merge_join(documents_780053.document, bson_dollar_extract_merge_filter(collection.document, 'a'::text), 'a'::text)
+         ->  Seq Scan on documents_780052 collection
          ->  Materialize
-               ->  Bitmap Heap Scan on documents_780052
-                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+               ->  Bitmap Heap Scan on documents_780053
+                     Recheck Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
                      ->  Bitmap Index Scan on _id_
-                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780052'::bigint)
+                           Index Cond: (shard_key_value OPERATOR(pg_catalog.=) '780053'::bigint)
 (9 rows)
 
 -- source and target are same
@@ -1633,10 +1638,12 @@ SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "optionNotSuppor
 ERROR:  $merge for sharded output collection not supported yet
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "optionNotSupported", "pipeline": [  { "$match": { "name": "test" } }, {  "$graphLookup":  {"from": "optionNotSupported",  "startWith": "$id",  "connectFromField": "id", "connectToField": "ReportsTo", "as": "reportingHierarchy"}}, {"$merge":{ "into": "targetDataReplace"}}], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  $graphLookup is not supported with $merge stage yet.
--- simple test case target database is not same as source database
-SET documentdb.enableMergeAcrossDB TO OFF;
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "sourceDumpData", "pipeline": [ {"$merge" : { "into": {"db" : "targetDB" , "coll" : "targetDumpData"}, "on" : "_id", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  merge is not supported across databases
+                                                                  cursorpage                                                                  | continuation | persistconnection | cursorid 
+----------------------------------------------------------------------------------------------------------------------------------------------+--------------+-------------------+----------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.sourceDumpData", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 -- let's verify we insert or update proper data in database.
 --try to insert 16 MB Document
 SELECT documentdb_api.insert_one('db','sourceDataValidation','{ "_id": 1, "item": "a" }' , NULL);
