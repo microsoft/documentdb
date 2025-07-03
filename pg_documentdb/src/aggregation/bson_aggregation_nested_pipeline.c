@@ -50,7 +50,6 @@
 const int MaximumLookupPipelineDepth = 20;
 extern bool EnableLookupIdJoinOptimizationOnCollation;
 extern bool EnableNowSystemVariable;
-extern bool EnableMatchWithLetInLookup;
 extern bool EnableLookupInnerJoin;
 
 /*
@@ -2291,8 +2290,7 @@ OptimizeLookup(LookupArgs *lookupArgs,
 	 */
 	Stage firstNonInlineStage = GetAggregationStageAtPosition(
 		optimizationArgs->nonInlinedPipelineStages, 0);
-	if (EnableMatchWithLetInLookup &&
-		!optimizationArgs->isLookupJoinOnRightId &&
+	if (!optimizationArgs->isLookupJoinOnRightId &&
 		firstNonInlineStage == Stage_Match)
 	{
 		optimizationArgs->nonInlinedMatchStage = (AggregationStage *) linitial(
