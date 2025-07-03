@@ -24,7 +24,7 @@ pub struct Cursor {
 }
 
 pub struct CursorStoreEntry {
-    pub connection: Option<Arc<Connection>>,
+    pub conn: Option<Arc<Connection>>,
     pub cursor: Cursor,
     pub db: String,
     pub collection: String,

@@ -69,12 +69,12 @@ where
 // Parse a request message into a typed Request
 pub async fn parse_request<'a>(
     message: &'a RequestMessage,
-    connection_context: &mut ConnectionContext,
+    ctx: &mut ConnectionContext,
 ) -> Result<Request<'a>> {
     // Parse the specific message based on OpCode
     let request = match message.op_code {
         OpCode::Query => parse_query(&message.request).await?,
-        OpCode::Msg => parse_msg(message, connection_context).await?,
+        OpCode::Msg => parse_msg(message, ctx).await?,
         OpCode::Insert => parse_insert(message).await?,
         _ => Err(DocumentDBError::internal_error(format!(
             "Unimplemented: {:?}",
@@ -140,13 +140,12 @@ pub fn str_from_u8_nul_utf8(utf8_src: &[u8]) -> Result<(&str, usize)> {
 /// Parse an OP_MSG
 async fn parse_msg<'a>(
     message: &'a RequestMessage,
-    connection_context: &mut ConnectionContext,
+    ctx: &mut ConnectionContext,
 ) -> Result<Request<'a>> {
     let reader = Cursor::new(message.request.as_slice());
     let msg: Message = Message::read_from_op_msg(reader, message.response_to)?;
 
-    connection_context.requires_response =
-        !msg._flags.contains(message::MessageFlags::MORE_TO_COME);
+    ctx.requires_response = !msg._flags.contains(message::MessageFlags::MORE_TO_COME);
     match msg.sections.len() {
         0 => Err(DocumentDBError::bad_value(
             "Message had no sections".to_string(),

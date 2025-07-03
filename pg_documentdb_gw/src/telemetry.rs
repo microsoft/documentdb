@@ -6,8 +6,9 @@
  *-------------------------------------------------------------------------
  */
 
-use crate::context::RequestContext;
-use crate::requests::Request;
+use crate::context::ConnectionContext;
+use crate::protocol::header::Header;
+use crate::requests::{Request, RequestInfo};
 use crate::responses::{CommandError, Response};
 use async_trait::async_trait;
 use dyn_clone::{clone_trait_object, DynClone};
@@ -20,10 +21,12 @@ pub trait TelemetryProvider: Send + Sync + DynClone {
     // Emits an event for every CRUD request dispached to backend
     async fn emit_request_event(
         &self,
-        _: &mut RequestContext<'_>,
+        _: &ConnectionContext,
+        _: &Header,
         _: Option<&Request<'_>>,
         _: Either<&Response, (&CommandError, usize)>,
         _: String,
+        _: &mut RequestInfo<'_>,
     );
 }
 

@@ -17,6 +17,7 @@ use tokio::{
     net::TcpStream,
 };
 use tokio_openssl::SslStream;
+use uuid::Uuid;
 
 use super::{CommandError, Response};
 
@@ -57,6 +58,7 @@ where
                 request_id: header.request_id,
                 response_to: header.request_id,
                 op_code: OpCode::Reply,
+                activity_id: header.activity_id.clone(),
             };
             header.write_to(stream).await?;
 
@@ -99,6 +101,7 @@ where
         request_id: header.request_id,
         response_to: header.request_id,
         op_code: OpCode::Msg,
+        activity_id: header.activity_id.clone(),
     };
     header.write_to(writer).await?;
 
@@ -146,6 +149,7 @@ where
         request_id: 0,
         response_to: 0,
         op_code: OpCode::Msg,
+        activity_id: Uuid::default().to_string(),
     };
     write_response(&header, &response, stream).await?;
     stream.flush().await?;

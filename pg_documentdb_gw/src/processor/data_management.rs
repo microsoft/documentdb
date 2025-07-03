@@ -13,17 +13,18 @@ use bson::{spec::ElementType, RawBsonRef, RawDocumentBuf};
 use crate::{
     bson::convert_to_bool,
     configuration::DynamicConfiguration,
-    context::RequestContext,
+    context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},
     postgres::PgDataClient,
     processor::cursor,
-    requests::Request,
+    requests::{Request, RequestInfo},
     responses::{PgResponse, Response},
 };
 
 pub async fn process_delete(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     dynamic_config: &Arc<dyn DynamicConfiguration>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
@@ -31,173 +32,143 @@ pub async fn process_delete(
     let delete_rows = pg_data_client
         .execute_delete(
             request,
-            request_context.request_info,
+            request_info,
             is_read_only_for_disk_full,
-            request_context.connection_context,
+            connection_context,
         )
         .await?;
 
     PgResponse::new(delete_rows)
-        .transform_write_errors(request_context.connection_context)
+        .transform_write_errors(connection_context)
         .await
 }
 
 pub async fn process_find(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
-        .execute_find(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_find(request, request_info, connection_context)
         .await?;
 
-    cursor::save_cursor(request_context, conn, &response).await?;
+    cursor::save_cursor(connection_context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 pub async fn process_insert(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let insert_rows = pg_data_client
-        .execute_insert(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_insert(request, request_info, connection_context)
         .await?;
 
     PgResponse::new(insert_rows)
-        .transform_write_errors(request_context.connection_context)
+        .transform_write_errors(connection_context)
         .await
 }
 
 pub async fn process_aggregate(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
-        .execute_aggregate(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_aggregate(request, request_info, connection_context)
         .await?;
-    cursor::save_cursor(request_context, conn, &response).await?;
+    cursor::save_cursor(connection_context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 pub async fn process_update(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let update_rows = pg_data_client
-        .execute_update(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_update(request, request_info, connection_context)
         .await?;
 
     PgResponse::new(update_rows)
-        .transform_write_errors(request_context.connection_context)
+        .transform_write_errors(connection_context)
         .await
 }
 
 pub async fn process_list_databases(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
-        .execute_list_databases(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_list_databases(request, request_info, connection_context)
         .await
 }
 
 pub async fn process_list_collections(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let (response, conn) = pg_data_client
-        .execute_list_collections(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_list_collections(request, request_info, connection_context)
         .await?;
 
-    cursor::save_cursor(request_context, conn, &response).await?;
+    cursor::save_cursor(connection_context, conn, &response, request_info).await?;
     Ok(Response::Pg(response))
 }
 
 pub async fn process_validate(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
-        .execute_validate(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_validate(request, request_info, connection_context)
         .await
 }
 
 pub async fn process_find_and_modify(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
-        .execute_find_and_modify(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_find_and_modify(request, request_info, connection_context)
         .await
 }
 
 pub async fn process_distinct(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
-        .execute_distinct_query(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_distinct_query(request, request_info, connection_context)
         .await
 }
 
 pub async fn process_count(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // we need to ensure that the collection is correctly set up before we can execute the count query
-    request_context.request_info.collection()?;
+    request_info.collection()?;
 
     pg_data_client
-        .execute_count_query(
-            request,
-            request_context.request_info,
-            request_context.connection_context,
-        )
+        .execute_count_query(request, request_info, connection_context)
         .await
 }
 
@@ -222,7 +193,8 @@ fn convert_to_scale(scale: RawBsonRef) -> Result<f64> {
 
 pub async fn process_coll_stats(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
@@ -233,17 +205,14 @@ pub async fn process_coll_stats(
     };
 
     pg_data_client
-        .execute_coll_stats(
-            request_context.request_info,
-            scale,
-            request_context.connection_context,
-        )
+        .execute_coll_stats(request_info, scale, connection_context)
         .await
 }
 
 pub async fn process_db_stats(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     // allow floats and ints, the backend will truncate
@@ -254,17 +223,14 @@ pub async fn process_db_stats(
     };
 
     pg_data_client
-        .execute_db_stats(
-            request_context.request_info,
-            scale,
-            request_context.connection_context,
-        )
+        .execute_db_stats(request_info, scale, connection_context)
         .await
 }
 
 pub async fn process_current_op(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut filter = RawDocumentBuf::new();
@@ -280,37 +246,27 @@ pub async fn process_current_op(
     })?;
 
     pg_data_client
-        .execute_current_op(
-            request_context.request_info,
-            &filter,
-            all,
-            own_ops,
-            request_context.connection_context,
-        )
+        .execute_current_op(request_info, &filter, all, own_ops, connection_context)
         .await
 }
 
 async fn get_parameter(
-    request_context: &mut RequestContext<'_>,
+    connection_context: &ConnectionContext,
+    request_info: &mut RequestInfo<'_>,
     all: bool,
     show_details: bool,
     params: Vec<String>,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     pg_data_client
-        .execute_get_parameter(
-            request_context.request_info,
-            all,
-            show_details,
-            params,
-            request_context.connection_context,
-        )
+        .execute_get_parameter(request_info, all, show_details, params, connection_context)
         .await
 }
 
 pub async fn process_get_parameter(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
     let mut all_parameters = false;
@@ -347,7 +303,7 @@ pub async fn process_get_parameter(
         }
         Ok(())
     })?;
-    if request_context.request_info.db()? != "admin" {
+    if request_info.db()? != "admin" {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::Unauthorized,
             "getParameter may only be run against the admin database.".to_string(),
@@ -355,11 +311,20 @@ pub async fn process_get_parameter(
     }
 
     if star {
-        return get_parameter(request_context, true, false, vec![], pg_data_client).await;
+        return get_parameter(
+            connection_context,
+            request_info,
+            true,
+            false,
+            vec![],
+            pg_data_client,
+        )
+        .await;
     }
 
     get_parameter(
-        request_context,
+        connection_context,
+        request_info,
         all_parameters,
         show_details,
         params,
