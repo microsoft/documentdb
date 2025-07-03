@@ -681,6 +681,7 @@ static void worker_nomergeruns(Tuplesortstate *state);
 static void leader_takeover_tapes(Tuplesortstate *state);
 static void free_sort_tuple(Tuplesortstate *state, SortTuple *stup);
 static void tuplesort_free(Tuplesortstate *state);
+static void tuplesort_free_with_options(Tuplesortstate *state, bool freeSortState);
 static void tuplesort_updatemax(Tuplesortstate *state);
 
 /*
@@ -1618,6 +1619,19 @@ tuplesort_used_bound(Tuplesortstate *state)
 static void
 tuplesort_free(Tuplesortstate *state)
 {
+	bool deleteSortContext = true;
+	tuplesort_free_with_options(state, deleteSortContext);
+}
+
+
+/*
+ * tuplesort_free_with_options
+ *
+ *	Internal routine for freeing resources of tuplesort.
+ */
+static void
+tuplesort_free_with_options(Tuplesortstate *state, bool deleteSortContext)
+{
 	/* context swap probably not needed, but let's be safe */
 	MemoryContext oldcontext = MemoryContextSwitchTo(state->sortcontext);
 
@@ -1690,7 +1704,10 @@ tuplesort_free(Tuplesortstate *state)
 	/*
 	 * Free the per-sort memory context, thereby releasing all working memory.
 	 */
-	MemoryContextReset(state->sortcontext);
+	if (deleteSortContext)
+	{
+		MemoryContextReset(state->sortcontext);
+	}
 }
 
 

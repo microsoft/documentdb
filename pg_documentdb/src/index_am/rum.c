@@ -44,7 +44,7 @@ bool RumHasMultiKeyPaths = false;
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
-
+extern BsonIndexAmEntry RumIndexAmEntry;
 static bool loaded_rum_routine = false;
 static IndexAmRoutine rum_index_routine = { 0 };
 
@@ -210,6 +210,7 @@ LoadRumRoutine(void)
 	 */
 
 	Datum (*rumhandler) (FunctionCallInfo);
+	const char *rumLibPath;
 
 	ereport(LOG, (errmsg("Loading RUM handler with DocumentDBRumLibraryLoadOption: %d",
 						 DocumentDBRumLibraryLoadOption)));
@@ -217,7 +218,8 @@ LoadRumRoutine(void)
 	{
 		case RumLibraryLoadOption_RequireDocumentDBRum:
 		{
-			rumhandler = load_external_function("$libdir/pg_documentdb_rum",
+			rumLibPath = "$libdir/pg_documentdb_rum";
+			rumhandler = load_external_function(rumLibPath,
 												"documentdb_rumhandler", !missingOk,
 												ignoreLibFileHandle);
 			ereport(LOG, (errmsg(
@@ -227,13 +229,15 @@ LoadRumRoutine(void)
 
 		case RumLibraryLoadOption_PreferDocumentDBRum:
 		{
-			rumhandler = load_external_function("$libdir/pg_documentdb_rum",
+			rumLibPath = "$libdir/pg_documentdb_rum";
+			rumhandler = load_external_function(rumLibPath,
 												"documentdb_rumhandler", missingOk,
 												ignoreLibFileHandle);
 
 			if (rumhandler == NULL)
 			{
-				rumhandler = load_external_function("$libdir/rum", "rumhandler",
+				rumLibPath = "$libdir/rum";
+				rumhandler = load_external_function(rumLibPath, "rumhandler",
 													!missingOk,
 													ignoreLibFileHandle);
 				ereport(LOG,
@@ -252,7 +256,8 @@ LoadRumRoutine(void)
 
 		case RumLibraryLoadOption_None:
 		{
-			rumhandler = load_external_function("$libdir/rum", "rumhandler", !missingOk,
+			rumLibPath = "$libdir/rum";
+			rumhandler = load_external_function(rumLibPath, "rumhandler", !missingOk,
 												ignoreLibFileHandle);
 			ereport(LOG, (errmsg("Loaded documentdb_rum handler successfully via rum")));
 			break;
@@ -271,6 +276,20 @@ LoadRumRoutine(void)
 	Datum rumHandlerDatum = rumhandler(fcinfo);
 	IndexAmRoutine *indexRoutine = (IndexAmRoutine *) DatumGetPointer(rumHandlerDatum);
 	rum_index_routine = *indexRoutine;
+
+	/* Load optional explain function */
+	missingOk = true;
+	TryExplainIndexFunc explain_index_func =
+		load_external_function(rumLibPath,
+							   "try_explain_rum_index", missingOk,
+							   ignoreLibFileHandle);
+
+	if (explain_index_func != NULL)
+	{
+		RumIndexAmEntry.add_explain_output = explain_index_func;
+	}
+
+
 	loaded_rum_routine = true;
 	pfree(indexRoutine);
 }

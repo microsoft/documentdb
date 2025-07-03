@@ -18,6 +18,6 @@ LDFLAGS_SL += $(filter -lm, $(LIBS))
 include $(OSS_SRC_DIR)/Makefile.global
 
 # Default to hidden visibility
-override LDFLAGS_SL += -fvisibility=hidden
-override CFLAGS += -fvisibility=hidden
-override CXXFLAGS += -fvisibility=hidden
+override LDFLAGS_SL += -fvisibility=hidden -DHAVE_VISIBILITY_ATTRIBUTE=1
+override CFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1
+override CXXFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1

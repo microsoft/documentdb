@@ -43,9 +43,13 @@ extern RumTuplesortstate * rum_tuplesort_begin_rum(int workMem,
 												   compareItemPointer);
 extern RumTuplesortstate * rum_tuplesort_begin_rumitem(int workMem,
 													   FmgrInfo *cmp);
+extern RumTuplesortstate * rum_tuplesort_begin_rumitem_minimal(int workMem,
+															   FmgrInfo *cmp);
 
 extern void rum_tuplesort_putrum(RumTuplesortstate *state, RumSortItem *item);
 extern void rum_tuplesort_putrumitem(RumTuplesortstate *state, struct RumScanItem *item);
+extern void rum_tuplesort_putrumitem_minimal(RumTuplesortstate *state, struct
+											 ItemPointerData *item);
 
 extern void rum_tuplesort_performsort(RumTuplesortstate *state);
 
@@ -54,6 +58,10 @@ extern RumSortItem * rum_tuplesort_getrum(RumTuplesortstate *state, bool forward
 extern struct RumScanItem * rum_tuplesort_getrumitem(RumTuplesortstate *state, bool
 													 forward,
 													 bool *should_free);
+
+extern struct ItemPointerData * rum_tuplesort_getrumitem_minimal(RumTuplesortstate *state,
+																 bool forward,
+																 bool *should_free);
 
 extern void rum_tuplesort_end(RumTuplesortstate *state);
 

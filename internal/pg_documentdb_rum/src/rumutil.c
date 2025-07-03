@@ -11,8 +11,6 @@
  *-------------------------------------------------------------------------
  */
 
- #define HAVE_VISIBILITY_ATTRIBUTE 1
-
 #include "postgres.h"
 
 #include "access/htup_details.h"
@@ -32,17 +30,6 @@
 
 #include "pg_documentdb_rum.h"
 
-
-/* PG16 defined visibility for PGDLLEXPORT properly, for PG15, we need to set it */
-#if PG_VERSION_NUM < 160000
-#undef PGDLLEXPORT
-#ifdef HAVE_VISIBILITY_ATTRIBUTE
-#define PGDLLEXPORT __attribute__((visibility("default")))
-#else
-#define PGDLLEXPORT
-#endif
-#endif
-
 PG_MODULE_MAGIC;
 
 void _PG_init(void);
@@ -51,6 +38,8 @@ PG_FUNCTION_INFO_V1(documentdb_rumhandler);
 
 /* Kind of relation optioms for rum index */
 static relopt_kind rum_relopt_kind;
+
+bool RumThrowErrorOnInvalidDataPage = RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE;
 
 /*
  * Module load callback
@@ -92,6 +81,15 @@ _PG_init(void)
 		NULL,
 		&RumEnableRefindLeafOnEntryNextItem,
 		RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".rum_throw_error_on_invalid_data_page",
+		"Sets whether or not to throw an error on invalid data page",
+		NULL,
+		&RumThrowErrorOnInvalidDataPage,
+		RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE,
 		PGC_USERSET, 0,
 		NULL, NULL, NULL);
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
