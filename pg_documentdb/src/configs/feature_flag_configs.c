@@ -117,11 +117,6 @@ bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
 #define DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE false
 bool EnableNowSystemVariable = DEFAULT_ENABLE_NOW_SYSTEM_VARIABLE;
 
-/* Remove after v104 */
-#define DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP true
-bool EnableMatchWithLetInLookup =
-	DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP;
-
 #define DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN false
 bool EnablePrimaryKeyCursorScan = DEFAULT_ENABLE_PRIMARY_KEY_CURSOR_SCAN;
 
@@ -192,7 +187,8 @@ bool UseNewShardKeyCalculation = DEFAULT_USE_NEW_SHARD_KEY_CALCULATION;
 #define DEFAULT_ENABLE_BUCKET_AUTO_STAGE true
 bool EnableBucketAutoStage = DEFAULT_ENABLE_BUCKET_AUTO_STAGE;
 
-#define DEFAULT_ENABLE_COMPACT_COMMAND false
+/* Remove after v108 */
+#define DEFAULT_ENABLE_COMPACT_COMMAND true
 bool EnableCompact = DEFAULT_ENABLE_COMPACT_COMMAND;
 
 /* FEATURE FLAGS END */
@@ -359,14 +355,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to push down sort by id to primary key"),
 		NULL, &EnableSortbyIdPushDownToPrimaryKey,
 		DEFAULT_ENABLE_SORT_BY_ID_PUSHDOWN_TO_PRIMARYKEY,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableMatchWithLetInLookup", newGucPrefix),
-		gettext_noop(
-			"Whether or not to inline $match with lookup let variables."),
-		NULL, &EnableMatchWithLetInLookup,
-		DEFAULT_ENABLE_MATCH_WITH_LET_IN_LOOKUP,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
