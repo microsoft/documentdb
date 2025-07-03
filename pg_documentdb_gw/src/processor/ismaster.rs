@@ -15,7 +15,7 @@ use bson::rawdoc;
 
 use crate::{
     configuration::DynamicConfiguration,
-    context::RequestContext,
+    context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},
     protocol::{MAX_BSON_OBJECT_SIZE, MAX_MESSAGE_SIZE_BYTES, OK_SUCCEEDED},
     requests::Request,
@@ -25,7 +25,7 @@ use crate::{
 pub async fn process(
     writeable_primary_field: &str,
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    connection_context: &mut ConnectionContext,
     dynamic_configuration: &Arc<dyn DynamicConfiguration>,
 ) -> Result<Response> {
     let local_time = i64::try_from(
@@ -39,17 +39,13 @@ pub async fn process(
     .map_err(|_| DocumentDBError::internal_error("Current time exceeded an i64".to_string()))?;
 
     if let Ok(client) = request.document().get_document("client") {
-        if request_context
-            .connection_context
-            .client_information
-            .is_some()
-        {
+        if connection_context.client_information.is_some() {
             return Err(DocumentDBError::documentdb_error(
                 ErrorCode::ClientMetadataCannotBeMutated,
                 "Client metadata cannot be mutated".to_string(),
             ));
         }
-        request_context.connection_context.client_information = Some(client.to_raw_document_buf());
+        connection_context.client_information = Some(client.to_raw_document_buf());
     }
 
     let mut response_doc = rawdoc! {
@@ -63,7 +59,7 @@ pub async fn process(
         "minWireVersion": 0,
         "maxWireVersion": dynamic_configuration.server_version().await.max_wire_protocol(),
         "readOnly": dynamic_configuration.read_only().await,
-        "connectionId": request_context.connection_context.connection_id,
+        "connectionId": connection_context.connection_id,
         "saslSupportedMechs": ["SCRAM-SHA-256"],
         "internal": dynamic_configuration.topology(),
         "ok": OK_SUCCEEDED,

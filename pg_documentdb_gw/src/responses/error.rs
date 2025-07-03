@@ -137,18 +137,12 @@ impl CommandError {
         }
     }
 
-    pub async fn from_pg_error(
-        connection_context: &ConnectionContext,
-        e: &tokio_postgres::Error,
-    ) -> Self {
+    pub async fn from_pg_error(context: &ConnectionContext, e: &tokio_postgres::Error) -> Self {
         if let Some(state) = e.code() {
             // Check if the code has a known conversion to gateway code
-            if let Some(known_error) = Self::known_pg_error(
-                connection_context,
-                state,
-                e.as_db_error().map_or("", |e| e.message()),
-            )
-            .await
+            if let Some(known_error) =
+                Self::known_pg_error(context, state, e.as_db_error().map_or("", |e| e.message()))
+                    .await
             {
                 return known_error;
             }
@@ -163,12 +157,12 @@ impl CommandError {
     }
 
     async fn known_pg_error(
-        connection_context: &ConnectionContext,
+        context: &ConnectionContext,
         state: &SqlState,
         msg: &str,
     ) -> Option<Self> {
         if let Some((code, code_name, error_msg)) =
-            PgResponse::known_pg_error(connection_context, state, msg).await
+            PgResponse::known_pg_error(context, state, msg).await
         {
             Some(CommandError::new(
                 code,

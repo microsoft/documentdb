@@ -7,6 +7,7 @@
  */
 
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use uuid::Uuid;
 
 use crate::{error::DocumentDBError, protocol::opcode::OpCode};
 
@@ -19,6 +20,7 @@ pub struct Header {
     pub request_id: i32,
     pub response_to: i32,
     pub op_code: OpCode,
+    pub activity_id: String, // won't be written to the stream
 }
 
 impl Header {
@@ -50,6 +52,7 @@ impl Header {
             request_id,
             response_to,
             op_code,
+            activity_id: Uuid::new_v4().to_string(),
         })
     }
 }

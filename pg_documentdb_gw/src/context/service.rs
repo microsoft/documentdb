@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/context/service_context.rs
+ * src/context/service.rs
  *
  *-------------------------------------------------------------------------
  */

@@ -26,7 +26,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_openssl::SslStream;
 use tokio_util::sync::CancellationToken;
 
-use crate::context::{ConnectionContext, RequestContext, ServiceContext};
+use crate::context::{ConnectionContext, ServiceContext};
 use crate::error::{DocumentDBError, Result};
 use crate::postgres::PgDataClient;
 use crate::requests::RequestType;
@@ -185,15 +185,16 @@ where
                 if let Err(e) =
                     handle_message::<R, T>(&mut connection_context, &header, &mut stream).await
                 {
-                    let mut request_info = RequestInfo::new();
-                    let mut request_context = RequestContext::new(
-                        None,
+                    if let Err(e) = log_and_write_error(
+                        &connection_context,
                         &header,
-                        &mut connection_context,
-                        &mut request_info,
-                    );
-                    if let Err(e) =
-                        log_and_write_error(&mut request_context, &e, None, &mut stream, None).await
+                        &e,
+                        None,
+                        &mut stream,
+                        None,
+                        &mut RequestInfo::new(),
+                    )
+                    .await
                     {
                         error!("[{}] Couldn't reply with error {:?}", header.request_id, e);
                         break;
@@ -227,9 +228,11 @@ where
 }
 
 async fn get_response<T>(
-    request_context: &mut RequestContext<'_>,
+    connection_context: &mut ConnectionContext,
     message: &RequestMessage,
     request: &Request<'_>,
+    request_info: &mut RequestInfo<'_>,
+    header: &Header,
 ) -> Result<Response>
 where
     T: PgDataClient,
@@ -237,7 +240,7 @@ where
     // Parse the request bytes into a type and the contained document(s)
     if request.request_type() != &RequestType::IsMaster {
         log::debug!(
-            activity_id = request_context.activity_id.as_str();
+            activity_id = header.activity_id.as_str();
             "Request: {:?} - {:?}",
             message.op_code,
             request.request_type(),
@@ -245,37 +248,24 @@ where
 
         // request.to_json() can be expensive on the order of the size of the request
         if log::log_enabled!(log::Level::Trace) {
-            log::trace!(activity_id = request_context.activity_id.as_str(); "Request: {:?} - {}", message.op_code, request.to_json()?);
+            log::trace!(activity_id = header.activity_id.as_str(); "Request: {:?} - {}", message.op_code, request.to_json()?);
         }
     }
 
-    if !request_context.connection_context.auth_state.authorized
-        || request.request_type().handle_with_auth()
-    {
-        let response = auth::process::<T>(
-            request_context.connection_context,
-            request,
-            request_context.header,
-        )
-        .await?;
+    if !connection_context.auth_state.authorized || request.request_type().handle_with_auth() {
+        let response = auth::process::<T>(connection_context, request).await?;
         return Ok(response);
     }
 
     // Once authorized, make sure that there is a pool of pg clients for the user/password.
-    request_context
-        .connection_context
-        .allocate_data_pool()
-        .await?;
+    connection_context.allocate_data_pool().await?;
 
-    let service_context = Arc::clone(&request_context.connection_context.service_context);
-    let data_client = T::new_authorized(
-        &service_context,
-        &request_context.connection_context.auth_state,
-    )
-    .await?;
+    let service_context = Arc::clone(&connection_context.service_context);
+    let data_client = T::new_authorized(&service_context, &connection_context.auth_state).await?;
 
     // Process the actual request
-    let response = processor::process_request(request, request_context, data_client).await?;
+    let response =
+        processor::process_request(request, request_info, connection_context, data_client).await?;
 
     Ok(response)
 }
@@ -289,7 +279,14 @@ where
     R: AsyncRead + AsyncWrite + Unpin + Send,
     T: PgDataClient,
 {
-    // Check if the connection is in a shutdown state
+    // Read the request message off the stream
+    let mut request_tracker = RequestTracker::new();
+
+    let buffer_read_start = request_tracker.start_timer();
+    let message = protocol::reader::read_request(header, stream).await?;
+
+    log::trace!(activity_id = header.activity_id.as_str(); "[{}] Request parsed.", header.request_id);
+
     if connection_context
         .dynamic_configuration()
         .send_shutdown_responses()
@@ -301,16 +298,9 @@ where
         ));
     }
 
-    // Read the request message off the stream
-    let mut request_tracker = RequestTracker::new();
-
-    // TODO: this is a unique activity id for read_request and parse_request to use for logging and telemetry.
-    // Currently, it is not used but will be when logging is added.
-    let activity_id = RequestContext::generate_activity_id();
-
-    let buffer_read_start = request_tracker.start_timer();
-    let message = protocol::reader::read_request(header, stream).await?;
     request_tracker.record_duration(RequestIntervalKind::BufferRead, buffer_read_start);
+
+    let handle_request_start = request_tracker.start_timer();
 
     let format_request_start = request_tracker.start_timer();
     let request = protocol::reader::parse_request(&message, connection_context).await?;
@@ -319,53 +309,42 @@ where
     let mut request_info = request.extract_common()?;
     request_info.request_tracker = request_tracker;
 
-    let mut request_context = RequestContext::new(
-        Some(activity_id),
-        header,
-        connection_context,
-        &mut request_info,
-    );
-
-    log::trace!(activity_id = request_context.activity_id.as_str(); "[{}] Request parsed.", header.request_id);
-
-    let handle_request_start = request_context.request_info.request_tracker.start_timer();
-
     if log_enabled!(log::Level::Trace) {
-        log::trace!(activity_id = request_context.activity_id.as_str(); "Request: {}", request.to_json()?)
+        log::trace!(activity_id = header.activity_id.as_str(); "Request: {}", request.to_json()?)
     }
 
     let mut collection = String::new();
     let result = handle_request::<R, T>(
-        &mut request_context,
+        connection_context,
+        header,
         &request,
         &message,
         stream,
         &mut collection,
+        &mut request_info,
     )
     .await;
-    request_context
-        .request_info
+    request_info
         .request_tracker
         .record_duration(RequestIntervalKind::HandleRequest, handle_request_start);
 
-    if request_context
-        .connection_context
+    if connection_context
         .dynamic_configuration()
         .enable_verbose_logging_gateway()
         .await
     {
         log::info!(
-            activity_id = request_context.activity_id.as_str();
+            activity_id = header.activity_id.as_str();
             "Latency for Mongo Request with ActivityId: {}, BufferRead={}ms, HandleRequest={}ms, FormatRequest={}ms, ProcessRequest={}ms, PostgresBeginTransaction={}ms, PostgresSetStatementTimeout={}ms, PostgresTransactionCommit={}ms, FormatResponse={}ms",
-            request_context.activity_id,
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::BufferRead),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::HandleRequest),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatRequest),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::ProcessRequest),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresBeginTransaction),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresSetStatementTimeout),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresTransactionCommit),
-            request_context.request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatResponse)
+            header.activity_id,
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::BufferRead),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::HandleRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::ProcessRequest),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresBeginTransaction),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresSetStatementTimeout),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::PostgresTransactionCommit),
+            request_info.request_tracker.get_interval_elapsed_time(RequestIntervalKind::FormatResponse)
         );
     }
 
@@ -373,11 +352,13 @@ where
     // Returns Ok afterwards so that higher level error telemetry is not invoked.
     if let Err(e) = result {
         if let Err(e) = log_and_write_error(
-            &mut request_context,
+            connection_context,
+            header,
             &e,
             Some(&request),
             stream,
             Some(collection),
+            &mut RequestInfo::new(),
         )
         .await
         {
@@ -389,84 +370,80 @@ where
 }
 
 async fn handle_request<R, T>(
-    request_context: &mut RequestContext<'_>,
+    connection_context: &mut ConnectionContext,
+    header: &Header,
     request: &Request<'_>,
     message: &RequestMessage,
     stream: &mut R,
     collection: &mut String,
+    request_info: &mut RequestInfo<'_>,
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
     T: PgDataClient,
 {
+    *collection = request_info.collection().unwrap_or("").to_string();
+
     // Process the response for the message
-    let response = get_response::<T>(request_context, message, request).await?;
+    let response =
+        get_response::<T>(connection_context, message, request, request_info, header).await?;
 
-    *collection = request_context
-        .request_info
-        .collection()
-        .unwrap_or("")
-        .to_string();
-
-    let format_response_start = request_context.request_info.request_tracker.start_timer();
+    let format_response_start = request_info.request_tracker.start_timer();
 
     // Write the response back to the stream
-    if request_context.connection_context.requires_response {
-        responses::writer::write(request_context.header, &response, stream).await?;
+    if connection_context.requires_response {
+        responses::writer::write(header, &response, stream).await?;
         stream.flush().await?;
     }
 
-    request_context
-        .request_info
-        .request_tracker
-        .record_duration(RequestIntervalKind::FormatResponse, format_response_start);
-
-    if let Some(telemetry) = request_context
-        .connection_context
-        .telemetry_provider
-        .clone()
-    {
+    if let Some(telemetry) = connection_context.telemetry_provider.as_ref() {
         telemetry
             .emit_request_event(
-                request_context,
+                connection_context,
+                header,
                 Some(request),
                 Left(&response),
                 collection.to_string(),
+                request_info,
             )
             .await;
     }
+
+    request_info
+        .request_tracker
+        .record_duration(RequestIntervalKind::FormatResponse, format_response_start);
 
     Ok(())
 }
 
 async fn log_and_write_error<R>(
-    request_context: &mut RequestContext<'_>,
+    connection_context: &ConnectionContext,
+    header: &Header,
     e: &DocumentDBError,
     request: Option<&Request<'_>>,
     stream: &mut R,
     collection: Option<String>,
+    request_info: &mut RequestInfo<'_>,
 ) -> Result<()>
 where
     R: AsyncRead + AsyncWrite + Unpin + Send,
 {
-    let error_response = CommandError::from_error(request_context.connection_context, e).await;
+    let error_response = CommandError::from_error(connection_context, e).await;
     let response = error_response.to_raw_document_buf()?;
 
-    responses::writer::write_response(request_context.header, &response, stream).await?;
+    responses::writer::write_response(header, &response, stream).await?;
 
-    log::error!(activity_id = request_context.activity_id.as_str(); "Request failure: {e}");
+    log::error!(activity_id = header.activity_id.as_str(); "Request failure: {e}");
 
-    if let Some(telemetry) = request_context
-        .connection_context
-        .telemetry_provider
-        .clone()
-    {
+    if let Some(telemetry) = connection_context.telemetry_provider.as_ref() {
         telemetry
             .emit_request_event(
-                request_context,
+                connection_context,
+                header,
                 request,
                 Right((&error_response, response.as_bytes().len())),
                 collection.unwrap_or_default(),
+                request_info,
             )
             .await;
     }

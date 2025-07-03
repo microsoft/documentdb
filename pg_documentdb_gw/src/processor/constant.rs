@@ -15,10 +15,10 @@ use bson::{rawdoc, RawDocumentBuf};
 
 use crate::{
     configuration::DynamicConfiguration,
-    context::RequestContext,
+    context::ConnectionContext,
     error::{DocumentDBError, ErrorCode, Result},
     protocol::{self, OK_SUCCEEDED},
-    requests::Request,
+    requests::{Request, RequestInfo},
     responses::{RawResponse, Response},
 };
 
@@ -48,17 +48,17 @@ pub fn process_get_cmd_line_opts() -> Result<Response> {
     })))
 }
 
-pub fn process_is_db_grid(request_context: &RequestContext<'_>) -> Result<Response> {
+pub fn process_is_db_grid(context: &ConnectionContext) -> Result<Response> {
     Ok(Response::Raw(RawResponse(rawdoc! {
         "isdbgrid":1.0,
-        "hostname":request_context.connection_context.service_context.setup_configuration().node_host_name(),
+        "hostname":context.service_context.setup_configuration().node_host_name(),
         "ok":OK_SUCCEEDED,
     })))
 }
 
 pub fn process_get_rw_concern(
     request: &Request<'_>,
-    request_context: &mut RequestContext<'_>,
+    request_info: &RequestInfo<'_>,
 ) -> Result<Response> {
     request.extract_fields(|k, _| match k {
         "getDefaultRWConcern" | "inMemory" | "comment" | "lsid" | "$db" => Ok(()),
@@ -68,7 +68,7 @@ pub fn process_get_rw_concern(
         )),
     })?;
 
-    if request_context.request_info.db()? != "admin" {
+    if request_info.db()? != "admin" {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::Unauthorized,
             "getDefaultRWConcern may only be run against the admin database.".to_string(),
