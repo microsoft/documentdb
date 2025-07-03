@@ -33,7 +33,6 @@
 extern char *ApiExtensionName;
 extern char *ApiGucPrefix;
 extern char *ClusterAdminRole;
-extern bool AlterCreationTimeInCompleteUpgrade;
 
 char *ApiDistributedSchemaName = "documentdb_api_distributed";
 char *DistributedExtensionName = "documentdb_distributed";
@@ -319,12 +318,6 @@ SetupCluster(bool isInitialize)
 		StringInfo relationName = makeStringInfo();
 		appendStringInfo(relationName, "%s_cluster_data", ExtensionObjectPrefix);
 		CheckAndReplicateReferenceTable(ApiDistributedSchemaName, relationName->data);
-	}
-
-	if (AlterCreationTimeInCompleteUpgrade && ShouldRunSetupForVersion(&versions,
-																	   DocDB_V0, 101, 0))
-	{
-		AlterCreationTime();
 	}
 
 	if (ShouldRunSetupForVersion(&versions, DocDB_V0, 102, 0))

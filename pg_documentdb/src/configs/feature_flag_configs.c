@@ -103,6 +103,7 @@ bool EnableSortbyIdPushDownToPrimaryKey =
 #define DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN false
 bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
 
+/* Can be removed after v110 (keep for a few releases for stability) */
 #define DEFAULT_ENABLE_INSERT_CUSTOM_PLAN true
 bool EnableInsertCustomPlan = DEFAULT_ENABLE_INSERT_CUSTOM_PLAN;
 
@@ -171,14 +172,6 @@ bool EnableLookupIdJoinOptimizationOnCollation =
 #define DEFAULT_RECREATE_RETRY_TABLE_ON_SHARDING false
 bool RecreateRetryTableOnSharding = DEFAULT_RECREATE_RETRY_TABLE_ON_SHARDING;
 
-#define DEFAULT_ENABLE_MERGE_TARGET_CREATION false
-bool EnableMergeTargetCreation = DEFAULT_ENABLE_MERGE_TARGET_CREATION;
-
-#define DEFAULT_ENABLE_MERGE_ACROSS_DB true
-bool EnableMergeAcrossDB = DEFAULT_ENABLE_MERGE_ACROSS_DB;
-
-#define ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE false
-bool AlterCreationTimeInCompleteUpgrade = ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE;
 
 #define DEFAULT_ENABLE_DATA_TABLES_WITHOUT_CREATION_TIME true
 bool EnableDataTableWithoutCreationTime =
@@ -289,20 +282,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		PGC_USERSET,
 		0,
 		NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableMergeTargetCreation", newGucPrefix),
-		gettext_noop(
-			"Enables support for target collection creation."),
-		NULL, &EnableMergeTargetCreation, DEFAULT_ENABLE_MERGE_TARGET_CREATION,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.enableMergeAcrossDB", newGucPrefix),
-		gettext_noop(
-			"Enables support for merge stage."),
-		NULL, &EnableMergeAcrossDB, DEFAULT_ENABLE_MERGE_ACROSS_DB,
-		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
 		psprintf("%s.enableSchemaValidation", prefix),
@@ -420,14 +399,6 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable using the raw executor for query plans."),
 		NULL, &UseRawExecutorForQueryPlan,
 		DEFAULT_USE_RAW_EXECUTOR_FOR_QUERY_PLAN,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.alterCreationTimeInCompleteUpgrade", newGucPrefix),
-		gettext_noop(
-			"alter creation_time of data table."),
-		NULL, &AlterCreationTimeInCompleteUpgrade,
-		ALTER_CREATION_TIME_IN_COMPLETE_UPGRADE,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

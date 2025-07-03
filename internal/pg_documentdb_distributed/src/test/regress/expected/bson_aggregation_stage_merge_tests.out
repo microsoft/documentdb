@@ -11,14 +11,19 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge target collection create not supported yet, Please create target collection first and try again
---set Feature flag for $merge across DB support
-SET documentdb.enableMergeAcrossDB TO ON;
+NOTICE:  creating collection
+                                                                cursorpage                                                                 | continuation | persistconnection | cursorid 
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.withoutFlag", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 --Test without Enabling flag for $merge stage target collection creation 
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "withoutFlag", "pipeline": [ {"$merge" : { "into": "targetwithoutFlag" }} ] , "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge target collection create not supported yet, Please create target collection first and try again
---set Feature flag for $merge stage target collection creation 
-SET documentdb.enableMergeTargetCreation TO ON;
+                                                                cursorpage                                                                 | continuation | persistconnection | cursorid 
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.withoutFlag", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 -- custom udf testing
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_add_object_id('{"_id" :  1, "a" : 1}', documentdb_api_internal.bson_dollar_merge_generate_object_id('{"a" : "dummy bson"}'));
                  bson_dollar_merge_add_object_id                  
@@ -1211,19 +1216,19 @@ NOTICE:  creating collection
                                                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                                                          
 ---------------------------------------------------------------------
  Custom Scan (Citus MERGE INTO ...)  (cost=0.00..0.00 rows=0 width=0)
-   MERGE INTO documents_7902 method: pull to coordinator
+   MERGE INTO documents_7903 method: pull to coordinator
    ->  Custom Scan (Citus Adaptive)  (cost=0.00..0.00 rows=0 width=0)
          Output: remote_scan.document, remote_scan.target_shard_key_value, remote_scan.generated_object_id, remote_scan.extracted_4
          Task Count: 1
          Tasks Shown: All
          ->  Task
-               Query: SELECT document, target_shard_key_value, generated_object_id, extracted_4 FROM (SELECT collection.document, '7902'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7901_7850698 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '7901'::bigint)) citus_insert_select_subquery
+               Query: SELECT document, target_shard_key_value, generated_object_id, extracted_4 FROM (SELECT collection.document, '7903'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7902_7850703 collection WHERE (collection.shard_key_value OPERATOR(pg_catalog.=) '7902'::bigint)) citus_insert_select_subquery
                Node: host=localhost port=58070 dbname=regression
-               ->  Bitmap Heap Scan on documentdb_data.documents_7901_7850698 collection  (cost=4.18..12.66 rows=4 width=104)
-                     Output: collection.document, '7902'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document), documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text)
-                     Recheck Cond: (collection.shard_key_value = '7901'::bigint)
+               ->  Bitmap Heap Scan on documentdb_data.documents_7902_7850703 collection  (cost=4.18..12.66 rows=4 width=104)
+                     Output: collection.document, '7903'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document), documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text)
+                     Recheck Cond: (collection.shard_key_value = '7902'::bigint)
                      ->  Bitmap Index Scan on _id_  (cost=0.00..4.18 rows=4 width=0)
-                           Index Cond: (collection.shard_key_value = '7901'::bigint)
+                           Index Cond: (collection.shard_key_value = '7902'::bigint)
 (14 rows)
 
 --explain when merge is not first stage of pipeline
@@ -1231,17 +1236,17 @@ EXPLAIN VERBOSE SELECT document FROM bson_aggregation_pipeline('db', '{ "aggrega
                                                                                                                                                                                                                                                                                                                                                                                                  QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus MERGE INTO ...)  (cost=0.00..0.00 rows=0 width=0)
-   MERGE INTO documents_7902 method: pull to coordinator
+   MERGE INTO documents_7903 method: pull to coordinator
    ->  Custom Scan (Citus Adaptive)  (cost=0.00..0.00 rows=0 width=0)
          Output: remote_scan.document, remote_scan.target_shard_key_value, remote_scan.generated_object_id, remote_scan.extracted_4
          Task Count: 1
          Tasks Shown: All
          ->  Task
-               Query: SELECT document, target_shard_key_value, generated_object_id, extracted_4 FROM (SELECT collection.document, '7902'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7901_7850698 collection WHERE ((collection.document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bsonquery) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (collection.shard_key_value OPERATOR(pg_catalog.=) '7901'::bigint))) citus_insert_select_subquery
+               Query: SELECT document, target_shard_key_value, generated_object_id, extracted_4 FROM (SELECT collection.document, '7903'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7902_7850703 collection WHERE ((collection.document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bsonquery) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (collection.shard_key_value OPERATOR(pg_catalog.=) '7902'::bigint))) citus_insert_select_subquery
                Node: host=localhost port=58070 dbname=regression
-               ->  Index Scan using _id_ on documentdb_data.documents_7901_7850698 collection  (cost=0.00..0.01 rows=1 width=104)
-                     Output: collection.document, '7902'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document), documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text)
-                     Index Cond: ((collection.shard_key_value = '7901'::bigint) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+               ->  Index Scan using _id_ on documentdb_data.documents_7902_7850703 collection  (cost=0.00..0.01 rows=1 width=104)
+                     Output: collection.document, '7903'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(collection.document), documentdb_api_internal.bson_dollar_extract_merge_filter(collection.document, '_id'::text)
+                     Index Cond: ((collection.shard_key_value = '7902'::bigint) AND (collection.object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
 (12 rows)
 
 -- Let's look at explain plan for sharded collection
@@ -1255,16 +1260,16 @@ EXPLAIN VERBOSE SELECT document FROM bson_aggregation_pipeline('db', '{ "aggrega
                                                                                                                                                                    QUERY PLAN                                                                                                                                                                    
 ---------------------------------------------------------------------
  Custom Scan (Citus MERGE INTO ...)  (cost=0.00..0.00 rows=0 width=0)
-   MERGE INTO documents_7902 method: repartition
+   MERGE INTO documents_7903 method: repartition
    ->  Custom Scan (Citus Adaptive)  (cost=0.00..0.00 rows=100000 width=104)
          Output: remote_scan.document, remote_scan.target_shard_key_value, remote_scan.generated_object_id, remote_scan.extracted_4
          Task Count: 8
          Tasks Shown: One of 8
          ->  Task
-               Query: SELECT document, '7902'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7901_7850728 collection WHERE true
+               Query: SELECT document, '7903'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(document, '_id'::text) AS extracted_4 FROM documentdb_data.documents_7902_7850730 collection WHERE true
                Node: host=localhost port=58070 dbname=regression
-               ->  Seq Scan on documentdb_data.documents_7901_7850728 collection  (cost=0.00..1.01 rows=1 width=104)
-                     Output: document, '7902'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(document), documentdb_api_internal.bson_dollar_extract_merge_filter(document, '_id'::text)
+               ->  Seq Scan on documentdb_data.documents_7902_7850730 collection  (cost=0.00..1.01 rows=1 width=104)
+                     Output: document, '7903'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(document), documentdb_api_internal.bson_dollar_extract_merge_filter(document, '_id'::text)
 (11 rows)
 
 -- Let's look at explain plan for when on field is indexed
@@ -1285,16 +1290,16 @@ EXPLAIN VERBOSE SELECT document FROM bson_aggregation_pipeline('db', '{ "aggrega
                                                                                                                                                                   QUERY PLAN                                                                                                                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus MERGE INTO ...)  (cost=0.00..0.00 rows=0 width=0)
-   MERGE INTO documents_7902 method: repartition
+   MERGE INTO documents_7903 method: repartition
    ->  Custom Scan (Citus Adaptive)  (cost=0.00..0.00 rows=100000 width=104)
          Output: remote_scan.document, remote_scan.target_shard_key_value, remote_scan.generated_object_id, remote_scan.extracted_4
          Task Count: 8
          Tasks Shown: One of 8
          ->  Task
-               Query: SELECT document, '7902'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(document, 'a'::text) AS extracted_4 FROM documentdb_data.documents_7901_7850728 collection WHERE true
+               Query: SELECT document, '7903'::bigint AS target_shard_key_value, documentdb_api_internal.bson_dollar_merge_generate_object_id(document) AS generated_object_id, documentdb_api_internal.bson_dollar_extract_merge_filter(document, 'a'::text) AS extracted_4 FROM documentdb_data.documents_7902_7850730 collection WHERE true
                Node: host=localhost port=58070 dbname=regression
-               ->  Seq Scan on documentdb_data.documents_7901_7850728 collection  (cost=0.00..1.01 rows=1 width=104)
-                     Output: document, '7902'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(document), documentdb_api_internal.bson_dollar_extract_merge_filter(document, 'a'::text)
+               ->  Seq Scan on documentdb_data.documents_7902_7850730 collection  (cost=0.00..1.01 rows=1 width=104)
+                     Output: document, '7903'::bigint, documentdb_api_internal.bson_dollar_merge_generate_object_id(document), documentdb_api_internal.bson_dollar_extract_merge_filter(document, 'a'::text)
 (11 rows)
 
 -- source and target are same
@@ -1651,9 +1656,12 @@ ERROR:  $merge for sharded output collection not supported yet
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "optionNotSupported", "pipeline": [  { "$match": { "name": "test" } }, {  "$graphLookup":  {"from": "optionNotSupported",  "startWith": "$id",  "connectFromField": "id", "connectToField": "ReportsTo", "as": "reportingHierarchy"}}, {"$merge":{ "into": "targetDataReplace"}}], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  $graphLookup is not supported with $merge stage yet.
 -- simple test case target database is not same as source database
-SET documentdb.enableMergeAcrossDB TO OFF;
 SELECT * FROM aggregate_cursor_first_page('sourceDB', '{ "aggregate": "sourceDumpData", "pipeline": [ {"$merge" : { "into": {"db" : "targetDB" , "coll" : "targetDumpData"}, "on" : "_id", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  merge is not supported across databases
+                                                                  cursorpage                                                                  | continuation | persistconnection | cursorid 
+---------------------------------------------------------------------
+ { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "sourceDB.sourceDumpData", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0
+(1 row)
+
 -- let's verify we insert or update proper data in database.
 --try to insert 16 MB Document
 SELECT documentdb_api.insert_one('db','sourceDataValidation','{ "_id": 1, "item": "a" }' , NULL);
