@@ -24,6 +24,16 @@
 
 #include "rumsort.h"
 
+/* PG16 defined visibility for PGDLLEXPORT properly, for PG15, we need to set it */
+#if PG_VERSION_NUM < 160000
+#undef PGDLLEXPORT
+#ifdef HAVE_VISIBILITY_ATTRIBUTE
+#define PGDLLEXPORT __attribute__((visibility("default")))
+#else
+#define PGDLLEXPORT
+#endif
+#endif
+
 /* RUM distance strategies */
 #define RUM_DISTANCE 20
 #define RUM_LEFT_DISTANCE 21
@@ -779,6 +789,9 @@ typedef struct RumScanOpaqueData
 
 	ScanDirection naturalOrder;
 	bool secondPass;
+
+	/* stateContext to hold state from rumstate (Pgmongo: This is new ) */
+	MemoryContext rumStateCtx;
 }   RumScanOpaqueData;
 
 typedef RumScanOpaqueData *RumScanOpaque;
@@ -870,14 +883,15 @@ typedef enum SimilarityType
 #define RUM_SIMILARITY_THRESHOLD_DEFAULT 0.5
 #define RUM_USE_NEW_VACUUM_SCAN true
 #define RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM true
+#define RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE false
 
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
-extern int RumDataPageIntermediateSplitSize;
 extern bool RumUseNewVacuumScan;
+extern int RumDataPageIntermediateSplitSize;
 extern bool RumEnableRefindLeafOnEntryNextItem;
-
+extern bool RumThrowErrorOnInvalidDataPage;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in
@@ -940,6 +954,12 @@ rumDataPageLeafReadItemPointer(char *ptr, ItemPointer iptr, bool *addInfoIsNull)
 			break;
 		}
 		i += 7;
+	}
+
+	if (!OffsetNumberIsValid(offset) && RumThrowErrorOnInvalidDataPage)
+	{
+		/* Reuse retry on lost path */
+		elog(ERROR, "invalid offset on rumpage");
 	}
 
 	Assert(OffsetNumberIsValid(offset));

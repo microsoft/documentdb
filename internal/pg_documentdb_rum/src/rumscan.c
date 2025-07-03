@@ -15,14 +15,20 @@
 
 #include "access/relscan.h"
 #include "pgstat.h"
+#include "commands/explain.h"
 
 #include "pg_documentdb_rum.h"
+
+
+extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
+											  ExplainState *es);
 
 IndexScanDesc
 rumbeginscan(Relation rel, int nkeys, int norderbys)
 {
 	IndexScanDesc scan;
 	RumScanOpaque so;
+	MemoryContext prev = CurrentMemoryContext;
 
 	scan = RelationGetIndexScan(rel, nkeys, norderbys);
 
@@ -38,8 +44,13 @@ rumbeginscan(Relation rel, int nkeys, int norderbys)
 								   "Rum scan temporary context");
 	so->keyCtx = RumContextCreate(CurrentMemoryContext,
 								  "Rum scan key context");
+	so->rumStateCtx = RumContextCreate(CurrentMemoryContext,
+									   "Rum state context");
 
+	/* Allocate rumstate in the key context so it gets cleaned on endscan */
+	MemoryContextSwitchTo(so->rumStateCtx);
 	initRumState(&so->rumstate, scan->indexRelation);
+	MemoryContextSwitchTo(prev);
 
 #if PG_VERSION_NUM >= 120000
 
@@ -120,7 +131,6 @@ rumFillScanEntry(RumScanOpaque so, OffsetNumber attnum,
 	scanEntry->gdi = NULL;
 	scanEntry->stack = NULL;
 	scanEntry->nlist = 0;
-	scanEntry->matchSortstate = NULL;
 	scanEntry->offset = InvalidOffsetNumber;
 	scanEntry->isFinished = false;
 	scanEntry->reduceResult = false;
@@ -872,6 +882,7 @@ rumendscan(IndexScanDesc scan)
 
 	MemoryContextDelete(so->tempCtx);
 	MemoryContextDelete(so->keyCtx);
+	MemoryContextDelete(so->rumStateCtx);
 
 	pfree(so);
 }
@@ -890,4 +901,44 @@ rumrestrpos(PG_FUNCTION_ARGS)
 {
 	elog(ERROR, "RUM does not support mark/restore");
 	PG_RETURN_VOID();
+}
+
+
+extern PGDLLEXPORT void
+try_explain_rum_index(IndexScanDesc scan, ExplainState *es)
+{
+	/* This function is called from explain.c */
+	int i, j;
+	List *entryList = NIL;
+	RumScanOpaque so = (RumScanOpaque) scan->opaque;
+
+	/* TODO: Enable this line ExplainPropertyInteger("innerScanLoops", "loops", so->scanLoops, es); */
+	for (i = 0; i < so->nkeys; i++)
+	{
+		StringInfo buf = makeStringInfo();
+		if (so->keys[i]->orderBy)
+		{
+			continue;
+		}
+
+		appendStringInfo(buf, "key %d: [", i + 1);
+		for (j = 0; j < so->keys[i]->nentries; j++)
+		{
+			RumScanEntry entry = so->keys[i]->scanEntry[j];
+			if (j > 0)
+			{
+				appendStringInfo(buf, ", ");
+			}
+
+			appendStringInfo(buf, "(isInequality: %s, estimatedEntryCount: %u)",
+							 entry->isPartialMatch ? "true" : "false",
+							 entry->predictNumberResult);
+		}
+
+		appendStringInfoString(buf, "]");
+		entryList = lappend(entryList,
+							buf->data);
+	}
+
+	ExplainPropertyList("scanKeyDetails", entryList, es);
 }

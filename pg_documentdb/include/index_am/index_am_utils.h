@@ -19,6 +19,9 @@
 struct IndexScanDescData;
 struct ExplainState;
 
+typedef void (*TryExplainIndexFunc)(struct IndexScanDescData *scan, struct
+									ExplainState *es);
+
 /*
  * Data structure for an alternative index acess method for indexing bosn.
  * It contains the indexing capability and various utility function.
@@ -38,8 +41,7 @@ typedef struct
 	Oid (*get_text_path_op_family_oid)(void);
 
 	/* optional func to add explain output */
-	void (*add_explain_output)(struct IndexScanDescData *indexScanDesc, struct
-							   ExplainState *explainState);
+	TryExplainIndexFunc add_explain_output;
 	const char *am_name;
 } BsonIndexAmEntry;
 
