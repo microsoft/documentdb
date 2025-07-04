@@ -157,7 +157,7 @@ void
 InitDocumentDBBackgroundWorkerGucs(const char *prefix)
 {
 	DefineCustomStringVariable(
-		psprintf("%s_bg_worker_database_name", prefix),
+		psprintf("%s.bg_worker_database_name", prefix),
 		gettext_noop("Database to which background worker will connect."),
 		NULL,
 		&BackgroundWorkerDatabaseName,
