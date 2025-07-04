@@ -938,9 +938,8 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 		}
 		else if (strcmp(field, "hint") == 0)
 		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("BSON field 'update.updates.hint' is not yet "
-								   "supported")));
+			/* We ignore this for now (TODO: Support this?) */
+			continue;
 		}
 		else if (strcmp(field, "comment") == 0)
 		{
