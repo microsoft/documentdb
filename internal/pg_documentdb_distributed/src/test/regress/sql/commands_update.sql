@@ -369,6 +369,13 @@ begin;
 select documentdb_api.update('db', '{"update":"updateme",  "updates":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":2}},"multi":true,"upsert":true}]}', '{ "":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":1}},"multi":false,"upsert":true}] }');
 rollback;
 
+-- update with index hint specified by name and by key object
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "updateme", "indexes": [ { "key" : { "a": 1 }, "name": "validIndex"}] }', true);
+begin;
+select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true,"hint": "validIndex"}]}');
+select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true,"hint": { "a": 1 }}]}');
+rollback;
+
 select documentdb_api.drop_collection('db','updateme');
 
 SELECT 1 FROM documentdb_api.insert_one('update', 'test_sort_returning', '{"_id":1,"a":3,"b":7}');

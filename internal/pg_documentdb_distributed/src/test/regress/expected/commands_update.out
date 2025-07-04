@@ -1022,6 +1022,27 @@ begin;
 select documentdb_api.update('db', '{"update":"updateme",  "updates":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":2}},"multi":true,"upsert":true}]}', '{ "":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":1}},"multi":false,"upsert":true}] }');
 ERROR:  Unexpected additional updates
 rollback;
+-- update with index hint specified by name and by key object
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "updateme", "indexes": [ { "key" : { "a": 1 }, "name": "validIndex"}] }', true);
+                                                                                                   create_indexes_non_concurrently
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+begin;
+select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true,"hint": "validIndex"}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""10"" }, ""n"" : { ""$numberLong"" : ""10"" } }",t)
+(1 row)
+
+select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true,"hint": { "a": 1 }}]}');
+                                                                update                                                                
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""10"" } }",t)
+(1 row)
+
+rollback;
 select documentdb_api.drop_collection('db','updateme');
  drop_collection 
 ---------------------------------------------------------------------

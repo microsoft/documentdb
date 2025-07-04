@@ -526,9 +526,8 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 		}
 		else if (strcmp(field, "hint") == 0)
 		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("BSON field 'delete.deletes.hint' is not yet "
-								   "supported")));
+			/* We ignore this for now (TODO Support this?) */
+			continue;
 		}
 		else if (strcmp(field, "comment") == 0)
 		{
