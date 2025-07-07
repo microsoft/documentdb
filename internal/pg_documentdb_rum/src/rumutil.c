@@ -75,6 +75,14 @@ _PG_init(void)
 							 PGC_USERSET, 0,
 							 NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(DOCUMENTDB_RUM_GUC_PREFIX ".enable_rum_orderby_index_scan",
+							 "Sets whether or not to allow order by in the RUM index",
+							 NULL,
+							 &RumAllowOrderByRawKeys,
+							 RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS,
+							 PGC_USERSET, 0,
+							 NULL, NULL, NULL);
+
 	DefineCustomBoolVariable(
 		DOCUMENTDB_RUM_GUC_PREFIX ".enable_rum_refind_leaf_on_entry_next_item",
 		"Sets whether or not to refind the leaf page on entry next item",

@@ -19,6 +19,7 @@
 
 #include "pg_documentdb_rum.h"
 
+extern bool RumAllowOrderByRawKeys;
 
 extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
 											  ExplainState *es);
@@ -40,6 +41,8 @@ rumbeginscan(Relation rel, int nkeys, int norderbys)
 	so->firstCall = true;
 	so->totalentries = 0;
 	so->sortedEntries = NULL;
+	so->scanLoops = 0;
+	so->orderByKeyIndex = -1;
 	so->tempCtx = RumContextCreate(CurrentMemoryContext,
 								   "Rum scan temporary context");
 	so->keyCtx = RumContextCreate(CurrentMemoryContext,
@@ -125,17 +128,18 @@ rumFillScanEntry(RumScanOpaque so, OffsetNumber attnum,
 	scanEntry->curKeyCategory = RUM_CAT_NULL_KEY;
 	scanEntry->useCurKey = false;
 	scanEntry->matchSortstate = NULL;
-	scanEntry->stack = NULL;
 	scanEntry->scanWithAddInfo = false;
 	scanEntry->list = NULL;
 	scanEntry->gdi = NULL;
 	scanEntry->stack = NULL;
+	scanEntry->orderStack = NULL;
 	scanEntry->nlist = 0;
 	scanEntry->offset = InvalidOffsetNumber;
 	scanEntry->isFinished = false;
 	scanEntry->reduceResult = false;
 	scanEntry->useMarkAddInfo = false;
 	scanEntry->scanDirection = ForwardScanDirection;
+	scanEntry->predictNumberResult = 0;
 	ItemPointerSetMin(&scanEntry->markAddInfo.iptr);
 
 	return scanEntry;
@@ -151,7 +155,7 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 			   Datum query, uint32 nQueryValues,
 			   Datum *queryValues, RumNullCategory *queryCategories,
 			   bool *partial_matches, Pointer *extra_data,
-			   bool orderBy)
+			   bool orderBy, int32_t keyIndex)
 {
 	RumScanKey key = palloc0(sizeof(*key));
 	RumState *rumstate = &so->rumstate;
@@ -181,6 +185,7 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 	RumItemSetMin(&key->curItem);
 	key->curItemMatches = false;
 	key->recheckCurItem = false;
+	key->keyIndex = keyIndex;
 	key->isFinished = false;
 
 	key->addInfoKeys = NULL;
@@ -200,7 +205,7 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 		if (key->attnum == rumstate->attrnAttachColumn ||
 
 		    /* ...add key to order by index key value */
-			key->useCurKey)
+			(key->useCurKey && !RumAllowOrderByRawKeys))
 		{
 			Form_pg_attribute attr = RumTupleDescAttr(rumstate->origTupdesc,
 													  attnum - 1);
@@ -272,6 +277,24 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 		else if (rumstate->canOrdering[attnum - 1] == false)
 		{
 			elog(ERROR, "doesn't support ordering, check operator class definition");
+		}
+		else
+		{
+			int numOrderingArgs = rumstate->orderingFn[attnum - 1].fn_nargs;
+			if (numOrderingArgs == 3 || numOrderingArgs == 10)
+			{
+				/* These are default rum ordering things - let it be */
+			}
+			else if (numOrderingArgs == 4 && RumAllowOrderByRawKeys)
+			{
+				/* This is ordering by raw key - let it be */
+				so->willSort = true;
+			}
+			else
+			{
+				elog(ERROR,
+					 "doesn't support ordering - ordering function is incorrect, check operator class definition");
+			}
 		}
 	}
 
@@ -389,6 +412,10 @@ freeScanEntries(RumScanEntry *entries, uint32 nentries)
 		{
 			freeRumBtreeStack(entry->stack);
 		}
+		if (entry->orderStack)
+		{
+			freeRumBtreeStack(entry->orderStack);
+		}
 		if (entry->list)
 		{
 			pfree(entry->list);
@@ -428,7 +455,7 @@ freeScanKeys(RumScanOpaque so)
 
 
 static void
-initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch)
+initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, int32_t keyIndex)
 {
 	Datum *queryValues;
 	int32 nQueryValues = 0;
@@ -524,7 +551,8 @@ initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch)
 				   skey->sk_argument, nQueryValues,
 				   queryValues, (RumNullCategory *) nullFlags,
 				   partial_matches, extra_data,
-				   (skey->sk_flags & SK_ORDER_BY) ? true : false);
+				   (skey->sk_flags & SK_ORDER_BY) ? true : false,
+				   keyIndex);
 
 	if (partial_matches && hasPartialMatch)
 	{
@@ -672,7 +700,9 @@ rumNewScanKey(IndexScanDesc scan)
 	hasAddOnFilter = haofNone;
 
 	so->naturalOrder = NoMovementScanDirection;
+	so->useSimpleScan = false;
 	so->secondPass = false;
+	so->orderByHasRecheck = false;
 	so->entriesIncrIndex = -1;
 	so->norderbys = scan->numberOfOrderBys;
 	so->willSort = false;
@@ -694,7 +724,7 @@ rumNewScanKey(IndexScanDesc scan)
 
 	for (i = 0; i < scan->numberOfKeys; i++)
 	{
-		initScanKey(so, &scan->keyData[i], &hasPartialMatch);
+		initScanKey(so, &scan->keyData[i], &hasPartialMatch, i);
 		if (so->isVoidRes)
 		{
 			break;
@@ -711,13 +741,13 @@ rumNewScanKey(IndexScanDesc scan)
 					   InvalidStrategy,
 					   GIN_SEARCH_MODE_EVERYTHING,
 					   (Datum) 0, 0,
-					   NULL, NULL, NULL, NULL, false);
+					   NULL, NULL, NULL, NULL, false, -1);
 		checkEmptyEntry = true;
 	}
 
 	for (i = 0; i < scan->numberOfOrderBys; i++)
 	{
-		initScanKey(so, &scan->orderByData[i], NULL);
+		initScanKey(so, &scan->orderByData[i], NULL, i);
 	}
 
 	/*
@@ -743,6 +773,16 @@ rumNewScanKey(IndexScanDesc scan)
 			if (key->attnumOrig == so->rumstate.attrnAttachColumn)
 			{
 				hasAddOnFilter |= haofHasAddOnRestriction;
+			}
+		}
+
+		if (key->orderBy && RumAllowOrderByRawKeys &&
+			!so->rumstate.useAlternativeOrder)
+		{
+			/* We enforce that we have a prefix equality in this case in the layer above */
+			if (so->orderByKeyIndex < 0)
+			{
+				so->orderByKeyIndex = i;
 			}
 		}
 
@@ -911,8 +951,7 @@ try_explain_rum_index(IndexScanDesc scan, ExplainState *es)
 	int i, j;
 	List *entryList = NIL;
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
-
-	/* TODO: Enable this line ExplainPropertyInteger("innerScanLoops", "loops", so->scanLoops, es); */
+	ExplainPropertyInteger("innerScanLoops", "loops", so->scanLoops, es);
 	for (i = 0; i < so->nkeys; i++)
 	{
 		StringInfo buf = makeStringInfo();

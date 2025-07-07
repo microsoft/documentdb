@@ -29,6 +29,7 @@
 
 /* GUC parameter */
 int RumFuzzySearchLimit = 0;
+bool RumAllowOrderByRawKeys = RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS;
 bool RumEnableRefindLeafOnEntryNextItem =
 	RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM;
 
@@ -129,12 +130,10 @@ callAddInfoConsistentFn(RumState *rumstate, RumScanKey key)
 				RumScanEntry scanSubEntry = subkey->scanEntry[j];
 				int cmp =
 					DatumGetInt32(FunctionCall4Coll(
-									  &rumstate->comparePartialFn[scanSubEntry->attnumOrig
-																  -
-																  1],
-									  rumstate->supportCollation[scanSubEntry->attnumOrig
-																 -
-																 1],
+									  &rumstate->comparePartialFn[
+										  scanSubEntry->attnumOrig - 1],
+									  rumstate->supportCollation[
+										  scanSubEntry->attnumOrig - 1],
 									  scanSubEntry->queryKey,
 									  key->outerAddInfo,
 									  UInt16GetDatum(scanSubEntry->strategy),
@@ -229,6 +228,41 @@ moveRightIfItNeeded(RumBtreeData *btree, RumBtreeStack *stack)
 
 
 /*
+ * Identify the "current" item among the input entry streams for this scan key,
+ * and test whether it passes the scan key qual condition.
+ *
+ * The current item is the smallest curItem among the inputs.  key->curItem
+ * is set to that value.  key->curItemMatches is set to indicate whether that
+ * TID passes the consistentFn test.  If so, key->recheckCurItem is set true
+ * iff recheck is needed for this item pointer
+ *
+ * If all entry streams are exhausted, sets key->isFinished to true.
+ *
+ * Item pointers must be returned in ascending order.
+ */
+static int
+compareRumItemScanDirection(RumState *rumstate, AttrNumber attno,
+							ScanDirection scanDirection,
+							RumItem *a, RumItem *b)
+{
+	int res = compareRumItem(rumstate, attno, a, b);
+
+	return (ScanDirectionIsForward(scanDirection)) ? res : -res;
+}
+
+
+static int
+compareCurRumItemScanDirection(RumState *rumstate, RumScanEntry entry,
+							   RumItem *minItem)
+{
+	return compareRumItemScanDirection(rumstate,
+									   entry->attnumOrig,
+									   entry->scanDirection,
+									   &entry->curItem, minItem);
+}
+
+
+/*
  * Scan all pages of a posting tree and save all its heap ItemPointers
  * in scanEntry->matchSortstate
  */
@@ -282,8 +316,16 @@ scanPostingTree(Relation index, RumScanEntry scanEntry,
 			{
 				ptr = rumDataPageLeafRead(ptr, attnum, &item.item, false,
 										  rumstate);
-				SCAN_ITEM_PUT_KEY(scanEntry, item, idatum, icategory);
-				rum_tuplesort_putrumitem(scanEntry->matchSortstate, &item);
+				if (scanEntry->isMatchMinimalTuple)
+				{
+					rum_tuplesort_putrumitem_minimal(scanEntry->matchSortstate,
+													 &item.item.iptr);
+				}
+				else
+				{
+					SCAN_ITEM_PUT_KEY(scanEntry, item, idatum, icategory);
+					rum_tuplesort_putrumitem(scanEntry->matchSortstate, &item);
+				}
 			}
 
 			scanEntry->predictNumberResult += maxoff;
@@ -331,7 +373,18 @@ collectMatchBitmap(RumBtreeData *btree, RumBtreeStack *stack,
 	}
 
 	/* Initialize  */
-	scanEntry->matchSortstate = rum_tuplesort_begin_rumitem(work_mem, cmp);
+	if (!rumstate->useAlternativeOrder &&
+		!scanEntry->useCurKey && !scanEntry->scanWithAddInfo)
+	{
+		scanEntry->matchSortstate =
+			rum_tuplesort_begin_rumitem_minimal(work_mem, cmp);
+		scanEntry->isMatchMinimalTuple = true;
+	}
+	else
+	{
+		scanEntry->matchSortstate = rum_tuplesort_begin_rumitem(work_mem, cmp);
+		scanEntry->isMatchMinimalTuple = false;
+	}
 
 	/* Null query cannot partial-match anything */
 	if (scanEntry->isPartialMatch &&
@@ -515,8 +568,16 @@ collectMatchBitmap(RumBtreeData *btree, RumBtreeStack *stack,
 			{
 				ptr = rumDataPageLeafRead(ptr, scanEntry->attnum, &item.item,
 										  true, rumstate);
-				SCAN_ITEM_PUT_KEY(scanEntry, item, idatum, icategory);
-				rum_tuplesort_putrumitem(scanEntry->matchSortstate, &item);
+				if (scanEntry->isMatchMinimalTuple)
+				{
+					rum_tuplesort_putrumitem_minimal(scanEntry->matchSortstate,
+													 &item.item.iptr);
+				}
+				else
+				{
+					SCAN_ITEM_PUT_KEY(scanEntry, item, idatum, icategory);
+					rum_tuplesort_putrumitem(scanEntry->matchSortstate, &item);
+				}
 			}
 
 			scanEntry->predictNumberResult += RumGetNPosting(itup);
@@ -607,6 +668,7 @@ restartScanEntry:
 	entry->list = NULL;
 	entry->gdi = NULL;
 	entry->stack = NULL;
+	entry->orderStack = NULL;
 	entry->nlist = 0;
 	entry->matchSortstate = NULL;
 	entry->reduceResult = false;
@@ -665,6 +727,10 @@ restartScanEntry:
 			entry->isFinished = false;
 		}
 	}
+	else if (entry->curKeyCategory == RUM_CAT_ORDER_ITEM)
+	{
+		ereport(ERROR, (errmsg("Unsupported call startScanEntry on order item key")));
+	}
 	else if (btreeEntry.findItem(&btreeEntry, stackEntry) ||
 			 (entry->queryCategory == RUM_CAT_EMPTY_QUERY &&
 			  entry->scanWithAddInfo))
@@ -687,6 +753,7 @@ restartScanEntry:
 		{
 			BlockNumber rootPostingTree = RumGetPostingTree(itup);
 			RumPostingTreeScan *gdi;
+			Page pageInner;
 			OffsetNumber maxoff,
 						 i;
 			Pointer ptr;
@@ -720,19 +787,21 @@ restartScanEntry:
 			 * page during scan. See RUM's vacuum implementation. RefCount is
 			 * increased to keep buffer pinned after freeRumBtreeStack() call.
 			 */
-			page = BufferGetPage(entry->buffer);
+			pageInner = BufferGetPage(entry->buffer);
 			entry->predictNumberResult = gdi->stack->predictNumber * RumPageGetOpaque(
-				page)->maxoff;
+				pageInner)->maxoff;
 
 			/*
 			 * Keep page content in memory to prevent durable page locking
 			 */
 			entry->list = (RumItem *) palloc(BLCKSZ * sizeof(RumItem));
-			maxoff = RumPageGetOpaque(page)->maxoff;
+			maxoff = RumPageGetOpaque(pageInner)->maxoff;
 			entry->nlist = maxoff;
 
-			ptr = RumDataPageGetData(page);
+			ptr = RumDataPageGetData(pageInner);
 
+			/* Ensure the first entry is 0 initialized */
+			memset(&entry->list[0], 0, sizeof(RumItem));
 			for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 			{
 				ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
@@ -817,7 +886,12 @@ cmpEntries(RumState *rumstate, RumScanEntry e1, RumScanEntry e2)
 		return -1;
 	}
 
-	if (e1->attnumOrig != e2->attnumOrig)
+	/*
+	 * compareRumItem assumes the attNums are equal for alternative orders
+	 * If alternative orders are requested, ensure we check for equality of
+	 * the attNums
+	 */
+	if (rumstate->useAlternativeOrder && e1->attnumOrig != e2->attnumOrig)
 	{
 		return (e1->attnumOrig < e2->attnumOrig) ? 1 : -1;
 	}
@@ -839,6 +913,414 @@ scan_entry_cmp(const void *p1, const void *p2, void *arg)
 }
 
 
+static bool
+ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
+				   bool *markedEntryFinished)
+{
+	int idx, jdx;
+
+	so->scanLoops++;
+	orderByKey->recheckCurItem = false;
+	orderByKey->recheckCurItemOrderBy = false;
+	for (idx = 0; idx < so->nkeys; idx++)
+	{
+		bool allEntriesExhausted;
+		bool hasAnyMatch = false;
+		RumScanKey curKey = so->keys[idx];
+		if (curKey->orderBy)
+		{
+			int cmp = DatumGetInt32(FunctionCall4Coll(
+										&so->rumstate.comparePartialFn[curKey->attnum
+																	   -
+																	   1],
+										so->rumstate.supportCollation[
+											curKey->attnum - 1],
+										curKey->scanEntry[0]->queryKey,
+										idatum,
+										UInt16GetDatum(
+											curKey->scanEntry[0]->strategy),
+										PointerGetDatum(
+											curKey->scanEntry[0]->extra_data)));
+			if (cmp < 0)
+			{
+				orderByKey->recheckCurItemOrderBy = true;
+			}
+			continue;
+		}
+
+		allEntriesExhausted = true;
+		for (jdx = 0; jdx < curKey->nentries; jdx++)
+		{
+			int cmp;
+			if (curKey->scanEntry[jdx]->isFinished)
+			{
+				curKey->entryRes[jdx] = false;
+			}
+			else
+			{
+				cmp = DatumGetInt32(FunctionCall4Coll(
+										&so->rumstate.comparePartialFn[curKey->attnum
+																	   -
+																	   1],
+										so->rumstate.supportCollation[
+											curKey->attnum - 1],
+										curKey->scanEntry[jdx]->queryKey,
+										idatum,
+										UInt16GetDatum(
+											curKey->scanEntry[jdx]->strategy),
+										PointerGetDatum(
+											curKey->scanEntry[jdx]->extra_data)));
+				if (cmp == 0)
+				{
+					hasAnyMatch = true;
+					allEntriesExhausted = false;
+					curKey->entryRes[jdx] = true;
+				}
+				else if (cmp < 0)
+				{
+					allEntriesExhausted = false;
+					curKey->entryRes[jdx] = false;
+				}
+				else
+				{
+					/* Mark that the key is finished */
+					*markedEntryFinished = true;
+					curKey->scanEntry[jdx]->isFinished = true;
+					curKey->entryRes[jdx] = false;
+				}
+			}
+		}
+
+		if (allEntriesExhausted)
+		{
+			/* No entry for this key matched, or said continue, we can stop searching */
+			orderByKey->isFinished = true;
+			return false;
+		}
+
+		/* Now call consistent on the key */
+		if (!hasAnyMatch)
+		{
+			return hasAnyMatch;
+		}
+
+		if (!callConsistentFn(&so->rumstate, curKey))
+		{
+			return false;
+		}
+
+		/* Set recheck based on if any keys want recheck on this */
+		orderByKey->recheckCurItem = orderByKey->recheckCurItem ||
+									 curKey->recheckCurItem;
+	}
+
+	return true;
+}
+
+
+static void
+PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanKey orderByKey, RumScanEntry entry,
+						   Snapshot snapshot, IndexTuple itup, RumBtreeStack *stackEntry,
+						   bool *needUnlock)
+{
+	/* Before unlocking any pages, we want to ensure that orderby properties are preserved
+	 * This needs to be done if the current key has recheck, or if we've historically
+	 * had any entry that needed recheck since the runtime can re-evaluate any key after
+	 * a recheck was set.
+	 */
+	if (orderByKey->recheckCurItemOrderBy || so->orderByHasRecheck)
+	{
+		int i;
+		MemoryContext oldContext;
+		RumNullCategory icategory;
+		Datum idatum = rumtuple_get_key(&so->rumstate, itup, &icategory);
+		so->orderByHasRecheck = true;
+
+		oldContext = MemoryContextSwitchTo(so->keyCtx);
+
+		/* We need to walk all the order by keys and project them */
+		for (i = so->orderByKeyIndex; i < so->nkeys; i++)
+		{
+			if (!so->keys[i]->orderBy)
+			{
+				continue;
+			}
+
+			so->keys[i]->curKey = FunctionCall4(
+				&so->rumstate.orderingFn[so->keys[i]->attnum - 1],
+				idatum,
+				so->keys[i]->query,
+				UInt16GetDatum(so->keys[i]->strategy),
+				so->keys[i]->curKey);
+		}
+		MemoryContextSwitchTo(oldContext);
+	}
+
+	if (RumIsPostingTree(itup))
+	{
+		BlockNumber rootPostingTree = RumGetPostingTree(itup);
+		RumPostingTreeScan *gdi;
+		Page pageInner;
+		OffsetNumber maxoff,
+					 i;
+		Pointer ptr;
+		RumItem item;
+
+		ItemPointerSetMin(&item.iptr);
+
+		/*
+		 * We should unlock entry page before touching posting tree to
+		 * prevent deadlocks with vacuum processes. Because entry is never
+		 * deleted from page and posting tree is never reduced to the
+		 * posting list, we can unlock page after getting BlockNumber of
+		 * root of posting tree.
+		 */
+		LockBuffer(stackEntry->buffer, RUM_UNLOCK);
+		*needUnlock = false;
+		gdi = rumPrepareScanPostingTree(so->rumstate.index, rootPostingTree, true,
+										entry->scanDirection, entry->attnum,
+										&so->rumstate);
+
+		entry->buffer = rumScanBeginPostingTree(gdi, entry->useMarkAddInfo ?
+												&entry->markAddInfo : NULL);
+
+		entry->gdi = gdi;
+
+		PredicateLockPage(so->rumstate.index, BufferGetBlockNumber(entry->buffer),
+						  snapshot);
+
+		/*
+		 * We keep buffer pinned because we need to prevent deletion of
+		 * page during scan. See RUM's vacuum implementation. RefCount is
+		 * increased to keep buffer pinned after freeRumBtreeStack() call.
+		 */
+		pageInner = BufferGetPage(entry->buffer);
+		entry->predictNumberResult = gdi->stack->predictNumber * RumPageGetOpaque(
+			pageInner)->maxoff;
+
+		/*
+		 * Keep page content in memory to prevent durable page locking
+		 */
+		entry->list = (RumItem *) palloc(BLCKSZ * sizeof(RumItem));
+		maxoff = RumPageGetOpaque(pageInner)->maxoff;
+		entry->nlist = maxoff;
+
+		ptr = RumDataPageGetData(pageInner);
+
+		/* Ensure the first entry is 0 initialized */
+		memset(&entry->list[0], 0, sizeof(RumItem));
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
+									  &so->rumstate);
+			entry->list[i - FirstOffsetNumber] = item;
+		}
+
+		LockBuffer(entry->buffer, RUM_UNLOCK);
+		entry->isFinished = setListPositionScanEntry(&so->rumstate, entry);
+		if (!entry->isFinished)
+		{
+			entry->curItem = entry->list[entry->offset];
+		}
+	}
+	else if (RumGetNPosting(itup) > 0)
+	{
+		entry->nlist = RumGetNPosting(itup);
+		entry->predictNumberResult = (uint32) entry->nlist;
+		entry->list = (RumItem *) palloc(sizeof(RumItem) * entry->nlist);
+
+		rumReadTuple(&so->rumstate, entry->attnum, itup, entry->list, true);
+		entry->isFinished = setListPositionScanEntry(&so->rumstate, entry);
+		if (!entry->isFinished)
+		{
+			entry->curItem = entry->list[entry->offset];
+		}
+	}
+}
+
+
+static void
+startScanEntryOrderedCore(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
+{
+	RumBtreeData btreeEntry;
+	RumBtreeStack *stackEntry;
+	Page page;
+	bool needUnlock;
+	ItemId itemid;
+	RumScanEntry entry = orderByKey->scanEntry[0];
+	RumState *rumstate = &so->rumstate;
+
+	Assert(entry->curKeyCategory == RUM_CAT_ORDER_ITEM);
+
+	entry->buffer = InvalidBuffer;
+	RumItemSetMin(&entry->curItem);
+	entry->offset = InvalidOffsetNumber;
+	entry->list = NULL;
+	entry->gdi = NULL;
+	entry->stack = NULL;
+	entry->orderStack = NULL;
+	entry->nlist = 0;
+	entry->matchSortstate = NULL;
+	entry->reduceResult = false;
+	entry->predictNumberResult = 0;
+
+	/*
+	 * we should find entry, and begin scan of posting tree or just store
+	 * posting list in memory
+	 */
+	rumPrepareEntryScan(&btreeEntry, entry->attnum,
+						entry->queryKey, entry->queryCategory,
+						rumstate);
+	btreeEntry.searchMode = true;
+	stackEntry = rumFindLeafPage(&btreeEntry, NULL);
+	page = BufferGetPage(stackEntry->buffer);
+	needUnlock = true;
+
+	entry->isFinished = true;
+
+	PredicateLockPage(rumstate->index, BufferGetBlockNumber(stackEntry->buffer),
+					  snapshot);
+
+	/* Not found for the exact item */
+	btreeEntry.findItem(&btreeEntry, stackEntry);
+
+	/* Otherwise found something valid */
+	itemid = PageGetItemId(page, stackEntry->off);
+
+	if (!ItemIdHasStorage(itemid))
+	{
+		goto endOrderedScanEntry;
+	}
+
+	/* Let MoveScanForward deal with the reving and setting of stuff */
+	entry->orderStack = stackEntry;
+	entry->isFinished = true;
+
+endOrderedScanEntry:
+	if (needUnlock)
+	{
+		LockBuffer(stackEntry->buffer, RUM_UNLOCK);
+	}
+	if (entry->stack == NULL && entry->orderStack == NULL)
+	{
+		freeRumBtreeStack(stackEntry);
+	}
+}
+
+
+static RumScanEntry
+getMinScanEntry(RumScanOpaque so)
+{
+	int i, j;
+	int cmp;
+	RumScanEntry globalMinEntry = NULL;
+
+	for (i = 0; i < so->nkeys; i++)
+	{
+		/* Get the minimum entry per key */
+		RumScanKey key = so->keys[i];
+		RumScanEntry minEntry = NULL;
+		if (i == so->orderByKeyIndex)
+		{
+			continue;
+		}
+
+		for (j = 0; j < key->nentries; j++)
+		{
+			if (key->scanEntry[j]->isFinished)
+			{
+				/* Ignore finished entries (with no results) */
+				continue;
+			}
+			if (minEntry == NULL)
+			{
+				minEntry = key->scanEntry[j];
+				continue;
+			}
+
+			cmp = rumCompareEntries(&so->rumstate,
+									minEntry->attnum,
+									minEntry->queryKey, minEntry->queryCategory,
+									key->scanEntry[j]->queryKey,
+									key->scanEntry[j]->queryCategory);
+
+			if (cmp > 0)
+			{
+				/* minEntry is bigger than scanEntry - shift minEntry */
+				minEntry = key->scanEntry[j];
+			}
+		}
+
+		if (minEntry == NULL)
+		{
+			/* No entries for this key, skip */
+			continue;
+		}
+
+		/* Across scan keys, pick the maximum */
+		if (globalMinEntry == NULL)
+		{
+			globalMinEntry = minEntry;
+		}
+		else
+		{
+			cmp = rumCompareEntries(&so->rumstate,
+									globalMinEntry->attnum,
+									globalMinEntry->queryKey,
+									globalMinEntry->queryCategory,
+									minEntry->queryKey,
+									minEntry->queryCategory);
+
+			if (cmp < 0)
+			{
+				/* globalMinEntry is smaller than scanEntry - shift minEntry */
+				globalMinEntry = minEntry;
+			}
+		}
+	}
+
+	return globalMinEntry;
+}
+
+
+static void
+startOrderedScanEntries(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so)
+{
+	RumScanKey key;
+	RumScanEntry entry;
+	RumScanEntry minEntry = NULL;
+	if (so->orderByKeyIndex < 0)
+	{
+		ereport(ERROR, (errmsg("ordered scan must have an orderby index")));
+	}
+
+	key = so->keys[so->orderByKeyIndex];
+
+	if (key->nentries > 1)
+	{
+		ereport(ERROR, (errmsg("Order by key must have exactly 1 entry")));
+	}
+
+	entry = key->scanEntry[0];
+	entry->curKeyCategory = RUM_CAT_ORDER_ITEM;
+
+	if (entry->isPartialMatch)
+	{
+		/* reset this */
+		entry->isPartialMatch = false;
+	}
+
+	/* Now adjust the bounds based on the minimum value of the other scan keys */
+	minEntry = getMinScanEntry(so);
+	if (minEntry != NULL)
+	{
+		entry->queryKey = minEntry->queryKey;
+	}
+
+	startScanEntryOrderedCore(so, key, scan->xs_snapshot);
+}
+
+
 static void
 startScan(IndexScanDesc scan)
 {
@@ -849,9 +1331,24 @@ startScan(IndexScanDesc scan)
 	RumScanType scanType = RumFastScan;
 
 	MemoryContextSwitchTo(so->keyCtx);
-	for (i = 0; i < so->totalentries; i++)
+	if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
+		so->willSort && !rumstate->useAlternativeOrder)
 	{
-		startScanEntry(rumstate, so->entries[i], scan->xs_snapshot);
+		/* Don't initialize the scan entries in this path */
+		if (!rumstate->oneCol)
+		{
+			ereport(ERROR, (errmsg("Unable to support orderby with multicolumn index")));
+		}
+
+		scanType = RumOrderedScan;
+		startOrderedScanEntries(scan, rumstate, so);
+	}
+	else
+	{
+		for (i = 0; i < so->totalentries; i++)
+		{
+			startScanEntry(rumstate, so->entries[i], scan->xs_snapshot);
+		}
 	}
 	MemoryContextSwitchTo(oldCtx);
 
@@ -895,7 +1392,7 @@ startScan(IndexScanDesc scan)
 	 * checking if at least one key have not preConsistent method and use
 	 * regular scan.
 	 */
-	for (i = 0; i < so->nkeys; i++)
+	for (i = 0; i < so->nkeys && scanType != RumOrderedScan; i++)
 	{
 		RumScanKey key = so->keys[i];
 
@@ -1007,9 +1504,10 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 						 i;
 			Pointer ptr;
 			RumItem item;
-			bool searchBorder =
-				(ScanDirectionIsForward(entry->scanDirection) &&
-				 ItemPointerIsValid(&entry->curItem.iptr));
+			bool searchBorder;
+
+			searchBorder = (ScanDirectionIsForward(entry->scanDirection) &&
+							ItemPointerIsValid(&entry->curItem.iptr));
 
 			/*
 			 * It's needed to go by right link. During that we should refind
@@ -1076,6 +1574,12 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 					/* go on next page */
 					break;
 				}
+				if (maxoff == 0)
+				{
+					/* This page had 0 items, don't scan it and go to the next page */
+					break;
+				}
+
 				entry->offset = (ScanDirectionIsForward(entry->scanDirection)) ?
 								0 : entry->nlist - 1;
 			}
@@ -1103,7 +1607,6 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 	entry->buffer = InvalidBuffer;
 	RumItemSetMin(&entry->curItem);
 	entry->offset = InvalidOffsetNumber;
-	entry->list = NULL;
 	if (entry->gdi)
 	{
 		freeRumBtreeStack(entry->gdi->stack);
@@ -1160,6 +1663,7 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 	{
 		BlockNumber rootPostingTree = RumGetPostingTree(itup);
 		RumPostingTreeScan *gdi;
+		Page pageInner;
 		OffsetNumber maxoff,
 					 i;
 		Pointer ptr;
@@ -1190,19 +1694,21 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 		 * page during scan. See RUM's vacuum implementation. RefCount is
 		 * increased to keep buffer pinned after freeRumBtreeStack() call.
 		 */
-		page = BufferGetPage(entry->buffer);
+		pageInner = BufferGetPage(entry->buffer);
 		entry->predictNumberResult = gdi->stack->predictNumber *
-									 RumPageGetOpaque(page)->maxoff;
+									 RumPageGetOpaque(pageInner)->maxoff;
 
 		/*
 		 * Keep page content in memory to prevent durable page locking
 		 */
 		entry->list = (RumItem *) palloc(BLCKSZ * sizeof(RumItem));
-		maxoff = RumPageGetOpaque(page)->maxoff;
+		maxoff = RumPageGetOpaque(pageInner)->maxoff;
 		entry->nlist = maxoff;
 
-		ptr = RumDataPageGetData(page);
+		ptr = RumDataPageGetData(pageInner);
 
+		/* Ensure the first entry is 0 initialized */
+		memset(&entry->list[0], 0, sizeof(RumItem));
 		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 		{
 			ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
@@ -1277,6 +1783,7 @@ entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapsh
 		do {
 			RumScanItem collected;
 			RumScanItem *current_collected;
+			RumScanItem current_collected_wrapper_item;
 
 			/* We are finished, but should return last result */
 			if (ItemPointerIsMax(&entry->collectRumItem.item.iptr))
@@ -1303,10 +1810,40 @@ entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapsh
 			{
 				bool should_free;
 
-				current_collected = rum_tuplesort_getrumitem(
-					entry->matchSortstate,
-					ScanDirectionIsForward(entry->scanDirection) ? true : false,
-					&should_free);
+				if (entry->isMatchMinimalTuple)
+				{
+					bool forward = true;
+					ItemPointerData *current_collected_minimal_item;
+					current_collected_minimal_item = rum_tuplesort_getrumitem_minimal(
+						entry->matchSortstate,
+						forward,
+						&should_free);
+					if (current_collected_minimal_item == NULL)
+					{
+						current_collected = NULL;
+					}
+					else
+					{
+						current_collected_wrapper_item.item.iptr =
+							*current_collected_minimal_item;
+						current_collected_wrapper_item.item.addInfoIsNull = true;
+						current_collected_wrapper_item.keyValue = 0;
+						current_collected_wrapper_item.keyCategory = RUM_CAT_NULL_KEY;
+						current_collected = &current_collected_wrapper_item;
+						if (should_free)
+						{
+							pfree(current_collected_minimal_item);
+							should_free = false;
+						}
+					}
+				}
+				else
+				{
+					current_collected = rum_tuplesort_getrumitem(
+						entry->matchSortstate,
+						ScanDirectionIsForward(entry->scanDirection) ? true : false,
+						&should_free);
+				}
 
 				if (current_collected == NULL)
 				{
@@ -1392,6 +1929,7 @@ entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapsh
 					{
 						pfree(current_collected);
 					}
+
 					break;
 				}
 			}
@@ -1451,41 +1989,6 @@ entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapsh
 			}
 		}
 	}
-}
-
-
-/*
- * Identify the "current" item among the input entry streams for this scan key,
- * and test whether it passes the scan key qual condition.
- *
- * The current item is the smallest curItem among the inputs.  key->curItem
- * is set to that value.  key->curItemMatches is set to indicate whether that
- * TID passes the consistentFn test.  If so, key->recheckCurItem is set true
- * iff recheck is needed for this item pointer
- *
- * If all entry streams are exhausted, sets key->isFinished to true.
- *
- * Item pointers must be returned in ascending order.
- */
-static int
-compareRumItemScanDirection(RumState *rumstate, AttrNumber attno,
-							ScanDirection scanDirection,
-							RumItem *a, RumItem *b)
-{
-	int res = compareRumItem(rumstate, attno, a, b);
-
-	return (ScanDirectionIsForward(scanDirection)) ? res : -res;
-}
-
-
-static int
-compareCurRumItemScanDirection(RumState *rumstate, RumScanEntry entry,
-							   RumItem *minItem)
-{
-	return compareRumItemScanDirection(rumstate,
-									   entry->attnumOrig,
-									   entry->scanDirection,
-									   &entry->curItem, minItem);
 }
 
 
@@ -1707,6 +2210,7 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 		 * we'll move to the next possible entry.
 		 */
 		myAdvancePast = *item;
+		so->scanLoops++;
 	}
 
 	/*
@@ -1741,6 +2245,7 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 		}
 	}
 
+	so->scanLoops++;
 	return true;
 }
 
@@ -1763,7 +2268,7 @@ scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item, bool equalOk)
 	int cmp;
 	Page page = BufferGetPage(entry->buffer);
 
-	ItemPointerSetMin(&iter_item.iptr);
+	RumItemSetMin(&iter_item);
 
 	if (ScanDirectionIsForward(entry->scanDirection) && !RumPageRightMost(page))
 	{
@@ -2338,12 +2843,227 @@ scanGetItemFull(IndexScanDesc scan, RumItem *advancePast,
 }
 
 
+static bool
+MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
+{
+	Page page;
+	IndexTuple itup;
+	RumBtreeData btree;
+	Datum idatum;
+	RumNullCategory icategory;
+	bool needUnlock, isIndexMatch;
+	bool markedEntryFinished = false;
+	RumScanEntry entry = orderByKey->scanEntry[0];
+
+	Assert(entry->isFinished);
+	Assert(entry->orderStack);
+	Assert(ScanDirectionIsForward(entry->scanDirection));
+
+	entry->buffer = InvalidBuffer;
+	RumItemSetMin(&entry->curItem);
+	entry->offset = InvalidOffsetNumber;
+	entry->isFinished = false;
+
+	if (entry->list)
+	{
+		pfree(entry->list);
+		entry->list = NULL;
+		entry->nlist = 0;
+	}
+	if (entry->gdi)
+	{
+		freeRumBtreeStack(entry->gdi->stack);
+		pfree(entry->gdi);
+	}
+	entry->gdi = NULL;
+	entry->matchSortstate = NULL;
+	entry->reduceResult = false;
+	entry->predictNumberResult = 0;
+
+	rumPrepareEntryScan(&btree, entry->attnum,
+						entry->queryKey, entry->queryCategory,
+						&so->rumstate);
+
+	LockBuffer(entry->orderStack->buffer, RUM_SHARE);
+
+	for (;;)
+	{
+		/*
+		 * stack->off points to the interested entry, buffer is already locked
+		 */
+		if (!moveRightIfItNeeded(&btree, entry->orderStack))
+		{
+			ItemPointerSetInvalid(&entry->curItem.iptr);
+			entry->isFinished = true;
+			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			return false;
+		}
+
+		page = BufferGetPage(entry->orderStack->buffer);
+		itup = (IndexTuple) PageGetItem(page, PageGetItemId(page,
+															entry->orderStack->off));
+		needUnlock = true;
+
+		/*
+		 * If tuple stores another attribute then stop scan
+		 */
+		if (rumtuple_get_attrnum(btree.rumstate, itup) != entry->attnum)
+		{
+			ItemPointerSetInvalid(&entry->curItem.iptr);
+			entry->isFinished = true;
+			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			return false;
+		}
+
+		/* Check if the current tuple matches */
+		idatum = rumtuple_get_key(&so->rumstate, itup, &icategory);
+
+		markedEntryFinished = false;
+		isIndexMatch = ValidateIndexEntry(orderByKey, so, idatum, &markedEntryFinished);
+
+		if (orderByKey->isFinished)
+		{
+			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			return false;
+		}
+
+		if (!isIndexMatch)
+		{
+			if (markedEntryFinished)
+			{
+				/* Some scanEntry just got marked as finished - find the new minimum scanEntry */
+				RumScanEntry newMinEntry = getMinScanEntry(so);
+				if (newMinEntry != NULL)
+				{
+					int cmp = rumCompareEntries(&so->rumstate,
+												newMinEntry->attnum,
+												newMinEntry->queryKey,
+												newMinEntry->queryCategory,
+												idatum,
+												newMinEntry->queryCategory);
+
+					if (cmp > 0)
+					{
+						entry->queryKey = newMinEntry->queryKey;
+						LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+						freeRumBtreeStack(entry->orderStack);
+
+						/* start the orderedScan again with the new entry now */
+						startScanEntryOrderedCore(so, orderByKey, snapshot);
+						if (!entry->orderStack)
+						{
+							/* There is no entry left - close scan */
+							return false;
+						}
+						else
+						{
+							/* move right and continue */
+							LockBuffer(entry->orderStack->buffer, RUM_SHARE);
+							continue;
+						}
+					}
+
+					/* fall through to increment below as current value is better than the minKey available */
+				}
+			}
+
+			entry->orderStack->off++;
+			continue;
+		}
+
+		PrepareOrderedMatchedEntry(so, orderByKey, entry, snapshot, itup,
+								   entry->orderStack, &needUnlock);
+		if (entry->nlist == 0)
+		{
+			if (needUnlock)
+			{
+				LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			}
+
+			/* Dead tuple due to vacuum, move forward */
+			entry->orderStack->off++;
+			continue;
+		}
+
+		Assert(entry->nlist > 0 && entry->list);
+
+		entry->curItem = entry->list[entry->offset];
+		entry->offset += entry->scanDirection;
+
+		/*
+		 * Done with this entry, go to the next for the future.
+		 */
+		entry->orderStack->off++;
+
+		if (needUnlock)
+		{
+			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+		}
+
+		return true;
+	}
+}
+
+
+static bool
+scanGetItemOrdered(IndexScanDesc scan, RumItem *advancePast,
+				   RumItem *item, bool *recheck, bool *recheckOrderby)
+{
+	RumScanOpaque so = (RumScanOpaque) scan->opaque;
+	RumScanKey key;
+	RumScanEntry entry;
+
+	key = so->keys[so->orderByKeyIndex];
+
+	entry = key->scanEntry[0];
+
+	if (!entry->isFinished)
+	{
+		entryGetItem(&so->rumstate, entry, NULL, scan->xs_snapshot);
+	}
+
+	if (entry->isFinished)
+	{
+		/* See if we can move forward to the next entry */
+		if (entry->orderStack == NULL)
+		{
+			return false;
+		}
+
+		if (!MoveScanForward(so, key, scan->xs_snapshot))
+		{
+			return false;
+		}
+	}
+
+	*item = entry->curItem;
+
+	/* If we're rechecking the order by, also recheck the filters for good measure */
+	*recheck = key->recheckCurItem || key->recheckCurItemOrderBy;
+	*recheckOrderby = key->recheckCurItemOrderBy;
+
+	if (so->orderByHasRecheck)
+	{
+		for (int i = so->orderByKeyIndex; i < so->nkeys; i++)
+		{
+			RumScanKey orderByKey = so->keys[i];
+			if (orderByKey->orderBy && orderByKey->keyIndex >= 0)
+			{
+				scan->xs_orderbyvals[orderByKey->keyIndex] = orderByKey->curKey;
+				scan->xs_orderbynulls[orderByKey->keyIndex] = false;
+			}
+		}
+	}
+	return true;
+}
+
+
 /*
  * Get next item whether using regular or fast scan.
  */
 static bool
 scanGetItem(IndexScanDesc scan, RumItem *advancePast,
-			RumItem *item, bool *recheck)
+			RumItem *item, bool *recheck, bool *recheckOrderby)
 {
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 
@@ -2354,6 +3074,10 @@ scanGetItem(IndexScanDesc scan, RumItem *advancePast,
 	else if (so->scanType == RumFullScan)
 	{
 		return scanGetItemFull(scan, advancePast, item, recheck);
+	}
+	else if (so->scanType == RumOrderedScan)
+	{
+		return scanGetItemOrdered(scan, advancePast, item, recheck, recheckOrderby);
 	}
 	else
 	{
@@ -2370,7 +3094,7 @@ rumgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
 {
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 	int64 ntids = 0;
-	bool recheck;
+	bool recheck, recheckOrderbyIgnore;
 	RumItem item;
 
 	/*
@@ -2401,7 +3125,7 @@ rumgetbitmap(IndexScanDesc scan, TIDBitmap *tbm)
 	{
 		CHECK_FOR_INTERRUPTS();
 
-		if (!scanGetItem(scan, &item, &item, &recheck))
+		if (!scanGetItem(scan, &item, &item, &recheck, &recheckOrderbyIgnore))
 		{
 			break;
 		}
@@ -2441,6 +3165,11 @@ keyGetOrdering(RumState *rumstate, MemoryContext tempCtx, RumScanKey key,
 	}
 	else if (key->useCurKey)
 	{
+		if (rumstate->orderingFn[key->attnum - 1].fn_nargs != 3)
+		{
+			ereport(ERROR, (errmsg("Cannot order by curKey and have order by raw keys")));
+		}
+
 		Assert(key->nentries == 0);
 		Assert(key->nuserentries == 0);
 
@@ -2473,6 +3202,11 @@ keyGetOrdering(RumState *rumstate, MemoryContext tempCtx, RumScanKey key,
 			key->addInfoIsNull[i] = true;
 			key->entryRes[i] = false;
 		}
+	}
+
+	if (rumstate->orderingFn[key->attnum - 1].fn_nargs != 10)
+	{
+		ereport(ERROR, (errmsg("Cannot order by curKey and have order by raw keys")));
 	}
 
 	return DatumGetFloat8(FunctionCall10Coll(&rumstate->orderingFn[key->attnum - 1],
@@ -2612,6 +3346,7 @@ bool
 rumgettuple(IndexScanDesc scan, ScanDirection direction)
 {
 	bool recheck;
+	bool recheckOrderby;
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 	RumSortItem *item;
 	bool should_free;
@@ -2643,13 +3378,23 @@ rumgettuple(IndexScanDesc scan, ScanDirection direction)
 		}
 
 		startScan(scan);
-		if (so->naturalOrder == NoMovementScanDirection)
+		if (RumAllowOrderByRawKeys && so->scanType == RumOrderedScan)
+		{
+			so->useSimpleScan = true;
+		}
+		else if (so->norderbys == 0 &&
+				 so->scanType != RumFullScan && !so->rumstate.useAlternativeOrder)
+		{
+			/* We don't search here. */
+			so->useSimpleScan = true;
+		}
+		else if (so->naturalOrder == NoMovementScanDirection)
 		{
 			so->sortstate = rum_tuplesort_begin_rum(work_mem, so->norderbys,
 													false, so->scanType == RumFullScan);
 
 
-			while (scanGetItem(scan, &so->item, &so->item, &recheck))
+			while (scanGetItem(scan, &so->item, &so->item, &recheck, &recheckOrderby))
 			{
 				insertScanItem(so, recheck);
 			}
@@ -2657,13 +3402,27 @@ rumgettuple(IndexScanDesc scan, ScanDirection direction)
 		}
 	}
 
-	if (so->naturalOrder != NoMovementScanDirection)
+	if (so->useSimpleScan)
 	{
-		if (scanGetItem(scan, &so->item, &so->item, &recheck))
+		if (scanGetItem(scan, &so->item, &so->item, &recheck, &recheckOrderby))
 		{
 			SET_SCAN_TID(scan, so->item.iptr);
 			scan->xs_recheck = recheck;
-			scan->xs_recheckorderby = false;
+			scan->xs_recheckorderby = recheckOrderby;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	if (so->naturalOrder != NoMovementScanDirection)
+	{
+		if (scanGetItem(scan, &so->item, &so->item, &recheck, &recheckOrderby))
+		{
+			SET_SCAN_TID(scan, so->item.iptr);
+			scan->xs_recheck = recheck;
+			scan->xs_recheckorderby = recheckOrderby;
 
 			return true;
 		}

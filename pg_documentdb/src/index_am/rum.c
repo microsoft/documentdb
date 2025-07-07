@@ -48,7 +48,7 @@ extern BsonIndexAmEntry RumIndexAmEntry;
 static bool loaded_rum_routine = false;
 static IndexAmRoutine rum_index_routine = { 0 };
 
-RumIndexArrayStateFuncs *IndexArrayStateFuncs = NULL;
+const RumIndexArrayStateFuncs *IndexArrayStateFuncs = NULL;
 
 typedef enum IndexMultiKeyStatus
 {
@@ -75,6 +75,8 @@ typedef struct DocumentDBRumIndexState
 
 	bool isForcedOrderScan;
 } DocumentDBRumIndexState;
+
+typedef const RumIndexArrayStateFuncs *(*GetIndexArrayStateFuncsFunc)(void);
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
 
@@ -141,7 +143,7 @@ extensionrumhandler(PG_FUNCTION_ARGS)
 
 
 void
-RegisterIndexArrayStateFuncs(RumIndexArrayStateFuncs *funcs)
+RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs)
 {
 	if (IndexArrayStateFuncs != NULL)
 	{
@@ -287,6 +289,32 @@ LoadRumRoutine(void)
 	if (explain_index_func != NULL)
 	{
 		RumIndexAmEntry.add_explain_output = explain_index_func;
+	}
+
+	if (IndexArrayStateFuncs == NULL)
+	{
+		/* Try to see if the custom rum handler has support for multi-key indexes */
+		GetIndexArrayStateFuncsFunc get_index_array_state_funcs =
+			load_external_function(rumLibPath,
+								   "get_rum_index_array_state_funcs", missingOk,
+								   ignoreLibFileHandle);
+
+		if (get_index_array_state_funcs != NULL)
+		{
+			ereport(LOG, (errmsg(
+							  "Loaded RUM index array state functions successfully via the rum library")));
+			RegisterIndexArrayStateFuncs(get_index_array_state_funcs());
+		}
+		else
+		{
+			ereport(LOG, (errmsg(
+							  "RUM index array state functions not found, skipping registration")));
+		}
+	}
+	else
+	{
+		ereport(LOG, (errmsg(
+						  "RUM index array state functions already registered, skipping registration")));
 	}
 
 
