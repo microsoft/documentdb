@@ -142,3 +142,7 @@ test: collection_management
 # However, since the merge operation does not work within a transaction, 
 # we cannot set this GUC inside one. This is why the test is not being run concurrently.
 test: three_column_data_table
+
+# This needs to be by itself since it updates the documentdb schema to add order by functions
+# Once this is added to the central schema, it can be run concurrently
+test: bson_composite_order_by_index_tests

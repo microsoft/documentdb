@@ -10,6 +10,7 @@ OBJS = $(patsubst %.c,%.o,$(SOURCES)) $(WIN32RES)
 
 DATA = documentdb_rum--$(EXTVERSION).sql
 
+
 # INCLUDES = rum.h rumsort.h
 RELATIVE_INCLUDES = $(addprefix src/, $(INCLUDES))
 
@@ -21,3 +22,6 @@ include $(OSS_SRC_DIR)/Makefile.global
 override LDFLAGS_SL += -fvisibility=hidden -DHAVE_VISIBILITY_ATTRIBUTE=1
 override CFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1
 override CXXFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1
+
+
+clean-sql:

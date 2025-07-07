@@ -52,6 +52,7 @@ rumvalidate(Oid opclassoid)
 	OpFamilyOpFuncGroup *opclassgroup;
 	int i;
 	ListCell *lc;
+	bool hasRawOrderingProc = false;
 
 	/* Fetch opclass information */
 	classtup = SearchSysCache1(CLAOID, ObjectIdGetDatum(opclassoid));
@@ -244,6 +245,23 @@ rumvalidate(Oid opclassoid)
 												INTERNALOID, INTERNALOID,
 												INTERNALOID, INTERNALOID);
 				}
+				else if (RumAllowOrderByRawKeys)
+				{
+					ok = check_amproc_signature(procform->amproc, opcintype, false,
+												4, 4,
+												opckeytype, opcintype, INT2OID,
+												INTERNALOID);
+					if (!ok)
+					{
+						ok = check_amproc_signature(procform->amproc, FLOAT8OID, false,
+													3, 3,
+													opcintype, opcintype, INT2OID);
+					}
+					else
+					{
+						hasRawOrderingProc = true;
+					}
+				}
 				else
 				{
 					ok = check_amproc_signature(procform->amproc, FLOAT8OID, false,
@@ -329,6 +347,14 @@ rumvalidate(Oid opclassoid)
 							 opfamilyname,
 							 format_operator(oprform->amopopr))));
 				result = false;
+			}
+			else if (RumAllowOrderByRawKeys && hasRawOrderingProc &&
+					 oprform->amoplefttype != TSVECTOROID &&
+					 check_amop_signature(oprform->amopopr, opcintype,
+										  oprform->amoplefttype,
+										  oprform->amoprighttype))
+			{
+				/* This is allowed */
 			}
 
 			/* other types distance returns float8 */

@@ -56,7 +56,7 @@ typedef enum RumLibraryLoadOptions
 
 
 /* Registers an extensibility that handles index array deduplication */
-void RegisterIndexArrayStateFuncs(RumIndexArrayStateFuncs *funcs);
+void RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs);
 
 extern RumLibraryLoadOptions DocumentDBRumLibraryLoadOption;
 void LoadRumRoutine(void);

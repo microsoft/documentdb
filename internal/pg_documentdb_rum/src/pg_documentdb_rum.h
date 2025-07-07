@@ -222,6 +222,9 @@ typedef signed char RumNullCategory;
 #define RUM_CAT_NULL_ITEM 3             /* placeholder for null item */
 #define RUM_CAT_EMPTY_QUERY (-1)        /* placeholder for full-scan query */
 
+/* (Custom documentdb): This is net new from base RUM for ordering */
+#define RUM_CAT_ORDER_ITEM 4
+
 /*
  * Access macros for null category byte in entry tuples
  */
@@ -686,6 +689,10 @@ typedef struct RumScanKeyData
 	/* array of keys, used to scan using additional information as keys */
 	RumScanKey *addInfoKeys;
 	uint32 addInfoNKeys;
+
+	/* documentdb: New for rechecking order by */
+	bool recheckCurItemOrderBy;
+	int32_t keyIndex;
 }   RumScanKeyData;
 
 typedef struct RumScanEntryData
@@ -741,6 +748,12 @@ typedef struct RumScanEntryData
 	/* Find by AddInfo */
 	bool useMarkAddInfo;
 	RumItem markAddInfo;
+
+	/* for ordered scan in documentdb */
+	RumBtreeStack *orderStack;
+
+	/* Compare partial addition new for documentdb */
+	bool isMatchMinimalTuple;
 }   RumScanEntryData;
 
 typedef struct
@@ -754,7 +767,8 @@ typedef enum
 {
 	RumFastScan,
 	RumRegularScan,
-	RumFullScan
+	RumFullScan,
+	RumOrderedScan, /* documentdb: This is new */
 }   RumScanType;
 
 typedef struct RumScanOpaqueData
@@ -790,7 +804,17 @@ typedef struct RumScanOpaqueData
 	ScanDirection naturalOrder;
 	bool secondPass;
 
-	/* stateContext to hold state from rumstate (Pgmongo: This is new ) */
+	/* on a regular scan, how many loops of scans were done. */
+	uint32_t scanLoops;
+
+	/* In an ordered scan, the key pointing to the order by key */
+	int32_t orderByKeyIndex;
+	bool orderByHasRecheck;
+
+	/* documentdb: whether or not to use a simple scanGetNextItem in rumgettuple */
+	bool useSimpleScan;
+
+	/* stateContext to hold state from rumstate (documentdb: This is new ) */
 	MemoryContext rumStateCtx;
 }   RumScanOpaqueData;
 
@@ -869,6 +893,8 @@ extern RumItem * rumGetBAEntry(BuildAccumulator *accum,
 #define RUM_OUTER_ORDERING_PROC 9
 #define RUM_ADDINFO_JOIN 10
 #define RUM_INDEX_CONFIG_PROC 11
+
+/* NProcs changes for documentdb from 10 to 12 */
 #define RUMNProcs 12
 
 /* rum_arr_utils.c */
@@ -882,6 +908,7 @@ typedef enum SimilarityType
 #define RUM_SIMILARITY_FUNCTION_DEFAULT SMT_COSINE
 #define RUM_SIMILARITY_THRESHOLD_DEFAULT 0.5
 #define RUM_USE_NEW_VACUUM_SCAN true
+#define RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS true
 #define RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM true
 #define RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE false
 
@@ -890,6 +917,7 @@ typedef enum SimilarityType
 extern int RumFuzzySearchLimit;
 extern bool RumUseNewVacuumScan;
 extern int RumDataPageIntermediateSplitSize;
+extern bool RumAllowOrderByRawKeys;
 extern bool RumEnableRefindLeafOnEntryNextItem;
 extern bool RumThrowErrorOnInvalidDataPage;
 
