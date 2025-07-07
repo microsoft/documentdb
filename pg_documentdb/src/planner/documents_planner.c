@@ -170,7 +170,6 @@ DocumentDBApiPlanner(Query *parse, const char *queryString, int cursorOptions,
 		/* the collection replace needs to happen *after* the query rewrite. */
 		/* this is to handle cases where there's an invalid query against a collection */
 		/* that doesn't exist. We need to error out from the invalid query first */
-		/* (see count11.js) */
 		if (queryFlags & HAS_DOCUMENTDB_COLLECTION_RTE)
 		{
 			parse = ReplaceDocumentDbCollectionFunction(parse, boundParams,
