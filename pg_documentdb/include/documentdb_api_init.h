@@ -16,4 +16,5 @@ void UninstallDocumentDBApiPostgresHooks(void);
 void InitializeDocumentDBBackgroundWorker(char *libraryName, char *gucPrefix,
 										  char *extensionObjectPrefix);
 void InitializeSharedMemoryHooks(void);
+void InitializeBackgroundWorkerJobAllowedCommands(void);
 #endif

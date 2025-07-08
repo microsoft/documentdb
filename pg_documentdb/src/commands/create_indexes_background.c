@@ -135,6 +135,7 @@ PG_FUNCTION_INFO_V1(command_create_indexes_background_internal);
 PG_FUNCTION_INFO_V1(command_check_build_index_status);
 PG_FUNCTION_INFO_V1(command_check_build_index_status_internal);
 PG_FUNCTION_INFO_V1(schedule_background_index_build_jobs);
+PG_FUNCTION_INFO_V1(build_index_background);
 
 static pgbson * RunIndexCommandOnMetadataCoordinator(const char *query, int
 													 expectedSpiOk);
@@ -209,6 +210,18 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
 		build_index_concurrently_from_indexqueue_core(fcinfo->flinfo->fn_mcxt);
 	}
 
+	PG_RETURN_VOID();
+}
+
+
+/*
+ * Drop-in replacement for build_index_concurrently. This will be called periodically by the
+ * background worker framework and will coexist with the previous UDF until it reaches
+ * stability.
+ */
+Datum
+build_index_background(PG_FUNCTION_ARGS)
+{
 	PG_RETURN_VOID();
 }
 

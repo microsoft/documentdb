@@ -132,6 +132,8 @@ function SetupPostgresConfigurations()
   requiredLibraries="pg_cron, ${preloadLibraries}";
   echo shared_preload_libraries = \'$requiredLibraries\' | tee -a $installdir/postgresql.conf
   echo cron.database_name = \'postgres\' | tee -a $installdir/postgresql.conf
+  echo documentdb.enableBackgroundWorker = 'true' | tee -a $installdir/postgresql.conf
+  echo documentdb.enableBackgroundWorkerJobs = 'true' | tee -a $installdir/postgresql.conf
   echo ssl = off | tee -a $installdir/postgresql.conf
 }
 

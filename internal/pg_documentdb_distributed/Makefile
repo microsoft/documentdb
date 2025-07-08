@@ -29,8 +29,10 @@ API_DISTRIBUTED_SCHEMA_NAME=documentdb_api_distributed
 API_DATA_SCHEMA_NAME=documentdb_data
 API_ADMIN_ROLE=documentdb_admin_role
 API_READONLY_ROLE=documentdb_readonly_role
+API_BG_WORKER_ROLE=documentdb_bg_worker_role
 EXTENSION_OBJECT_PREFIX=documentdb
 API_GUC_PREFIX=documentdb
+API_GUC_PREFIX_V2=documentdb
 
 # TODO: Need to remove this with PG16 and expose only valid exports
 ALLOW_DEFAULT_VISIBILITY=yes

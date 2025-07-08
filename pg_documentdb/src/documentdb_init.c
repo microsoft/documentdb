@@ -17,6 +17,7 @@
 
 #include "documentdb_api_init.h"
 #include "metadata/metadata_guc.h"
+#include "metadata/metadata_cache.h"
 #include "planner/documentdb_planner.h"
 #include "customscan/custom_scan_registrations.h"
 #include "commands/connection_management.h"
@@ -27,6 +28,7 @@
 #include "configs/config_initialization.h"
 #include "index_am/documentdb_rum.h"
 #include "infrastructure/cursor_store.h"
+#include "background_worker/background_worker_job.h"
 
 /* --------------------------------------------------------- */
 /* Data Types & Enum values */
@@ -43,7 +45,7 @@ bool ShouldUpgradeDataTables = true;
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
-
+extern void RegisterBackgroundWorkerJobAllowedCommand(BackgroundWorkerJobCommand command);
 
 /* callbacks for transaction management */
 static void DocumentDBTransactionCallback(XactEvent event, void *arg);
@@ -165,6 +167,24 @@ InitializeSharedMemoryHooks(void)
 	shmem_startup_hook = DocumentDBSharedMemoryInit;
 	prev_shmem_request_hook = shmem_request_hook;
 	shmem_request_hook = DocumentDBSharedMemoryRequest;
+}
+
+
+/*
+ * Registers allowed background worker job commands.
+ */
+void
+InitializeBackgroundWorkerJobAllowedCommands(void)
+{
+	BackgroundWorkerJobCommand expiredRows = {
+		.name = "delete_expired_rows_background", .schema = ApiInternalSchemaName
+	};
+	RegisterBackgroundWorkerJobAllowedCommand(expiredRows);
+
+	BackgroundWorkerJobCommand buildIndexConcurrently = {
+		.name = "build_index_background", .schema = ApiInternalSchemaName
+	};
+	RegisterBackgroundWorkerJobAllowedCommand(buildIndexConcurrently);
 }
 
 
