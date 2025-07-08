@@ -76,6 +76,7 @@ static bool IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime);
 
 PG_FUNCTION_INFO_V1(delete_expired_rows_for_index);
 PG_FUNCTION_INFO_V1(delete_expired_rows);
+PG_FUNCTION_INFO_V1(delete_expired_rows_background);
 
 /*
  * delete_expired_rows deletes a batch of expired documents for an input ttl index.
@@ -490,6 +491,18 @@ end:
 	}
 
 	MemoryContextSwitchTo(oldContext);
+	PG_RETURN_VOID();
+}
+
+
+/*
+ * Drop-in replacement for delete_expired_rows. This will be called periodically by the
+ * background worker framework and will coexist with the previous UDF until it reaches
+ * stability.
+ */
+Datum
+delete_expired_rows_background(PG_FUNCTION_ARGS)
+{
 	PG_RETURN_VOID();
 }
 

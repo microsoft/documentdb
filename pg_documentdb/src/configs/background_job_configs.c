@@ -43,6 +43,12 @@ int SingleTTLTaskTimeBudget = DEFAULT_SINGLE_TTL_TASK_TIME_BUDGET;
 #define DEFAULT_ENABLE_BG_WORKER false
 bool EnableBackgroundWorker = DEFAULT_ENABLE_BG_WORKER;
 
+#define DEFAULT_ENABLE_BG_WORKER_JOBS false
+bool EnableBackgroundWorkerJobs = DEFAULT_ENABLE_BG_WORKER_JOBS;
+
+#define DEFAULT_BG_WORKER_JOB_TIMEOUT_THRESHOLD_SEC 300
+int BackgroundWorkerJobTimeoutThresholdSec = DEFAULT_BG_WORKER_JOB_TIMEOUT_THRESHOLD_SEC;
+
 #define DEFAULT_BG_DATABASE_NAME "postgres"
 char *BackgroundWorkerDatabaseName = DEFAULT_BG_DATABASE_NAME;
 
@@ -51,7 +57,6 @@ int LatchTimeOutSec = DEFAULT_BG_LATCH_TIMEOUT_SEC;
 
 #define DEFAULT_LOG_TTL_PROGRESS_ACTIVITY false
 bool LogTTLProgressActivity = DEFAULT_LOG_TTL_PROGRESS_ACTIVITY;
-
 
 void
 InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPrefix)
@@ -150,6 +155,22 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 		gettext_noop("Enable the extension Background worker."),
 		NULL, &EnableBackgroundWorker, DEFAULT_ENABLE_BG_WORKER,
 		PGC_SUSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableBackgroundWorkerJobs", newGucPrefix),
+		gettext_noop("Enable the execution of the pre-defined background worker jobs."),
+		NULL, &EnableBackgroundWorkerJobs, DEFAULT_ENABLE_BG_WORKER_JOBS,
+		PGC_SUSET, 0, NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.backgroundWorkerJobTimeoutThresholdSec", newGucPrefix),
+		gettext_noop(
+			"Maximum allowed value in seconds for a background worker job timeout."),
+		NULL, &BackgroundWorkerJobTimeoutThresholdSec,
+		DEFAULT_BG_WORKER_JOB_TIMEOUT_THRESHOLD_SEC, 1, INT_MAX,
+		PGC_USERSET,
+		0,
+		NULL, NULL, NULL);
 }
 
 

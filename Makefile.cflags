@@ -82,12 +82,20 @@ ifneq ($(SKIP_API_SCHEMA),yes)
     $(error API_READONLY_ROLE is not set)
     endif
 
+    ifndef API_BG_WORKER_ROLE
+    $(error API_BG_WORKER_ROLE is not set)
+    endif
+
     ifndef POSTGIS_SCHEMA_NAME
     $(error POSTGIS_SCHEMA_NAME is not set)
     endif
 
     ifndef API_GUC_PREFIX
     $(error API_GUC_PREFIX is not set)
+    endif
+
+    ifndef API_GUC_PREFIX_V2
+    $(error API_GUC_PREFIX_V2 is not set)
     endif
 
     EXTENSION_SQL_ONLY_DEFINES = -D__API_CATALOG_SCHEMA__=$(API_CATALOG_SCHEMA_NAME) \
@@ -100,8 +108,10 @@ ifneq ($(SKIP_API_SCHEMA),yes)
                                  -D__API_ADMIN_ROLE__=$(API_ADMIN_ROLE) \
                                  -D__API_ADMIN_ROLE_V2__=$(API_ADMIN_ROLE_V2) \
                                  -D__API_READONLY_ROLE__=$(API_READONLY_ROLE) \
+                                 -D__API_BG_WORKER_ROLE__=$(API_BG_WORKER_ROLE) \
                                  -D__POSTGIS_SCHEMA_NAME__=$(POSTGIS_SCHEMA_NAME) \
-                                 -D__API_GUC_PREFIX__=$(API_GUC_PREFIX)
+                                 -D__API_GUC_PREFIX__=$(API_GUC_PREFIX) \
+                                 -D__API_GUC_PREFIX_V2__=$(API_GUC_PREFIX_V2)
 endif
 
 ifdef API_DISTRIBUTED_SCHEMA_NAME

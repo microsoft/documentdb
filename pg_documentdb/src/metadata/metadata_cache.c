@@ -111,6 +111,7 @@ PGDLLEXPORT char *ApiDataSchemaName = "documentdb_data";
 PGDLLEXPORT char *ApiAdminRole = "documentdb_admin_role";
 PGDLLEXPORT char *ApiAdminRoleV2 = "documentdb_admin_role";
 PGDLLEXPORT char *ApiReadOnlyRole = "documentdb_readonly_role";
+PGDLLEXPORT char *ApiBgWorkerRole = "documentdb_bg_worker_role";
 PGDLLEXPORT char *ApiSchemaName = "documentdb_api";
 PGDLLEXPORT char *ApiSchemaNameV2 = "documentdb_api";
 PGDLLEXPORT char *ApiInternalSchemaName = "documentdb_api_internal";

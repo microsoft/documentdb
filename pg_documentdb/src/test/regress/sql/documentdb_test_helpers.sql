@@ -11,6 +11,9 @@ CREATE EXTENSION documentdb CASCADE;
 -- binary version should return the installed version after recreating the extension
 SELECT documentdb_api.binary_version() = (SELECT REPLACE(extversion, '-', '.') FROM pg_extension where extname = 'documentdb_core');
 
+-- validate background worker is launched
+SELECT application_name FROM pg_stat_activity WHERE application_name = 'documentdb_bg_worker_leader';
+
 -- query documentdb_api_catalog.collection_indexes for given collection
 CREATE OR REPLACE FUNCTION documentdb_test_helpers.get_collection_indexes(
     p_database_name text,

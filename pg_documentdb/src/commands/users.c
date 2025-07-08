@@ -294,8 +294,8 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	const char *cmdStr = FormatSqlQuery(
 		"SELECT COUNT(*) FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN pg_roles child " \
 		"ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') " \
-		"AND child.rolname NOT IN ('%s', '%s');", ApiAdminRoleV2, ApiReadOnlyRole,
-		ApiAdminRoleV2, ApiReadOnlyRole);
+		"AND child.rolname NOT IN ('%s', '%s', '%s');", ApiAdminRoleV2, ApiReadOnlyRole,
+		ApiAdminRoleV2, ApiReadOnlyRole, ApiBgWorkerRole);
 
 	bool readOnly = true;
 	bool isNull = false;
@@ -1932,8 +1932,8 @@ GetAllUsersInfo(void)
 	const char *cmdStr = FormatSqlQuery(
 		"WITH r AS (SELECT child.rolname::text AS child_role, parent.rolname::text AS parent_role FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN " \
 		"pg_roles child ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') AND child.rolname NOT IN " \
-		"('%s', '%s')) SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY child_role) FROM r;",
-		ApiAdminRoleV2, ApiReadOnlyRole, ApiAdminRoleV2, ApiReadOnlyRole,
+		"('%s', '%s', '%s')) SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY child_role) FROM r;",
+		ApiAdminRoleV2, ApiReadOnlyRole, ApiAdminRoleV2, ApiReadOnlyRole, ApiBgWorkerRole,
 		CoreSchemaName);
 
 	bool readOnly = true;

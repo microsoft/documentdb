@@ -48,6 +48,8 @@ _PG_init(void)
 	InitApiConfigurations("documentdb", "documentdb");
 	InitializeSharedMemoryHooks();
 	MarkGUCPrefixReserved("documentdb");
+
+	InitializeBackgroundWorkerJobAllowedCommands();
 	InitializeDocumentDBBackgroundWorker("pg_documentdb", "documentdb", "documentdb");
 
 	InstallDocumentDBApiPostgresHooks();
