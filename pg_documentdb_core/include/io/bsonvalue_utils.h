@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * include/bson/bsonvalue_utils.h
+ * include/io/bsonvalue_utils.h
  *
  * Core helper function declarations for bsonValues.
  *

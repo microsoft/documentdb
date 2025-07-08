@@ -1,12 +1,12 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/io/bsonsequence_io.c
+ * src/io/bsonsequence_io.c
  *
  * Implementation of the BSON Sequence type input and output functions
  * and manipulating BSON Sequences.
  *
- * Note that BsonSequences are raw streams of bson used in I/O in native Mongo.
+ * Note that BsonSequences are raw streams of bson used in I/O in the native protocol.
  * See http://mongoc.org/libbson/current/bson_reader_t.html
  *
  *-------------------------------------------------------------------------

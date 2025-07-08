@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/types/pcre_regex.c
+ * src/types/pcre_regex.c
  *
  * PCRE2 wrappers (Perl Compatible Regular Expression)
  *

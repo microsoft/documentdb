@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * include/bson/pgbsonelement.h
+ * include/io/pgbsonelement.h
  *
  * The BSON element type declaration.
  *
