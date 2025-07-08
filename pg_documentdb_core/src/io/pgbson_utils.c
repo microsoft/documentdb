@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/io/pgbson_utils.c
+ * src/io/pgbson_utils.c
  *
  * Implementation of internal helpers for the BSON type.
  *
@@ -869,7 +869,7 @@ AddDoubleToValue(bson_value_t *current, double value)
 	}
 	else
 	{
-		/* We match native mongo behavior, which doesn't coerce to decimal128
+		/* We match protocol behavior, which doesn't coerce to decimal128
 		 * in case of overflow and just returns infinity which is the same
 		 * behavior in C in case of double overflow. */
 		double currentValue = BsonValueAsDouble(current);
@@ -960,7 +960,7 @@ TraverseBsonCore(bson_iter_t *documentIterator, const StringView *traversePath,
 		}
 
 		/* if the last field is an array, compare the value against the elements in the array as well.
-		 * Note that mongo does not traverse arrays of arrays, so if the caller is an array, skip this
+		 * Note that protocol does not traverse arrays of arrays, so if the caller is an array, skip this
 		 * recursion.
 		 */
 		if (BSON_ITER_HOLDS_ARRAY(documentIterator) &&

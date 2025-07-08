@@ -4,7 +4,7 @@
  *
  * include/utils/date_utils.h
  *
- * Definitions for utilities related to dates and Mongo Date types.
+ * Definitions for utilities related to dates and date types.
  *
  *-------------------------------------------------------------------------
  */
@@ -22,7 +22,7 @@ static const char *dateUnitStr[9] = {
 	"year", "quarter", "month", "week", "day", "hour", "minute", "second", "millisecond"
 };
 
-/* Enum which defines the possible units which mongo supports for BSON date types */
+/* Enum which defines the possible units for BSON date types */
 typedef enum DateUnit
 {
 	DateUnit_Invalid = 0,

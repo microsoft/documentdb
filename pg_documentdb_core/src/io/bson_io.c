@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/io/bson_io.c
+ * src/io/bson_io.c
  *
  * Implementation of the BSON type input and output functions and manipulating BSON.
  *

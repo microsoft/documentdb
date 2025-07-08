@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/io/pgbson.c
+ * src/io/pgbson.c
  *
  * The BSON type serialization.
  *
@@ -187,7 +187,7 @@ PgbsonToHexadecimalString(const pgbson *bsonDocument)
 
 
 /*
- * Initializes a pgbson structure from a mongodb extended json
+ * Initializes a pgbson structure from an extended json
  * syntax string.
  */
 pgbson *
@@ -208,8 +208,7 @@ PgbsonInitFromJson(const char *jsonString)
 
 
 /*
- * PgbsonToJsonForLogging converts a pgbson structure to a mongodb
- * extended json syntax string.
+ * PgbsonToJsonForLogging converts a pgbson structure to an extended json syntax string.
  */
 const char *
 PgbsonToJsonForLogging(const pgbson *bsonDocument)
@@ -227,8 +226,7 @@ PgbsonToJsonForLogging(const pgbson *bsonDocument)
 
 
 /*
- * BsonValueToJsonForLogging converts a bson_value structure to a mongodb
- * extended json syntax string.
+ * BsonValueToJsonForLogging converts a bson_value structure to an extended json syntax string.
  */
 const char *
 BsonValueToJsonForLogging(const bson_value_t *value)
@@ -415,7 +413,7 @@ FormatBsonValueForShellLogging(const bson_value_t *bson)
 
 
 /*
- * Converts a pgbson structure to a mongodb extended json
+ * Converts a pgbson structure to an extended json
  * syntax string.
  */
 const char *

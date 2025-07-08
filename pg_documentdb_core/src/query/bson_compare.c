@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/bson_compare.c
+ * src/query/bson_compare.c
  *
  * Implementation of the BSON type comparisons.
  *
@@ -419,7 +419,7 @@ BsonValueEqualsWithCollation(const bson_value_t *left, const bson_value_t *right
 
 /*
  * checks if two bson values are equal.
- * types are compared using mongo semantics, so comparing 1 to 1.0 will return true.
+ * types are compared using semantics, so comparing 1 to 1.0 will return true.
  */
 bool
 BsonValueEquals(const bson_value_t *left, const bson_value_t *right)
@@ -481,7 +481,7 @@ BsonValueEqualsStrictWithCollation(const bson_value_t *left,
 
 
 /*
- * Compares two bson values by mongo semantics.
+ * Compares two bson values by semantics.
  * Returns 0 if the two values are equal
  * Returns 1 if left > right
  * Returns -1 if left < right.
@@ -505,7 +505,7 @@ CompareBsonValueAndType(const bson_value_t *left, const bson_value_t *right,
 
 
 /*
- * Compares two bson values by mongo semantics.
+ * Compares two bson values by semantics.
  * Returns 0 if the two values are equal
  * Returns 1 if left > right
  * Returns -1 if left < right.

@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation.  All rights reserved.
  *
- * src/bson/io/pgbsonelement.c
+ * src/io/pgbsonelement.c
  *
  * The BSON Element type implementation.
  *
