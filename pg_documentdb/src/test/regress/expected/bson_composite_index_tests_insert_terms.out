@@ -401,3 +401,78 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
  { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
 (4 rows)
 
+-- test that we can create side by side non composite and composite indexes with the same key when forcing composite op class.
+set documentdb.defaultUseCompositeOpClass to off;
+select documentdb_api.drop_database('comp_db');
+ drop_database 
+---------------
+ 
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1", "key": { "a": 1 } } ] }');
+NOTICE:  creating collection
+                                                                                                   create_indexes_non_concurrently                                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1", "key": { "a": -1} } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "3" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+set documentdb.defaultUseCompositeOpClass to on;
+set documentdb.enableDescendingCompositeIndex to on;
+-- name collision still fails
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1", "key": { "a": 1 } } ] }', TRUE);
+ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1", "enableCompositeTerm" : 1 }, existing index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1" }
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1", "key": { "a": -1 } } ] }', TRUE);
+ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1", "enableCompositeTerm" : 1 }, existing index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1" }
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_comp", "key": { "a": 1 } } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "3" }, "numIndexesAfter" : { "$numberInt" : "4" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1_comp", "key": { "a": -1} } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "4" }, "numIndexesAfter" : { "$numberInt" : "5" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "_id_1_comp", "key": { "_id": 1} } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "5" }, "numIndexesAfter" : { "$numberInt" : "6" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT collection_id as collid FROM documentdb_api_catalog.collections where database_name = 'comp_db' and collection_name = 'comp_collection' \gset 
+SELECT index_spec FROM documentdb_api_catalog.collection_indexes where collection_id = :'collid'::int4;
+                                                         index_spec                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ (_id_,"{ ""_id"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,)
+ (a_1,"{ ""a"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,)
+ (a_-1,"{ ""a"" : { ""$numberInt"" : ""-1"" } }",,,,,2,,,)
+ (a_1_comp,"{ ""a"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
+ (a_-1_comp,"{ ""a"" : { ""$numberInt"" : ""-1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
+ (_id_1_comp,"{ ""_id"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
+(6 rows)
+
+-- creating two with composite and different names fails
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_comp_2", "key": { "a": 1 } } ] }', TRUE);
+ERROR:  Index already exists with a different name: a_1_comp
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1_comp_2", "key": { "a": -1 } } ] }', TRUE);
+ERROR:  Index already exists with a different name: a_-1_comp
+set documentdb.defaultUseCompositeOpClass to off;
+set documentdb.enableNewCompositeIndexOpClass to off;
+set documentdb.enableDescendingCompositeIndex to off;

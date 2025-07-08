@@ -118,3 +118,41 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$in": [ 1, 2 ] }, "b": { "$in": [ true, false ] } } }');
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": { "$in": [ 1, 2 ] }, "a": { "$lt": 2 }, "b": { "$in": [ true, false ] } } }');
+
+-- test that we can create side by side non composite and composite indexes with the same key when forcing composite op class.
+set documentdb.defaultUseCompositeOpClass to off;
+select documentdb_api.drop_database('comp_db');
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1", "key": { "a": 1 } } ] }');
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1", "key": { "a": -1} } ] }', TRUE);
+
+set documentdb.defaultUseCompositeOpClass to on;
+set documentdb.enableDescendingCompositeIndex to on;
+
+-- name collision still fails
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1", "key": { "a": 1 } } ] }', TRUE);
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1", "key": { "a": -1 } } ] }', TRUE);
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_comp", "key": { "a": 1 } } ] }', TRUE);
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1_comp", "key": { "a": -1} } ] }', TRUE);
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "_id_1_comp", "key": { "_id": 1} } ] }', TRUE);
+
+SELECT collection_id as collid FROM documentdb_api_catalog.collections where database_name = 'comp_db' and collection_name = 'comp_collection' \gset 
+SELECT index_spec FROM documentdb_api_catalog.collection_indexes where collection_id = :'collid'::int4;
+
+-- creating two with composite and different names fails
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_comp_2", "key": { "a": 1 } } ] }', TRUE);
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1_comp_2", "key": { "a": -1 } } ] }', TRUE);
+
+set documentdb.defaultUseCompositeOpClass to off;
+set documentdb.enableNewCompositeIndexOpClass to off;
+set documentdb.enableDescendingCompositeIndex to off;

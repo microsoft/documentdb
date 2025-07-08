@@ -1947,15 +1947,26 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 	}
 
-	if (indexDef->enableCompositeTerm == BoolIndexOption_True)
+	if (indexDef->enableCompositeTerm == BoolIndexOption_True ||
+		(indexDef->enableCompositeTerm == BoolIndexOption_Undefined &&
+		 EnableNewCompositeIndexOpclass && DefaultUseCompositeOpClass))
 	{
+		bool shouldError = indexDef->enableCompositeTerm == BoolIndexOption_True;
+
+		indexDef->key->canSupportCompositeTerm = true;
+
 		ReportFeatureUsage(FEATURE_CREATE_INDEX_COMPOSITE_BASED_TERM);
 
 		if (indexDef->key->isWildcard)
 		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-							errmsg(
-								"enableCompositeTerm is not supported with wildcard indexes.")));
+			indexDef->key->canSupportCompositeTerm = false;
+
+			if (shouldError)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is not supported with wildcard indexes.")));
+			}
 		}
 
 		ListCell *keyCell;
@@ -1964,24 +1975,44 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			IndexDefKeyPath *keyPath = lfirst(keyCell);
 			if (keyPath->indexKind != MongoIndexKind_Regular)
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg(
-									"enableCompositeTerm is only supported with regular indexes.")));
+				indexDef->key->canSupportCompositeTerm = false;
+
+				if (shouldError)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"enableCompositeTerm is only supported with regular indexes.")));
+				}
 			}
 
 			if (keyPath->isWildcard)
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg(
-									"enableCompositeTerm is not supported with wildcard indexes.")));
+				indexDef->key->canSupportCompositeTerm = false;
+
+				if (shouldError)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"enableCompositeTerm is not supported with wildcard indexes.")));
+				}
 			}
 
 			if (keyPath->sortDirection != 1 && !EnableDescendingCompositeIndex)
 			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg(
-									"enableCompositeTerm is only supported with ascending sort direction.")));
+				indexDef->key->canSupportCompositeTerm = false;
+
+				if (shouldError)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+									errmsg(
+										"enableCompositeTerm is only supported with ascending sort direction.")));
+				}
 			}
+		}
+
+		if (indexDef->key->canSupportCompositeTerm)
+		{
+			indexDef->enableCompositeTerm = BoolIndexOption_True;
 		}
 	}
 
@@ -5329,10 +5360,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 	}
 	else if (EnableNewCompositeIndexOpclass &&
 			 enableCompositeOpClass &&
-			 !unique && !indexDefKey->isWildcard &&
-			 !indexDefKey->hasTextIndexes && !indexDefKey->hasHashedIndexes &&
-			 !indexDefKey->has2dIndex && !indexDefKey->has2dsphereIndex &&
-			 (!indexDefKey->hasDescendingIndex || EnableDescendingCompositeIndex))
+			 !unique && indexDefKey->canSupportCompositeTerm)
 	{
 		if (indexDefWildcardProjTree)
 		{

@@ -100,6 +100,9 @@ typedef struct
 	/* Whether or not index path has descending indexes */
 	bool hasDescendingIndex;
 
+	/* Whether or not the key def can support the composite term. */
+	bool canSupportCompositeTerm;
+
 	/*
 	 * List of IndexDefKeyPath where each path represents a particular
 	 * field/path being indexed if it's not a wildcard index. For example,

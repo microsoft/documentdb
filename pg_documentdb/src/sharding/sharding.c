@@ -27,11 +27,13 @@
 #include "commands/commands_common.h"
 #include "metadata/collection.h"
 #include "collation/collation.h"
+#include "utils/guc_utils.h"
 
 extern bool EnableNativeColocation;
 extern int ShardingMaxChunks;
 extern bool RecreateRetryTableOnSharding;
 extern bool UseNewShardKeyCalculation;
+extern char *ApiGucPrefixV2;
 
 /* Metadata about shard keys - this is unchanged through
  * iterating though the query for the shard key.
@@ -1641,6 +1643,12 @@ ShardCollectionCore(ShardCollectionArgs *args)
 
 		/* Re-create valid indexes. */
 		pgbson *createIndexesMsg = PgbsonWriterGetPgbson(&createIndexesArgWriter);
+
+
+		/* Disable force GUCs and just follow the create index spec. */
+		int savedGUCLevel = NewGUCNestLevel();
+		SetGUCLocally(psprintf("%s.defaultUseCompositeOpClass", ApiGucPrefixV2), "false");
+
 		CreateIndexesArg createIndexesArg = ParseCreateIndexesArg(databaseDatum,
 																  createIndexesMsg);
 		bool skipCheckCollectionCreate = createIndexesArg.blocking;
@@ -1649,6 +1657,8 @@ ShardCollectionCore(ShardCollectionArgs *args)
 		/* We call it good if it doesn't throw. */
 		create_indexes_non_concurrently(databaseDatum, createIndexesArg,
 										skipCheckCollectionCreate, uniqueIndexOnly);
+
+		RollbackGUCChange(savedGUCLevel);
 	}
 }
 
