@@ -58,6 +58,10 @@ Optional arguments:
                         Files will be executed in alphabetical order using mongosh.
                         Defaults to /docker-entrypoint-initdb.d
                         Overrides INIT_DATA_PATH environment variable.
+  --init-data           Enable initialization with built-in sample data.
+                        Creates sample collections (users, products, orders, analytics) in 'sampledb' database.
+                        Defaults to false.
+                        Overrides INIT_DATA environment variable.
                         
 EOF
 }
@@ -151,6 +155,11 @@ do
         export INIT_DATA_PATH=$1
         shift;;
 
+    --init-data)
+        shift
+        export INIT_DATA=$1
+        shift;;
+
     -*)
         echo "Unknown option $1"
         exit 1;; 
@@ -167,6 +176,7 @@ export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
 export INIT_DATA_PATH=${INIT_DATA_PATH:-/docker-entrypoint-initdb.d}
+export INIT_DATA=${INIT_DATA:-false}
 
 # Validate required parameters
 if [ -z "${PASSWORD:-}" ]; then
@@ -228,6 +238,13 @@ if [ -n "$LOG_LEVEL" ] && \
    [ "$LOG_LEVEL" != "debug" ] && \
    [ "$LOG_LEVEL" != "trace" ]; then
     echo "Invalid log level value $LOG_LEVEL, must be one of: quiet, error, warn, info, debug, trace"
+    exit 1
+fi
+
+if [ -n "$INIT_DATA" ] && \
+   [ "$INIT_DATA" != "true" ] && \
+   [ "$INIT_DATA" != "false" ]; then
+    echo "Invalid init-data value $INIT_DATA, must be true or false"
     exit 1
 fi
 
@@ -324,6 +341,7 @@ echo "Waiting for gateway to be ready..."
 sleep 10
 
 # Initialize database with custom data if directory exists and contains JS files
+custom_data_initialized=false
 if [ -d "$INIT_DATA_PATH" ] && [ "$(ls -A "$INIT_DATA_PATH"/*.js 2>/dev/null)" ]; then
     echo "Initializing database with custom data from: $INIT_DATA_PATH"
     
@@ -332,10 +350,47 @@ if [ -d "$INIT_DATA_PATH" ] && [ "$(ls -A "$INIT_DATA_PATH"/*.js 2>/dev/null)" ]
     if [ -f "$init_script" ]; then
         echo "Using custom initialization data from: $INIT_DATA_PATH"
         "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$INIT_DATA_PATH" -v
-        echo "Database initialization completed."
+        echo "Custom data initialization completed."
+        custom_data_initialized=true
     else
         echo "Warning: Initialization script not found at $init_script"
     fi
+fi
+
+# Initialize database with sample data if enabled
+if [ "$INIT_DATA" = "true" ]; then
+    echo "Initializing database with built-in sample data..."
+    
+    # Use the sample data directory
+    sample_data_path="/home/documentdb/gateway/sample-data"
+    init_script="/home/documentdb/gateway/scripts/init_documentdb_data.sh"
+    
+    if [ -f "$init_script" ] && [ -d "$sample_data_path" ]; then
+        echo "Loading sample data from: $sample_data_path"
+        "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$sample_data_path" -v
+        echo "Sample data initialization completed."
+        echo ""
+        echo "Sample data has been loaded into the 'sampledb' database with the following collections:"
+        echo "  - users (5 sample users)"
+        echo "  - products (5 sample products)"  
+        echo "  - orders (4 sample orders)"
+        echo "  - analytics (sample metrics and activity data)"
+        echo ""
+        echo "Connect to your DocumentDB instance and use: use('sampledb')"
+    else
+        echo "Warning: Sample data or initialization script not found"
+        if [ ! -f "$init_script" ]; then
+            echo "  - Missing: $init_script"
+        fi
+        if [ ! -d "$sample_data_path" ]; then
+            echo "  - Missing: $sample_data_path"
+        fi
+    fi
+fi
+
+if [ "$custom_data_initialized" = "false" ] && [ "$INIT_DATA" = "false" ]; then
+    echo "No initialization data loaded. Use --init-data-path to provide custom initialization scripts"
+    echo "or --init-data=true to load built-in sample data."
 fi
 
 # Wait for the gateway process to keep the container alive

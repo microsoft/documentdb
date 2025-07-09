@@ -14,10 +14,7 @@ userPassword=""
 hostname="localhost"
 port="9712" # Default port
 owner=$(whoami)
-initData="false"
-initDataPath=""
-
-while getopts "d:u:p:n:chsP:o:iI:" opt; do
+while getopts "d:u:p:n:chsP:o:" opt; do
     case $opt in
     d)
         configFile="$OPTARG"
@@ -44,8 +41,6 @@ while getopts "d:u:p:n:chsP:o:iI:" opt; do
         help="true"
         ;;
     s) createUser="false" ;;
-    i) initData="true" ;;
-    I) initDataPath="$OPTARG" ;;
     esac
 
     # Assume empty string if it's unset since we cannot reference to
@@ -71,8 +66,6 @@ if [ "$help" == "true" ]; then
     echo "${green}[-s] - optional argument. Skips user creation. If provided, -u and -p."
     echo "${green}       are no longer required."
     echo "${green}[-o] - optional argument. specifies the owner for the database operations. Default is postgres."
-    echo "${green}[-i] - optional argument. Initialize database with sample data after startup."
-    echo "${green}[-I] - optional argument. Path to directory containing .js initialization files."
     echo "${green}if SetupConfigurationFile not specified assumed to be"
     echo "${green}oss/pg_documentdb_gw/SetupConfiguration.json and the default port is 10260"
     exit 1
@@ -151,27 +144,6 @@ else
 fi &
 
 gateway_pid=$!
-
-# Wait a moment for the gateway to start
-sleep 5
-
-# Initialize data if requested
-if [ "$initData" = "true" ]; then
-    echo "Initializing database with data..."
-    init_script="$scriptDir/init_documentdb_data.sh"
-    
-    if [ -f "$init_script" ]; then
-        if [ -n "$initDataPath" ] && [ -d "$initDataPath" ]; then
-            echo "Using custom initialization data from: $initDataPath"
-            "$init_script" -H "$hostname" -P 10260 -u "$userName" -p "$userPassword" -d "$initDataPath" -v
-        else
-            echo "Error: No initialization data path provided or directory does not exist"
-            echo "Please specify a valid path with -I option containing .js files for initialization"
-        fi
-    else
-        echo "Warning: Initialization script not found at $init_script"
-    fi
-fi
 
 # Wait for the gateway process to keep the script alive
 wait $gateway_pid

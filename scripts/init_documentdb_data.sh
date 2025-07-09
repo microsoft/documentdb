@@ -159,6 +159,9 @@ run_init_scripts() {
     fi
     
     echo "Processed $script_count initialization script(s)"
+    
+    # Log completion message that the test script can monitor
+    echo "Sample data initialization completed!"
     return 0
 }
 

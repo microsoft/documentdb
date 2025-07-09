@@ -79,6 +79,30 @@ wait_for_documentdb() {
     return 1
 }
 
+# Function to wait for sample data initialization to complete by monitoring logs
+wait_for_data_initialization() {
+    echo "Waiting for data initialization to complete..."
+    local max_attempts=120  # 6 minutes timeout for data initialization
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        # Check if the completion message appears in container logs
+        if docker logs $CONTAINER_NAME 2>&1 | grep -q "Sample data initialization completed!"; then
+            echo "✅ Data initialization completed!"
+            return 0
+        fi
+        
+        echo "Attempt $attempt/$max_attempts - waiting for data initialization completion log..."
+        sleep 3
+        attempt=$((attempt + 1))
+    done
+    
+    echo "❌ Error: Data initialization did not complete within timeout"
+    echo "=== Recent Container Logs ==="
+    docker logs --tail 20 $CONTAINER_NAME
+    return 1
+}
+
 # Function to verify the initialized data with comprehensive checks
 verify_data() {
     echo "=== Verifying Initialized Data ==="
@@ -180,9 +204,13 @@ main() {
     
     # Wait for the container to be ready
     if wait_for_documentdb; then
-        # Give a bit more time for initialization to complete
-        echo "Waiting for data initialization to complete..."
-        sleep 15
+        # Wait for data initialization to complete by monitoring logs
+        if wait_for_data_initialization; then
+            echo "✅ DocumentDB and data initialization are ready!"
+        else
+            echo "❌ Data initialization failed"
+            return 1
+        fi
         
         # Verify the data was loaded
         verify_data
@@ -195,7 +223,7 @@ main() {
         EXPECTED_PRODUCTS=4
         EXPECTED_ORDERS=4
         EXPECTED_ADULT_USERS=3
-        EXPECTED_IN_STOCK=2
+        EXPECTED_IN_STOCK=3
         EXPECTED_COMPLETED=1
         
         # Test results

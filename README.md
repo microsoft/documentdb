@@ -113,6 +113,32 @@ This will start the container and map port `9712` from the container to the host
 
 DocumentDB supports automatic data initialization on startup, allowing you to quickly set up a database with sample data or your own initialization scripts.
 
+#### Using Built-in Sample Data
+
+DocumentDB includes built-in sample data for quick testing and exploration. Enable it with the `--init-data` flag:
+
+```bash
+docker run -p 10260:10260 -p 9712:9712 \
+  --init-data=true \
+  --password mypassword \
+  ghcr.io/microsoft/documentdb/documentdb-oss:latest
+```
+
+This creates a `sampledb` database with the following collections:
+- **users** (5 sample users with profiles and preferences)
+- **products** (5 sample products across different categories)
+- **orders** (4 sample orders in various states)
+- **analytics** (sample metrics and activity data)
+
+Connect and explore:
+```javascript
+// Connect to your DocumentDB instance
+use('sampledb')
+db.users.find()
+db.products.find({ category: "Electronics" })
+db.orders.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+```
+
 #### Using Custom Initialization Data
 
 Create your own JavaScript initialization files and mount them to the container:
@@ -144,6 +170,13 @@ db.products.createIndex({ name: 1 });
 You can also use environment variables for initialization:
 
 ```bash
+# Enable sample data with environment variables
+docker run -p 10260:10260 -p 9712:9712 \
+  -e INIT_DATA=true \
+  -e PASSWORD=mypassword \
+  ghcr.io/microsoft/documentdb/documentdb-oss:latest
+
+# Custom initialization scripts
 docker run -p 10260:10260 -p 9712:9712 \
   -e INIT_DATA_PATH=/docker-entrypoint-initdb.d \
   -e PASSWORD=mypassword \
@@ -153,10 +186,12 @@ docker run -p 10260:10260 -p 9712:9712 \
 
 #### Available Initialization Options
 
+- `--init-data=true|false`: Enable built-in sample data initialization (default: false)
 - `--init-data-path [PATH]`: Specify custom path for initialization scripts (default: /docker-entrypoint-initdb.d)
+- `INIT_DATA`: Environment variable equivalent of --init-data
 - `INIT_DATA_PATH`: Environment variable equivalent of --init-data-path
 
-**Note**: Initialization files are executed in alphabetical order. Use prefixes like `01-`, `02-`, etc. to control execution order. Only user-provided initialization scripts are supported for security reasons.
+**Note**: You can use both sample data and custom initialization scripts together. Custom scripts run first, followed by sample data if enabled. Initialization files are executed in alphabetical order. Use prefixes like `01-`, `02-`, etc. to control execution order.
 
 ### Connecting to the Server
 #### Internal Access

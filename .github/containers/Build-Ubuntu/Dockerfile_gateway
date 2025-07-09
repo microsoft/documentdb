@@ -87,6 +87,9 @@ COPY --from=stage /home/documentdb/code/scripts/setup_psqlrc.sh /home/documentdb
 # Copy initialization scripts
 COPY --from=stage /home/documentdb/code/scripts/init_documentdb_data.sh /home/documentdb/gateway/scripts/init_documentdb_data.sh
 
+# Copy sample data for built-in initialization
+COPY --from=stage /home/documentdb/code/sample-data /home/documentdb/gateway/sample-data
+
 # Create default initialization directory for user-provided scripts
 RUN sudo mkdir -p /docker-entrypoint-initdb.d
 
