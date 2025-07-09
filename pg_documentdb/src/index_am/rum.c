@@ -283,7 +283,7 @@ LoadRumRoutine(void)
 	missingOk = true;
 	TryExplainIndexFunc explain_index_func =
 		load_external_function(rumLibPath,
-							   "try_explain_rum_index", missingOk,
+							   "try_explain_rum_index", !missingOk,
 							   ignoreLibFileHandle);
 
 	if (explain_index_func != NULL)
@@ -296,7 +296,7 @@ LoadRumRoutine(void)
 		/* Try to see if the custom rum handler has support for multi-key indexes */
 		GetIndexArrayStateFuncsFunc get_index_array_state_funcs =
 			load_external_function(rumLibPath,
-								   "get_rum_index_array_state_funcs", missingOk,
+								   "get_rum_index_array_state_funcs", !missingOk,
 								   ignoreLibFileHandle);
 
 		if (get_index_array_state_funcs != NULL)
