@@ -35,6 +35,7 @@
 #include "utils/lsyscache.h"
 #include "utils/acl.h"
 #include "parser/parse_func.h"
+#include "nodes/makefuncs.h"
 
 #include "api_hooks.h"
 #include "api_hooks_def.h"
@@ -144,7 +145,7 @@ static bool CanExecuteJob(BackgroundWorkerJobExecution *jobExec, TimestampTz cur
 static bool CheckIfRoleExists(const char *roleName);
 static List * GenerateJobExecutions(void);
 static BackgroundWorkerJobExecution * CreateJobExecutionObj(BackgroundWorkerJob job);
-static char * GenerateCommandQuery(BackgroundWorkerJob job);
+static char * GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext);
 static void CancelJobIfTimeIsUp(BackgroundWorkerJobExecution *jobExec, TimestampTz
 								currentTime);
 static void WaitForBackgroundWorkerDependencies(void);
@@ -774,7 +775,7 @@ CreateJobExecutionObj(BackgroundWorkerJob job)
 	BackgroundWorkerJobExecution *jobExec = NULL;
 	char *commandQuery = NULL;
 
-	commandQuery = GenerateCommandQuery(job);
+	commandQuery = GenerateCommandQuery(job, CurrentMemoryContext);
 	if (commandQuery == NULL)
 	{
 		return NULL;
@@ -843,28 +844,42 @@ CheckIfMetadataCoordinator(void)
  * Generate a SQL command string for a background worker job.
  */
 static char *
-GenerateCommandQuery(BackgroundWorkerJob job)
+GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext)
 {
 	SetCurrentStatementStartTimestamp();
 	PopAllActiveSnapshots();
 	StartTransactionCommand();
 	PushActiveSnapshot(GetTransactionSnapshot());
 
+	MemoryContext oldMemContext = CurrentMemoryContext;
+
 	/* declared volatile because of the longjmp in PG_CATCH */
 	volatile char *commandQuery = NULL;
 
 	PG_TRY();
 	{
-		/* We need modifiable copies of the command schema and name. */
-		List *functionNameList = list_make2(makeString(pstrdup(job.command.schema)),
-											makeString(pstrdup(job.command.name)));
+		/* Build ObjectWithArgs structure for LookupFuncWithArgs */
+		ObjectWithArgs *funcWithArgs = makeNode(ObjectWithArgs);
+		funcWithArgs->objname = list_make2(makeString(pstrdup(job.command.schema)),
+										   makeString(pstrdup(job.command.name)));
+		funcWithArgs->args_unspecified = false;
 
-		int argCount = job.argument.isNull ? 0 : 1;
-		Oid argTypes[1] = { job.argument.argType };
+		if (job.argument.isNull)
+		{
+			funcWithArgs->objargs = NIL;
+		}
+		else
+		{
+			TypeName *argTypeName = makeTypeNameFromOid(job.argument.argType, -1);
+			funcWithArgs->objargs = list_make1(argTypeName);
+		}
+		funcWithArgs->objfuncargs = NIL;
+
 		bool missingOK = true;
 
+		/* Use LookupFuncWithArgs with OBJECT_ROUTINE to find both functions and procedures */
 		Oid functionOid =
-			LookupFuncName(functionNameList, argCount, argTypes, missingOK);
+			LookupFuncWithArgs(OBJECT_ROUTINE, funcWithArgs, missingOK);
 
 		if (!OidIsValid(functionOid))
 		{
@@ -878,16 +893,21 @@ GenerateCommandQuery(BackgroundWorkerJob job)
 		/* The command prefix changes depending on the procType (Function or Procedure). */
 		char *commandPrefix = procType == 'p' ? "CALL" : "SELECT";
 		char *parameter = job.argument.isNull ? "" : "$1";
-		commandQuery = psprintf("%s %s.%s(%s);", commandPrefix, job.command.schema,
-								job.command.name, parameter);
+		char *tempQuery = psprintf("%s %s.%s(%s);", commandPrefix, job.command.schema,
+								   job.command.name, parameter);
+
+		/* Switch to the stable memory context and copy the query string there BEFORE committing */
+		MemoryContextSwitchTo(stableContext);
+		commandQuery = pstrdup(tempQuery);
+		MemoryContextSwitchTo(oldMemContext);
 
 		PopActiveSnapshot();
 		CommitTransactionCommand();
 	}
 	PG_CATCH();
 	{
-		ereport(DEBUG1, (errmsg("couldn't construct command for the background worker "
-								"job execution")));
+		ereport(LOG, (errmsg("couldn't construct command for the background worker "
+							 "job execution")));
 
 		/*
 		 * We don't much expect any error condition to happen here, but
