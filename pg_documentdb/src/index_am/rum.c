@@ -76,6 +76,8 @@ typedef struct DocumentDBRumIndexState
 	bool isForcedOrderScan;
 } DocumentDBRumIndexState;
 
+
+const char *DocumentdbRumPath = "$libdir/pg_documentdb_rum";
 typedef const RumIndexArrayStateFuncs *(*GetIndexArrayStateFuncsFunc)(void);
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
@@ -220,7 +222,7 @@ LoadRumRoutine(void)
 	{
 		case RumLibraryLoadOption_RequireDocumentDBRum:
 		{
-			rumLibPath = "$libdir/pg_documentdb_rum";
+			rumLibPath = DocumentdbRumPath;
 			rumhandler = load_external_function(rumLibPath,
 												"documentdb_rumhandler", !missingOk,
 												ignoreLibFileHandle);
@@ -231,7 +233,7 @@ LoadRumRoutine(void)
 
 		case RumLibraryLoadOption_PreferDocumentDBRum:
 		{
-			rumLibPath = "$libdir/pg_documentdb_rum";
+			rumLibPath = DocumentdbRumPath;
 			rumhandler = load_external_function(rumLibPath,
 												"documentdb_rumhandler", missingOk,
 												ignoreLibFileHandle);

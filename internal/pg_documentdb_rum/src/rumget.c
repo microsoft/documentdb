@@ -32,13 +32,17 @@ int RumFuzzySearchLimit = 0;
 bool RumAllowOrderByRawKeys = RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS;
 bool RumEnableRefindLeafOnEntryNextItem =
 	RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM;
+bool RumDisableFastScan = RUM_DEFAULT_DISABLE_FAST_SCAN;
+bool RumEnableEntryFindItemOnScan = RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN;
 
 static bool scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item,
 					 bool equalOk);
 static void insertScanItem(RumScanOpaque so, bool recheck);
 static int scan_entry_cmp(const void *p1, const void *p2, void *arg);
 static void entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList,
-						 Snapshot snapshot);
+						 Snapshot snapshot, RumItem *advancePast);
+static void entryFindItem(RumState *rumstate, RumScanEntry entry, RumItem *item, Snapshot
+						  snapshot);
 
 /*
  * Extract key value for ordering.
@@ -851,7 +855,7 @@ endScanEntry:
 }
 
 
-static void
+inline static void
 startScanKey(RumState *rumstate, RumScanKey key)
 {
 	RumItemSetMin(&key->curItem);
@@ -1324,13 +1328,12 @@ startOrderedScanEntries(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so
 static void
 startScan(IndexScanDesc scan)
 {
-	MemoryContext oldCtx = CurrentMemoryContext;
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 	RumState *rumstate = &so->rumstate;
 	uint32 i;
 	RumScanType scanType = RumFastScan;
+	MemoryContext oldCtx = MemoryContextSwitchTo(so->keyCtx);
 
-	MemoryContextSwitchTo(so->keyCtx);
 	if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
 		so->willSort && !rumstate->useAlternativeOrder)
 	{
@@ -1352,75 +1355,49 @@ startScan(IndexScanDesc scan)
 	}
 	MemoryContextSwitchTo(oldCtx);
 
-	if (RumFuzzySearchLimit > 0)
-	{
-		/*
-		 * If all of keys more than threshold we will try to reduce result, we
-		 * hope (and only hope, for intersection operation of array our
-		 * supposition isn't true), that total result will not more than
-		 * minimal predictNumberResult.
-		 */
-		bool reduce = true;
-
-		for (i = 0; i < so->totalentries; i++)
-		{
-			if (so->entries[i]->predictNumberResult <= so->totalentries *
-				RumFuzzySearchLimit)
-			{
-				reduce = false;
-				break;
-			}
-		}
-		if (reduce)
-		{
-			for (i = 0; i < so->totalentries; i++)
-			{
-				so->entries[i]->predictNumberResult /= so->totalentries;
-				so->entries[i]->reduceResult = true;
-			}
-		}
-	}
-
 	for (i = 0; i < so->nkeys; i++)
 	{
-		startScanKey(rumstate, so->keys[i]);
-	}
-
-	/*
-	 * Check if we can use a fast scan.
-	 * Use fast scan iff all keys have preConsistent method. But we can stop
-	 * checking if at least one key have not preConsistent method and use
-	 * regular scan.
-	 */
-	for (i = 0; i < so->nkeys && scanType != RumOrderedScan; i++)
-	{
 		RumScanKey key = so->keys[i];
+		startScanKey(rumstate, key);
+
+		/*
+		 * Check if we can use a fast scan.
+		 * Use fast scan iff all keys have preConsistent method. But we can stop
+		 * checking if at least one key have not preConsistent method and use
+		 * regular scan.
+		 */
 
 		/* Check first key is it used to full-index scan */
-		if (i == 0 && key->nentries > 0 && key->scanEntry[i]->scanWithAddInfo)
+		if (i == 0 && scanType < RumFullScan && key->nentries > 0 &&
+			key->scanEntry[i]->scanWithAddInfo)
 		{
 			scanType = RumFullScan;
-			break;
 		}
 
 		/* Else check keys for preConsistent method */
-		else if (!so->rumstate.canPreConsistent[key->attnum - 1])
+		else if (scanType == RumFastScan && !so->rumstate.canPreConsistent[key->attnum -
+																		   1])
 		{
 			scanType = RumRegularScan;
-			break;
 		}
 	}
 
 	if (scanType == RumFastScan)
 	{
-		for (i = 0; i < so->totalentries; i++)
+		if (RumDisableFastScan)
+		{
+			/*
+			 * If fast scan is disabled, we should use regular scan.
+			 */
+			scanType = RumRegularScan;
+		}
+
+		for (i = 0; i < so->totalentries && scanType == RumFastScan; i++)
 		{
 			RumScanEntry entry = so->entries[i];
-
 			if (entry->isPartialMatch)
 			{
 				scanType = RumRegularScan;
-				break;
 			}
 		}
 	}
@@ -1442,7 +1419,7 @@ startScan(IndexScanDesc scan)
 			if (!so->sortedEntries[i]->isFinished)
 			{
 				entryGetItem(&so->rumstate, so->sortedEntries[i], NULL,
-							 scan->xs_snapshot);
+							 scan->xs_snapshot, NULL);
 			}
 		}
 		qsort_arg(so->sortedEntries, so->totalentries, sizeof(RumScanEntry),
@@ -1459,12 +1436,16 @@ startScan(IndexScanDesc scan)
  * to prevent interference with vacuum
  */
 static void
-entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
+entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot,
+				 RumItem *advancePast)
 {
 	Page page;
 
 	for (;;)
 	{
+		RumItem *comparePast;
+		bool equalOk;
+
 		if (entry->offset >= 0 && entry->offset < entry->nlist)
 		{
 			entry->curItem = entry->list[entry->offset];
@@ -1492,7 +1473,24 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 
 		PredicateLockPage(rumstate->index, BufferGetBlockNumber(entry->buffer), snapshot);
 
-		if (scanPage(rumstate, entry, &entry->curItem, false))
+		comparePast = &entry->curItem;
+		equalOk = false;
+
+		/* When scanning the current page, pick advancePast if it's higher than entry
+		 * we're looking for. Typically this may be generally true, but in the case where
+		 * you have something like a $in [ 1, 2, 3 ], the advancePast tracks the minEntry
+		 * while one of thee internal entries could be further ahead.
+		 */
+		if (advancePast != NULL &&
+			ItemPointerIsValid(&advancePast->iptr) &&
+			compareRumItemScanDirection(rumstate, entry->attnumOrig, entry->scanDirection,
+										comparePast, advancePast) < 0)
+		{
+			comparePast = advancePast;
+			equalOk = true;
+		}
+
+		if (scanPage(rumstate, entry, comparePast, equalOk))
 		{
 			LockBuffer(entry->buffer, RUM_UNLOCK);
 			return;
@@ -1540,6 +1538,35 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 			entry->nlist = maxoff;
 			ItemPointerSetMin(&item.iptr);
 			ptr = RumDataPageGetData(page);
+
+			/*
+			 * Quick check to see if this page will meet our needs: If the right most bound
+			 * of this page is less than our comparePast, then skip this and move on to the next
+			 * page.
+			 */
+			if (ScanDirectionIsForward(entry->scanDirection) &&
+				!RumPageRightMost(page) &&
+				advancePast != NULL &&
+				ItemPointerIsValid(&advancePast->iptr))
+			{
+				int cmp;
+				comparePast = &entry->curItem;
+				if (compareRumItemScanDirection(rumstate, entry->attnumOrig,
+												entry->scanDirection,
+												comparePast, advancePast) < 0)
+				{
+					comparePast = advancePast;
+				}
+
+				cmp = compareRumItem(rumstate, entry->attnumOrig,
+									 RumDataPageGetRightBound(page), comparePast);
+				if (cmp < 0 || (cmp <= 0 && !equalOk))
+				{
+					/* go on next page */
+					LockBuffer(entry->buffer, RUM_UNLOCK);
+					break;
+				}
+			}
 
 			for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 			{
@@ -1764,10 +1791,13 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
  * or sets entry->isFinished to true if there are no more.
  *
  * Item pointers must be returned in ascending order.
+ *
+ * if advancePast is not null, uses that to move the find forward.
  */
 static void
-entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapshot
-			 snapshot)
+entryGetItem(RumState *rumstate, RumScanEntry entry,
+			 bool *nextEntryList, Snapshot snapshot,
+			 RumItem *advancePast)
 {
 	Assert(!entry->isFinished);
 
@@ -1976,7 +2006,7 @@ entryGetItem(RumState *rumstate, RumScanEntry entry, bool *nextEntryList, Snapsh
 	else
 	{
 		do {
-			entryGetNextItem(rumstate, entry, snapshot);
+			entryGetNextItem(rumstate, entry, snapshot, advancePast);
 		} while (entry->isFinished == false &&
 				 entry->reduceResult == true &&
 				 dropItem(entry));
@@ -2080,6 +2110,36 @@ keyGetItem(RumState *rumstate, MemoryContext tempCtx, RumScanKey key)
 
 
 /*
+ * Checks that item is greater than
+ * the advancePast specified if the advancePast is valid.
+ * true if advancePast is not valid.
+ */
+inline static bool
+IsScanEntryNotPast(RumState *rumstate,
+				   RumScanEntry item,
+				   RumItem *advancePast)
+{
+	return !ItemPointerIsValid(&advancePast->iptr) ||
+		   compareCurRumItemScanDirection(rumstate, item, advancePast) <= 0;
+}
+
+
+/*
+ * Checks that item is at least equal to or greater than
+ * the advancePast specified if the advancePast is valid.
+ * false if advancePast is not valid.
+ */
+inline static bool
+IsScanEntryLessThan(RumState *rumstate,
+					RumScanEntry item,
+					RumItem *advancePast)
+{
+	return ItemPointerIsValid(&advancePast->iptr) &&
+		   compareCurRumItemScanDirection(rumstate, item, advancePast) < 0;
+}
+
+
+/*
  * Get next heap item pointer (after advancePast) from scan.
  * Returns true if anything found.
  * On success, *item and *recheck are set.
@@ -2095,10 +2155,13 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 	RumState *rumstate = &so->rumstate;
 	RumItem myAdvancePast = *advancePast;
+	RumItem myIntermediatePast, myIntermediatePastTemp;
 	uint32 i;
 	bool allFinished;
 	bool match, itemSet;
 
+	/* Start by assuming we want to begin the scan at advancePast */
+	RumItemSetInvalid(&myIntermediatePast);
 	for (;;)
 	{
 		/*
@@ -2112,12 +2175,28 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 		{
 			RumScanEntry entry = so->entries[i];
 
+			/* For a regular scan, we iterate on the scanEntry to find the next
+			 * candidate. The next candidate entry is decided based on a few things:
+			 * - the prior item that was a match (or if the first time, scan it anyway)
+			 * - The prior item known to be the lower bound from a previous miss. This
+			 *   happens for conjunctions and we track the Max(MinScanEntry) to move
+			 *   the other entries forward.
+			 */
 			while (entry->isFinished == false &&
-				   (!ItemPointerIsValid(&myAdvancePast.iptr) ||
-					compareCurRumItemScanDirection(rumstate, entry,
-												   &myAdvancePast) <= 0))
+				   (IsScanEntryNotPast(rumstate, entry, &myAdvancePast) ||
+					IsScanEntryLessThan(rumstate, entry, &myIntermediatePast)))
 			{
-				entryGetItem(rumstate, entry, NULL, scan->xs_snapshot);
+				if (!entry->isPartialMatch && RumEnableEntryFindItemOnScan &&
+					IsScanEntryLessThan(rumstate, entry, &myIntermediatePast))
+				{
+					entryFindItem(rumstate, entry, &myIntermediatePast,
+								  scan->xs_snapshot);
+				}
+				else
+				{
+					entryGetItem(rumstate, entry, NULL, scan->xs_snapshot,
+								 &myIntermediatePast);
+				}
 
 				if (!ItemPointerIsValid(&myAdvancePast.iptr))
 				{
@@ -2145,6 +2224,7 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 		 */
 
 		itemSet = false;
+		RumItemSetInvalid(&myIntermediatePastTemp);
 		for (i = 0; i < so->nkeys; i++)
 		{
 			RumScanKey key = so->keys[i];
@@ -2172,6 +2252,22 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 				(ScanDirectionIsBackward(key->scanDirection) && cmp > 0))
 			{
 				*item = key->curItem;
+			}
+
+			/* key->curItem maps to the "lowest" TID recognized by this scan key
+			 * Now track the "highest" of this curItem across all keys.
+			 * We will use this in subsequent entryGetItem to skip entries that we
+			 * know will never match. This is for instance in the case of
+			 * A && B
+			 * if A matches row >= (0, 200)
+			 * and B matches row >= (0, 600)
+			 * we know that we can safely scan from (0, 600) for future scans.
+			 */
+			if (!ItemPointerIsValid(&myIntermediatePastTemp.iptr) ||
+				compareRumItem(rumstate, key->attnumOrig, &key->curItem,
+							   &myIntermediatePastTemp) > 0)
+			{
+				myIntermediatePastTemp = key->curItem;
 			}
 		}
 
@@ -2210,6 +2306,13 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 		 * we'll move to the next possible entry.
 		 */
 		myAdvancePast = *item;
+
+		/* In the case where we had a miss, we also track the
+		 * highest intermediate TID we've seen - we use this to
+		 * move the scan forward in subsequent scans.
+		 */
+		myIntermediatePast = myIntermediatePastTemp;
+
 		so->scanLoops++;
 	}
 
@@ -2234,7 +2337,7 @@ scanGetItemRegular(IndexScanDesc scan, RumItem *advancePast,
 					   compareRumItem(rumstate, key->attnumOrig,
 									  &entry->curItem, item) < 0)
 				{
-					entryGetItem(rumstate, entry, NULL, scan->xs_snapshot);
+					entryGetItem(rumstate, entry, NULL, scan->xs_snapshot, NULL);
 				}
 			}
 		}
@@ -2602,7 +2705,7 @@ entryShift(int i, RumScanOpaque so, bool find, Snapshot snapshot)
 	}
 	else if (!so->sortedEntries[minIndex]->isFinished)
 	{
-		entryGetItem(rumstate, so->sortedEntries[minIndex], NULL, snapshot);
+		entryGetItem(rumstate, so->sortedEntries[minIndex], NULL, snapshot, NULL);
 	}
 
 	/* Restore order of so->sortedEntries */
@@ -2649,6 +2752,7 @@ scanGetItemFast(IndexScanDesc scan, RumItem *advancePast,
 		 * goal is to find border where preConsistent becomes false.
 		 */
 		preConsistentResult = true;
+		so->scanLoops++;
 		j = 0;
 		k = 0;
 		for (i = 0; i < so->totalentries; i++)
@@ -2796,7 +2900,7 @@ scanGetItemFull(IndexScanDesc scan, RumItem *advancePast,
 		return false;
 	}
 
-	entryGetItem(&so->rumstate, entry, &nextEntryList, scan->xs_snapshot);
+	entryGetItem(&so->rumstate, entry, &nextEntryList, scan->xs_snapshot, NULL);
 
 	if (entry->isFinished)
 	{
@@ -2833,7 +2937,7 @@ scanGetItemFull(IndexScanDesc scan, RumItem *advancePast,
 				compareCurRumItemScanDirection(&so->rumstate, orderEntry,
 											   &entry->curItem) < 0))
 		{
-			entryGetItem(&so->rumstate, orderEntry, NULL, scan->xs_snapshot);
+			entryGetItem(&so->rumstate, orderEntry, NULL, scan->xs_snapshot, NULL);
 		}
 	}
 
@@ -3019,7 +3123,7 @@ scanGetItemOrdered(IndexScanDesc scan, RumItem *advancePast,
 
 	if (!entry->isFinished)
 	{
-		entryGetItem(&so->rumstate, entry, NULL, scan->xs_snapshot);
+		entryGetItem(&so->rumstate, entry, NULL, scan->xs_snapshot, NULL);
 	}
 
 	if (entry->isFinished)

@@ -747,13 +747,20 @@ rumNewScanKey(IndexScanDesc scan)
 
 	for (i = 0; i < scan->numberOfOrderBys; i++)
 	{
+		if (so->orderByKeyIndex < 0)
+		{
+			/* Store the first order by key index here */
+			/* We enforce that we have a prefix equality in this case in the layer above */
+			so->orderByKeyIndex = so->nkeys;
+		}
+
 		initScanKey(so, &scan->orderByData[i], NULL, i);
 	}
 
 	/*
 	 * Fill markAddInfo if possible
 	 */
-	for (i = 0; i < so->nkeys; i++)
+	for (i = 0; i < so->nkeys && so->rumstate.useAlternativeOrder; i++)
 	{
 		RumScanKey key = so->keys[i];
 
@@ -773,16 +780,6 @@ rumNewScanKey(IndexScanDesc scan)
 			if (key->attnumOrig == so->rumstate.attrnAttachColumn)
 			{
 				hasAddOnFilter |= haofHasAddOnRestriction;
-			}
-		}
-
-		if (key->orderBy && RumAllowOrderByRawKeys &&
-			!so->rumstate.useAlternativeOrder)
-		{
-			/* We enforce that we have a prefix equality in this case in the layer above */
-			if (so->orderByKeyIndex < 0)
-			{
-				so->orderByKeyIndex = i;
 			}
 		}
 

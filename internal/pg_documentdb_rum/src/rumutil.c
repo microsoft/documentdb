@@ -100,6 +100,24 @@ _PG_init(void)
 		RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE,
 		PGC_USERSET, 0,
 		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".rum_disable_fast_scan",
+		"Sets whether or not to disable fast scan",
+		NULL,
+		&RumDisableFastScan,
+		RUM_DEFAULT_DISABLE_FAST_SCAN,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".enable_rum_entry_find_item_on_scan",
+		"Sets whether or not to enable entry find item on scan",
+		NULL,
+		&RumEnableEntryFindItemOnScan,
+		RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
 
 	rum_relopt_kind = add_reloption_kind();
