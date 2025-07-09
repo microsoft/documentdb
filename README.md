@@ -109,6 +109,55 @@ docker run -p 127.0.0.1:9712:9712 -dt ghcr.io/microsoft/documentdb/documentdb-os
 
 This will start the container and map port `9712` from the container to the host.
 
+### Data Initialization
+
+DocumentDB supports automatic data initialization on startup, allowing you to quickly set up a database with sample data or your own initialization scripts.
+
+#### Using Custom Initialization Data
+
+Create your own JavaScript initialization files and mount them to the container:
+
+```bash
+docker run -p 10260:10260 -p 9712:9712 \
+  -v /path/to/your/init/scripts:/docker-entrypoint-initdb.d \
+  --init-data-path /docker-entrypoint-initdb.d \
+  --password mypassword \
+  ghcr.io/microsoft/documentdb/documentdb-oss:latest
+```
+
+Your initialization files should be JavaScript files that can be executed by mongosh:
+
+```javascript
+// example-init.js
+use('myapp');
+
+db.users.insertMany([
+  { name: "John Doe", email: "john@example.com" },
+  { name: "Jane Smith", email: "jane@example.com" }
+]);
+
+db.products.createIndex({ name: 1 });
+```
+
+#### Environment Variables
+
+You can also use environment variables for initialization:
+
+```bash
+docker run -p 10260:10260 -p 9712:9712 \
+  -e INIT_DATA_PATH=/docker-entrypoint-initdb.d \
+  -e PASSWORD=mypassword \
+  -v /path/to/init/scripts:/docker-entrypoint-initdb.d \
+  ghcr.io/microsoft/documentdb/documentdb-oss:latest
+```
+
+#### Available Initialization Options
+
+- `--init-data-path [PATH]`: Specify custom path for initialization scripts (default: /docker-entrypoint-initdb.d)
+- `INIT_DATA_PATH`: Environment variable equivalent of --init-data-path
+
+**Note**: Initialization files are executed in alphabetical order. Use prefixes like `01-`, `02-`, etc. to control execution order. Only user-provided initialization scripts are supported for security reasons.
+
 ### Connecting to the Server
 #### Internal Access
 Step 1: Run `start_oss_server.sh` to initialize the DocumentDB server and manage dependencies.
