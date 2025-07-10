@@ -184,7 +184,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
  { "_id" : { "$numberInt" : "4" }, "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ], "b" : [ true, false ] }
 (2 rows)
 
+-- this fails (requires specifiying column 0)
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "b": false } }');
+ERROR:  Could not find any valid index to push down for query
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "a": { "$exists": true }, "b": false } }');
                                                       document                                                       
 ---------------------------------------------------------------------------------------------------------------------
  { "_id" : { "$numberInt" : "3" }, "a" : { "$numberInt" : "1" }, "b" : [ true, false ] }
@@ -350,7 +353,11 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q
  { "_id" : { "$numberInt" : "8" } }
 (1 row)
 
+-- this fails since column 0 is not specified
 SELECT FORMAT('{ "find": "comp_collection_desc", "filter": { "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+ERROR:  Could not find any valid index to push down for query
+SELECT FORMAT('{ "find": "comp_collection_desc", "filter": { "a": { "$exists": true }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
               document              
 ------------------------------------

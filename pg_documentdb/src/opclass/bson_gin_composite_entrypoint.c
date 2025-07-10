@@ -1001,6 +1001,52 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 
 
 bool
+CompositePathHasFirstColumnSpecified(IndexPath *indexPath)
+{
+	ListCell *cell;
+	foreach(cell, indexPath->indexclauses)
+	{
+		IndexClause *clause = (IndexClause *) lfirst(cell);
+		ListCell *iclauseCell;
+		foreach(iclauseCell, clause->indexquals)
+		{
+			RestrictInfo *qual = (RestrictInfo *) lfirst(iclauseCell);
+			if (IsA(qual->clause, OpExpr))
+			{
+				OpExpr *expr = (OpExpr *) qual->clause;
+				Expr *queryVal = lsecond(expr->args);
+				if (!IsA(queryVal, Const))
+				{
+					/* If the query value is not a constant, we can't push down */
+					continue;
+				}
+
+				Const *queryConst = (Const *) queryVal;
+				pgbson *queryBson = DatumGetPgBson(queryConst->constvalue);
+
+				pgbsonelement queryElement;
+				PgbsonToSinglePgbsonElement(queryBson, &queryElement);
+
+				int8_t sortDirection;
+				int columnNumber = GetCompositeOpClassColumnNumber(queryElement.path,
+																   indexPath->indexinfo->
+																   opclassoptions[0],
+																   &sortDirection);
+
+				if (columnNumber == 0)
+				{
+					/* There is a filter on the first column. */
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+
+bool
 GetEqualityRangePredicatesForIndexPath(IndexPath *indexPath, void *options,
 									   bool equalityPrefixes[INDEX_MAX_KEYS],
 									   bool nonEqualityPrefixes[INDEX_MAX_KEYS])

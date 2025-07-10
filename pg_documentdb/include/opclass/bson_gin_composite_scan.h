@@ -17,6 +17,7 @@ struct IndexPath;
 bool GetEqualityRangePredicatesForIndexPath(struct IndexPath *indexPath, void *options,
 											bool equalityPrefixes[INDEX_MAX_KEYS], bool
 											nonEqualityPrefixes[INDEX_MAX_KEYS]);
+bool CompositePathHasFirstColumnSpecified(IndexPath *indexPath);
 char *SerializeBoundsStringForExplain(bytea * entry, void *extraData, PG_FUNCTION_ARGS);
 bool ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
 									targetScanKey, bool hasArrayKeys, bool hasOrderBys);

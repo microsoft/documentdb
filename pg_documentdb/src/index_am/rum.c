@@ -356,6 +356,24 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
 		return;
 	}
 
+
+	if (IsCompositeOpFamilyOid(path->indexinfo->relam,
+							   path->indexinfo->opfamily[0]))
+	{
+		/* If this is a composite index, then we need to ensure that
+		 * the first column of the index matches the query path.
+		 * This is because using the composite index would require specifying
+		 * the first column.
+		 */
+		if (!CompositePathHasFirstColumnSpecified(path))
+		{
+			*indexStartupCost = 0;
+			*indexTotalCost = INFINITY;
+			*indexSelectivity = 0;
+			return;
+		}
+	}
+
 	/* Index is valid - pick the cost estimate for rum (which currently is the gin cost estimate) */
 	gincostestimate(root, path, loop_count, indexStartupCost, indexTotalCost,
 					indexSelectivity, indexCorrelation, indexPages);
