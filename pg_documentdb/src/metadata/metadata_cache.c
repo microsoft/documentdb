@@ -3087,7 +3087,7 @@ BsonEmptyDataTableFunctionId(void)
 
 	if (Cache.BsonEmptyDataTableFunctionId == InvalidOid)
 	{
-		List *functionNameList = list_make2(makeString(ApiToApiInternalSchemaName),
+		List *functionNameList = list_make2(makeString(ApiInternalSchemaNameV2),
 											makeString("empty_data_table"));
 		Oid paramOids[0] = { };
 		bool missingOK = false;

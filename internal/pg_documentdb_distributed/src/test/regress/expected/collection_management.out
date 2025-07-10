@@ -38,7 +38,7 @@ SELECT count(*) FROM documentdb_api.collection('collection_management','nonexist
 
 -- SELECT * from a non-existing collection
 SELECT * FROM documentdb_api.collection('collection_management','nonexistent');
- shard_key_value | object_id | document | creation_time 
+ shard_key_value | object_id | document 
 ---------------------------------------------------------------------
 (0 rows)
 
@@ -46,7 +46,7 @@ SELECT * FROM documentdb_api.collection('collection_management','nonexistent');
 EXPLAIN SELECT * FROM documentdb_api.collection('collection_management','nonexistent');
                                      QUERY PLAN                                      
 ---------------------------------------------------------------------
- Function Scan on empty_data_table collection  (cost=0.25..10.25 rows=1000 width=80)
+ Function Scan on empty_data_table collection  (cost=0.25..10.25 rows=1000 width=72)
 (1 row)
 
 -- try to rename to an already existing name

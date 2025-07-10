@@ -43,6 +43,7 @@
 #include <nodes/supportnodes.h>
 #include <parser/parse_relation.h>
 #include <parser/parse_func.h>
+#include <funcapi.h>
 
 #include "io/bson_core.h"
 #include "metadata/metadata_cache.h"
@@ -6601,8 +6602,6 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 	if (collection == NULL)
 	{
-		colNames = lappend(colNames, makeString("creation_time"));
-
 		/* Here: Special case, if the database is config, try to see if we can create a base
 		 * table out of the system metadata.
 		 */
@@ -6618,9 +6617,6 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 		rte->rtekind = RTE_FUNCTION;
 		rte->relid = InvalidOid;
-
-		rte->alias = makeAlias(collectionAlias, NIL);
-		rte->eref = makeAlias(collectionAlias, colNames);
 		rte->lateral = false;
 		rte->inFromCl = true;
 		rte->functions = NIL;
@@ -6632,14 +6628,30 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 #endif
 		rte->rellockmode = AccessShareLock;
 
+		Oid emptyDataTableFuncOid = BsonEmptyDataTableFunctionId();
+
 		/* Now create the rtfunc*/
-		FuncExpr *rangeFunc = makeFuncExpr(BsonEmptyDataTableFunctionId(), RECORDOID, NIL,
+		FuncExpr *rangeFunc = makeFuncExpr(emptyDataTableFuncOid, RECORDOID, NIL,
 										   InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+
+		/* TODO: Starting from v107, we can assume the function returns 3 columns, so determining the result type won't be necessary. */
+		Oid retType;
+		TupleDesc retTupdesc;
+		emptyDataTableFuncOid = get_func_result_type(emptyDataTableFuncOid, &retType,
+													 &retTupdesc);
+
 		rangeFunc->funcretset = true;
 		RangeTblFunction *rangeTableFunction = makeNode(RangeTblFunction);
-		rangeTableFunction->funccolcount = 4;
+		rangeTableFunction->funccolcount = retTupdesc->natts;
 		rangeTableFunction->funcparams = NULL;
 		rangeTableFunction->funcexpr = (Node *) rangeFunc;
+		if (retTupdesc->natts == 4)
+		{
+			colNames = lappend(colNames, makeString("creation_time"));
+		}
+
+		rte->alias = makeAlias(collectionAlias, NIL);
+		rte->eref = makeAlias(collectionAlias, colNames);
 
 		/* Add the RTFunc to the RTE */
 		rte->functions = list_make1(rangeTableFunction);

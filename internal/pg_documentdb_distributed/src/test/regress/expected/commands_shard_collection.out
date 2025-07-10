@@ -412,7 +412,11 @@ SELECT count(*) FROM documentdb_api.collection('db','reshard') WHERE true;
 (1 row)
 
 SELECT count(*) FROM documentdb_api.collection('db','reshard') WHERE false;
-ERROR:  table "collection" has 3 columns available but 4 columns specified
+ count 
+---------------------------------------------------------------------
+     0
+(1 row)
+
 SELECT count(*) FROM documentdb_api.collection('db','reshard') WHERE document @@ '{"value":{"$exists":1}}';
  count 
 ---------------------------------------------------------------------

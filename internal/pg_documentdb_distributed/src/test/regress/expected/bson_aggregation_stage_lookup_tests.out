@@ -665,7 +665,7 @@ LEFT JOIN LATERAL (
 
 -- Empty from collection tests
 SELECT * FROM documentdb_api.collection('db', 'from1NonExistent');
- shard_key_value | object_id | document | creation_time 
+ shard_key_value | object_id | document 
 ---------------------------------------------------------------------
 (0 rows)
 
