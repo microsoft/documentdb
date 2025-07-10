@@ -378,6 +378,8 @@ static void ProcessBatchUpdateNonTransactionalUnsharded(MongoCollection *collect
 														BatchUpdateSpec *spec,
 														text *transactionId,
 														BatchUpdateResult *batchResult);
+static inline void PgbsonWriterAppendInt(pgbson_writer *writer, const char *path,
+										 uint32_t pathLength, int64 value);
 
 PG_FUNCTION_INFO_V1(command_update_bulk);
 PG_FUNCTION_INFO_V1(command_update);
@@ -3542,8 +3544,10 @@ BuildResponseMessage(BatchUpdateResult *batchResult)
 	pgbson_writer resultWriter;
 	PgbsonWriterInit(&resultWriter);
 	PgbsonWriterAppendDouble(&resultWriter, "ok", 2, batchResult->ok);
-	PgbsonWriterAppendInt64(&resultWriter, "nModified", 9, batchResult->rowsModified);
-	PgbsonWriterAppendInt64(&resultWriter, "n", 1, batchResult->rowsMatched);
+
+	/* Some drivers expect int32 values, so we must support both int32 and int64 cases. */
+	PgbsonWriterAppendInt(&resultWriter, "nModified", 9, batchResult->rowsModified);
+	PgbsonWriterAppendInt(&resultWriter, "n", 1, batchResult->rowsMatched);
 
 	if (batchResult->upserted != NIL)
 	{
@@ -3593,4 +3597,24 @@ BuildResponseMessage(BatchUpdateResult *batchResult)
 	}
 
 	return PgbsonWriterGetPgbson(&resultWriter);
+}
+
+
+/*
+ * PgbsonWriterAppendInt appends an integer value to the pgbson writer.
+ * If the value is within the range of int32, it appends it as int32,
+ * otherwise as int64.
+ */
+static inline void
+PgbsonWriterAppendInt(pgbson_writer *writer, const char *path,
+					  uint32_t pathLength, int64 value)
+{
+	if (value <= INT32_MAX)
+	{
+		PgbsonWriterAppendInt32(writer, path, pathLength, value);
+	}
+	else
+	{
+		PgbsonWriterAppendInt64(writer, path, pathLength, value);
+	}
 }

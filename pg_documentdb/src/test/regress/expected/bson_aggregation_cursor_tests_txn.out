@@ -52,9 +52,9 @@ SELECT * FROM firstPageResponse;
 
 -- now update all the rows
 SELECT documentdb_api.update('db', '{ "update": "aggregation_cursor_txn", "updates": [ { "q": { "_id": { "$gt": 0 } }, "u": { "$set": { "someField": "Updated" } }, "multi": true } ] }');
-                                                                 update                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""10"" }, ""n"" : { ""$numberLong"" : ""10"" } }",t)
+                                                                update                                                                
+--------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""10"" }, ""n"" : { ""$numberInt"" : ""10"" } }",t)
 (1 row)
 
 -- now drain it - should still drain.
@@ -87,9 +87,9 @@ SELECT * FROM firstPageResponse;
 
 -- now update all the rows
 SELECT documentdb_api.update('db', '{ "update": "aggregation_cursor_txn", "updates": [ { "q": { "_id": { "$gt": 0 } }, "u": { "$set": { "someField": "Updated" } }, "multi": true } ] }');
-                                                                update                                                                 
----------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""10"" } }",t)
+                                                               update                                                                
+-------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""10"" } }",t)
 (1 row)
 
 -- now drain it - should still drain.
