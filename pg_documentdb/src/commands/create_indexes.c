@@ -189,6 +189,7 @@ extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
 extern bool DefaultUseCompositeOpClass;
 extern bool EnableDescendingCompositeIndex;
+extern bool EnableCompositeUniqueIndex;
 
 char *AlternateIndexHandler = NULL;
 
@@ -1966,6 +1967,18 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
 									"enableCompositeTerm is not supported with wildcard indexes.")));
+			}
+		}
+
+		if (indexDef->unique == BoolIndexOption_True && !EnableCompositeUniqueIndex)
+		{
+			indexDef->key->canSupportCompositeTerm = false;
+
+			if (shouldError)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is not supported with unique indexes.")));
 			}
 		}
 
@@ -5179,6 +5192,23 @@ ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *treeParentNode,
 }
 
 
+inline static void
+AppendUniqueColumnExpr(StringInfo indexExprStr, IndexDefKey *indexDefKey,
+					   bool sparse, char *indexAmSuffix, bool firstColumnWritten)
+{
+	appendStringInfo(indexExprStr,
+					 "%s%s.generate_unique_shard_document(document, shard_key_value, '%s'::%s.bson, %s) %s.bson_%s_unique_shard_path_ops WITH OPERATOR(%s.=#=)",
+					 !firstColumnWritten ? "" : ",",
+					 DocumentDBApiInternalSchemaName,
+					 GenerateUniqueProjectionSpec(indexDefKey),
+					 CoreSchemaName,
+					 sparse ? "true" : "false",
+					 DocumentDBApiInternalSchemaName,
+					 indexAmSuffix,
+					 DocumentDBApiInternalSchemaName);
+}
+
+
 /*
  * GenerateIndexExprStr returns column expression string to be used when
  * creating the index whose "key" and "wildcardProjection" specifications
@@ -5218,25 +5248,25 @@ GenerateIndexExprStr(char *indexAmSuffix,
 	char indexTermSizeLimitArg[22] = { 0 };
 	bool enableTruncation = enableLargeIndexKeys || ForceIndexTermTruncation;
 
-	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys;
+	bool isUsingCompositeOpClass = EnableNewCompositeIndexOpclass &&
+								   enableCompositeOpClass &&
+								   indexDefKey->canSupportCompositeTerm;
+	bool usingNewUniqueIndexOpClass = unique && (enableLargeIndexKeys ||
+												 isUsingCompositeOpClass);
 
 	/* For unique with truncation, instead of creating a unique hash for every column, we simply create a single
 	 * value with a new operator that handles unique constraints. That way for a composite unique index, we support
 	 * up to 31 columns (instead of 16 without truncation). Here we want to produce a term that incorporates the
 	 * shard key as well as the document term such that we produce something that is relatively collision resistant
 	 * This would avoid runtime rechecks for uniqueness.
+	 * For composite, this is written at the end: This is because the query path and order by is simpler if the composite
+	 * is the first path instead of the second. The unique column is only ever used for deduping unique and doing the runtime
+	 * recheck for it so this should be fine.
 	 */
-	if (usingNewUniqueIndexOpClass)
+	if (usingNewUniqueIndexOpClass && !isUsingCompositeOpClass)
 	{
-		appendStringInfo(indexExprStr,
-						 "%s.generate_unique_shard_document(document, shard_key_value, '%s'::%s.bson, %s) %s.bson_%s_unique_shard_path_ops WITH OPERATOR(%s.=#=)",
-						 DocumentDBApiInternalSchemaName,
-						 GenerateUniqueProjectionSpec(indexDefKey),
-						 CoreSchemaName,
-						 sparse ? "true" : "false",
-						 DocumentDBApiInternalSchemaName,
-						 indexAmSuffix,
-						 DocumentDBApiInternalSchemaName);
+		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
+							   firstColumnWritten);
 		firstColumnWritten = true;
 	}
 
@@ -5358,9 +5388,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 								lengthDelta)));
 		}
 	}
-	else if (EnableNewCompositeIndexOpclass &&
-			 enableCompositeOpClass &&
-			 !unique && indexDefKey->canSupportCompositeTerm)
+	else if (isUsingCompositeOpClass)
 	{
 		if (indexDefWildcardProjTree)
 		{
@@ -5430,6 +5458,20 @@ GenerateIndexExprStr(char *indexAmSuffix,
 						 indexAmSuffix,
 						 quote_literal_cstr(BsonValueToJsonForLogging(&arrayValue)),
 						 indexTermSizeLimitArg);
+
+		if (unique)
+		{
+			appendStringInfo(indexExprStr, " WITH OPERATOR(%s.=?=)",
+							 ApiCatalogSchemaName);
+			if (!usingNewUniqueIndexOpClass)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+								errmsg("Cannot create unique composite indexes "
+									   "with legacy unique index opclass")));
+			}
+		}
+
+		firstColumnWritten = true;
 	}
 	else
 	{
@@ -5619,6 +5661,12 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 languageOptionKey, languageOptionValue,
 							 languageOverrideKey, languageOverrideValue);
 		}
+	}
+
+	if (usingNewUniqueIndexOpClass && isUsingCompositeOpClass)
+	{
+		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
+							   firstColumnWritten);
 	}
 
 	return indexExprStr->data;

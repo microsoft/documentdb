@@ -6835,7 +6835,8 @@ BsonRumCompositeIndexOperatorFamily(void)
 
 	if (Cache.BsonRumCompositeIndexOperatorFamily == InvalidOid)
 	{
-		bool missingOk = false;
+		/* To handle older versions pre-upgrade, we allow missing ok */
+		bool missingOk = true;
 		Cache.BsonRumCompositeIndexOperatorFamily = get_opfamily_oid(
 			RumIndexAmId(), list_make2(makeString(ApiInternalSchemaNameV2), makeString(
 										   "bson_rum_composite_path_ops")),

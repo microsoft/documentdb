@@ -737,10 +737,8 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 		scan->opaque = outerScanState;
 
 		/* Initialize with 1 composite scan key */
-		int32_t nInnerOrderBy = norderbys;
 		if (EnableIndexOrderbyPushdown && norderbys == 0 && ForceRumOrderedIndexScan)
 		{
-			nInnerOrderBy = 1;
 			outerScanState->isForcedOrderScan = true;
 			outerScanState->forcedOrderScanKey.sk_attno = 1;
 			outerScanState->forcedOrderScanKey.sk_flags = SK_ORDER_BY;
@@ -752,9 +750,7 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 				BuildCompositeOrderByScanKeyArgument(rel->rd_opcoptions[0]);
 		}
 
-		outerScanState->innerScan = coreRoutine->ambeginscan(rel, 1, nInnerOrderBy);
-
-		/* return the outer scan */
+		/* Don't yet start inner scan here - instead wait until rescan to begin */
 		return scan;
 	}
 	else
@@ -786,11 +782,12 @@ extension_rumendscan_core(IndexScanDesc scan, IndexAmRoutine *coreRoutine)
 	{
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
-		if (outerScanState && outerScanState->innerScan)
+		if (outerScanState->innerScan)
 		{
 			coreRoutine->amendscan(outerScanState->innerScan);
-			pfree(outerScanState);
 		}
+
+		pfree(outerScanState);
 	}
 	else
 	{
@@ -872,7 +869,7 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 			nInnerorderbys = norderbys;
 
 			/* handle forced orderby */
-			if (outerScanState->isForcedOrderScan)
+			if (outerScanState->isForcedOrderScan && nInnerorderbys == 0)
 			{
 				/* If this is a forced order scan, we need to use the forced order scan key */
 				innerOrderBy = &outerScanState->forcedOrderScanKey;
@@ -880,16 +877,45 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 			}
 		}
 
-		ModifyScanKeysForCompositeScan(scankey, nscankeys,
-									   &outerScanState->compositeKey,
-									   outerScanState->multiKeyStatus ==
-									   IndexMultiKeyStatus_HasArrays,
-									   nInnerorderbys > 0);
+		/* There are 2 paths here, regular queries, or unique order by
+		 * If this is a unique order by, we need to modify the scan keys
+		 * for both paths.
+		 */
+		if (ModifyScanKeysForCompositeScan(scankey, nscankeys,
+										   &outerScanState->compositeKey,
+										   outerScanState->multiKeyStatus ==
+										   IndexMultiKeyStatus_HasArrays,
+										   nInnerorderbys > 0))
+		{
+			if (outerScanState->innerScan == NULL)
+			{
+				/* Initialize the inner scan if not initialized using the order by and keys */
+				outerScanState->innerScan = coreRoutine->ambeginscan(scan->indexRelation,
+																	 1,
+																	 nInnerorderbys);
+			}
 
-		coreRoutine->amrescan(outerScanState->innerScan,
-							  &outerScanState->compositeKey, 1,
-							  innerOrderBy,
-							  nInnerorderbys);
+			coreRoutine->amrescan(outerScanState->innerScan,
+								  &outerScanState->compositeKey, 1,
+								  innerOrderBy,
+								  nInnerorderbys);
+		}
+		else
+		{
+			/* This is a unique index check or unknown - let the inner scan deal with it */
+			if (outerScanState->innerScan == NULL)
+			{
+				/* Initialize the inner scan if not initialized using the order by and keys */
+				outerScanState->innerScan = coreRoutine->ambeginscan(scan->indexRelation,
+																	 nscankeys,
+																	 norderbys);
+			}
+
+			coreRoutine->amrescan(outerScanState->innerScan,
+								  scankey, nscankeys,
+								  orderbys,
+								  norderbys);
+		}
 	}
 	else
 	{
@@ -1152,32 +1178,37 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 		bool *partialMatch = NULL;
 		Pointer *extraData = NULL;
 
-		LOCAL_FCINFO(fcinfo, 5);
-		fcinfo->flinfo = palloc(sizeof(FmgrInfo));
-		fmgr_info_copy(fcinfo->flinfo,
-					   index_getprocinfo(scan->indexRelation, 1, GIN_EXTRACTQUERY_PROC),
-					   CurrentMemoryContext);
-
-		fcinfo->args[0].value = outerScanState->compositeKey.sk_argument;
-		fcinfo->args[1].value = PointerGetDatum(&nentries);
-		fcinfo->args[2].value = Int16GetDatum(BSON_INDEX_STRATEGY_COMPOSITE_QUERY);
-		fcinfo->args[3].value = PointerGetDatum(&partialMatch);
-		fcinfo->args[4].value = PointerGetDatum(&extraData);
-
-		Datum *entryRes = (Datum *) gin_bson_composite_path_extract_query(fcinfo);
-
-		/* Now write out the result for explain */
-		List *boundsList = NIL;
-		for (uint32_t i = 0; i < nentries; i++)
+		if (outerScanState->compositeKey.sk_argument != (Datum) 0)
 		{
-			bytea *entry = DatumGetByteaPP(entryRes[i]);
+			LOCAL_FCINFO(fcinfo, 5);
+			fcinfo->flinfo = palloc(sizeof(FmgrInfo));
+			fmgr_info_copy(fcinfo->flinfo,
+						   index_getprocinfo(scan->indexRelation, 1,
+											 GIN_EXTRACTQUERY_PROC),
+						   CurrentMemoryContext);
 
-			char *serializedBound = SerializeBoundsStringForExplain(entry, extraData[i],
-																	fcinfo);
-			boundsList = lappend(boundsList, serializedBound);
+			fcinfo->args[0].value = outerScanState->compositeKey.sk_argument;
+			fcinfo->args[1].value = PointerGetDatum(&nentries);
+			fcinfo->args[2].value = Int16GetDatum(BSON_INDEX_STRATEGY_COMPOSITE_QUERY);
+			fcinfo->args[3].value = PointerGetDatum(&partialMatch);
+			fcinfo->args[4].value = PointerGetDatum(&extraData);
+
+			Datum *entryRes = (Datum *) gin_bson_composite_path_extract_query(fcinfo);
+
+			/* Now write out the result for explain */
+			List *boundsList = NIL;
+			for (uint32_t i = 0; i < nentries; i++)
+			{
+				bytea *entry = DatumGetByteaPP(entryRes[i]);
+
+				char *serializedBound = SerializeBoundsStringForExplain(entry,
+																		extraData[i],
+																		fcinfo);
+				boundsList = lappend(boundsList, serializedBound);
+			}
+
+			ExplainPropertyList("indexBounds", boundsList, es);
 		}
-
-		ExplainPropertyList("indexBounds", boundsList, es);
 
 		if (outerScanState->numDuplicates > 0)
 		{

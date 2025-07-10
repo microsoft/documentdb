@@ -761,7 +761,7 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		}
 
 		IndexPath *indexPath = (IndexPath *) path;
-		if (indexPath->indexinfo->nkeycolumns != 1 ||
+		if (indexPath->indexinfo->nkeycolumns < 1 ||
 			!IsOrderBySupportedOnOpClass(indexPath->indexinfo->relam,
 										 indexPath->indexinfo->opfamily[0]))
 		{

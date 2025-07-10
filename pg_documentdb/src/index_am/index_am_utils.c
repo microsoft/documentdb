@@ -199,8 +199,7 @@ IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
 bool
 IsCompositeOpClass(Relation indexRelation)
 {
-	if (!EnableNewCompositeIndexOpclass || IndexRelationGetNumberOfKeyAttributes(
-			indexRelation) != 1)
+	if (!EnableNewCompositeIndexOpclass)
 	{
 		return false;
 	}
@@ -212,7 +211,20 @@ IsCompositeOpClass(Relation indexRelation)
 		return false;
 	}
 
-	return indexRelation->rd_opfamily[0] == amEntry->get_composite_path_op_family_oid();
+	/* Non unique indexes will have 1 attribute that has the entire composite key
+	 * Unique indexes will have the first attribute matching non-unique indexes, and the
+	 * second attribute matching the unique constraint key.
+	 * We put the composite column first just for convenience, so we can keep the order by
+	 * and query paths the same between the two.
+	 */
+	if (IndexRelationGetNumberOfKeyAttributes(indexRelation) == 1 ||
+		IndexRelationGetNumberOfKeyAttributes(indexRelation) == 2)
+	{
+		return indexRelation->rd_opfamily[0] ==
+			   amEntry->get_composite_path_op_family_oid();
+	}
+
+	return false;
 }
 
 

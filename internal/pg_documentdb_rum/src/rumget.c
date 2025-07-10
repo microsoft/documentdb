@@ -1337,12 +1337,6 @@ startScan(IndexScanDesc scan)
 	if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
 		so->willSort && !rumstate->useAlternativeOrder)
 	{
-		/* Don't initialize the scan entries in this path */
-		if (!rumstate->oneCol)
-		{
-			ereport(ERROR, (errmsg("Unable to support orderby with multicolumn index")));
-		}
-
 		scanType = RumOrderedScan;
 		startOrderedScanEntries(scan, rumstate, so);
 	}
