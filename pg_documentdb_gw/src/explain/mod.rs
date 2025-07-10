@@ -5,7 +5,6 @@
  *
  *-------------------------------------------------------------------------
  */
-#![allow(clippy::unnecessary_to_owned)]
 
 use core::f64;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};

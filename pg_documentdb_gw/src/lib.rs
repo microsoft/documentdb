@@ -6,8 +6,6 @@
  *-------------------------------------------------------------------------
  */
 
-#![allow(clippy::too_many_arguments)]
-
 use configuration::CertificateOptions;
 use either::Either::{Left, Right};
 use error::ErrorCode;

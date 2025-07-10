@@ -216,6 +216,7 @@ pub trait PgDataClient: Send + Sync {
         connection_context: &ConnectionContext,
     ) -> Result<PgResponse>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn execute_shard_collection(
         &self,
         request: &Request<'_>,

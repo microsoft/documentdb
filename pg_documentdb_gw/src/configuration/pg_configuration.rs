@@ -43,11 +43,11 @@ impl PgConfiguration {
         query_catalog: &QueryCatalog,
         dynamic_config_file: String,
         refresh_interval: u32,
-        settings_prefix: &str,
+        settings_prefixes: Vec<String>,
     ) {
         let query_catalog_clone = query_catalog.clone();
         let dynamic_config_file_clone = dynamic_config_file.clone();
-        let settings_prefix = settings_prefix.to_string();
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(refresh_interval as u64));
             interval.tick().await;
@@ -61,7 +61,7 @@ impl PgConfiguration {
                             &query_catalog_clone,
                             &dynamic_config_file_clone,
                             &Connection::new(inner_conn, false),
-                            &settings_prefix,
+                            &settings_prefixes,
                         )
                         .await
                         {
@@ -87,7 +87,7 @@ impl PgConfiguration {
         query_catalog: &QueryCatalog,
         setup_configuration: &dyn SetupConfiguration,
         system_requests_pool: &Arc<ConnectionPool>,
-        settings_prefix: &str,
+        settings_prefixes: Vec<String>,
     ) -> Result<Arc<Self>> {
         let conn = Connection::new(system_requests_pool.get_inner_connection().await?, false);
         let dynamic_config_file = setup_configuration.dynamic_configuration_file();
@@ -96,7 +96,7 @@ impl PgConfiguration {
                 query_catalog,
                 &dynamic_config_file,
                 &conn,
-                settings_prefix,
+                &settings_prefixes,
             )
             .await?,
         );
@@ -110,7 +110,7 @@ impl PgConfiguration {
             query_catalog,
             dynamic_config_file,
             refresh_interval,
-            settings_prefix,
+            settings_prefixes,
         );
 
         Ok(configuration)
@@ -128,7 +128,7 @@ impl PgConfiguration {
         query_catalog: &QueryCatalog,
         dynamic_config_file: &str,
         conn: &Connection,
-        settings_prefix: &str,
+        settings_prefixes: &Vec<String>,
     ) -> Result<HashMap<String, String>> {
         let mut configs = HashMap::new();
 
@@ -157,8 +157,14 @@ impl PgConfiguration {
             )
             .await?;
         for pg_config in pg_config_rows {
-            let key: &str = pg_config.get(0);
-            let key = key.strip_prefix(settings_prefix).unwrap_or(key);
+            let mut key = pg_config.get::<_, String>(0);
+
+            for settings_prefix in settings_prefixes {
+                if key.starts_with(settings_prefix) {
+                    key = key[settings_prefix.len()..].to_string();
+                    break;
+                }
+            }
 
             let mut value: String = pg_config.get(1);
             if value == "on" {
@@ -235,8 +241,15 @@ impl DynamicConfiguration for PgConfiguration {
     }
 
     async fn max_connections(&self) -> usize {
-        let ret = self.get_i32("max_connections", 300).await;
-        ret as usize
+        let max_connections = self.get_i32("max_connections", -1).await;
+        match max_connections {
+            n if n < 0 => {
+                // theoretically we can't end up here, since Postgres always provide values
+                log::error!("GUC max_connections is not setup correctly");
+                return 25usize;
+            }
+            n => n as usize,
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

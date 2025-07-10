@@ -75,7 +75,7 @@ async fn main() {
                 &query_catalog,
                 &setup_configuration,
                 &system_requests_pool,
-                "documentdb.",
+                vec!["documentdb.".to_string()],
             )
             .await
         },
