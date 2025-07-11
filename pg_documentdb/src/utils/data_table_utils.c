@@ -18,6 +18,8 @@
 static inline bool IsUpdateForVersion(ExtensionVersion inputVersion,
 									  MajorVersion expectedMajor, int expectedMinor, int
 									  expectedPatch);
+static ArrayType * GetCollectionIdsCore(const char *conditions);
+
 PG_FUNCTION_INFO_V1(apply_extension_data_table_upgrade);
 
 
@@ -68,21 +70,25 @@ apply_extension_data_table_upgrade(PG_FUNCTION_ARGS)
 ArrayType *
 GetCollectionIds()
 {
-	bool isNull = false;
-	bool readOnly = true;
-	StringInfo cmdStr = makeStringInfo();
-	appendStringInfo(cmdStr,
-					 "SELECT array_agg(DISTINCT collection_id)::bigint[] FROM %s.collections where view_definition IS NULL;",
-					 ApiCatalogSchemaName);
-	Datum versionDatum = ExtensionExecuteQueryViaSPI(cmdStr->data, readOnly,
-													 SPI_OK_SELECT, &isNull);
+	return GetCollectionIdsCore(NULL);
+}
 
-	if (isNull)
-	{
-		return NULL;
-	}
 
-	return DatumGetArrayTypeP(versionDatum);
+/*
+ * Get the collectonIds starting from the given collectionId.
+ * Returns all collectionIds if startCollectionId is 0.
+ * Only returns non-view and non sentinel collecitonIds.
+ */
+ArrayType *
+GetCollectionIdsStartingFrom(uint64 startCollectionId)
+{
+	StringInfo conditions = makeStringInfo();
+	appendStringInfo(conditions, "collection_name != 'system.dbSentinel' AND "
+								 "collection_id >= %lu", startCollectionId);
+	ArrayType *result = GetCollectionIdsCore(conditions->data);
+	pfree(conditions->data);
+	pfree(conditions);
+	return result;
 }
 
 
@@ -119,4 +125,34 @@ AlterCreationTime()
 		ExtensionExecuteQueryViaSPI(cmdStr->data, readOnly, SPI_OK_UTILITY,
 									&isNull);
 	}
+}
+
+
+/*
+ * Gets the collection Ids where view_definition is NULL and applies the conditions
+ * if provided.
+ */
+static ArrayType *
+GetCollectionIdsCore(const char *conditions)
+{
+	bool isNull = false;
+	bool readOnly = true;
+	StringInfo cmdStr = makeStringInfo();
+	appendStringInfo(cmdStr,
+					 "SELECT array_agg(DISTINCT collection_id ORDER BY collection_id)::bigint[] FROM %s.collections where view_definition IS NULL",
+					 ApiCatalogSchemaName);
+	if (conditions != NULL && strlen(conditions) > 0)
+	{
+		appendStringInfo(cmdStr, " AND %s", conditions);
+	}
+
+	Datum versionDatum = ExtensionExecuteQueryViaSPI(cmdStr->data, readOnly,
+													 SPI_OK_SELECT, &isNull);
+
+	if (isNull)
+	{
+		return NULL;
+	}
+
+	return DatumGetArrayTypeP(versionDatum);
 }
