@@ -12,6 +12,7 @@
 #include "index_am/index_am_utils.h"
 #include "utils/feature_counter.h"
 #include "access/relscan.h"
+#include "index_am/documentdb_rum.h"
 
 #include <miscadmin.h>
 
@@ -21,6 +22,9 @@ static int BsonNumAlternateAmEntries = 0;
 
 extern bool EnableNewCompositeIndexOpclass;
 
+static const char * GetRumCatalogSchema(void);
+static const char * GetRumInternalSchemaV2(void);
+
 /* Left non-static for internal use */
 BsonIndexAmEntry RumIndexAmEntry = {
 	.is_single_path_index_supported = true,
@@ -29,13 +33,16 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.is_composite_index_supported = true,
 	.is_text_index_supported = true,
 	.is_hashed_index_supported = true,
-	.is_order_by_supported = true,
+	.is_order_by_supported = false,
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
 	.get_text_path_op_family_oid = BsonRumTextPathOperatorFamily,
 	.add_explain_output = NULL, /* No explain output for RUM */
-	.am_name = "rum"
+	.am_name = "rum",
+	.get_opclass_catalog_schema = GetRumCatalogSchema,
+	.get_opclass_internal_catalog_schema = GetRumInternalSchemaV2,
+	.get_multikey_status = RumGetMultikeyStatus,
 };
 
 /*
@@ -184,7 +191,7 @@ bool
 IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
 {
 	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
-	if (amEntry == NULL)
+	if (amEntry == NULL || amEntry->get_text_path_op_family_oid == NULL)
 	{
 		return false;
 	}
@@ -262,4 +269,31 @@ IsOrderBySupportedOnOpClass(Oid indexAm, Oid columnOpFamilyAm)
 
 	return amEntry->is_order_by_supported &&
 		   amEntry->get_composite_path_op_family_oid() == columnOpFamilyAm;
+}
+
+
+GetMultikeyStatusFunc
+GetMultiKeyStatusByRelAm(Oid relam)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return NULL;
+	}
+
+	return amEntry->get_multikey_status;
+}
+
+
+static const char *
+GetRumCatalogSchema(void)
+{
+	return ApiCatalogSchemaName;
+}
+
+
+static const char *
+GetRumInternalSchemaV2(void)
+{
+	return ApiInternalSchemaNameV2;
 }

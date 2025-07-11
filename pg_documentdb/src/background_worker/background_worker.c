@@ -269,7 +269,8 @@ DocumentDBBackgroundWorkerMain(Datum main_arg)
 		}
 
 		waitResult = WaitLatch(&BackgroundWorkerShmem->latch,
-							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH,
+							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH |
+							   WL_POSTMASTER_DEATH,
 							   latchTimeOut * ONE_SEC_IN_MS,
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);
@@ -474,11 +475,12 @@ WaitForBackgroundWorkerDependencies(void)
 	int waitTimeoutInSec = 10;
 	bool roleExists = false;
 
-	while (!roleExists)
+	while (!roleExists && !got_sigterm)
 	{
 		waitResult = 0;
 		waitResult = WaitLatch(&BackgroundWorkerShmem->latch,
-							   WL_TIMEOUT | WL_EXIT_ON_PM_DEATH,
+							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH |
+							   WL_POSTMASTER_DEATH,
 							   waitTimeoutInSec * ONE_SEC_IN_MS,
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);

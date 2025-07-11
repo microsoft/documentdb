@@ -15,42 +15,10 @@
 #include <utils/rel.h>
 #include "metadata/metadata_cache.h"
 #include "utils/version_utils.h"
-
-struct IndexScanDescData;
-struct ExplainState;
-
-typedef void (*TryExplainIndexFunc)(struct IndexScanDescData *scan, struct
-									ExplainState *es);
-
-/*
- * Data structure for an alternative index acess method for indexing bosn.
- * It contains the indexing capability and various utility function.
- */
-typedef struct
-{
-	bool is_single_path_index_supported;
-	bool is_unique_index_supported;
-	bool is_wild_card_supported;
-	bool is_composite_index_supported;
-	bool is_text_index_supported;
-	bool is_hashed_index_supported;
-	bool is_order_by_supported;
-	Oid (*get_am_oid)(void);
-	Oid (*get_single_path_op_family_oid)(void);
-	Oid (*get_composite_path_op_family_oid)(void);
-	Oid (*get_text_path_op_family_oid)(void);
-
-	/* optional func to add explain output */
-	TryExplainIndexFunc add_explain_output;
-	const char *am_name;
-} BsonIndexAmEntry;
+#include "index_am/index_am_exports.h"
 
 #define MAX_ALTERNATE_INDEX_AMS 5
 
-/*
- * Registers an bson index access method at system start time.
- */
-void RegisterIndexAm(BsonIndexAmEntry indexAmEntry);
 
 int SetDynamicIndexAmOidsAndGetCount(Datum *indexAmArray, int32_t indexAmArraySize);
 
@@ -85,6 +53,8 @@ bool IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid);
 
 bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 
+GetMultikeyStatusFunc GetMultiKeyStatusByRelAm(Oid relam);
 
 void TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es);
+
 #endif

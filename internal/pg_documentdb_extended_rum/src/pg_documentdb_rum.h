@@ -1190,4 +1190,9 @@ extern Datum FunctionCall10Coll(FmgrInfo *flinfo, Oid collation,
 						  ALLOCSET_DEFAULT_MAXSIZE)
 #endif
 
+void InitializeDocumentDBRum(void);
+
+struct ExplainState;
+extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
+											  struct ExplainState *es);
 #endif   /* __RUM_H__ */

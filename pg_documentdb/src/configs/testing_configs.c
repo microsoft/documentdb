@@ -68,6 +68,9 @@ bool CurrentOpAddSqlCommand = DEFAULT_CURRENTOP_ADD_SQL_COMMAND;
 #define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
 bool ForceRumOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
 
+#define DEFAULT_ALTERNATE_INDEX_HANDLER ""
+char *AlternateIndexHandler = DEFAULT_ALTERNATE_INDEX_HANDLER;
+
 void
 InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -231,5 +234,12 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 			"Whether to force RUM ordered index scan for rum indexes."),
 		NULL, &ForceRumOrderedIndexScan,
 		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomStringVariable(
+		psprintf("%s.alternate_index_handler_name", prefix),
+		gettext_noop(
+			"The name of the index handler to use as opposed to rum (currently for testing only)."),
+		NULL, &AlternateIndexHandler, DEFAULT_ALTERNATE_INDEX_HANDLER,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

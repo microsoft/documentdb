@@ -47,6 +47,8 @@ bool RumThrowErrorOnInvalidDataPage = RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PA
 PGDLLEXPORT void
 _PG_init(void)
 {
+	InitializeDocumentDBRum();
+
 #define RUM_GUC_PREFIX "documentdb_rum"
 #define DOCUMENTDB_RUM_GUC_PREFIX "documentdb_rum"
 

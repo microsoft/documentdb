@@ -7,24 +7,16 @@ SET documentdb.next_collection_index_id TO 68000;
 set documentdb.enableExtendedExplainPlans to on;
 SET documentdb.enableNewCompositeIndexOpClass to on;
 
--- TODO: move this to documentdb schema
-
-DO $$
-BEGIN
-    IF (SELECT 1 FROM pg_amproc JOIN pg_opfamily on pg_amproc.amprocfamily = pg_opfamily.oid WHERE opfname = 'bson_rum_composite_path_ops' AND amproc::text LIKE '%bson_rum_composite_ordering') THEN
-    ELSE
-        -- add the operators
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD FUNCTION 8 (bson)documentdb_api_internal.bson_rum_composite_ordering(bytea, bson, int2, internal);
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD OPERATOR 21 documentdb_api_catalog.|-<>(bson, bson) FOR ORDER BY documentdb_core.bson_btree_ops;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
+-- if documentdb_extended_rum exists, set alternate index handler
+SELECT pg_catalog.set_config('documentdb.alternate_index_handler_name', 'extended_rum', false), extname FROM pg_extension WHERE extname = 'documentdb_extended_rum';
 
 
 SELECT documentdb_api.drop_collection('comp_db', 'query_orderby') IS NOT NULL;
 SELECT documentdb_api.create_collection('comp_db', 'query_orderby');
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "enableCompositeTerm": true, "name": "a_c" }] }', true);
+
+\d documentdb_data.documents_68001
 
 -- now insert some sample docs
 SELECT documentdb_api.insert_one('comp_db', 'query_orderby', '{ "_id": 1, "a": 1, "c": 1 }');

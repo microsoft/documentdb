@@ -162,8 +162,9 @@ bool EnableBackendStatementTimeout = DEFAULT_ENABLE_STATEMENT_TIMEOUT;
 
 static struct config_enum_entry rum_load_options[4] = {
 	{ "none", RumLibraryLoadOption_None, false },
-	{ "prefer_documentdb_rum", RumLibraryLoadOption_PreferDocumentDBRum, false },
-	{ "require_documentdb_rum", RumLibraryLoadOption_RequireDocumentDBRum, false },
+	{ "prefer_documentdb_extended_rum", RumLibraryLoadOption_PreferDocumentDBRum, false },
+	{ "require_documentdb_extended_rum", RumLibraryLoadOption_RequireDocumentDBRum,
+	  false },
 	{ NULL, 0, false }
 };
 

@@ -4,17 +4,13 @@ SET documentdb.next_collection_id TO 68000;
 SET documentdb.next_collection_index_id TO 68000;
 set documentdb.enableExtendedExplainPlans to on;
 SET documentdb.enableNewCompositeIndexOpClass to on;
--- TODO: move this to documentdb schema
-DO $$
-BEGIN
-    IF (SELECT 1 FROM pg_amproc JOIN pg_opfamily on pg_amproc.amprocfamily = pg_opfamily.oid WHERE opfname = 'bson_rum_composite_path_ops' AND amproc::text LIKE '%bson_rum_composite_ordering') THEN
-    ELSE
-        -- add the operators
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD FUNCTION 8 (bson)documentdb_api_internal.bson_rum_composite_ordering(bytea, bson, int2, internal);
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD OPERATOR 21 documentdb_api_catalog.|-<>(bson, bson) FOR ORDER BY documentdb_core.bson_btree_ops;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
+-- if documentdb_extended_rum exists, set alternate index handler
+SELECT pg_catalog.set_config('documentdb.alternate_index_handler_name', 'extended_rum', false), extname FROM pg_extension WHERE extname = 'documentdb_extended_rum';
+  set_config  |         extname         
+---------------------------------------------------------------------
+ extended_rum | documentdb_extended_rum
+(1 row)
+
 SELECT documentdb_api.drop_collection('comp_db', 'query_orderby') IS NOT NULL;
  ?column? 
 ---------------------------------------------------------------------
@@ -33,6 +29,19 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "cr
 ---------------------------------------------------------------------
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
+
+\d documentdb_data.documents_68001
+          Table "documentdb_data.documents_68001"
+     Column      |  Type  | Collation | Nullable | Default 
+---------------------------------------------------------------------
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
+Indexes:
+    "collection_pk_68001" PRIMARY KEY, btree (shard_key_value, object_id)
+    "documents_rum_index_68002" documentdb_extended_rum (document documentdb_extended_rum_catalog.bson_extended_rum_composite_path_ops (pathspec='[ "a", "c" ]', tl='2691'))
+Check constraints:
+    "shard_key_value_check" CHECK (shard_key_value = '68001'::bigint)
 
 -- now insert some sample docs
 SELECT documentdb_api.insert_one('comp_db', 'query_orderby', '{ "_id": 1, "a": 1, "c": 1 }');
@@ -808,7 +817,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF)
 ---------------------------------------------------------------------
  Sort (actual rows=100 loops=1)
    Sort Key: (bson_orderby(document, '{ "a" : { "$numberInt" : "1" } }'::bson)) NULLS FIRST, (bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::bson)) NULLS FIRST
-   Sort Method: quicksort  Memory: 35kB
+   Sort Method: quicksort  Memory: 36kB
    ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=100 loops=1)
          indexName: a_1_id_1
          isMultiKey: true

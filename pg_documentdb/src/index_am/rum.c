@@ -77,7 +77,7 @@ typedef struct DocumentDBRumIndexState
 } DocumentDBRumIndexState;
 
 
-const char *DocumentdbRumPath = "$libdir/pg_documentdb_rum";
+const char *DocumentdbRumPath = "$libdir/pg_documentdb_extended_rum";
 typedef const RumIndexArrayStateFuncs *(*GetIndexArrayStateFuncsFunc)(void);
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
@@ -227,7 +227,7 @@ LoadRumRoutine(void)
 												"documentdb_rumhandler", !missingOk,
 												ignoreLibFileHandle);
 			ereport(LOG, (errmsg(
-							  "Loaded documentdb_rumhandler successfully via pg_documentdb_rum")));
+							  "Loaded documentdb_rumhandler successfully via pg_documentdb_extended_rum")));
 			break;
 		}
 
@@ -252,7 +252,7 @@ LoadRumRoutine(void)
 			{
 				ereport(LOG,
 						(errmsg(
-							 "Loaded documentdb_rumhandler successfully via pg_documentdb_rum")));
+							 "Loaded documentdb_rumhandler successfully via pg_documentdb_extended_rum")));
 			}
 
 			break;
@@ -401,7 +401,9 @@ bool
 CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 									  int32_t *maxPathKeySupported, bool isGroupBy)
 {
-	if (indexPath->indexinfo->relam != RumIndexAmId())
+	GetMultikeyStatusFunc getMultiKeyStatusFunc = GetMultiKeyStatusByRelAm(
+		indexPath->indexinfo->relam);
+	if (getMultiKeyStatusFunc == NULL)
 	{
 		return false;
 	}
@@ -477,7 +479,7 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 	*maxPathKeySupported = orderByDetailIndex;
 	bool isMultiKeyIndex = false;
 	Relation indexRel = index_open(indexPath->indexinfo->indexoid, NoLock);
-	isMultiKeyIndex = RumGetMultikeyStatus(indexRel);
+	isMultiKeyIndex = getMultiKeyStatusFunc(indexRel);
 	index_close(indexRel, NoLock);
 
 	if (!isMultiKeyIndex && maxOrderbyColumn == 0)

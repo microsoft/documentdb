@@ -191,7 +191,7 @@ extern bool DefaultUseCompositeOpClass;
 extern bool EnableDescendingCompositeIndex;
 extern bool EnableCompositeUniqueIndex;
 
-char *AlternateIndexHandler = NULL;
+extern char *AlternateIndexHandler;
 
 #define WILDCARD_INDEX_SUFFIX "$**"
 #define DOT_WILDCARD_INDEX_SUFFIX "." WILDCARD_INDEX_SUFFIX
@@ -314,7 +314,7 @@ static void ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *tre
 											 nonIdFieldInclusion,
 											 WildcardProjFieldInclusionMode *
 											 idFieldInclusion);
-static char * GenerateIndexExprStr(char *indexAmSuffix,
+static char * GenerateIndexExprStr(const char *indexAmSuffix,
 								   bool unique, bool sparse, bool enableCompositeOpClass,
 								   IndexDefKey *indexDefKey,
 								   const BsonIntermediatePathNode *
@@ -322,7 +322,9 @@ static char * GenerateIndexExprStr(char *indexAmSuffix,
 								   const char *indexName, const char *defaultLanguage,
 								   const char *languageOverride,
 								   bool enableLargeIndexKeys,
-								   bool useReducedWildcardTerms);
+								   bool useReducedWildcardTerms,
+								   const char *indexAmOpClassCatalogSchema,
+								   const char *indexAmOpClassInternalCatalogSchema);
 static char * Generate2dsphereIndexExprStr(const IndexDefKey *indexDefKey);
 static char * Generate2dsphereSparseExprStr(const IndexDefKey *indexDefKey);
 static char * GenerateIndexFilterStr(uint64 collectionId, Expr *indexDefPartFilterExpr);
@@ -447,8 +449,8 @@ IsHashIndex(IndexDef *indexDef)
  *
  * Otherwise, we default to "rum" index.
  */
-inline static char *
-GetIndexAmHandlerName(IndexDef *indexDef)
+inline static const BsonIndexAmEntry *
+GetIndexAmHandlerByName(IndexDef *indexDef)
 {
 	if (AlternateIndexHandler != NULL && strlen(AlternateIndexHandler) > 0)
 	{
@@ -463,11 +465,11 @@ GetIndexAmHandlerName(IndexDef *indexDef)
 			(IsHashIndex(indexDef) && indexAm->is_hashed_index_supported))
 		{
 			ReportFeatureUsage(FEATURE_CREATE_INDEX_ALTERNATE_AM);
-			return AlternateIndexHandler;
+			return indexAm;
 		}
 	}
 
-	return "rum";
+	return GetBsonIndexAmByIndexAmName("rum");
 }
 
 
@@ -4690,7 +4692,7 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 	StringInfo cmdStr = makeStringInfo();
 	bool unique = indexDef->unique == BoolIndexOption_True;
 	bool sparse = indexDef->sparse == BoolIndexOption_True;
-	char *indexAmSuffix = GetIndexAmHandlerName(indexDef);
+	const BsonIndexAmEntry *indexAm = GetIndexAmHandlerByName(indexDef);
 
 	if (unique)
 	{
@@ -4723,8 +4725,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_%s (%s) %s%s%s",
-						 indexId, ExtensionObjectPrefix, indexAmSuffix,
-						 GenerateIndexExprStr(indexAmSuffix, unique,
+						 indexId, ExtensionObjectPrefix, indexAm->am_name,
+						 GenerateIndexExprStr(indexAm->am_name, unique,
 											  sparse, enableNewIndexOpClass,
 											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
@@ -4732,7 +4734,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  useReducedWildcardTermGeneration),
+											  useReducedWildcardTermGeneration,
+											  indexAm->get_opclass_catalog_schema(),
+											  indexAm->get_opclass_internal_catalog_schema()),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4865,8 +4869,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		appendStringInfo(cmdStr,
 						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
-						 indexAmSuffix,
-						 GenerateIndexExprStr(indexAmSuffix,
+						 indexAm->am_name,
+						 GenerateIndexExprStr(indexAm->am_name,
 											  unique, sparse, enableNewIndexOpClass,
 											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
@@ -4874,7 +4878,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  useReducedWildcardTermGeneration),
+											  useReducedWildcardTermGeneration,
+											  indexAm->get_opclass_catalog_schema(),
+											  indexAm->get_opclass_internal_catalog_schema()),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -5196,7 +5202,9 @@ ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *treeParentNode,
 
 inline static void
 AppendUniqueColumnExpr(StringInfo indexExprStr, IndexDefKey *indexDefKey,
-					   bool sparse, char *indexAmSuffix, bool firstColumnWritten)
+					   bool sparse, const char *indexAmSuffix, const
+					   char *indexAmOpClassInternalCatalogSchema,
+					   bool firstColumnWritten)
 {
 	appendStringInfo(indexExprStr,
 					 "%s%s.generate_unique_shard_document(document, shard_key_value, '%s'::%s.bson, %s) %s.bson_%s_unique_shard_path_ops WITH OPERATOR(%s.=#=)",
@@ -5205,7 +5213,7 @@ AppendUniqueColumnExpr(StringInfo indexExprStr, IndexDefKey *indexDefKey,
 					 GenerateUniqueProjectionSpec(indexDefKey),
 					 CoreSchemaName,
 					 sparse ? "true" : "false",
-					 DocumentDBApiInternalSchemaName,
+					 indexAmOpClassInternalCatalogSchema,
 					 indexAmSuffix,
 					 DocumentDBApiInternalSchemaName);
 }
@@ -5220,13 +5228,15 @@ AppendUniqueColumnExpr(StringInfo indexExprStr, IndexDefKey *indexDefKey,
  * have a "wildcardProjection" specification.
  */
 static char *
-GenerateIndexExprStr(char *indexAmSuffix,
+GenerateIndexExprStr(const char *indexAmSuffix,
 					 bool unique, bool sparse, bool enableCompositeOpClass,
 					 IndexDefKey *indexDefKey,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
 					 const char *languageOverride, bool enableLargeIndexKeys,
-					 bool useReducedWildcardTerms)
+					 bool useReducedWildcardTerms,
+					 const char *indexAmOpClassCatalogSchema,
+					 const char *indexAmOpClassInternalCatalogSchema)
 {
 	StringInfo indexExprStr = makeStringInfo();
 
@@ -5268,7 +5278,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 	if (usingNewUniqueIndexOpClass && !isUsingCompositeOpClass)
 	{
 		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
-							   firstColumnWritten);
+							   indexAmOpClassInternalCatalogSchema, firstColumnWritten);
 		firstColumnWritten = true;
 	}
 
@@ -5299,7 +5309,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
@@ -5321,7 +5331,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 "%s document %s.bson_%s_single_path_ops"
 							 "(path='', iswildcard=true%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 indexTermSizeLimitArg,
 							 wildcardIndexTruncatedPathLimit,
@@ -5350,7 +5360,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 "%s document %s.bson_%s_wildcard_project_path_ops"
 							 "(includeid=%s%s%s",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 includeId ? "true" : "false",
 							 indexTermSizeLimitArg,
@@ -5456,7 +5466,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 		appendStringInfo(indexExprStr,
 						 "%s document %s.bson_%s_composite_path_ops(pathspec=%s%s)",
 						 firstColumnWritten ? "," : "",
-						 ApiInternalSchemaNameV2,
+						 indexAmOpClassInternalCatalogSchema,
 						 indexAmSuffix,
 						 quote_literal_cstr(BsonValueToJsonForLogging(&arrayValue)),
 						 indexTermSizeLimitArg);
@@ -5546,7 +5556,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 indexAmSuffix,
 									 quote_literal_cstr(keyPath),
 									 indexKeyPath->isWildcard ? ",iswildcard=true" : "",
@@ -5586,7 +5596,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.%s_%s_hashed_ops(path=%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 ExtensionObjectPrefix,
 									 indexAmSuffix,
 									 quote_literal_cstr(keyPath));
@@ -5605,7 +5615,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 indexAmSuffix,
 									 quote_literal_cstr(SerializeWeightedPaths(
 															indexDefKey->textPathList)),
@@ -5655,7 +5665,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
@@ -5668,7 +5678,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 	if (usingNewUniqueIndexOpClass && isUsingCompositeOpClass)
 	{
 		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
-							   firstColumnWritten);
+							   indexAmOpClassInternalCatalogSchema, firstColumnWritten);
 	}
 
 	return indexExprStr->data;

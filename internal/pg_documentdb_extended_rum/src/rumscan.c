@@ -21,9 +21,6 @@
 
 extern bool RumAllowOrderByRawKeys;
 
-extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
-											  ExplainState *es);
-
 IndexScanDesc
 rumbeginscan(Relation rel, int nkeys, int norderbys)
 {
