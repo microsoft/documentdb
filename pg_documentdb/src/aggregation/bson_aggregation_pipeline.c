@@ -5591,7 +5591,12 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 	}
 
 	/* Push prior stuff to a subquery first since we're gonna aggregate our way */
-	query = MigrateQueryToSubQuery(query, context);
+	if (list_length(query->targetList) > 1 || query->hasAggs ||
+		list_length(query->groupClause) > 0 || list_length(query->sortClause) > 0 ||
+		!EnableIndexOrderbyPushdown)
+	{
+		query = MigrateQueryToSubQuery(query, context);
+	}
 
 	/* Take the current output (That's to be grouped)*/
 	TargetEntry *origEntry = linitial(query->targetList);
@@ -5647,14 +5652,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 	FuncExpr *groupFunc = makeFuncExpr(
 		bsonExpressionGetFunction, BsonTypeId(), groupArgs, InvalidOid,
 		InvalidOid, COERCE_EXPLICIT_CALL);
-
-	if (BsonTypeId() != DocumentDBCoreBsonTypeId())
-	{
-		groupFunc = makeFuncExpr(
-			DocumentDBCoreBsonToBsonFunctionOId(), BsonTypeId(), list_make1(groupFunc),
-			InvalidOid,
-			InvalidOid, COERCE_EXPLICIT_CALL);
-	}
 
 	/* Now do the projector / accumulators
 	 * We do this in 2 stages to handle citus query generation.
@@ -6139,6 +6136,44 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 	grpcl->hashable = true;
 	query->groupClause = list_make1(grpcl);
 
+	if (EnableIndexOrderbyPushdown)
+	{
+		/* Group by is valid for pushdown iff it's a string expression of a path that's not a variable */
+		bool isGroupByValidForIndexPushdown =
+			idValue.value_type == BSON_TYPE_UTF8 &&
+			idValue.value.v_utf8.len > 1 &&
+			idValue.value.v_utf8.str[0] == '$' &&
+			idValue.value.v_utf8.str[1] != '$';
+
+		/*
+		 * If there's an orderby pushdown to the index, add a full scan clause iff
+		 * the query has no filters yet.
+		 */
+		if (isGroupByValidForIndexPushdown &&
+			CanPushSortFilterToIndex(query) && (
+				IsClusterVersionAtLeastPatch(DocDB_V0, 103, 1) ||
+				IsClusterVersionAtLeastPatch(DocDB_V0, 104, 1) ||
+				IsClusterVersionAtleast(DocDB_V0, 105, 0)))
+		{
+			pgbsonelement sortElement = { 0 };
+			sortElement.path = idValue.value.v_utf8.str + 1;
+			sortElement.pathLength = idValue.value.v_utf8.len - 1;
+			sortElement.bsonValue.value_type = BSON_TYPE_INT32;
+			sortElement.bsonValue.value.v_int32 = 1;
+			pgbson *sortSpec = PgbsonElementToPgbson(&sortElement);
+			Const *sortConst = MakeBsonConst(sortSpec);
+			List *rangeArgs = list_make2(origEntry->expr, sortConst);
+			Expr *fullScanExpr = (Expr *) makeFuncExpr(
+				BsonFullScanFunctionOid(), BOOLOID, rangeArgs,
+				InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+			List *currentQuals = make_ands_implicit(
+				(Expr *) query->jointree->quals);
+			currentQuals = lappend(currentQuals, fullScanExpr);
+			query->jointree->quals = (Node *) make_ands_explicit(
+				currentQuals);
+		}
+	}
+
 	/* Now that the group + accumulators are done, push to a subquery
 	 * Request preserving the N-entry T-list
 	 */
@@ -6155,7 +6190,6 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 
 	entry->expr = repathExpression;
 	entry->resname = origEntry->resname;
-
 
 	/* Mark new stages to push a new subquery */
 	context->requiresSubQuery = true;

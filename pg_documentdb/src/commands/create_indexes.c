@@ -1829,9 +1829,11 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 				indexDef->enableLargeIndexKeys = BoolIndexOption_False;
 			}
 		}
-		else if (EnableNewCompositeIndexOpclass && strcmp(indexDefDocKey,
-														  "enableCompositeTerm") == 0)
+		else if (EnableNewCompositeIndexOpclass &&
+				 (strcmp(indexDefDocKey, "enableCompositeTerm") == 0 || strcmp(
+					  indexDefDocKey, "enableOrderedIndex") == 0))
 		{
+			EnsureTopLevelFieldIsBooleanLike(indexDefDocKey, &indexDefDocIter);
 			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
 			if (BsonValueAsBool(value))
 			{

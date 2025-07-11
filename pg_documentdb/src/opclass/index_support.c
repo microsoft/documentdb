@@ -684,6 +684,8 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 
 	ListCell *sortCell;
 	List *sortDetails = NIL;
+	bool hasOrderBy = false;
+	bool hasGroupby = false;
 	foreach(sortCell, root->query_pathkeys)
 	{
 		PathKey *pathkey = (PathKey *) lfirst(sortCell);
@@ -701,7 +703,26 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		}
 
 		FuncExpr *func = (FuncExpr *) member->em_expr;
-		if (func->funcid != BsonOrderByFunctionOid())
+		if (func->funcid == BsonOrderByFunctionOid())
+		{
+			if (hasGroupby)
+			{
+				return;
+			}
+
+			hasOrderBy = true;
+		}
+		else if (func->funcid == BsonExpressionGetFunctionOid() ||
+				 func->funcid == BsonExpressionGetWithLetFunctionOid())
+		{
+			if (hasOrderBy)
+			{
+				return;
+			}
+
+			hasGroupby = true;
+		}
+		else
 		{
 			return;
 		}
@@ -729,6 +750,38 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		pgbsonelement sortElement;
 		PgbsonToSinglePgbsonElement(
 			DatumGetPgBson(secondConst->constvalue), &sortElement);
+		if (hasGroupby)
+		{
+			/* In the case of group by the expression would be { "": expr }
+			 * Here we can push down to the index iff the expression is a path.
+			 */
+			if (sortElement.bsonValue.value_type != BSON_TYPE_UTF8)
+			{
+				return;
+			}
+
+			if (sortElement.bsonValue.value.v_utf8.len > 1 &&
+				sortElement.bsonValue.value.v_utf8.str[0] == '$')
+			{
+				/* This is a valid path: Track the path in the sortElement to decide pushdown */
+				sortElement.path = sortElement.bsonValue.value.v_utf8.str + 1;
+				sortElement.pathLength = sortElement.bsonValue.value.v_utf8.len - 1;
+				sortElement.bsonValue.value_type = BSON_TYPE_INT32;
+				sortElement.bsonValue.value.v_int32 = pathkey->pk_strategy ==
+													  BTGreaterStrategyNumber ? -1 : 1;
+				pgbson *sortSpec = PgbsonElementToPgbson(&sortElement);
+
+				/* Also rewrite the secondConst so that the Expr on the sort operator is correct */
+				secondConst = makeConst(BsonTypeId(), -1, InvalidOid, -1, PointerGetDatum(
+											sortSpec), false, false);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+
 		SortIndexInputDetails *sortDetailsInput =
 			palloc0(sizeof(SortIndexInputDetails));
 		sortDetailsInput->sortPath = sortElement.path;
@@ -775,7 +828,7 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		 */
 		int32_t maxPathKeySupported = -1;
 		if (!CompositeIndexSupportsOrderByPushdown(indexPath, sortDetails,
-												   &maxPathKeySupported))
+												   &maxPathKeySupported, hasGroupby))
 		{
 			continue;
 		}
@@ -807,6 +860,8 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 		/* Don't modify the list we're enumerating */
 		pathsToAdd = lappend(pathsToAdd, newPath);
 	}
+
+	list_free_deep(sortDetails);
 
 	foreach(cell, pathsToAdd)
 	{

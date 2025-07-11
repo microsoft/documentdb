@@ -2581,14 +2581,10 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	{
 		/* here we write an empty path and minKey so it's sorted first. */
 		state.orderByValue.value_type = BSON_TYPE_UNDEFINED;
-		PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
-								&state.orderByValue);
 	}
-	else
-	{
-		PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
-								&state.orderByValue);
-	}
+
+	PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
+							&state.orderByValue);
 
 	/* append the collation for use in bson_orderby_compare */
 	if (IsCollationApplicable(collationString))

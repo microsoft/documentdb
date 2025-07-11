@@ -399,7 +399,7 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
  */
 bool
 CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
-									  int32_t *maxPathKeySupported)
+									  int32_t *maxPathKeySupported, bool isGroupBy)
 {
 	if (indexPath->indexinfo->relam != RumIndexAmId())
 	{
@@ -484,6 +484,12 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 	{
 		/* Non multi-key index on the first column always supports order by */
 		return true;
+	}
+
+	if (isGroupBy && isMultiKeyIndex)
+	{
+		/* Cannot push group by to a multi-key index */
+		return false;
 	}
 
 	bool equalityPrefixes[INDEX_MAX_KEYS] = { false };
