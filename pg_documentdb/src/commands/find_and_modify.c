@@ -339,11 +339,16 @@ ParseFindAndModifyMessage(pgbson *message)
 			/* we keep arrayFilters in projected form to preserve the type */
 			spec.arrayFilters = CreateBsonValueCopy(bson_iter_value(&messageIter));
 		}
-		else if (!SkipFailOnCollation && strcmp(key, "collation") == 0)
+		else if (strcmp(key, "collation") == 0)
 		{
-			/* If Collation is not enabled, it is silently ignored */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("findAndModify.collation is not implemented yet")));
+			ReportFeatureUsage(FEATURE_COLLATION);
+
+			if (!SkipFailOnCollation)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg(
+									"findAndModify.collation is not implemented yet")));
+			}
 		}
 		else if (strcmp(key, "maxTimeMS") == 0)
 		{

@@ -1239,12 +1239,22 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 			collectionUuid = palloc(sizeof(pg_uuid_t));
 			memcpy(&collectionUuid->data, value->value.v_binary.data, 16);
 		}
-		else if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
+		else if (StringViewEqualsCString(&keyView, "collation"))
 		{
-			EnsureTopLevelFieldType("collation", &aggregationIterator,
-									BSON_TYPE_DOCUMENT);
 			ReportFeatureUsage(FEATURE_COLLATION);
-			ParseAndGetCollationString(value, context.collationString);
+
+			if (EnableCollation)
+			{
+				EnsureTopLevelFieldType("collation", &aggregationIterator,
+										BSON_TYPE_DOCUMENT);
+				ParseAndGetCollationString(value, context.collationString);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg(
+									"aggregation with collation is not currently supported.")));
+			}
 		}
 		else if (setStatementTimeout &&
 				 StringViewEqualsCString(&keyView, "maxTimeMS"))
@@ -1481,12 +1491,23 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 
 			case 'c':
 			{
-				if (EnableCollation && StringViewEqualsCString(&keyView, "collation"))
+				if (StringViewEqualsCString(&keyView, "collation"))
 				{
-					EnsureTopLevelFieldType("collation", &findIterator,
-											BSON_TYPE_DOCUMENT);
 					ReportFeatureUsage(FEATURE_COLLATION);
-					ParseAndGetCollationString(value, context.collationString);
+
+					if (EnableCollation)
+					{
+						EnsureTopLevelFieldType("collation", &findIterator,
+												BSON_TYPE_DOCUMENT);
+						ParseAndGetCollationString(value, context.collationString);
+					}
+					else
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+										errmsg(
+											"Find with collation is not currently supported.")));
+					}
+
 					continue;
 				}
 

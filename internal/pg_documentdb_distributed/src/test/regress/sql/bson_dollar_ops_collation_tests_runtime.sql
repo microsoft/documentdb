@@ -3,7 +3,7 @@ SET citus.next_shard_id TO 7990000;
 SET documentdb.next_collection_id TO 7990;
 SET documentdb.next_collection_index_id TO 7990;
 
-SET documentdb_core.enablecollation TO on;
+SET documentdb_core.enableCollation TO on;
 
 -- (1) insert some docs
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 1, "a": "Cat" }');
@@ -759,15 +759,16 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_p
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "coll_agg_proj", "pipeline": [ { "$project": { "a": 1, "newField": { "$zip": { "inputs": [ {"$cond": [{"$eq": ["CAT", "$a"]}, ["$a"], ["null"]]}, ["$a"]] } } } }], "cursor": {}, "collation": { "locale": "en", "strength" : 3} }');
 
 -- query match
--- ignore collation (turn both GUCs off)
+-- ignore collation (make sure all 3 GUCs are off)
 SET documentdb.enableLetAndCollationForQueryMatch TO off;
 SET documentdb.enableVariablesSupportForWriteCommands TO off;
+SET documentdb_core.enableCollation TO off;
 
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"a": "CAT"}', NULL, 'en-u-ks-level1');
 
--- enforce collation (turn either GUC on)
+-- enforce collation
+SET documentdb_core.enableCollation TO on;
 SET documentdb.enableLetAndCollationForQueryMatch TO on;
-SET documentdb.enableVariablesSupportForWriteCommands TO on;
 
 -- query match: _id tests
 SELECT documentdb_api_internal.bson_query_match('{"_id": "cat"}', '{"_id": "CAT"}', NULL, 'en-u-ks-level1');
@@ -945,7 +946,176 @@ SELECT documentdb_api.insert_one('db', 'nested_arrays_docs', '{ "_id": 6, "a": "
 SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays_docs", "filter": { "a" : {"$in" : [ {"b": ["dOG"]}, "CAT" ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
 SELECT document FROM bson_aggregation_find('db', '{ "find": "nested_arrays_docs", "filter": { "a" : {"$in" : [ {"b": [["dOg"]] } ] }}, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
 
-RESET documentdb.enableLetAndCollationForQueryMatch;
-RESET documentdb.enableVariablesSupportForWriteCommands;
+SET documentdb.enableLetAndCollationForQueryMatch to off;
 
-RESET documentdb_core.enablecollation;
+-- delete
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": "dog", "a":"dog"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": "DOG", "a":"DOG"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": "cat", "a":"cat"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": "CAT", "a":"CAT"}');
+
+-- GUC off: collation ignored
+SET documentdb_core.enableCollation TO off;
+
+BEGIN;
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"_id": "DoG" }, "limit": 0, "collation": { "locale": "fr", "strength" : 2}} ]}');
+ROLLBACK;
+
+-- enable GUC
+SET documentdb_core.enableCollation TO on;
+BEGIN;
+-- query on _id
+SET citus.log_remote_commands TO ON;
+
+-- _id is not collation-aware
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"_id": 1 }, "limit": 0, "collation": { "locale": "fr", "strength" : 2}} ]}');
+
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"_id": "DoG" }, "limit": 0, "collation": { "locale": "fr", "strength" : 2}} ]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"_id": "cAT" }, "limit": 0, "collation": { "locale": "fr", "strength" : 3}} ]}');
+ROLLBACK;
+
+BEGIN;
+--- deleteMany
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 0, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 0, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 0, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 0, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+--- deleteOne
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 1, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+-- more operators in query
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"a": {"$lt": "DeG"} },"limit": 1, "collation": { "locale": "fr", "strength" : 1} }] }');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"a": {"$lt": "DoG"}, "a": {"$lt": "Goat"} },"limit": 1, "collation": { "locale": "fr", "strength" : 2} }] }');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ {"q": {"a": { "$exists": true }, "a": {"$gt": "DoG"}, "a": {"$lt": "goat"} },"limit": 1, "collation": { "locale": "fr", "strength" : 1 } }] }');
+
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+-- delete with sort obeys collation
+SELECT documentdb_api.insert_one('db', 'coll_delete_sort', '{"_id": "dog", "a": "dog"}');
+SELECT documentdb_api.insert_one('db', 'coll_delete_sort', '{"_id": "DOG", "a": "dog"}');
+
+BEGIN;
+-- sort respects collation: ASC
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+
+SELECT collection_id AS coll_delete_sort FROM documentdb_api_catalog.collections WHERE database_name = 'db' AND collection_name = 'coll_delete_sort' \gset
+SELECT documentdb_api_internal.delete_worker(
+    p_collection_id=>:coll_delete_sort,
+    p_shard_key_value=>:coll_delete_sort,
+    p_shard_oid => 0,
+    p_update_internal_spec => '{ "deleteOne": { "query": { "a": "dog" }, "collation": "en-u-ks-level3",  "sort": { "_id": 1 }, "returnDocument": 1, "returnFields": { "a": 0} } }'::bson,
+    p_update_internal_docs=>null::bsonsequence,
+    p_transaction_id=>null::text
+) FROM documentdb_api.collection('db', 'coll_delete_sort');
+    
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+ROLLBACK;
+
+BEGIN;
+-- sort respects collation: DESC
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+
+SELECT collection_id AS coll_delete_sort FROM documentdb_api_catalog.collections WHERE database_name = 'db' AND collection_name = 'coll_delete_sort' \gset
+SELECT documentdb_api_internal.delete_worker(
+    p_collection_id=>:coll_delete_sort,
+    p_shard_key_value=>:coll_delete_sort,
+    p_shard_oid => 0,
+    p_update_internal_spec => '{ "deleteOne": { "query": { "a": "dog" }, "collation": "en-u-ks-level3",  "sort": { "_id": -1 }, "returnDocument": 1, "returnFields": { "a": 0} } }'::bson,
+    p_update_internal_docs=>null::bsonsequence,
+    p_transaction_id=>null::text
+) FROM documentdb_api.collection('db', 'coll_delete_sort');
+    
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+ROLLBACK;
+
+-- delete on sharded collection
+SELECT documentdb_api.shard_collection('db', 'coll_delete', '{ "a": "hashed" }', false);
+
+BEGIN;
+--- deleteMany
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 0, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 0, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 0, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "DoG" }, "limit": 0, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+-- deleteOne: error: no _id filter and no shard key value filter
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"b": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+
+-- deleteOne: error: no _id filter and collation-aware shard key value filter
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"a": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 3}}]}');
+
+BEGIN;
+--- deleteOne
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "CaT", "a": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "dog", "a": "DoG" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+BEGIN;
+--- deleteOne
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "CaT" }, "limit": 1, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "DoG" }, "limit": 1, "collation": { "locale": "en", "strength" : 1}}]}');
+SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"_id": "DoG" }, "limit": 1, "collation": { "locale": "en", "strength" : 3}}]}');
+SELECT document from documentdb_api.collection('db', 'coll_delete');
+ROLLBACK;
+
+SELECT documentdb_api.shard_collection('db', 'coll_delete_sort', '{ "a": "hashed" }', false);
+
+BEGIN;
+-- sort respects collation: ASC
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+
+SELECT collection_id AS coll_delete_sort FROM documentdb_api_catalog.collections WHERE database_name = 'db' AND collection_name = 'coll_delete_sort' \gset
+SELECT documentdb_api_internal.delete_worker(
+    p_collection_id=>:coll_delete_sort,
+    p_shard_key_value=>:coll_delete_sort,
+    p_shard_oid => 0,
+    p_update_internal_spec => '{ "deleteOne": { "query": { "_id": "dog" }, "collation": "en-u-ks-level3",  "sort": { "_id": 1 }, "returnDocument": 1, "returnFields": { "a": 0} } }'::bson,
+    p_update_internal_docs=>null::bsonsequence,
+    p_transaction_id=>null::text
+) FROM documentdb_api.collection('db', 'coll_delete_sort');
+    
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+ROLLBACK;
+
+BEGIN;
+-- sort respects collation: DESC
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+
+SELECT collection_id AS coll_delete_sort FROM documentdb_api_catalog.collections WHERE database_name = 'db' AND collection_name = 'coll_delete_sort' \gset
+SELECT documentdb_api_internal.delete_worker(
+    p_collection_id=>:coll_delete_sort,
+    p_shard_key_value=>:coll_delete_sort,
+    p_shard_oid => 0,
+    p_update_internal_spec => '{ "deleteOne": { "query": { "a": "dog" }, "collation": "en-u-ks-level3",  "sort": { "_id": -1 }, "returnDocument": 1, "returnFields": { "a": 0} } }'::bson,
+    p_update_internal_docs=>null::bsonsequence,
+    p_transaction_id=>null::text
+) FROM documentdb_api.collection('db', 'coll_delete_sort');
+    
+SELECT document from documentdb_api.collection('db', 'coll_delete_sort');
+ROLLBACK;
+
+SELECT documentdb_api.drop_collection('db', 'coll_delete');
+SELECT documentdb_api.drop_collection('db', 'coll_delete_sort');
+
+ALTER SYSTEM SET documentdb_core.enablecollation='off';
+SELECT pg_reload_conf();

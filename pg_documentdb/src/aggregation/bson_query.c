@@ -12,6 +12,7 @@
 #include "miscadmin.h"
 #include "utils/builtins.h"
 
+#include "collation/collation.h"
 #include "io/bson_core.h"
 #include "query/bson_compare.h"
 #include "aggregation/bson_query.h"
@@ -48,7 +49,8 @@ static void SetQueryHasNonIdFilters(void *context);
  */
 bool
 TraverseQueryDocumentAndGetId(bson_iter_t *queryDocument, bson_value_t *idValue,
-							  bool errorOnConflict, bool *queryHasNonIdFilters)
+							  bool errorOnConflict, bool *queryHasNonIdFilters,
+							  bool *isIdValueCollationAware)
 {
 	QueryIdContext idContext;
 	memset(&idContext, 0, sizeof(QueryIdContext));
@@ -64,6 +66,7 @@ TraverseQueryDocumentAndGetId(bson_iter_t *queryDocument, bson_value_t *idValue,
 	if (idContext.foundId && !idContext.foundMultipleIds)
 	{
 		*idValue = idContext.idValue;
+		*isIdValueCollationAware = IsBsonTypeCollationAware(idValue->value_type);
 		return true;
 	}
 	else

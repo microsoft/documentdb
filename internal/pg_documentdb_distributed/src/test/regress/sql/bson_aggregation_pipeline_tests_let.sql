@@ -332,15 +332,15 @@ RESET citus.explain_all_tasks;
 RESET citus.max_adaptive_executor_pool_size;
 
 -- query match
--- ignore variableSpec (turn both GUCs off)
+-- ignore variableSpec (turn off all GUCs that enable bson_query_match)
+SET documentdb_core.enableCollation TO off;
 SET documentdb.enableLetAndCollationForQueryMatch TO off;
 SET documentdb.enableVariablesSupportForWriteCommands TO off;
 
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"$expr": {"a": "$$varRef"} }', '{ "let": {"varRef": "cat"} }', NULL);
 
--- use variableSpec (turn either GUC on)
+-- use variableSpec (turn GUC on)
 SET documentdb.enableLetAndCollationForQueryMatch TO on;
-SET documentdb.enableVariablesSupportForWriteCommands TO on;
 
 -- query match: wrong access of variable in query (outside $expr)
 SELECT documentdb_api_internal.bson_query_match('{"a": "cat"}', '{"a": "$$varRef"}', '{ "let": {"varRef": "cat"} }', NULL);

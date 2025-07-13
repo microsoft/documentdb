@@ -20,6 +20,7 @@
 #include "io/bson_core.h"
 #include "aggregation/bson_project.h"
 #include "aggregation/bson_query.h"
+#include "collation/collation.h"
 #include "commands/commands_common.h"
 #include "commands/delete.h"
 #include "commands/parse_error.h"
@@ -119,6 +120,7 @@ static uint64 ProcessDeletion(MongoCollection *collection, DeletionSpec *deletio
 							  bool forceInlineWrites, text *transactionId);
 static uint64 DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *query,
 										 const bson_value_t *variableSpec,
+										 const char *collationString,
 										 bool hasShardKeyValueFilter,
 										 int64 shardKeyHash);
 static void DeleteOneInternal(MongoCollection *collection,
@@ -128,6 +130,7 @@ static void DeleteOneInternal(MongoCollection *collection,
 static void DeleteOneObjectId(MongoCollection *collection,
 							  DeleteOneParams *deleteOneParams,
 							  bson_value_t *objectId,
+							  bool isIdValueCollationAware,
 							  bool queryHasNonIdFilters,
 							  bool forceInlineWrites,
 							  text *transactionId, DeleteOneResult *result);
@@ -490,6 +493,7 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 	bson_value_t *query = NULL;
 	int64 limit = -1;
 
+	char collationString[MAX_ICU_COLLATION_LENGTH] = "\0";
 	while (bson_iter_next(deletionIter))
 	{
 		const char *field = bson_iter_key(deletionIter);
@@ -520,9 +524,23 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 		}
 		else if (strcmp(field, "collation") == 0)
 		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("BSON field 'delete.deletes.collation' is not yet "
-								   "supported")));
+			ReportFeatureUsage(FEATURE_COLLATION);
+
+			if (EnableCollation)
+			{
+				EnsureTopLevelFieldType("delete.collation", deletionIter,
+										BSON_TYPE_DOCUMENT);
+
+				const bson_value_t *collationValue = bson_iter_value(deletionIter);
+				ParseAndGetCollationString(collationValue,
+										   collationString);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg("BSON field 'delete.deletes.collation' is not yet "
+									   "supported")));
+			}
 		}
 		else if (strcmp(field, "hint") == 0)
 		{
@@ -561,6 +579,9 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 	deletionSpec->limit = limit;
 	deletionSpec->deleteOneParams.query = query;
 	deletionSpec->deleteOneParams.variableSpec = variableSpec;
+
+	strlcpy((char *) deletionSpec->deleteOneParams.collationString, collationString,
+			strlen(collationString) + 1);
 
 	return deletionSpec;
 }
@@ -707,26 +728,45 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 	bson_value_t idFromQueryDocument = { 0 };
 	bool errorOnConflict = false;
 	bool queryHasNonIdFilters = false;
+	bool isIdFilterCollationAware = false;
 	bool hasObjectIdFilter =
 		TraverseQueryDocumentAndGetId(&queryDocIter, &idFromQueryDocument,
-									  errorOnConflict, &queryHasNonIdFilters);
+									  errorOnConflict, &queryHasNonIdFilters,
+									  &isIdFilterCollationAware);
 
 	uint64_t result = 0;
+	const char *collationString = deletionSpec->deleteOneParams.collationString;
+	bool applyCollationToShardKeyValue = IsCollationApplicable(collationString) &&
+										 isShardKeyValueCollationAware;
 	if (deletionSpec->limit == 0)
 	{
+		if (applyCollationToShardKeyValue)
+		{
+			/* if shard key value is collation sensitive, we distribute the query */
+			/* by omitting the shard key value filter */
+			hasShardKeyValueFilter = false;
+		}
+
 		/*
 		 * Delete as many document as match the query. This is not a retryable
 		 * operation, so we ignore transactionId.
 		 */
 		result = DeleteAllMatchingDocuments(collection, query,
 											deletionSpec->deleteOneParams.variableSpec,
-											hasShardKeyValueFilter, shardKeyHash);
+											collationString, hasShardKeyValueFilter,
+											shardKeyHash);
 	}
 	else
 	{
 		DeleteOneResult deleteOneResult = { 0 };
 
-		if (hasShardKeyValueFilter)
+		/* With limit = 1, we currently target only one shard for the deletion. */
+		/* If the shard key value is collation-sensitive, we cannot target a single */
+		/* shard with it.*/
+		/* We then fall on any _id value filter. If none is provided, we fail. */
+		bool useShardKeyValueFilter = hasShardKeyValueFilter &&
+									  !applyCollationToShardKeyValue;
+		if (useShardKeyValueFilter)
 		{
 			/*
 			 * Delete at most 1 document that matches the query on a single shard.
@@ -744,15 +784,17 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
 			 * a sharded collection without specifying a a shard key filter.
 			 */
 			DeleteOneObjectId(collection, &deletionSpec->deleteOneParams,
-							  &idFromQueryDocument, queryHasNonIdFilters,
-							  forceInlineWrites,
+							  &idFromQueryDocument, isIdFilterCollationAware,
+							  queryHasNonIdFilters, forceInlineWrites,
 							  transactionId, &deleteOneResult);
 		}
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 							errmsg("delete query with limit 1 must include either "
-								   "_id or shard key filter")));
+								   "_id or%s shard key filter",
+								   isShardKeyValueCollationAware ?
+								   " collation-insensitive" : "")));
 		}
 
 		result = deleteOneResult.isRowDeleted ? 1 : 0;
@@ -768,20 +810,31 @@ ProcessDeletion(MongoCollection *collection, DeletionSpec *deletionSpec,
  */
 static uint64
 DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
-						   const bson_value_t *variableSpec, bool hasShardKeyValueFilter,
+						   const bson_value_t *variableSpec,
+						   const char *collationString, bool hasShardKeyValueFilter,
 						   int64 shardKeyHash)
 {
 	uint64 collectionId = collection->collectionId;
 
+	bool applyCollation = IsCollationApplicable(collationString);
+
 	bool queryHasNonIdFilters = false;
+	bool isIdFilterCollationAware = false;
 	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(queryDoc,
-																&queryHasNonIdFilters);
+																&queryHasNonIdFilters,
+																&isIdFilterCollationAware);
+	bool applyObjectIdFilter = objectIdFilter != NULL;
+	if (applyObjectIdFilter && applyCollation)
+	{
+		/* if the _id filter value is collation-sensitive, we will omit */
+		/* filtering by _id in the WHERE clause. */
+		applyObjectIdFilter = !isIdFilterCollationAware;
+	}
 
 	int argCount = 0;
 	int nextSqlArgIndex = 1;
 	uint64 rowsDeleted = 0;
 	StringInfoData deleteQuery;
-
 
 	SPI_connect();
 
@@ -800,16 +853,17 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	}
 
 	pgbson *variableSpecBson = NULL;
-	if (EnableVariablesSupportForWriteCommands)
+	if (EnableVariablesSupportForWriteCommands && queryHasNonIdFilters)
 	{
 		variableSpecBson = variableSpec != NULL &&
 						   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
 						   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
 	}
 
-	bool applyVariableSpec = variableSpecBson != NULL && queryHasNonIdFilters;
-	if (applyVariableSpec)
+	bool applyVariableSpec = variableSpecBson != NULL;
+	if (applyVariableSpec || applyCollation)
 	{
+		/* utilize the collation and/or variables in matching the document */
 		appendStringInfo(&deleteQuery,
 						 " WHERE %s.bson_query_match(document, $1::%s.bson, $2::%s.bson, $3::text)",
 						 DocumentDBApiInternalSchemaName, CoreSchemaName, CoreSchemaName);
@@ -827,13 +881,14 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 		nextSqlArgIndex = 2;
 	}
 
-	uint64 planId = applyVariableSpec ? QUERY_DELETE_WITH_FILTER_LET_AND_COLLATION :
+	uint64 planId = (applyVariableSpec || applyCollation) ?
+					QUERY_DELETE_WITH_FILTER_LET_AND_COLLATION :
 					QUERY_DELETE_WITH_FILTER;
 
 	int shardKeyArgIndex = -1;
 	if (hasShardKeyValueFilter)
 	{
-		planId = applyVariableSpec ?
+		planId = (applyVariableSpec || applyCollation) ?
 				 QUERY_DELETE_WITH_FILTER_SHARDKEY_LET_AND_COLLATION :
 				 QUERY_DELETE_WITH_FILTER_SHARDKEY;
 		appendStringInfo(&deleteQuery, " AND shard_key_value = $%d", nextSqlArgIndex);
@@ -843,13 +898,12 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 		nextSqlArgIndex++;
 	}
 
-
 	int objectIdArgIndex = -1;
-	if (objectIdFilter != NULL)
+	if (applyObjectIdFilter)
 	{
 		if (hasShardKeyValueFilter)
 		{
-			planId = applyVariableSpec ?
+			planId = (applyVariableSpec || applyCollation) ?
 					 QUERY_DELETE_WITH_FILTER_SHARDKEY_ID_LET_AND_COLLATION :
 					 QUERY_DELETE_WITH_FILTER_SHARDKEY_ID;
 
@@ -859,7 +913,7 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 		}
 		else
 		{
-			planId = applyVariableSpec ?
+			planId = (applyVariableSpec || applyCollation) ?
 					 QUERY_DELETE_WITH_FILTER_ID_LET_AND_COLLATION :
 					 QUERY_DELETE_WITH_FILTER_ID;
 
@@ -883,17 +937,17 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	argValues[0] = PointerGetDatum(queryDoc);
 	argNulls[0] = ' ';
 
-	if (applyVariableSpec)
+	if (applyVariableSpec || applyCollation)
 	{
 		/* set the variable spec */
 		argTypes[1] = bsonTypeId;
 		argValues[1] = PointerGetDatum(variableSpecBson);
-		argNulls[1] = ' ';
+		argNulls[1] = applyVariableSpec ? ' ' : 'n';
 
-		/* TODO: set the collation string */
+		/* set the collation string */
 		argTypes[2] = TEXTOID;
-		argValues[2] = CStringGetTextDatum("");
-		argNulls[2] = 'n';
+		argValues[2] = CStringGetTextDatum(collationString);
+		argNulls[2] = applyCollation ? ' ' : 'n';
 	}
 
 	/* set shard key value */
@@ -952,8 +1006,8 @@ CallDeleteOne(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 		 * function with the appropriate spec args.
 		 */
 		pgbsonsequence *docSequence = NULL;
-		pgbson *workerResult = CallDeleteWorker(collection, SerializeDeleteOneParams(
-													deleteOneParams),
+		pgbson *workerResult = CallDeleteWorker(collection,
+												SerializeDeleteOneParams(deleteOneParams),
 												shardKeyHash, transactionId, docSequence);
 		DeserializeWorkerDeleteResultForDeleteOne(workerResult, result);
 	}
@@ -1169,6 +1223,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 				  int64 shardKeyHash, DeleteOneResult *result)
 {
 	uint64 planId = QUERY_DELETE_ONE;
+	bool applyCollation = IsCollationApplicable(deleteOneParams->collationString);
 
 	List *sortFieldDocuments = deleteOneParams->sort == NULL ? NIL :
 							   BsonValueDocumentDecomposeFields(deleteOneParams->sort);
@@ -1178,9 +1233,20 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 
 	pgbson *query = PgbsonInitFromDocumentBsonValue(deleteOneParams->query);
 	bool queryHasNonIdFilters = false;
+	bool isIdFilterCollationAware = false;
 	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(query,
-																&queryHasNonIdFilters);
-	argCount += objectIdFilter != NULL ? 1 : 0;
+																&queryHasNonIdFilters,
+																&isIdFilterCollationAware);
+
+	bool applyObjectIdFilter = objectIdFilter != NULL;
+	if (applyObjectIdFilter && applyCollation)
+	{
+		/* if the _id filter value is collation-sensitive, we will omit */
+		/* filtering by _id in the WHERE clause. */
+		applyObjectIdFilter = !isIdFilterCollationAware;
+	}
+
+	argCount += applyObjectIdFilter ? 1 : 0;
 
 	int nextSqlArgIndex = 1;
 	MemoryContext outerContext = CurrentMemoryContext;
@@ -1224,17 +1290,19 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 
 	const bson_value_t *variableSpec = deleteOneParams->variableSpec;
 	pgbson *variableSpecBson = NULL;
-	if (EnableVariablesSupportForWriteCommands)
+	if (EnableVariablesSupportForWriteCommands && queryHasNonIdFilters)
 	{
 		variableSpecBson = variableSpec != NULL &&
 						   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
 						   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
 	}
 
-	bool applyVariableSpec = variableSpecBson != NULL && queryHasNonIdFilters;
-	if (applyVariableSpec)
+	bool applyVariableSpec = variableSpecBson != NULL;
+	if (applyVariableSpec || applyCollation)
 	{
 		planId = QUERY_DELETE_ONE_LET_AND_COLLATION;
+
+		/* utilize the collation and/or variables in matching the document */
 		appendStringInfo(&selectQuery,
 						 " %s.bson_query_match(document, $2, $3, $4)",
 						 ApiInternalSchemaNameV2);
@@ -1253,9 +1321,10 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	}
 
 	int objectIdArgIndex = -1;
-	if (objectIdFilter != NULL)
+	if (applyObjectIdFilter)
 	{
-		planId = applyVariableSpec ? QUERY_DELETE_ONE_ID_LET_AND_COLLATION :
+		planId = (applyVariableSpec || applyCollation) ?
+				 QUERY_DELETE_ONE_ID_LET_AND_COLLATION :
 				 QUERY_DELETE_ONE_ID;
 
 		appendStringInfo(&selectQuery,
@@ -1284,17 +1353,17 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	argValues[1] = PointerGetDatum(query);
 	argNulls[1] = ' ';
 
-	if (applyVariableSpec)
+	if (applyVariableSpec || applyCollation)
 	{
 		/* set the variable spec */
 		argTypes[2] = bsonTypeId;
 		argValues[2] = PointerGetDatum(variableSpecBson);
-		argNulls[2] = ' ';
+		argNulls[2] = applyVariableSpec ? ' ' : 'n';
 
 		/* TODO: set the collation string */
 		argTypes[3] = TEXTOID;
-		argValues[3] = CStringGetTextDatum("");
-		argNulls[3] = 'n';
+		argValues[3] = CStringGetTextDatum(deleteOneParams->collationString);
+		argNulls[3] = applyCollation ? ' ' : 'n';
 	}
 
 	/* set id filter value */
@@ -1315,12 +1384,24 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 		{
 			pgbson *sortDoc = list_nth(sortFieldDocuments, i);
 			bool isAscending = ValidateOrderbyExpressionAndGetIsAscending(sortDoc);
+
 			int sqlArgPosition = i + sortItemSqlArgBaseIndex;
 
-			appendStringInfo(&selectQuery,
-							 "%s %s.bson_orderby(document, $%d) %s",
-							 i > 0 ? "," : "", ApiCatalogSchemaName,
-							 sqlArgPosition, isAscending ? "ASC" : "DESC");
+			if (applyCollation)
+			{
+				appendStringInfo(&selectQuery,
+								 "%s %s.bson_orderby(document, $%d::%s.bson, $4) USING OPERATOR(%s.%s)",
+								 i > 0 ? "," : "", ApiInternalSchemaNameV2,
+								 sqlArgPosition, CoreSchemaNameV2,
+								 ApiInternalSchemaNameV2, isAscending ? "<<<" : ">>>");
+			}
+			else
+			{
+				appendStringInfo(&selectQuery,
+								 "%s %s.bson_orderby(document, $%d) %s",
+								 i > 0 ? "," : "", ApiCatalogSchemaName,
+								 sqlArgPosition, isAscending ? "ASC" : "DESC");
+			}
 
 			argTypes[sqlArgPosition - 1] = BsonTypeId();
 			argValues[sqlArgPosition - 1] = PointerGetDatum(sortDoc);
@@ -1477,6 +1558,12 @@ SerializeDeleteOneParams(const DeleteOneParams *deleteParams)
 								deleteParams->variableSpec);
 	}
 
+	if (IsCollationApplicable(deleteParams->collationString))
+	{
+		PgbsonWriterAppendUtf8(&writer, "collation", 9,
+							   deleteParams->collationString);
+	}
+
 	PgbsonWriterEndDocument(&commandWriter, &writer);
 	return PgbsonWriterGetPgbson(&commandWriter);
 }
@@ -1515,6 +1602,12 @@ DeserializeDeleteWorkerSpecForDeleteOne(const bson_value_t *workerSpecValue,
 		{
 			deleteOneParams->variableSpec = CreateBsonValueCopy(
 				bson_iter_value(&commandIter));
+		}
+		else if (EnableCollation && strcmp(key, "collation") == 0)
+		{
+			strlcpy((char *) deleteOneParams->collationString,
+					bson_iter_utf8(&commandIter, NULL),
+					sizeof(deleteOneParams->collationString));
 		}
 	}
 }
@@ -1640,7 +1733,8 @@ DeserializeDeleteWorkerSpecForUnsharded(const bson_value_t *value,
  */
 static void
 DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
-				  bson_value_t *objectId, bool queryHasNonIdFilters,
+				  bson_value_t *objectId, bool isIdValueCollationAware, bool
+				  queryHasNonIdFilters,
 				  bool forceInlineWrites, text *transactionId, DeleteOneResult *result)
 {
 	const int maxTries = 5;
@@ -1666,8 +1760,10 @@ DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 		int64 shardKeyValue = 0;
 
 		if (!FindShardKeyValueForDocumentId(collection, deleteOneParams->query, objectId,
-											queryHasNonIdFilters, &shardKeyValue,
-											deleteOneParams->variableSpec))
+											isIdValueCollationAware, queryHasNonIdFilters,
+											&shardKeyValue,
+											deleteOneParams->variableSpec,
+											deleteOneParams->collationString))
 		{
 			/* no document matches both the query and the object ID */
 			return;

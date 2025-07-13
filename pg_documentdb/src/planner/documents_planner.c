@@ -110,6 +110,7 @@ static void ForceExcludeNonIndexPaths(PlannerInfo *root, RelOptInfo *rel,
 									  Index rti, RangeTblEntry *rte);
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
+extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
@@ -889,7 +890,8 @@ DocumentDbQueryFlagsWalker(Node *node, DocumentDbQueryFlagsState *queryFlags)
 			}
 		}
 
-		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+		bool useQueryMatchWithLetAndCollation = EnableCollation ||
+												EnableLetAndCollationForQueryMatch ||
 												EnableVariablesSupportForWriteCommands;
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())

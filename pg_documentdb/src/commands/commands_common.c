@@ -19,6 +19,7 @@
 #include "utils/snapmgr.h"
 
 #include "io/bson_core.h"
+#include "collation/collation.h"
 #include "commands/commands_common.h"
 #include "utils/error_utils.h"
 #include "utils/documentdb_errors.h"
@@ -104,8 +105,10 @@ static pgbson * RewriteDocumentAddObjectIdCore(const bson_value_t *docValue,
  */
 bool
 FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *queryDoc,
-							   bson_value_t *objectId, bool queryHasNonIdFilters,
-							   int64 *shardKeyValue, const bson_value_t *variableSpec)
+							   bson_value_t *objectId, bool isIdValueCollationAware,
+							   bool queryHasNonIdFilters, int64_t *shardKeyValue,
+							   const bson_value_t *variableSpec,
+							   const char *collationString)
 {
 	StringInfoData selectQuery;
 	int argCount = 0;
@@ -116,26 +119,24 @@ FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *
 	initStringInfo(&selectQuery);
 
 	appendStringInfo(&selectQuery,
-					 "SELECT shard_key_value FROM %s.documents_" UINT64_FORMAT
-					 " WHERE object_id = $1::%s",
-					 ApiDataSchemaName, collection->collectionId,
-					 FullBsonTypeName);
-	argCount++;
+					 "SELECT shard_key_value FROM %s.documents_" UINT64_FORMAT,
+					 ApiDataSchemaName, collection->collectionId);
 
 	pgbson *variableSpecBson = NULL;
-	if (EnableVariablesSupportForWriteCommands)
+	if (EnableVariablesSupportForWriteCommands && queryHasNonIdFilters)
 	{
 		variableSpecBson = variableSpec != NULL &&
 						   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
 						   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
 	}
 
-	bool applyVariableSpec = variableSpecBson != NULL && queryHasNonIdFilters;
-	if (applyVariableSpec)
+	bool applyVariableSpec = variableSpecBson != NULL;
+	bool applyCollation = IsCollationApplicable(collationString);
+	if (applyCollation || applyVariableSpec)
 	{
+		/* utilize the collation and/or variables in matching the document */
 		appendStringInfo(&selectQuery,
-						 " AND %s.bson_query_match(document, $2::%s.bson, $3::%s.bson, $4::text)"
-						 " ORDER BY object_id LIMIT 1",
+						 " WHERE %s.bson_query_match(document, $1::%s.bson, $2::%s.bson, $3::text)",
 						 DocumentDBApiInternalSchemaName, CoreSchemaName,
 						 CoreSchemaName);
 
@@ -144,43 +145,91 @@ FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *
 	else
 	{
 		appendStringInfo(&selectQuery,
-						 " AND document OPERATOR(%s.@@) $2::%s ORDER BY object_id LIMIT 1",
+						 " WHERE document OPERATOR(%s.@@) $1::%s",
 						 ApiCatalogSchemaName, FullBsonTypeName);
 
 		argCount++;
+	}
+
+	/* filter directly by _id if _id is not collation-sensitive */
+	bool applyCollationToIdValue = applyCollation && isIdValueCollationAware;
+	int idArgIndex = -1;
+	if (!applyCollationToIdValue)
+	{
+		idArgIndex = argCount;
+		appendStringInfo(&selectQuery,
+						 " AND object_id = $%d::%s",
+						 idArgIndex + 1, FullBsonTypeName);
+
+		argCount++;
+	}
+
+	/* choose document with smallest _id if multiple documents are found */
+	int idOrderByIndex = -1;
+	if (applyCollationToIdValue)
+	{
+		idOrderByIndex = argCount;
+		appendStringInfo(&selectQuery,
+						 " ORDER BY %s.bson_orderby(document, $%d::%s, $3::text) USING OPERATOR(%s.<<<) LIMIT 1",
+						 ApiInternalSchemaNameV2, idOrderByIndex + 1, FullBsonTypeName,
+						 ApiInternalSchemaNameV2);
+
+		argCount++;
+	}
+	else
+	{
+		appendStringInfo(&selectQuery, " ORDER BY object_id LIMIT 1");
 	}
 
 	Oid *argTypes = palloc0(argCount * sizeof(Oid));
 	Datum *argValues = palloc0(argCount * sizeof(Datum));
 	char *argNulls = palloc0(argCount * sizeof(char));
 
-	/* object_id column uses the projected value format */
-	pgbson_writer writer;
-	PgbsonWriterInit(&writer);
-	PgbsonWriterAppendValue(&writer, "", 0, objectId);
-
-	argTypes[0] = BYTEAOID;
-	argValues[0] = PointerGetDatum(CastPgbsonToBytea(PgbsonWriterGetPgbson(&writer)));
-	argNulls[0] = ' ';
-
 	Oid bsonTypeId = BsonTypeId();
 
 	/* set the query spec */
-	argTypes[1] = bsonTypeId;
-	argValues[1] = PointerGetDatum(PgbsonInitFromDocumentBsonValue(queryDoc));
-	argNulls[1] = ' ';
+	argTypes[0] = bsonTypeId;
+	argValues[0] = PointerGetDatum(PgbsonInitFromDocumentBsonValue(queryDoc));
+	argNulls[0] = ' ';
 
-	if (applyVariableSpec)
+	if (applyVariableSpec || applyCollation)
 	{
 		/* set the variableSpec */
-		argTypes[2] = bsonTypeId;
-		argValues[2] = PointerGetDatum(variableSpecBson);
-		argNulls[2] = ' ';
+		argTypes[1] = bsonTypeId;
+		argValues[1] = PointerGetDatum(variableSpecBson);
+		argNulls[1] = applyVariableSpec ? ' ' : 'n';
 
-		/* TODO: set the collation string */
-		argTypes[3] = TEXTOID;
-		argValues[3] = CStringGetTextDatum("");
-		argNulls[3] = 'n';
+		/* set the collation string */
+		argTypes[2] = TEXTOID;
+		argValues[2] = CStringGetTextDatum(collationString);
+		argNulls[2] = applyCollation ? ' ' : 'n';
+	}
+
+	/* set _id filter */
+	if (!applyCollationToIdValue)
+	{
+		/* object_id column uses the projected value format */
+		pgbson_writer writer;
+		PgbsonWriterInit(&writer);
+		PgbsonWriterAppendValue(&writer, "", 0, objectId);
+
+		argTypes[idArgIndex] = BYTEAOID;
+		argValues[idArgIndex] = PointerGetDatum(CastPgbsonToBytea(PgbsonWriterGetPgbson(
+																	  &writer)));
+		argNulls[idArgIndex] = ' ';
+	}
+
+	/* set the orderby _id filter */
+	if (applyCollationToIdValue)
+	{
+		/* the _id filter should be in the form '{ "_id" : { "$numberInt" : "1" } }' */
+		pgbson_writer writer;
+		PgbsonWriterInit(&writer);
+		PgbsonWriterAppendInt32(&writer, "_id", 3, 1);
+
+		argTypes[idOrderByIndex] = bsonTypeId;
+		argValues[idOrderByIndex] = PointerGetDatum(PgbsonWriterGetPgbson(&writer));
+		argNulls[idOrderByIndex] = ' ';
 	}
 
 	bool readOnly = false;
@@ -242,14 +291,15 @@ SetExplicitStatementTimeout(int timeoutMilliseconds)
 
 pgbson *
 GetObjectIdFilterFromQueryDocumentValue(const bson_value_t *queryDoc,
-										bool *queryHasNonIdFilters)
+										bool *queryHasNonIdFilters,
+										bool *isIdValueCollationAware)
 {
 	bson_iter_t queryIterator;
 	bson_value_t queryIdValue;
 	bool errorOnConflict = false;
 	BsonValueInitIterator(queryDoc, &queryIterator);
 	if (TraverseQueryDocumentAndGetId(&queryIterator, &queryIdValue, errorOnConflict,
-									  queryHasNonIdFilters))
+									  queryHasNonIdFilters, isIdValueCollationAware))
 	{
 		return BsonValueToDocumentPgbson(&queryIdValue);
 	}
@@ -264,10 +314,12 @@ GetObjectIdFilterFromQueryDocumentValue(const bson_value_t *queryDoc,
  * Returns NULL otherwise.
  */
 pgbson *
-GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *queryHasNonIdFilters)
+GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *queryHasNonIdFilters,
+								   bool *isIdValueCollationAware)
 {
 	bson_value_t queryIdValue = ConvertPgbsonToBsonValue(queryDoc);
-	return GetObjectIdFilterFromQueryDocumentValue(&queryIdValue, queryHasNonIdFilters);
+	return GetObjectIdFilterFromQueryDocumentValue(&queryIdValue, queryHasNonIdFilters,
+												   isIdValueCollationAware);
 }
 
 

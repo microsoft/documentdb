@@ -933,7 +933,8 @@ BuildUpdateSpec(bson_iter_t *updateIter)
 		}
 		else if (strcmp(field, "collation") == 0)
 		{
-			/* We error on collation by default unlike FindAndModify. So we don't need to condition on EnableCollation GUC here. */
+			ReportFeatureUsage(FEATURE_COLLATION);
+
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 							errmsg("BSON field 'update.updates.collation' is not yet "
 								   "supported")));
@@ -1565,9 +1566,11 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 			bson_value_t idFromQueryDocument = { 0 };
 			bool errorOnConflict = false;
 			bool queryHasNonIdFilters = false;
+			bool isIdFilterCollationAwareIgnore = false;
 			bool hasObjectIdFilter =
 				TraverseQueryDocumentAndGetId(&queryDocIter, &idFromQueryDocument,
-											  errorOnConflict, &queryHasNonIdFilters);
+											  errorOnConflict, &queryHasNonIdFilters,
+											  &isIdFilterCollationAwareIgnore);
 
 			if (hasObjectIdFilter)
 			{
@@ -1644,11 +1647,16 @@ UpdateAllMatchingDocuments(MongoCollection *collection, const bson_value_t *quer
 
 	/* Do these under the SPI Context so that they get deleted automatically at the end */
 	bool queryHasNonIdFilters = false;
+
+	/* TODO: if the _id is collation-sensitive, we will avoid filtering by _id */
+	/* in the WHERE clause directly. */
+	bool isIdFilterCollationAwareIgnore = false;
 	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(queryDoc,
-																&queryHasNonIdFilters);
+																&queryHasNonIdFilters,
+																&
+																isIdFilterCollationAwareIgnore);
 
 	*hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
-
 
 	/* We use a CTE with the UPDATE document and then select the count of number of rows to get the matched docs,
 	 * and the sum of the RETURNING value, which returns 1 if a document was updated and 0
@@ -1826,7 +1834,6 @@ UpdateAllMatchingDocuments(MongoCollection *collection, const bson_value_t *quer
 		argNulls[2] = ' ';
 	}
 
-
 	/* if the query has a full shard key value filter, add a shard_key_value filter */
 	int objectIdParamIndex = 3;
 	if (hasShardKeyValueFilter)
@@ -1931,8 +1938,10 @@ UpdateOne(MongoCollection *collection, UpdateOneParams *updateOneParams,
 
 		/* If we have to reinsert the document in a different shard */
 		bool queryHasNonIdFilters = false;
+		bool isIdFilterCollationAwareIgnore = false;
 		pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocumentValue(
-			updateOneParams->query, &queryHasNonIdFilters);
+			updateOneParams->query, &queryHasNonIdFilters,
+			&isIdFilterCollationAwareIgnore);
 		bool hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
 
 		DoInsertForUpdate(collection, newShardKeyHash, objectId, result->reinsertDocument,
@@ -3056,8 +3065,11 @@ SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 sha
 
 	pgbson *query = PgbsonInitFromDocumentBsonValue(queryValue);
 	bool queryHasNonIdFilters = false;
+	bool isIdFilterCollationAwareIgnore = false;
 	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(query,
-																&queryHasNonIdFilters);
+																&queryHasNonIdFilters,
+																&
+																isIdFilterCollationAwareIgnore);
 	*hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
 
 	int argCount = 2 + list_length(sortFieldDocuments);
@@ -3397,9 +3409,13 @@ UpdateOneObjectId(MongoCollection *collection, UpdateOneParams *updateOneParams,
 		int64 shardKeyValue = 0;
 		bson_value_t *variableSpec = NULL;
 		bool queryHasNonIdFilters = false;
+		const char *collationString = NULL;
+		bool isIdValueCollationAwareIgnore = false;
 		if (!FindShardKeyValueForDocumentId(collection, updateOneParams->query, objectId,
-											queryHasNonIdFilters, &shardKeyValue,
-											variableSpec))
+											isIdValueCollationAwareIgnore,
+											queryHasNonIdFilters,
+											&shardKeyValue, variableSpec,
+											collationString))
 		{
 			/* no document matches both the query and the object ID */
 			return;
