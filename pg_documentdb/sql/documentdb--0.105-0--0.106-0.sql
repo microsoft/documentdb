@@ -7,3 +7,6 @@
 
 #include "udfs/metadata/collection--0.106-0.sql"
 #include "udfs/metadata/empty_data_table--0.106-0.sql"
+
+#include "udfs/aggregation/group_aggregates_support--0.106-0.sql"
+#include "udfs/aggregation/group_aggregates--0.106-0.sql"

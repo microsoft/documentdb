@@ -191,21 +191,21 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_g
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 3}}}} ] }');
                                                                     document                                                                    
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Delta", { "$numberInt" : "20" } ], [ "Alpha", { "$numberInt" : "10" } ], [ "Gamma", { "$numberInt" : "7" } ] ] }
- { "_id" : "T2", "user" : [ [ "Gamma", { "$numberInt" : "18" } ], [ "Beta", { "$numberInt" : "15" } ], [ "Delta", { "$numberInt" : "8" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Gamma", { "$numberInt" : "7" } ], [ "Alpha", { "$numberInt" : "10" } ], [ "Delta", { "$numberInt" : "20" } ] ] }
+ { "_id" : "T2", "user" : [ [ "Delta", { "$numberInt" : "8" } ], [ "Beta", { "$numberInt" : "15" } ], [ "Gamma", { "$numberInt" : "18" } ] ] }
 (2 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [{"$match" : { "team" : "T1" }}, {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": -1 }, "n": 3}}}}] }');
                                                                         document                                                                        
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Epsilon", null ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Beta", { "$numberInt" : "5" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Beta", { "$numberInt" : "5" } ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Epsilon", null ] ] }
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [{"$group": { "_id": "$team",  "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": -1 }, "n": 3}}}}] }');
                                                                         document                                                                        
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Epsilon", null ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Beta", { "$numberInt" : "5" } ] ] }
- { "_id" : "T2", "user" : [ [ "Alpha", null ], [ "Delta", { "$numberInt" : "8" } ], [ "Beta", { "$numberInt" : "15" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Beta", { "$numberInt" : "5" } ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Epsilon", null ] ] }
+ { "_id" : "T2", "user" : [ [ "Beta", { "$numberInt" : "15" } ], [ "Delta", { "$numberInt" : "8" } ], [ "Alpha", null ] ] }
 (2 rows)
 
 /* shard collection */
@@ -283,20 +283,20 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_g
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 3}}}} ] }');
                                                                     document                                                                    
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Delta", { "$numberInt" : "20" } ], [ "Alpha", { "$numberInt" : "10" } ], [ "Gamma", { "$numberInt" : "7" } ] ] }
- { "_id" : "T2", "user" : [ [ "Gamma", { "$numberInt" : "18" } ], [ "Beta", { "$numberInt" : "15" } ], [ "Delta", { "$numberInt" : "8" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Gamma", { "$numberInt" : "7" } ], [ "Alpha", { "$numberInt" : "10" } ], [ "Delta", { "$numberInt" : "20" } ] ] }
+ { "_id" : "T2", "user" : [ [ "Delta", { "$numberInt" : "8" } ], [ "Beta", { "$numberInt" : "15" } ], [ "Gamma", { "$numberInt" : "18" } ] ] }
 (2 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [{"$match" : { "team" : "T1" }}, {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": -1 }, "n": 3}}}}] }');
                                                                         document                                                                        
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Epsilon", null ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Beta", { "$numberInt" : "5" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Beta", { "$numberInt" : "5" } ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Epsilon", null ] ] }
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [{"$group": { "_id": "$team",  "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": -1 }, "n": 3}}}}] }');
                                                                         document                                                                        
 ---------------------------------------------------------------------
- { "_id" : "T1", "user" : [ [ "Epsilon", null ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Beta", { "$numberInt" : "5" } ] ] }
- { "_id" : "T2", "user" : [ [ "Alpha", null ], [ "Delta", { "$numberInt" : "8" } ], [ "Beta", { "$numberInt" : "15" } ] ] }
+ { "_id" : "T1", "user" : [ [ "Beta", { "$numberInt" : "5" } ], [ "Zeta", [ { "$numberInt" : "3" }, { "$numberInt" : "2" } ] ], [ "Epsilon", null ] ] }
+ { "_id" : "T2", "user" : [ [ "Beta", { "$numberInt" : "15" } ], [ "Delta", { "$numberInt" : "8" } ], [ "Alpha", null ] ] }
 (2 rows)
 
