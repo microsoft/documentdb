@@ -190,12 +190,14 @@ typedef struct RumItem
 		(item)->addInfo = (Datum) 0; \
 	} while (0)
 
+
 #define RumItemSetInvalid(item) \
 	do { \
 		ItemPointerSetInvalid(&((item)->iptr)); \
 		(item)->addInfoIsNull = true; \
 		(item)->addInfo = (Datum) 0; \
 	} while (0)
+
 
 /*
  * Posting item in a non-leaf posting-tree page
@@ -920,6 +922,7 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE false
 #define RUM_DEFAULT_DISABLE_FAST_SCAN false
 #define RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN true
+#define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
 
 
 /* GUC parameters */
@@ -931,6 +934,7 @@ extern bool RumEnableRefindLeafOnEntryNextItem;
 extern bool RumThrowErrorOnInvalidDataPage;
 extern bool RumDisableFastScan;
 extern bool RumEnableEntryFindItemOnScan;
+extern bool RumSkipRetryOnDeletePage;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in
@@ -1195,4 +1199,5 @@ void InitializeDocumentDBRum(void);
 struct ExplainState;
 extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
 											  struct ExplainState *es);
+
 #endif   /* __RUM_H__ */

@@ -77,6 +77,14 @@ _PG_init(void)
 							 PGC_USERSET, 0,
 							 NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(DOCUMENTDB_RUM_GUC_PREFIX ".rum_skip_retry_on_delete_page",
+							 "Sets whether or not to skip retrying on delete pages during vacuuming",
+							 NULL,
+							 &RumSkipRetryOnDeletePage,
+							 RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE,
+							 PGC_USERSET, 0,
+							 NULL, NULL, NULL);
+
 	DefineCustomBoolVariable(DOCUMENTDB_RUM_GUC_PREFIX ".enable_rum_orderby_index_scan",
 							 "Sets whether or not to allow order by in the RUM index",
 							 NULL,
