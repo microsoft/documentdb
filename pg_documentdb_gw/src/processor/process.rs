@@ -66,13 +66,17 @@ pub async fn process_request(
                 .await
             }
             RequestType::ConnectionStatus => {
-                users::process_connection_status(
-                    request,
-                    request_info,
-                    connection_context,
-                    &pg_data_client,
-                )
-                .await
+                if dynamic_config.enable_connection_status().await {
+                    users::process_connection_status(
+                        request,
+                        request_info,
+                        connection_context,
+                        &pg_data_client,
+                    )
+                    .await
+                } else {
+                    constant::process_connection_status()
+                }
             }
             RequestType::Count => {
                 data_management::process_count(

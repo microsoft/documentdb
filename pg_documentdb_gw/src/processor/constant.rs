@@ -97,6 +97,17 @@ pub fn process_get_log() -> Result<Response> {
     })))
 }
 
+pub fn process_connection_status() -> Result<Response> {
+    Ok(Response::Raw(RawResponse(rawdoc! {
+        "authInfo": {
+            "authenticatedUsers": [],
+            "authenticatedUserRoles": [],
+            "authenticatedUserPrivileges": [],
+        },
+        "ok":OK_SUCCEEDED,
+    })))
+}
+
 fn local_time() -> Result<u32> {
     u32::try_from(
         SystemTime::now()
