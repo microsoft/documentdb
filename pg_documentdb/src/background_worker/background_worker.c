@@ -167,6 +167,16 @@ static BackgroundWorkerJob JobRegistry[MAX_BACKGROUND_WORKER_JOBS];
 static int JobEntries = 0;
 
 
+/* Default implementation of the hook. Presently just returns a const.
+ * XXX: maybe this can be a GUC itself
+ */
+inline static int
+GetDefaultScheduleIntervalInSeconds(void)
+{
+	return 60;
+}
+
+
 /*
  * DocumentDB background worker entry point.
  */
@@ -349,6 +359,15 @@ RegisterBackgroundWorkerJob(BackgroundWorkerJob job)
 						MAX_BACKGROUND_WORKER_JOBS)));
 	}
 
+	if (job.get_schedule_interval_in_seconds_hook == NULL)
+	{
+		/*
+		 * If the hook is not set, use the default schedule interval.
+		 * Useful for jobs that do not require dynamic scheduling.
+		 */
+		job.get_schedule_interval_in_seconds_hook = GetDefaultScheduleIntervalInSeconds;
+	}
+
 	/* Fails if job is not valid. */
 	ValidateJob(job);
 
@@ -402,17 +421,17 @@ CanExecuteJob(BackgroundWorkerJobExecution *jobExec, TimestampTz currentTime)
 		return false;
 	}
 
+	int scheduleIntervalInSeconds = jobExec->job.get_schedule_interval_in_seconds_hook();
+
 	/*
 	 * Executions do not start from t0, they always start from t0 + interval.
 	 * We are assuming that job schedule intervals are a multiple of LatchTimeoutSec, therefore we do
 	 * not have to handle odd intervals such as LatchTimeoutSec of 10 seconds and job interval of 15 seconds.
 	 */
 	return jobExec->state == JOB_IDLE &&
-		   jobExec->job.scheduleIntervalInSeconds > 0 &&
-		   TimestampDifferenceExceeds(
-		jobExec->lastStartTime,
-		currentTime,
-		jobExec->job.scheduleIntervalInSeconds * ONE_SEC_IN_MS);
+		   scheduleIntervalInSeconds > 0 &&
+		   TimestampDifferenceExceeds(jobExec->lastStartTime, currentTime,
+									  scheduleIntervalInSeconds * ONE_SEC_IN_MS);
 }
 
 
@@ -664,28 +683,26 @@ ValidateJob(BackgroundWorkerJob job)
 							"Background worker job argument can not be NULL when isnull is set to false.")));
 	}
 
-	if (job.scheduleIntervalInSeconds <= 0 ||
-		job.scheduleIntervalInSeconds < LatchTimeOutSec)
+	const int scheduleIntervalInSeconds = job.get_schedule_interval_in_seconds_hook();
+
+	if (scheduleIntervalInSeconds <= 0 ||
+		scheduleIntervalInSeconds < LatchTimeOutSec ||
+		scheduleIntervalInSeconds % LatchTimeOutSec != 0)
 	{
 		ereport(ERROR, (errmsg(
-							"Schedule interval of background worker job \'%s\' is either <= 0 or less than value of latch_timeout=%d",
-							job.jobName, LatchTimeOutSec)));
+							"Schedule interval of background worker job \'%s\' is either <= 0 "
+							"or less than value of latch_timeout=%d "
+							"or not a multiple of latch_timeout=%d",
+							job.jobName, LatchTimeOutSec, LatchTimeOutSec)));
 	}
 
 	/* This is added because we rely on TimestampDifferenceExceeds to find whether to schedule the job which takes int (time in ms) */
 	int threshold = (int) INT_MAX / ONE_SEC_IN_MS;
-	if (job.scheduleIntervalInSeconds > threshold)
+	if (scheduleIntervalInSeconds > threshold)
 	{
 		ereport(ERROR, (errmsg(
 							"Schedule interval of background worker job \'%s\' cannot be larger than %d seconds",
 							job.jobName, threshold)));
-	}
-
-	if (job.scheduleIntervalInSeconds % LatchTimeOutSec != 0)
-	{
-		ereport(ERROR, (errmsg(
-							"Schedule interval of background worker job \'%s\' must be a multiple of LatchTimeOutSec %d seconds",
-							job.jobName, LatchTimeOutSec)));
 	}
 
 	/* Enforce that job timeout cannot be less or equal to 0 seconds. */
