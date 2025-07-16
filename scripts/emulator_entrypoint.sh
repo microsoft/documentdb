@@ -336,9 +336,24 @@ fi
 
 gateway_pid=$! # Capture the PID of the gateway process
 
-# Wait a moment for the gateway to fully start before attempting initialization
+# Wait for the gateway to be ready before attempting initialization
 echo "Waiting for gateway to be ready..."
-sleep 10
+max_attempts=60
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if nc -z localhost $DOCUMENTDB_PORT; then
+        echo "Gateway is ready on port $DOCUMENTDB_PORT"
+        break
+    fi
+    echo "Attempt $((attempt + 1))/$max_attempts: Gateway not ready yet, waiting..."
+    sleep 1
+    attempt=$((attempt + 1))
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo "Error: Gateway failed to start within $max_attempts seconds"
+    exit 1
+fi
 
 # Initialize database with custom data if directory exists and contains JS files
 custom_data_initialized=false
