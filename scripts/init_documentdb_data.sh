@@ -146,7 +146,9 @@ run_init_scripts() {
             if mongosh "localhost:10260" -u "$USERNAME" -p "$PASSWORD" --authenticationMechanism SCRAM-SHA-256 --tls --tlsAllowInvalidCertificates --file "$init_file"; then
                 log "Successfully executed: $(basename "$init_file")"
             else
-                echo "Warning: Failed to execute: $(basename "$init_file")"
+                echo "Error: Failed to execute: $(basename "$init_file")"
+                echo "This indicates invalid JavaScript syntax or MongoDB operation error."
+                return 1
             fi
         fi
     done

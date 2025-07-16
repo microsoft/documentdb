@@ -56,11 +56,12 @@ Optional arguments:
   --init-data-path [PATH]
                         Specify a directory containing JavaScript files for database initialization.
                         Files will be executed in alphabetical order using mongosh.
+                        When this option is used, --init-data is automatically set to false.
                         Defaults to /init_doc_db.d
                         Overrides INIT_DATA_PATH environment variable.
   --init-data           Enable initialization with built-in sample data.
                         Creates sample collections (users, products, orders, analytics) in 'sampledb' database.
-                        Defaults to true.
+                        Defaults to true (unless --init-data-path is specified).
                         Overrides INIT_DATA environment variable.
                         
 EOF
@@ -153,6 +154,7 @@ do
     --init-data-path)
         shift
         export INIT_DATA_PATH=$1
+        export INIT_DATA=false  # Disable built-in sample data when custom path is provided
         shift;;
 
     --init-data)
@@ -364,9 +366,13 @@ if [ -d "$INIT_DATA_PATH" ] && [ "$(ls -A "$INIT_DATA_PATH"/*.js 2>/dev/null)" ]
     init_script="/home/documentdb/gateway/scripts/init_documentdb_data.sh"
     if [ -f "$init_script" ]; then
         echo "Using custom initialization data from: $INIT_DATA_PATH"
-        "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$INIT_DATA_PATH" -v
-        echo "Custom data initialization completed."
-        custom_data_initialized=true
+        if "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$INIT_DATA_PATH" -v; then
+            echo "Custom data initialization completed."
+            custom_data_initialized=true
+        else
+            echo "Error: Custom data initialization failed"
+            exit 1
+        fi
     else
         echo "Warning: Initialization script not found at $init_script"
     fi
@@ -382,8 +388,12 @@ if [ "$INIT_DATA" = "true" ]; then
     
     if [ -f "$init_script" ] && [ -d "$sample_data_path" ]; then
         echo "Loading sample data from: $sample_data_path"
-        "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$sample_data_path" -v
-        echo "Sample data initialization completed."
+        if "$init_script" -H localhost -P "$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" -d "$sample_data_path" -v; then
+            echo "Sample data initialization completed."
+        else
+            echo "Error: Sample data initialization failed"
+            exit 1
+        fi
         echo ""
         echo "Sample data has been loaded into the 'sampledb' database with the following collections:"
         echo "  - users (5 sample users)"
