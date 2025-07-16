@@ -128,6 +128,16 @@ _PG_init(void)
 		RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN,
 		PGC_USERSET, 0,
 		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".forceRumOrderedIndexScan",
+		"Sets whether or not to force a run ordered index scan",
+		NULL,
+		&RumForceOrderedIndexScan,
+		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
 
 	rum_relopt_kind = add_reloption_kind();

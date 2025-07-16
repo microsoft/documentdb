@@ -27,6 +27,7 @@
  #include <funcapi.h>
  #include <lib/stringinfo.h>
  #include <nodes/pathnodes.h>
+ #include <access/gin.h>
 
  #include "io/bson_core.h"
  #include "aggregation/bson_query_common.h"
@@ -166,6 +167,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	int32 *nentries = (int32 *) PG_GETARG_POINTER(1);
 	bool **partialmatch = (bool **) PG_GETARG_POINTER(3);
 	Pointer **extra_data = (Pointer **) PG_GETARG_POINTER(4);
+	int32_t *searchMode = (int32_t *) PG_GETARG_POINTER(6);
 
 	if (!PG_HAS_OPCLASS_OPTIONS())
 	{
@@ -208,7 +210,13 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 
 	/* Default to assuming array paths (we can do better if told otherwise) */
 	bool hasArrayPaths = true;
-	bool isOrderedScan = false;
+
+	/* key that we're doing an ordered scan based off of search mode */
+	bool isOrderedScan = (*searchMode != GIN_SEARCH_MODE_DEFAULT);
+	if (isOrderedScan)
+	{
+		*searchMode = GIN_SEARCH_MODE_DEFAULT;
+	}
 
 	/* Round 1, collect fixed index bounds and collect variable index bounds */
 	if (strategy == BSON_INDEX_STRATEGY_UNIQUE_EQUAL)
@@ -394,10 +402,10 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 							   numTerms, runData->metaInfo->numIndexPaths)));
 	}
 
-	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY)
+	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY ||
+		strategy == BSON_INDEX_STRATEGY_INVALID)
 	{
 		/* use order by key to signal truncation status of ordering */
-		/* TODO(Orderby): Support ordering on subsequent keys */
 		for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
 		{
 			if (compareTerm[i].isIndexTermTruncated)
@@ -1275,25 +1283,6 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 }
 
 
-Datum
-BuildCompositeOrderByScanKeyArgument(bytea *options)
-{
-	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
-	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
-	GetIndexPathsFromOptions(
-		(BsonGinCompositePathOptions *) options,
-		indexPaths, sortOrders);
-
-	pgbsonelement sortElement = { 0 };
-	sortElement.path = indexPaths[0];
-	sortElement.pathLength = strlen(indexPaths[0]);
-	sortElement.bsonValue.value_type = BSON_TYPE_INT32;
-	sortElement.bsonValue.value.v_int32 = sortOrders[0] < 0 ? -1 : 1;  /* Default value for order by */
-
-	return PointerGetDatum(PgbsonElementToPgbson(&sortElement));
-}
-
-
 static void
 ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
 						bool *isMultiKey, bool *isOrderBy)
@@ -1303,7 +1292,6 @@ ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
 
 	/* Default assumption is that it's multi-key unless otherwise specified */
 	*isMultiKey = true;
-	*isOrderBy = false;
 	while (bson_iter_next(&queryIter))
 	{
 		const char *key = bson_iter_key(&queryIter);
@@ -1319,7 +1307,7 @@ ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
 		}
 		else if (strcmp(key, "or") == 0)
 		{
-			*isOrderBy = bson_iter_bool(&queryIter);
+			*isOrderBy = *isOrderBy || bson_iter_bool(&queryIter);
 		}
 		else
 		{

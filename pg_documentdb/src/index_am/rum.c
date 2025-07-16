@@ -35,7 +35,6 @@
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
-extern bool ForceRumOrderedIndexScan;
 extern bool EnableDescendingCompositeIndex;
 
 bool RumHasMultiKeyPaths = false;
@@ -70,10 +69,6 @@ typedef struct DocumentDBRumIndexState
 	void *indexArrayState;
 
 	int32_t numDuplicates;
-
-	ScanKeyData forcedOrderScanKey;
-
-	bool isForcedOrderScan;
 } DocumentDBRumIndexState;
 
 
@@ -762,20 +757,6 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 			sizeof(DocumentDBRumIndexState));
 		scan->opaque = outerScanState;
 
-		/* Initialize with 1 composite scan key */
-		if (EnableIndexOrderbyPushdown && norderbys == 0 && ForceRumOrderedIndexScan)
-		{
-			outerScanState->isForcedOrderScan = true;
-			outerScanState->forcedOrderScanKey.sk_attno = 1;
-			outerScanState->forcedOrderScanKey.sk_flags = SK_ORDER_BY;
-			outerScanState->forcedOrderScanKey.sk_strategy =
-				BSON_INDEX_STRATEGY_DOLLAR_ORDERBY;
-			outerScanState->forcedOrderScanKey.sk_subtype = InvalidOid;
-			outerScanState->forcedOrderScanKey.sk_collation = InvalidOid;
-			outerScanState->forcedOrderScanKey.sk_argument =
-				BuildCompositeOrderByScanKeyArgument(rel->rd_opcoptions[0]);
-		}
-
 		/* Don't yet start inner scan here - instead wait until rescan to begin */
 		return scan;
 	}
@@ -893,14 +874,6 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 			innerOrderBy = orderbys;
 			nInnerorderbys = norderbys;
-
-			/* handle forced orderby */
-			if (outerScanState->isForcedOrderScan && nInnerorderbys == 0)
-			{
-				/* If this is a forced order scan, we need to use the forced order scan key */
-				innerOrderBy = &outerScanState->forcedOrderScanKey;
-				nInnerorderbys = 1;
-			}
 		}
 
 		/* There are 2 paths here, regular queries, or unique order by
@@ -1000,19 +973,13 @@ GetOneTupleCore(DocumentDBRumIndexState *outerScanState,
 {
 	bool result = coreRoutine->amgettuple(outerScanState->innerScan, direction);
 
-	if (outerScanState->isForcedOrderScan)
-	{
-		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
-		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
-	}
-	else
-	{
-		scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
-		scan->xs_recheck = outerScanState->innerScan->xs_recheck;
-		scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
-		scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
-		scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
-	}
+	scan->xs_heaptid = outerScanState->innerScan->xs_heaptid;
+	scan->xs_recheck = outerScanState->innerScan->xs_recheck;
+	scan->xs_recheckorderby = outerScanState->innerScan->xs_recheckorderby;
+
+	/* Set the pointers to handle order by values */
+	scan->xs_orderbyvals = outerScanState->innerScan->xs_orderbyvals;
+	scan->xs_orderbynulls = outerScanState->innerScan->xs_orderbynulls;
 	return result;
 }
 
@@ -1203,10 +1170,12 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 		uint32_t nentries = 0;
 		bool *partialMatch = NULL;
 		Pointer *extraData = NULL;
+		int32_t ginScanType = scan->numberOfOrderBys > 0 ? GIN_SEARCH_MODE_ALL :
+							  GIN_SEARCH_MODE_DEFAULT;
 
 		if (outerScanState->compositeKey.sk_argument != (Datum) 0)
 		{
-			LOCAL_FCINFO(fcinfo, 5);
+			LOCAL_FCINFO(fcinfo, 7);
 			fcinfo->flinfo = palloc(sizeof(FmgrInfo));
 			fmgr_info_copy(fcinfo->flinfo,
 						   index_getprocinfo(scan->indexRelation, 1,
@@ -1218,6 +1187,7 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 			fcinfo->args[2].value = Int16GetDatum(BSON_INDEX_STRATEGY_COMPOSITE_QUERY);
 			fcinfo->args[3].value = PointerGetDatum(&partialMatch);
 			fcinfo->args[4].value = PointerGetDatum(&extraData);
+			fcinfo->args[6].value = PointerGetDatum(&ginScanType);
 
 			Datum *entryRes = (Datum *) gin_bson_composite_path_extract_query(fcinfo);
 

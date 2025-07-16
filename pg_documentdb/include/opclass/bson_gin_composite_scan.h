@@ -21,5 +21,4 @@ bool CompositePathHasFirstColumnSpecified(IndexPath *indexPath);
 char *SerializeBoundsStringForExplain(bytea * entry, void *extraData, PG_FUNCTION_ARGS);
 bool ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
 									targetScanKey, bool hasArrayKeys, bool hasOrderBys);
-Datum BuildCompositeOrderByScanKeyArgument(bytea *options);
  #endif

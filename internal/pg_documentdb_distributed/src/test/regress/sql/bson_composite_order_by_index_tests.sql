@@ -311,7 +311,7 @@ set enable_sort to off;
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$eq": 1 } } }, { "$sort": { "_id": 1, "c": 1 } } ] }');
 
 -- forced order by pushdown respects ordering when there is none.
-set documentdb.forceRumOrderedIndexScan to on;
+set documentdb_rum.forceRumOrderedIndexScan to on;
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$exists": true } } } ] }');
 SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$exists": true } } } ] }');
 

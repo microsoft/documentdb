@@ -34,6 +34,7 @@ bool RumEnableRefindLeafOnEntryNextItem =
 	RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM;
 bool RumDisableFastScan = RUM_DEFAULT_DISABLE_FAST_SCAN;
 bool RumEnableEntryFindItemOnScan = RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN;
+bool RumForceOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
 
 static bool scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item,
 					 bool equalOk);
@@ -672,7 +673,6 @@ restartScanEntry:
 	entry->list = NULL;
 	entry->gdi = NULL;
 	entry->stack = NULL;
-	entry->orderStack = NULL;
 	entry->nlist = 0;
 	entry->matchSortstate = NULL;
 	entry->reduceResult = false;
@@ -918,14 +918,17 @@ scan_entry_cmp(const void *p1, const void *p2, void *arg)
 
 
 static bool
-ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
-				   bool *markedEntryFinished)
+ValidateIndexEntry(RumScanOpaque so, Datum idatum,
+				   bool *markedEntryFinished, bool *scanFinished)
 {
 	int idx, jdx;
+	int cmp;
 
 	so->scanLoops++;
-	orderByKey->recheckCurItem = false;
-	orderByKey->recheckCurItemOrderBy = false;
+	so->recheckCurrentItem = false;
+	so->recheckCurrentItemOrderBy = false;
+
+	/* Validate filters */
 	for (idx = 0; idx < so->nkeys; idx++)
 	{
 		bool allEntriesExhausted;
@@ -933,29 +936,12 @@ ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
 		RumScanKey curKey = so->keys[idx];
 		if (curKey->orderBy)
 		{
-			int cmp = DatumGetInt32(FunctionCall4Coll(
-										&so->rumstate.comparePartialFn[curKey->attnum
-																	   -
-																	   1],
-										so->rumstate.supportCollation[
-											curKey->attnum - 1],
-										curKey->scanEntry[0]->queryKey,
-										idatum,
-										UInt16GetDatum(
-											curKey->scanEntry[0]->strategy),
-										PointerGetDatum(
-											curKey->scanEntry[0]->extra_data)));
-			if (cmp < 0)
-			{
-				orderByKey->recheckCurItemOrderBy = true;
-			}
 			continue;
 		}
 
 		allEntriesExhausted = true;
 		for (jdx = 0; jdx < curKey->nentries; jdx++)
 		{
-			int cmp;
 			if (curKey->scanEntry[jdx]->isFinished)
 			{
 				curKey->entryRes[jdx] = false;
@@ -998,7 +984,7 @@ ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
 		if (allEntriesExhausted)
 		{
 			/* No entry for this key matched, or said continue, we can stop searching */
-			orderByKey->isFinished = true;
+			*scanFinished = true;
 			return false;
 		}
 
@@ -1014,8 +1000,24 @@ ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
 		}
 
 		/* Set recheck based on if any keys want recheck on this */
-		orderByKey->recheckCurItem = orderByKey->recheckCurItem ||
-									 curKey->recheckCurItem;
+		so->recheckCurrentItem = so->recheckCurrentItem ||
+								 curKey->recheckCurItem;
+	}
+
+	/* Validate recheckOrderBy */
+	cmp = DatumGetInt32(FunctionCall4Coll(
+							&so->rumstate.comparePartialFn[
+								so->orderByEntry->attnum - 1],
+							so->rumstate.supportCollation[
+								so->orderByEntry->attnum - 1],
+							so->orderByEntry->queryKey,
+							idatum,
+							UInt16GetDatum(0),
+							PointerGetDatum(
+								so->orderByEntry->extra_data)));
+	if (cmp < 0)
+	{
+		so->recheckCurrentItemOrderBy = true;
 	}
 
 	return true;
@@ -1023,7 +1025,7 @@ ValidateIndexEntry(RumScanKey orderByKey, RumScanOpaque so, Datum idatum,
 
 
 static void
-PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanKey orderByKey, RumScanEntry entry,
+PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 						   Snapshot snapshot, IndexTuple itup, RumBtreeStack *stackEntry,
 						   bool *needUnlock)
 {
@@ -1032,7 +1034,7 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanKey orderByKey, RumScanEntry
 	 * had any entry that needed recheck since the runtime can re-evaluate any key after
 	 * a recheck was set.
 	 */
-	if (orderByKey->recheckCurItemOrderBy || so->orderByHasRecheck)
+	if (so->recheckCurrentItemOrderBy || so->orderByHasRecheck)
 	{
 		int i;
 		MemoryContext oldContext;
@@ -1144,17 +1146,15 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanKey orderByKey, RumScanEntry
 
 
 static void
-startScanEntryOrderedCore(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
+startScanEntryOrderedCore(RumScanOpaque so, RumScanEntry minScanEntry, Snapshot snapshot)
 {
 	RumBtreeData btreeEntry;
 	RumBtreeStack *stackEntry;
 	Page page;
 	bool needUnlock;
 	ItemId itemid;
-	RumScanEntry entry = orderByKey->scanEntry[0];
+	RumScanEntry entry = minScanEntry;
 	RumState *rumstate = &so->rumstate;
-
-	Assert(entry->curKeyCategory == RUM_CAT_ORDER_ITEM);
 
 	entry->buffer = InvalidBuffer;
 	RumItemSetMin(&entry->curItem);
@@ -1162,11 +1162,19 @@ startScanEntryOrderedCore(RumScanOpaque so, RumScanKey orderByKey, Snapshot snap
 	entry->list = NULL;
 	entry->gdi = NULL;
 	entry->stack = NULL;
-	entry->orderStack = NULL;
 	entry->nlist = 0;
 	entry->matchSortstate = NULL;
 	entry->reduceResult = false;
 	entry->predictNumberResult = 0;
+
+	if (so->orderStack)
+	{
+		freeRumBtreeStack(so->orderStack);
+	}
+	so->orderStack = NULL;
+
+	/* Current entry being considered for ordered scan */
+	so->orderByEntry = entry;
 
 	/*
 	 * we should find entry, and begin scan of posting tree or just store
@@ -1197,7 +1205,7 @@ startScanEntryOrderedCore(RumScanOpaque so, RumScanKey orderByKey, Snapshot snap
 	}
 
 	/* Let MoveScanForward deal with the reving and setting of stuff */
-	entry->orderStack = stackEntry;
+	so->orderStack = stackEntry;
 	entry->isFinished = true;
 
 endOrderedScanEntry:
@@ -1205,7 +1213,7 @@ endOrderedScanEntry:
 	{
 		LockBuffer(stackEntry->buffer, RUM_UNLOCK);
 	}
-	if (entry->stack == NULL && entry->orderStack == NULL)
+	if (entry->stack == NULL && so->orderStack == NULL)
 	{
 		freeRumBtreeStack(stackEntry);
 	}
@@ -1224,7 +1232,7 @@ getMinScanEntry(RumScanOpaque so)
 		/* Get the minimum entry per key */
 		RumScanKey key = so->keys[i];
 		RumScanEntry minEntry = NULL;
-		if (i == so->orderByKeyIndex)
+		if (key->orderBy)
 		{
 			continue;
 		}
@@ -1290,38 +1298,14 @@ getMinScanEntry(RumScanOpaque so)
 static void
 startOrderedScanEntries(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so)
 {
-	RumScanKey key;
-	RumScanEntry entry;
-	RumScanEntry minEntry = NULL;
-	if (so->orderByKeyIndex < 0)
+	RumScanEntry minEntry = getMinScanEntry(so);
+	if (minEntry == NULL)
 	{
-		ereport(ERROR, (errmsg("ordered scan must have an orderby index")));
+		so->isVoidRes = true;
+		return;
 	}
 
-	key = so->keys[so->orderByKeyIndex];
-
-	if (key->nentries > 1)
-	{
-		ereport(ERROR, (errmsg("Order by key must have exactly 1 entry")));
-	}
-
-	entry = key->scanEntry[0];
-	entry->curKeyCategory = RUM_CAT_ORDER_ITEM;
-
-	if (entry->isPartialMatch)
-	{
-		/* reset this */
-		entry->isPartialMatch = false;
-	}
-
-	/* Now adjust the bounds based on the minimum value of the other scan keys */
-	minEntry = getMinScanEntry(so);
-	if (minEntry != NULL)
-	{
-		entry->queryKey = minEntry->queryKey;
-	}
-
-	startScanEntryOrderedCore(so, key, scan->xs_snapshot);
+	startScanEntryOrderedCore(so, minEntry, scan->xs_snapshot);
 }
 
 
@@ -1333,9 +1317,41 @@ startScan(IndexScanDesc scan)
 	uint32 i;
 	RumScanType scanType = RumFastScan;
 	MemoryContext oldCtx = MemoryContextSwitchTo(so->keyCtx);
+	bool isSupportedOrderedScan = false;
+	if (RumForceOrderedIndexScan)
+	{
+		/* Validate that there's only 1 attnum in all the keys,
+		 * multiatt ordered scan is not supported
+		 * Ordered scan also requires comparePartial and
+		 * an ordering function on all keys.
+		 */
+		isSupportedOrderedScan = so->nkeys > 0;
+		for (i = 0; i < so->nkeys; i++)
+		{
+			RumScanKey key = so->keys[i];
+			if (key->attnum != so->keys[0]->attnum)
+			{
+				isSupportedOrderedScan = false;
+				break;
+			}
 
-	if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
-		so->willSort && !rumstate->useAlternativeOrder)
+			if (!rumstate->canPartialMatch[key->attnum - 1] ||
+				!rumstate->canOrdering[key->attnum - 1] ||
+				rumstate->orderingFn[key->attnum - 1].fn_nargs != 4)
+			{
+				isSupportedOrderedScan = false;
+				break;
+			}
+		}
+	}
+
+	if (isSupportedOrderedScan)
+	{
+		scanType = RumOrderedScan;
+		startOrderedScanEntries(scan, rumstate, so);
+	}
+	else if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
+			 so->willSort && !rumstate->useAlternativeOrder)
 	{
 		scanType = RumOrderedScan;
 		startOrderedScanEntries(scan, rumstate, so);
@@ -2942,7 +2958,7 @@ scanGetItemFull(IndexScanDesc scan, RumItem *advancePast,
 
 
 static bool
-MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
+MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 {
 	Page page;
 	IndexTuple itup;
@@ -2951,10 +2967,11 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 	RumNullCategory icategory;
 	bool needUnlock, isIndexMatch;
 	bool markedEntryFinished = false;
-	RumScanEntry entry = orderByKey->scanEntry[0];
+	bool scanFinished = false;
+	RumScanEntry entry = so->orderByEntry;
 
 	Assert(entry->isFinished);
-	Assert(entry->orderStack);
+	Assert(so->orderStack);
 	Assert(ScanDirectionIsForward(entry->scanDirection));
 
 	entry->buffer = InvalidBuffer;
@@ -2982,24 +2999,24 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 						entry->queryKey, entry->queryCategory,
 						&so->rumstate);
 
-	LockBuffer(entry->orderStack->buffer, RUM_SHARE);
+	LockBuffer(so->orderStack->buffer, RUM_SHARE);
 
 	for (;;)
 	{
 		/*
 		 * stack->off points to the interested entry, buffer is already locked
 		 */
-		if (!moveRightIfItNeeded(&btree, entry->orderStack))
+		if (!moveRightIfItNeeded(&btree, so->orderStack))
 		{
 			ItemPointerSetInvalid(&entry->curItem.iptr);
 			entry->isFinished = true;
-			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
 			return false;
 		}
 
-		page = BufferGetPage(entry->orderStack->buffer);
+		page = BufferGetPage(so->orderStack->buffer);
 		itup = (IndexTuple) PageGetItem(page, PageGetItemId(page,
-															entry->orderStack->off));
+															so->orderStack->off));
 		needUnlock = true;
 
 		/*
@@ -3009,7 +3026,7 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 		{
 			ItemPointerSetInvalid(&entry->curItem.iptr);
 			entry->isFinished = true;
-			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
 			return false;
 		}
 
@@ -3017,11 +3034,13 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 		idatum = rumtuple_get_key(&so->rumstate, itup, &icategory);
 
 		markedEntryFinished = false;
-		isIndexMatch = ValidateIndexEntry(orderByKey, so, idatum, &markedEntryFinished);
+		scanFinished = false;
+		isIndexMatch = ValidateIndexEntry(so, idatum, &markedEntryFinished,
+										  &scanFinished);
 
-		if (orderByKey->isFinished)
+		if (scanFinished)
 		{
-			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
 			return false;
 		}
 
@@ -3042,13 +3061,15 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 
 					if (cmp > 0)
 					{
-						entry->queryKey = newMinEntry->queryKey;
-						LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
-						freeRumBtreeStack(entry->orderStack);
+						LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
+						freeRumBtreeStack(so->orderStack);
+						so->orderStack = NULL;
 
 						/* start the orderedScan again with the new entry now */
-						startScanEntryOrderedCore(so, orderByKey, snapshot);
-						if (!entry->orderStack)
+						startScanEntryOrderedCore(so, newMinEntry, snapshot);
+						newMinEntry->isFinished = false;
+						entry = so->orderByEntry;
+						if (!so->orderStack)
 						{
 							/* There is no entry left - close scan */
 							return false;
@@ -3056,7 +3077,7 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 						else
 						{
 							/* move right and continue */
-							LockBuffer(entry->orderStack->buffer, RUM_SHARE);
+							LockBuffer(so->orderStack->buffer, RUM_SHARE);
 							continue;
 						}
 					}
@@ -3065,21 +3086,21 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 				}
 			}
 
-			entry->orderStack->off++;
+			so->orderStack->off++;
 			continue;
 		}
 
-		PrepareOrderedMatchedEntry(so, orderByKey, entry, snapshot, itup,
-								   entry->orderStack, &needUnlock);
+		PrepareOrderedMatchedEntry(so, entry, snapshot, itup,
+								   so->orderStack, &needUnlock);
 		if (entry->nlist == 0)
 		{
 			if (needUnlock)
 			{
-				LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+				LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
 			}
 
 			/* Dead tuple due to vacuum, move forward */
-			entry->orderStack->off++;
+			so->orderStack->off++;
 			continue;
 		}
 
@@ -3091,11 +3112,11 @@ MoveScanForward(RumScanOpaque so, RumScanKey orderByKey, Snapshot snapshot)
 		/*
 		 * Done with this entry, go to the next for the future.
 		 */
-		entry->orderStack->off++;
+		so->orderStack->off++;
 
 		if (needUnlock)
 		{
-			LockBuffer(entry->orderStack->buffer, RUM_UNLOCK);
+			LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
 		}
 
 		return true;
@@ -3108,47 +3129,40 @@ scanGetItemOrdered(IndexScanDesc scan, RumItem *advancePast,
 				   RumItem *item, bool *recheck, bool *recheckOrderby)
 {
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
-	RumScanKey key;
-	RumScanEntry entry;
-
-	key = so->keys[so->orderByKeyIndex];
-
-	entry = key->scanEntry[0];
-
-	if (!entry->isFinished)
+	if (!so->orderByEntry->isFinished)
 	{
-		entryGetItem(&so->rumstate, entry, NULL, scan->xs_snapshot, NULL);
+		entryGetItem(&so->rumstate, so->orderByEntry, NULL, scan->xs_snapshot, NULL);
 	}
 
-	if (entry->isFinished)
+	if (so->orderByEntry->isFinished)
 	{
 		/* See if we can move forward to the next entry */
-		if (entry->orderStack == NULL)
+		if (so->orderStack == NULL)
 		{
 			return false;
 		}
 
-		if (!MoveScanForward(so, key, scan->xs_snapshot))
+		if (!MoveScanForward(so, scan->xs_snapshot))
 		{
 			return false;
 		}
 	}
 
-	*item = entry->curItem;
+	*item = so->orderByEntry->curItem;
 
 	/* If we're rechecking the order by, also recheck the filters for good measure */
-	*recheck = key->recheckCurItem || key->recheckCurItemOrderBy;
-	*recheckOrderby = key->recheckCurItemOrderBy;
+	*recheck = so->recheckCurrentItem || so->recheckCurrentItemOrderBy;
+	*recheckOrderby = so->recheckCurrentItemOrderBy;
 
 	if (so->orderByHasRecheck)
 	{
 		for (int i = so->orderByKeyIndex; i < so->nkeys; i++)
 		{
 			RumScanKey orderByKey = so->keys[i];
-			if (orderByKey->orderBy && orderByKey->keyIndex >= 0)
+			if (orderByKey->orderBy)
 			{
-				scan->xs_orderbyvals[orderByKey->keyIndex] = orderByKey->curKey;
-				scan->xs_orderbynulls[orderByKey->keyIndex] = false;
+				scan->xs_orderbyvals[i - so->orderByKeyIndex] = orderByKey->curKey;
+				scan->xs_orderbynulls[i - so->orderByKeyIndex] = false;
 			}
 		}
 	}

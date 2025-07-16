@@ -698,10 +698,6 @@ typedef struct RumScanKeyData
 	/* array of keys, used to scan using additional information as keys */
 	RumScanKey *addInfoKeys;
 	uint32 addInfoNKeys;
-
-	/* documentdb: New for rechecking order by */
-	bool recheckCurItemOrderBy;
-	int32_t keyIndex;
 }   RumScanKeyData;
 
 typedef struct RumScanEntryData
@@ -757,9 +753,6 @@ typedef struct RumScanEntryData
 	/* Find by AddInfo */
 	bool useMarkAddInfo;
 	RumItem markAddInfo;
-
-	/* for ordered scan in documentdb */
-	RumBtreeStack *orderStack;
 
 	/* Compare partial addition new for documentdb */
 	bool isMatchMinimalTuple;
@@ -819,6 +812,10 @@ typedef struct RumScanOpaqueData
 	/* In an ordered scan, the key pointing to the order by key */
 	int32_t orderByKeyIndex;
 	bool orderByHasRecheck;
+	RumBtreeStack *orderStack;
+	RumScanEntry orderByEntry;
+	bool recheckCurrentItem;
+	bool recheckCurrentItemOrderBy;
 
 	/* documentdb: whether or not to use a simple scanGetNextItem in rumgettuple */
 	bool useSimpleScan;
@@ -923,6 +920,7 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_DISABLE_FAST_SCAN false
 #define RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN true
 #define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
+#define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
 
 
 /* GUC parameters */
@@ -935,6 +933,7 @@ extern bool RumThrowErrorOnInvalidDataPage;
 extern bool RumDisableFastScan;
 extern bool RumEnableEntryFindItemOnScan;
 extern bool RumSkipRetryOnDeletePage;
+extern bool RumForceOrderedIndexScan;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in

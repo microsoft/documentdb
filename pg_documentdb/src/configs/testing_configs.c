@@ -65,9 +65,6 @@ bool ForceDisableSeqScan = DEFAULT_FORCE_DISABLE_SEQ_SCAN;
 #define DEFAULT_CURRENTOP_ADD_SQL_COMMAND false
 bool CurrentOpAddSqlCommand = DEFAULT_CURRENTOP_ADD_SQL_COMMAND;
 
-#define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
-bool ForceRumOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
-
 #define DEFAULT_ALTERNATE_INDEX_HANDLER ""
 char *AlternateIndexHandler = DEFAULT_ALTERNATE_INDEX_HANDLER;
 
@@ -226,14 +223,6 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Whether to add the SQL command to the current operation view."),
 		NULL, &CurrentOpAddSqlCommand, DEFAULT_CURRENTOP_ADD_SQL_COMMAND,
-		PGC_USERSET, 0, NULL, NULL, NULL);
-
-	DefineCustomBoolVariable(
-		psprintf("%s.forceRumOrderedIndexScan", newGucPrefix),
-		gettext_noop(
-			"Whether to force RUM ordered index scan for rum indexes."),
-		NULL, &ForceRumOrderedIndexScan,
-		DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomStringVariable(

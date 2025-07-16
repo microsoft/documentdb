@@ -38,6 +38,7 @@ rumbeginscan(Relation rel, int nkeys, int norderbys)
 	so->firstCall = true;
 	so->totalentries = 0;
 	so->sortedEntries = NULL;
+	so->orderStack = NULL;
 	so->scanLoops = 0;
 	so->orderByKeyIndex = -1;
 	so->tempCtx = RumContextCreate(CurrentMemoryContext,
@@ -129,7 +130,6 @@ rumFillScanEntry(RumScanOpaque so, OffsetNumber attnum,
 	scanEntry->list = NULL;
 	scanEntry->gdi = NULL;
 	scanEntry->stack = NULL;
-	scanEntry->orderStack = NULL;
 	scanEntry->nlist = 0;
 	scanEntry->offset = InvalidOffsetNumber;
 	scanEntry->isFinished = false;
@@ -152,7 +152,7 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 			   Datum query, uint32 nQueryValues,
 			   Datum *queryValues, RumNullCategory *queryCategories,
 			   bool *partial_matches, Pointer *extra_data,
-			   bool orderBy, int32_t keyIndex)
+			   bool orderBy)
 {
 	RumScanKey key = palloc0(sizeof(*key));
 	RumState *rumstate = &so->rumstate;
@@ -182,7 +182,6 @@ rumFillScanKey(RumScanOpaque so, OffsetNumber attnum,
 	RumItemSetMin(&key->curItem);
 	key->curItemMatches = false;
 	key->recheckCurItem = false;
-	key->keyIndex = keyIndex;
 	key->isFinished = false;
 
 	key->addInfoKeys = NULL;
@@ -409,10 +408,6 @@ freeScanEntries(RumScanEntry *entries, uint32 nentries)
 		{
 			freeRumBtreeStack(entry->stack);
 		}
-		if (entry->orderStack)
-		{
-			freeRumBtreeStack(entry->orderStack);
-		}
 		if (entry->list)
 		{
 			pfree(entry->list);
@@ -430,6 +425,11 @@ void
 freeScanKeys(RumScanOpaque so)
 {
 	freeScanEntries(so->entries, so->totalentries);
+
+	if (so->orderStack)
+	{
+		freeRumBtreeStack(so->orderStack);
+	}
 
 	MemoryContextReset(so->keyCtx);
 	so->keys = NULL;
@@ -452,7 +452,7 @@ freeScanKeys(RumScanOpaque so)
 
 
 static void
-initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, int32_t keyIndex)
+initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, bool hasOrdering)
 {
 	Datum *queryValues;
 	int32 nQueryValues = 0;
@@ -460,6 +460,15 @@ initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, int32_t keyIn
 	Pointer *extra_data = NULL;
 	bool *nullFlags = NULL;
 	int32 searchMode = GIN_SEARCH_MODE_DEFAULT;
+
+	/* Only apply the search mode when it's safe */
+	if ((hasOrdering || RumForceOrderedIndexScan) &&
+		so->rumstate.canOrdering[skey->sk_attno - 1] &&
+		so->rumstate.orderingFn[skey->sk_attno - 1].fn_nargs == 4)
+	{
+		/* Let extractQuery know we're doing an ordered scan */
+		searchMode = GIN_SEARCH_MODE_ALL;
+	}
 
 	/*
 	 * We assume that RUM-indexable operators are strict, so a null query
@@ -548,8 +557,7 @@ initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, int32_t keyIn
 				   skey->sk_argument, nQueryValues,
 				   queryValues, (RumNullCategory *) nullFlags,
 				   partial_matches, extra_data,
-				   (skey->sk_flags & SK_ORDER_BY) ? true : false,
-				   keyIndex);
+				   (skey->sk_flags & SK_ORDER_BY) ? true : false);
 
 	if (partial_matches && hasPartialMatch)
 	{
@@ -687,6 +695,7 @@ rumNewScanKey(IndexScanDesc scan)
 	int i;
 	bool checkEmptyEntry = false;
 	bool hasPartialMatch = false;
+	bool hasOrderBy = scan->numberOfOrderBys > 0;
 	MemoryContext oldCtx;
 	enum
 	{
@@ -703,6 +712,8 @@ rumNewScanKey(IndexScanDesc scan)
 	so->entriesIncrIndex = -1;
 	so->norderbys = scan->numberOfOrderBys;
 	so->willSort = false;
+	so->orderStack = NULL;
+	so->orderByEntry = NULL;
 
 	/*
 	 * Allocate all the scan key information in the key context. (If
@@ -721,7 +732,7 @@ rumNewScanKey(IndexScanDesc scan)
 
 	for (i = 0; i < scan->numberOfKeys; i++)
 	{
-		initScanKey(so, &scan->keyData[i], &hasPartialMatch, i);
+		initScanKey(so, &scan->keyData[i], &hasPartialMatch, hasOrderBy);
 		if (so->isVoidRes)
 		{
 			break;
@@ -738,20 +749,19 @@ rumNewScanKey(IndexScanDesc scan)
 					   InvalidStrategy,
 					   GIN_SEARCH_MODE_EVERYTHING,
 					   (Datum) 0, 0,
-					   NULL, NULL, NULL, NULL, false, -1);
+					   NULL, NULL, NULL, NULL, false);
 		checkEmptyEntry = true;
 	}
 
-	for (i = 0; i < scan->numberOfOrderBys; i++)
+	if (scan->numberOfOrderBys > 0)
 	{
-		if (so->orderByKeyIndex < 0)
+		/* Store the first order by key index here */
+		/* We enforce that we have a prefix equality in this case in the layer above */
+		so->orderByKeyIndex = so->nkeys;
+		for (i = 0; i < scan->numberOfOrderBys; i++)
 		{
-			/* Store the first order by key index here */
-			/* We enforce that we have a prefix equality in this case in the layer above */
-			so->orderByKeyIndex = so->nkeys;
+			initScanKey(so, &scan->orderByData[i], NULL, hasOrderBy);
 		}
-
-		initScanKey(so, &scan->orderByData[i], NULL, i);
 	}
 
 	/*
