@@ -115,11 +115,10 @@ DocumentDB supports automatic data initialization on startup, allowing you to qu
 
 #### Using Built-in Sample Data
 
-DocumentDB includes built-in sample data for quick testing and exploration. Enable it with the `--init-data` flag:
+DocumentDB includes built-in sample data for quick testing and exploration. It is enabled by default and can be disabled with the `--init-data` flag:
 
 ```bash
 docker run -p 10260:10260 -p 9712:9712 \
-  --init-data=true \
   --password mypassword \
   ghcr.io/microsoft/documentdb/documentdb-oss:latest
 ```
@@ -186,7 +185,7 @@ docker run -p 10260:10260 -p 9712:9712 \
 
 #### Available Initialization Options
 
-- `--init-data=true|false`: Enable built-in sample data initialization (default: false)
+- `--init-data=true|false`: Enable built-in sample data initialization (default: true)
 - `--init-data-path [PATH]`: Specify custom path for initialization scripts (default: /docker-entrypoint-initdb.d)
 - `INIT_DATA`: Environment variable equivalent of --init-data
 - `INIT_DATA_PATH`: Environment variable equivalent of --init-data-path

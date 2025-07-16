@@ -60,7 +60,7 @@ Optional arguments:
                         Overrides INIT_DATA_PATH environment variable.
   --init-data           Enable initialization with built-in sample data.
                         Creates sample collections (users, products, orders, analytics) in 'sampledb' database.
-                        Defaults to false.
+                        Defaults to true.
                         Overrides INIT_DATA environment variable.
                         
 EOF
@@ -176,7 +176,7 @@ export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
 export INIT_DATA_PATH=${INIT_DATA_PATH:-/docker-entrypoint-initdb.d}
-export INIT_DATA=${INIT_DATA:-false}
+export INIT_DATA=${INIT_DATA:-true}
 
 # Validate required parameters
 if [ -z "${PASSWORD:-}" ]; then
