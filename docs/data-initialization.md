@@ -6,15 +6,15 @@ This file documents the data initialization feature in DocumentDB that allows us
 
 The following environment variable is supported:
 
-- `INIT_DATA_PATH`: Path to directory containing .js initialization files (default: /docker-entrypoint-initdb.d)
+- `INIT_DATA_PATH`: Path to directory containing .js initialization files (default: /init_doc_db.d)
 
 ## Usage Examples
 
 ### Using custom initialization files
 ```bash
 docker run -p 10260:10260 -p 9712:9712 \
-  -v /path/to/your/init/scripts:/docker-entrypoint-initdb.d \
-  --init-data-path /docker-entrypoint-initdb.d \
+  -v /path/to/your/init/scripts:/init_doc_db.d \
+  --init-data-path /init_doc_db.d \
   --password mypassword \
   documentdb/local
 ```

@@ -91,7 +91,7 @@ COPY --from=stage /home/documentdb/code/scripts/init_documentdb_data.sh /home/do
 COPY --from=stage /home/documentdb/code/sample-data /home/documentdb/gateway/sample-data
 
 # Create default initialization directory for user-provided scripts
-RUN sudo mkdir -p /docker-entrypoint-initdb.d
+RUN sudo mkdir -p /init_doc_db.d
 
 RUN sudo chown -R documentdb:documentdb /home/documentdb/gateway
 

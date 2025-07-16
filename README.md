@@ -144,8 +144,8 @@ Create your own JavaScript initialization files and mount them to the container:
 
 ```bash
 docker run -p 10260:10260 -p 9712:9712 \
-  -v /path/to/your/init/scripts:/docker-entrypoint-initdb.d \
-  --init-data-path /docker-entrypoint-initdb.d \
+  -v /path/to/your/init/scripts:/init_doc_db.d \
+  --init-data-path /init_doc_db.d \
   --password mypassword \
   ghcr.io/microsoft/documentdb/documentdb-oss:latest
 ```
@@ -177,16 +177,16 @@ docker run -p 10260:10260 -p 9712:9712 \
 
 # Custom initialization scripts
 docker run -p 10260:10260 -p 9712:9712 \
-  -e INIT_DATA_PATH=/docker-entrypoint-initdb.d \
+  -e INIT_DATA_PATH=/init_doc_db.d \
   -e PASSWORD=mypassword \
-  -v /path/to/init/scripts:/docker-entrypoint-initdb.d \
+  -v /path/to/init/scripts:/init_doc_db.d \
   ghcr.io/microsoft/documentdb/documentdb-oss:latest
 ```
 
 #### Available Initialization Options
 
 - `--init-data=true|false`: Enable built-in sample data initialization (default: true)
-- `--init-data-path [PATH]`: Specify custom path for initialization scripts (default: /docker-entrypoint-initdb.d)
+- `--init-data-path [PATH]`: Specify custom path for initialization scripts (default: /init_doc_db.d)
 - `INIT_DATA`: Environment variable equivalent of --init-data
 - `INIT_DATA_PATH`: Environment variable equivalent of --init-data-path
 

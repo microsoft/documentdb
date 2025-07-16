@@ -56,7 +56,7 @@ Optional arguments:
   --init-data-path [PATH]
                         Specify a directory containing JavaScript files for database initialization.
                         Files will be executed in alphabetical order using mongosh.
-                        Defaults to /docker-entrypoint-initdb.d
+                        Defaults to /init_doc_db.d
                         Overrides INIT_DATA_PATH environment variable.
   --init-data           Enable initialization with built-in sample data.
                         Creates sample collections (users, products, orders, analytics) in 'sampledb' database.
@@ -175,7 +175,7 @@ export USERNAME=${USERNAME:-default_user}
 export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
-export INIT_DATA_PATH=${INIT_DATA_PATH:-/docker-entrypoint-initdb.d}
+export INIT_DATA_PATH=${INIT_DATA_PATH:-/init_doc_db.d}
 export INIT_DATA=${INIT_DATA:-true}
 
 # Validate required parameters

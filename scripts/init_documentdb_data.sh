@@ -11,7 +11,7 @@ DOCUMENTDB_HOST="localhost"
 DOCUMENTDB_PORT="10260"
 USERNAME="default_user"
 PASSWORD=""
-INIT_DATA_PATH="/docker-entrypoint-initdb.d"
+INIT_DATA_PATH="/init_doc_db.d"
 VERBOSE="false"
 
 # Print usage information
@@ -28,7 +28,7 @@ Options:
   -u, --username USERNAME      DocumentDB username (default: default_user)
   -p, --password PASSWORD      DocumentDB password (required)
   -d, --data-path PATH         Path to directory containing .js initialization files
-                               (default: /docker-entrypoint-initdb.d)
+                               (default: /init_doc_db.d)
   -v, --verbose                Enable verbose output
 
 Examples:

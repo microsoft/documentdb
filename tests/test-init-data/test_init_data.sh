@@ -194,10 +194,10 @@ main() {
         --name $CONTAINER_NAME \
         -p $DOCUMENTDB_PORT:$DOCUMENTDB_PORT \
         -e PASSWORD=$PASSWORD \
-        -v "$INIT_DATA_DIR:/docker-entrypoint-initdb.d" \
+        -v "$INIT_DATA_DIR:/init_doc_db.d" \
         $IMAGE_NAME \
         --password $PASSWORD \
-        --init-data-path /docker-entrypoint-initdb.d
+        --init-data-path /init_doc_db.d
     
     echo "Container started with ID: $(docker ps -q -f name=$CONTAINER_NAME)"
     echo
