@@ -7,8 +7,6 @@ set -e
 set -u
 
 # Default values
-DOCUMENTDB_HOST="localhost"
-DOCUMENTDB_PORT="10260"
 USERNAME="default_user"
 PASSWORD=""
 INIT_DATA_PATH="/init_doc_db.d"
@@ -98,11 +96,11 @@ wait_for_documentdb() {
     local max_attempts=30
     local attempt=1
     
-    echo "Waiting for DocumentDB to be ready at $DOCUMENTDB_HOST:$DOCUMENTDB_PORT..."
+    echo "Waiting for DocumentDB to be ready at localhost:10260..."
     
     while [ $attempt -le $max_attempts ]; do
         if command -v mongosh >/dev/null 2>&1; then
-            if mongosh "$DOCUMENTDB_HOST:$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" --authenticationMechanism SCRAM-SHA-256 --tls --tlsAllowInvalidCertificates --eval "db.runCommand({ping: 1})" >/dev/null 2>&1; then
+            if mongosh "localhost:10260" -u "$USERNAME" -p "$PASSWORD" --authenticationMechanism SCRAM-SHA-256 --tls --tlsAllowInvalidCertificates --eval "db.runCommand({ping: 1})" >/dev/null 2>&1; then
                 echo "DocumentDB is ready!"
                 return 0
             fi
@@ -145,7 +143,7 @@ run_init_scripts() {
             echo "Executing initialization script: $(basename "$init_file")"
             log "Full path: $init_file"
             
-            if mongosh "$DOCUMENTDB_HOST:$DOCUMENTDB_PORT" -u "$USERNAME" -p "$PASSWORD" --authenticationMechanism SCRAM-SHA-256 --tls --tlsAllowInvalidCertificates --file "$init_file"; then
+            if mongosh "localhost:10260" -u "$USERNAME" -p "$PASSWORD" --authenticationMechanism SCRAM-SHA-256 --tls --tlsAllowInvalidCertificates --file "$init_file"; then
                 log "Successfully executed: $(basename "$init_file")"
             else
                 echo "Warning: Failed to execute: $(basename "$init_file")"
@@ -168,7 +166,7 @@ run_init_scripts() {
 # Main initialization logic
 main() {
     echo "Starting DocumentDB data initialization..."
-    echo "Host: $DOCUMENTDB_HOST:$DOCUMENTDB_PORT"
+    echo "Host: localhost:10260"
     echo "Username: $USERNAME"
     
     # Wait for DocumentDB to be ready
