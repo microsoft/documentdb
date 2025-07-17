@@ -426,8 +426,14 @@ TrimPrimaryKeyQuals(List *restrictInfo, IndexPath *primaryKeyPath)
 	/* Deterministically pick the primary key for $in/$eq similar to the path below */
 	if (opNo == BsonEqualOperatorId() || IsA(objectIdFilter->clause, ScalarArrayOpExpr))
 	{
+		primaryKeyPath->indextotalcost = 0;
 		primaryKeyPath->path.startup_cost = 0;
 		primaryKeyPath->path.total_cost = 0;
+		if (opNo == BsonEqualOperatorId())
+		{
+			/* For primary key, force cardinality to 1 */
+			primaryKeyPath->path.rows = 1;
+		}
 	}
 
 	if (objectIdColumnFilter.value_type == BSON_TYPE_EOD && objectIdInFilter == NULL)
@@ -606,6 +612,13 @@ AddPointLookupQuery(List *restrictInfo, PlannerInfo *root, RelOptInfo *rel)
 				path->indextotalcost = 0;
 				path->path.startup_cost = 0;
 				path->path.total_cost = 0;
+
+				/* Set cardinality for primary key lookup */
+				if (docObjectIdFilterEqualsIndex >= 0)
+				{
+					path->path.rows = 1;
+				}
+
 				add_path(rel, (Path *) path);
 
 				if (objectIdColumnFilter.value_type != BSON_TYPE_EOD &&
