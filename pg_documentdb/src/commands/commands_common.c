@@ -196,12 +196,12 @@ FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *
 	{
 		/* set the variableSpec */
 		argTypes[1] = bsonTypeId;
-		argValues[1] = PointerGetDatum(variableSpecBson);
+		argValues[1] = applyVariableSpec ? PointerGetDatum(variableSpecBson) : (Datum) 0;
 		argNulls[1] = applyVariableSpec ? ' ' : 'n';
 
 		/* set the collation string */
 		argTypes[2] = TEXTOID;
-		argValues[2] = CStringGetTextDatum(collationString);
+		argValues[2] = applyCollation ? CStringGetTextDatum(collationString) : (Datum) 0;
 		argNulls[2] = applyCollation ? ' ' : 'n';
 	}
 

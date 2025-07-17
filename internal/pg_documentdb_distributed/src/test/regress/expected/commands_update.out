@@ -2,6 +2,7 @@ SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documen
 SET citus.next_shard_id TO 649000;
 SET documentdb.next_collection_id TO 6490;
 SET documentdb.next_collection_index_id TO 6490;
+SET documentdb.EnableVariablesSupportForWriteCommands TO on;
 select 1 from documentdb_api.insert_one('db', 'updateme', '{"a":1,"_id":1,"b":1}');
 NOTICE:  creating collection
  ?column? 
@@ -559,7 +560,7 @@ rollback;
 begin;
 set local citus.log_remote_commands to on;
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{"a":{"$eq":5}},"u":{"$set":{"b":0}},"multi":true}]}');
-NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649022 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($2)::documentdb_core.bson, ($1)::documentdb_core.bson, ($3)::documentdb_core.bson, false) bson_update_document(newdocument, updatedesc) WHERE true) WHERE ((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "5" } }'::documentdb_core.bsonquery) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $4)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
+NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649022 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($1)::documentdb_core.bson, $2::documentdb_core.bson, ($3)::documentdb_core.bson, false, $4::documentdb_core.bson) bson_update_document(newdocument, updatedesc) WHERE true) WHERE ((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "5" } }'::documentdb_core.bsonquery) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $6)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
                                                                update                                                               
 ---------------------------------------------------------------------
  ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
@@ -582,7 +583,7 @@ rollback;
 begin;
 set local citus.log_remote_commands to on;
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{"$and":[{"a":5},{"a":{"$gt":0}}]},"u":{"$set":{"b":0}},"multi":true}]}');
-NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649022 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($2)::documentdb_core.bson, ($1)::documentdb_core.bson, ($3)::documentdb_core.bson, false) bson_update_document(newdocument, updatedesc) WHERE true) WHERE (((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "5" } }'::documentdb_core.bsonquery) AND (documents_6490.document OPERATOR(documentdb_api_catalog.#>) '{ "a" : { "$numberInt" : "0" } }'::documentdb_core.bsonquery)) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $4)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
+NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649022 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($1)::documentdb_core.bson, $2::documentdb_core.bson, ($3)::documentdb_core.bson, false, $4::documentdb_core.bson) bson_update_document(newdocument, updatedesc) WHERE true) WHERE (((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "5" } }'::documentdb_core.bsonquery) AND (documents_6490.document OPERATOR(documentdb_api_catalog.#>) '{ "a" : { "$numberInt" : "0" } }'::documentdb_core.bsonquery)) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $6)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
                                                                update                                                               
 ---------------------------------------------------------------------
  ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
@@ -964,7 +965,7 @@ select count(*) from documentdb_api.collection('db', 'updateme') where document 
 
 set local citus.log_remote_commands to on;
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":2}},"multi":true,"upsert":true}]}');
-NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649023 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($2)::documentdb_core.bson, ($1)::documentdb_core.bson, ($3)::documentdb_core.bson, false) bson_update_document(newdocument, updatedesc) WHERE true) WHERE (((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "33" } }'::documentdb_core.bsonquery) AND (documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "10" } }'::documentdb_core.bsonquery)) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $4) AND (documents_6490.object_id OPERATOR(documentdb_core.=) ($5)::documentdb_core.bson)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
+NOTICE:  executing the command locally: WITH u AS (UPDATE documentdb_data.documents_6490_649023 documents_6490 SET document = (SELECT COALESCE(bson_update_document.newdocument, documents_6490.document) AS "coalesce" FROM documentdb_api_internal.bson_update_document(documents_6490.document, ($1)::documentdb_core.bson, $2::documentdb_core.bson, ($3)::documentdb_core.bson, false, $4::documentdb_core.bson) bson_update_document(newdocument, updatedesc) WHERE true) WHERE (((documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "_id" : { "$numberInt" : "33" } }'::documentdb_core.bsonquery) AND (documents_6490.document OPERATOR(documentdb_api_catalog.#=) '{ "a" : { "$numberInt" : "10" } }'::documentdb_core.bsonquery)) AND (documents_6490.shard_key_value OPERATOR(pg_catalog.=) $6) AND (documents_6490.object_id OPERATOR(documentdb_core.=) ($7)::documentdb_core.bson)) RETURNING documentdb_api_internal.bson_update_returned_value(documents_6490.shard_key_value) AS updated) SELECT count(*) AS count, sum(updated) AS sum FROM u WHERE true
                                                                update                                                               
 ---------------------------------------------------------------------
  ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
@@ -2117,3 +2118,542 @@ SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort')
  { "_id" : { "$numberInt" : "1" }, "a" : { "$numberInt" : "3" }, "b" : { "$numberInt" : "0" }, "text" : "large" }
 (3 rows)
 
+-- let support
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 1, "a":"kofi"}');
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 2, "a":"ama"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 3, "a":"$$varRef"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- EnableVariablesSupportForWriteCommands GUC off: ignore variableSpec
+SET documentdb.EnableVariablesSupportForWriteCommands TO off;
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": "ama"} }');
+                                                                                                                                                 update                                                                                                                                                  
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""118226973"" }, ""errmsg"" : ""Use of undefined variable: varRef"" } ] }",f)
+(1 row)
+
+-- EnableVariablesSupportForWriteCommands GUC on: user variableSpec
+SET documentdb.EnableVariablesSupportForWriteCommands TO on;
+-- variables accessed outside $expr will not evaluate to let variable value in 'q'
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": "$$varRef" }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": 2}} ');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": "$$varRef" }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2}} ');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
+(1 row)
+
+BEGIN;
+-- updateMany
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2} }');
+                                                                                                                                     QUERY PLAN                                                                                                                                      
+---------------------------------------------------------------------
+ Result
+   Output: update('db'::text, '{ "update" : "coll_update", "updates" : [ { "q" : { "$expr" : { "$eq" : [ "$_id", "$$varRef" ] } }, "u" : { "$set" : { "b" : "zebra" } }, "multi" : true } ], "let" : { "varRef" : { "$numberInt" : "2" } } }'::bson, NULL::bsonsequence, NULL::text)
+(2 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateOne
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": 2} }');
+                                                                                                                                      QUERY PLAN                                                                                                                                      
+---------------------------------------------------------------------
+ Result
+   Output: update('db'::text, '{ "update" : "coll_update", "updates" : [ { "q" : { "$expr" : { "$eq" : [ "$_id", "$$varRef" ] } }, "u" : { "$set" : { "b" : "zebra" } }, "multi" : false } ], "let" : { "varRef" : { "$numberInt" : "2" } } }'::bson, NULL::bsonsequence, NULL::text)
+(2 rows)
+
+ROLLBACK;
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "kojo"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "kojo"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                            document                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "b" : "kojo" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "b" : "kojo" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "kojo"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "kojo"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                            document                            
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "b" : "kojo" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "b" : "kojo" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+-- let support: variables in 'u'
+BEGIN;
+-- variables are accessible in aggregation pipeline
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": {"$set": {"set": "$$varRef"}}, "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                               document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : "$$varRef" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : "$$varRef" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateMany: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                     document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": [{"$addFields": {"addFields": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                                       document                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" }, "addFields" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gte": ["$_id", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                     document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "project" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "project" : { "$numberInt" : "2" } }
+(3 rows)
+
+-- updateMany: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                     document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "newRoot" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "3" }, "project" : { "$numberInt" : "2" } }
+(3 rows)
+
+-- updateMany: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                     document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "replaceWith" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "3" }, "project" : { "$numberInt" : "2" } }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateOne: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lt": ["$a", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": [{"$addFields": {"addField": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gt": ["$a", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "project" : "ama" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                document                                
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "project" : "ama" }
+ { "_id" : { "$numberInt" : "2" }, "newRoot" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                  document                                  
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "project" : "ama" }
+ { "_id" : { "$numberInt" : "2" }, "replaceWith" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+ROLLBACK;
+-- let support: sharded collection
+SELECT documentdb_api.shard_collection('db', 'coll_update', '{ "a": "hashed" }', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+BEGIN;
+-- updateMany
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"a": 1, "$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "anomaa"}}, "multi": true}], "let": {"varRef": "kofi"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateOne
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"a": 2, "$expr": {"$lt": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "ako"}}, "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
+(1 row)
+
+ROLLBACK;
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "akua"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "abena"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                            document                             
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "b" : "abena" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "b" : "akua" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateMany: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                     document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": [{"$addFields": {"addFields": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                                       document                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" }, "addFields" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gte": ["$_id", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+                                                                                                                                                                             update                                                                                                                                                                             
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""319029277"" }, ""errmsg"" : ""Invalid write detected. Please validate the collection and/or shard key being written to"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                                       document                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" }, "addFields" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+                                                                                                                                                                             update                                                                                                                                                                             
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""319029277"" }, ""errmsg"" : ""Invalid write detected. Please validate the collection and/or shard key being written to"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                                       document                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" }, "addFields" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+-- updateMany: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+                                                                                                                                                                             update                                                                                                                                                                             
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""319029277"" }, ""errmsg"" : ""Invalid write detected. Please validate the collection and/or shard key being written to"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                                                       document                                                        
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi", "set" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "set" : { "$numberInt" : "2" }, "addFields" : { "$numberInt" : "2" } }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+-- updateOne: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 3, "$expr": {"$lt": ["$a", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$a", "$$varRef"] } }, "u": [{"$addFields": {"addField": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 1, "$expr": {"$gt": ["$a", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+                                                                                                                                                                                  update                                                                                                                                                                                   
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""1088"" }, ""errmsg"" : ""shard key value update is only supported when filtering by the full shard key and specifying multi:false"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+                                                                                                                                                                                  update                                                                                                                                                                                   
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""1088"" }, ""errmsg"" : ""shard key value update is only supported when filtering by the full shard key and specifying multi:false"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+-- updateOne: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+                                                                                                                                                                                  update                                                                                                                                                                                   
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""1088"" }, ""errmsg"" : ""shard key value update is only supported when filtering by the full shard key and specifying multi:false"" } ] }",f)
+(1 row)
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+                              document                               
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "kofi" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "ama", "addField" : "ama" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "$$varRef", "set" : "ama" }
+(3 rows)
+
+ROLLBACK;

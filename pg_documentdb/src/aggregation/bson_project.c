@@ -82,18 +82,6 @@ typedef struct BsonProjectionQueryState
 } BsonProjectionQueryState;
 
 
-/*
- * Cached state for ReplaceRoot and Redact.
- */
-typedef struct BsonReplaceRootRedactState
-{
-	/* The aggregation expression data */
-	AggregationExpressionData *expressionData;
-
-	/* The variable context for let if any */
-	ExpressionVariableContext *variableContext;
-} BsonReplaceRootRedactState;
-
 /* --------------------------------------------------------- */
 /* Forward declaration */
 /* --------------------------------------------------------- */
@@ -140,13 +128,7 @@ static pgbson * BsonLookUpGetFilterExpression(pgbson *sourceDocument,
 
 static pgbson * BsonLookUpProject(pgbson *sourceDocument, int numMatchedDocuments,
 								  Datum *mathedArray, char *matchedDocsFieldName);
-static void PopulateReplaceRootExpressionDataFromSpec(
-	BsonReplaceRootRedactState *expressionData, pgbson *pathSpec, pgbson *variableSpec,
-	const char *collationString);
 
-static void BuildRedactState(BsonReplaceRootRedactState *redactState, const
-							 bson_value_t *redactValue, pgbson *variableSpec, const
-							 char *collationString);
 static void BuildBsonPathTreeForDollarProject(BsonProjectionQueryState *state,
 											  BsonProjectionContext *context);
 static void BuildBsonPathTreeForDollarAddFields(BsonProjectionQueryState *state,
@@ -176,7 +158,8 @@ static pgbson * EvaluateRedactDocument(pgbson *document, const
 static void EvaluateRedactArray(const bson_value_t *array, const
 								BsonReplaceRootRedactState *state,
 								pgbson_array_writer *array_Writer);
-static void SetVariableSpec(ExpressionVariableContext **state, pgbson *variableSpec);
+static void SetVariableSpec(ExpressionVariableContext **state,
+							const pgbson *variableSpec);
 static inline bool IsBsonDollarProjectFunctionOid(Oid functionOid);
 static inline bool IsBsonDollarAddFieldsFunctionOid(Oid functionOid);
 static pgbson * MergeDocumentWithArrayOverride(pgbson *sourceDocument,
@@ -517,7 +500,8 @@ bson_dollar_project_geonear(PG_FUNCTION_ARGS)
 const BsonProjectionQueryState *
 GetProjectionStateForBsonProject(bson_iter_t *projectionSpecIter,
 								 bool forceProjectId,
-								 bool allowInclusionExclusion)
+								 bool allowInclusionExclusion,
+								 const pgbson *variableSpec)
 {
 	BsonProjectionQueryState *projectionState = palloc0(sizeof(BsonProjectionQueryState));
 	BsonProjectionContext context = {
@@ -525,12 +509,10 @@ GetProjectionStateForBsonProject(bson_iter_t *projectionSpecIter,
 		.forceProjectId = forceProjectId,
 		.allowInclusionExclusion = allowInclusionExclusion,
 		.querySpec = NULL,
-		.variableSpec = NULL,
+		.variableSpec = variableSpec,
 	};
-	BuildBsonPathTreeForDollarProject(projectionState, &context);
 
-	/* TODO VARIABLE take as argument. */
-	projectionState->variableContext = NULL;
+	BuildBsonPathTreeForDollarProject(projectionState, &context);
 	return projectionState;
 }
 
@@ -716,17 +698,21 @@ bson_dollar_merge_documents_at_path(PG_FUNCTION_ARGS)
  * apply the projectionSpec on documents.
  */
 const BsonProjectionQueryState *
-GetProjectionStateForBsonAddFields(bson_iter_t *projectionSpecIter)
+GetProjectionStateForBsonAddFields(bson_iter_t *projectionSpecIter,
+								   const bson_value_t *variableSpec)
 {
 	bool skipParseAggregationExpressions = false;
 
-	/* TODO: pass in correct values after support let and collation with update command. */
-	pgbson *variableSpec = NULL;
+	/* TODO: pass in correct values after support collation with update command. */
 	const char *collationString = NULL;
+
+	pgbson *variableSpecBson = variableSpec &&
+							   variableSpec->value_type == BSON_TYPE_DOCUMENT ?
+							   PgbsonInitFromDocumentBsonValue(variableSpec) : NULL;
 
 	BsonProjectionQueryState *projectionState = palloc0(sizeof(BsonProjectionQueryState));
 	BuildBsonPathTreeForDollarAddFields(projectionState, projectionSpecIter,
-										skipParseAggregationExpressions, variableSpec,
+										skipParseAggregationExpressions, variableSpecBson,
 										collationString);
 	return projectionState;
 }
@@ -789,20 +775,22 @@ bson_dollar_replace_root(PG_FUNCTION_ARGS)
 	BsonReplaceRootRedactState localState = { 0 };
 	const BsonReplaceRootRedactState *replaceRootExpression;
 
+	bson_value_t replaceRootValue = ConvertPgbsonToBsonValue(pathSpec);
 	SetCachedFunctionStateMultiArgs(
 		replaceRootExpression,
 		BsonReplaceRootRedactState,
 		argPositions,
 		numArgs,
 		PopulateReplaceRootExpressionDataFromSpec,
-		pathSpec,
+		&replaceRootValue,
 		variableSpec,
 		collationString);
 
 	bool forceProjectId = false;
 	if (replaceRootExpression == NULL)
 	{
-		PopulateReplaceRootExpressionDataFromSpec(&localState, pathSpec, variableSpec,
+		PopulateReplaceRootExpressionDataFromSpec(&localState, &replaceRootValue,
+												  variableSpec,
 												  collationString);
 		PG_RETURN_POINTER(ProjectReplaceRootDocument(document, localState.expressionData,
 													 localState.variableContext,
@@ -903,6 +891,41 @@ ProjectReplaceRootDocument(pgbson *document,
 }
 
 
+/* Populates the aggregation expression data for a replace root stage based on the pathSpec specified to $replaceRoot. */
+void
+PopulateReplaceRootExpressionDataFromSpec(BsonReplaceRootRedactState *state,
+										  const bson_value_t *replaceRootValue,
+										  pgbson *variableSpec,
+										  const char *collationString)
+{
+	bson_iter_t replaceRootSpec;
+	bson_iter_init_from_data(&replaceRootSpec,
+							 replaceRootValue->value.v_doc.data,
+							 replaceRootValue->value.v_doc.data_len);
+
+	bson_value_t bsonValue;
+	GetBsonValueForReplaceRoot(&replaceRootSpec, &bsonValue);
+	ValidateReplaceRootElement(&bsonValue);
+
+	state->expressionData = palloc0(sizeof(AggregationExpressionData));
+	ParseAggregationExpressionContext parseContext = { 0 };
+
+	/* Add the $$NOW time system variables field from the variableSpec. */
+	GetTimeSystemVariablesFromVariableSpec(variableSpec,
+										   &parseContext.timeSystemVariables);
+
+	if (IsCollationApplicable(collationString))
+	{
+		parseContext.collationString = collationString;
+	}
+
+	ParseAggregationExpressionData(state->expressionData, &bsonValue,
+								   &parseContext);
+
+	SetVariableSpec(&state->variableContext, variableSpec);
+}
+
+
 /*
  * Walks the bson document that specifies the projection specification and
  *
@@ -935,6 +958,46 @@ GetBsonValueForReplaceRoot(bson_iter_t *replaceRootIterator, bson_value_t *value
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
 						errmsg(
 							"BSON field '$replaceRoot.newRoot' is missing but a required field")));
+	}
+}
+
+
+void
+ValidateReplaceRootElement(const bson_value_t *value)
+{
+	check_stack_depth();
+	CHECK_FOR_INTERRUPTS();
+	if (value->value_type == BSON_TYPE_DOCUMENT)
+	{
+		bson_iter_t docIter;
+		BsonValueInitIterator(value, &docIter);
+		while (bson_iter_next(&docIter))
+		{
+			StringView keyView = bson_iter_key_string_view(&docIter);
+			if (keyView.length > 0 && keyView.string[0] == '$')
+			{
+				/* Treat as expression (let expression evaluation handle the error) */
+				continue;
+			}
+
+			if (StringViewContains(&keyView, '.'))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("FieldPath field names may not contain '.'."
+									   " Consider using $getField or $setField")));
+			}
+
+			ValidateReplaceRootElement(bson_iter_value(&docIter));
+		}
+	}
+	else if (value->value_type == BSON_TYPE_ARRAY)
+	{
+		bson_iter_t arrayIter;
+		BsonValueInitIterator(value, &arrayIter);
+		while (bson_iter_next(&arrayIter))
+		{
+			ValidateReplaceRootElement(bson_iter_value(&arrayIter));
+		}
 	}
 }
 
@@ -1205,7 +1268,7 @@ bson_dollar_redact(PG_FUNCTION_ARGS)
  * { $redact: <expression> }
  * The argument can be any expression, only need to check evaluation result of expression.
  */
-static void
+void
 BuildRedactState(BsonReplaceRootRedactState *redactState, const bson_value_t *redactValue,
 				 pgbson *variableSpec, const char *collationString)
 {
@@ -1727,7 +1790,7 @@ BuildBsonPathTreeForDollarAddFields(BsonProjectionQueryState *state,
  * Given a potentially null variable spec, sets the spec into the projection query state.
  */
 static void
-SetVariableSpec(ExpressionVariableContext **state, pgbson *variableSpec)
+SetVariableSpec(ExpressionVariableContext **state, const pgbson *variableSpec)
 {
 	*state = NULL;
 
@@ -2621,37 +2684,6 @@ FilterNodeToWrite(void *state, int currentIndex)
 {
 	Bitmapset *bitmapSet = (Bitmapset *) state;
 	return bms_is_member(currentIndex, bitmapSet);
-}
-
-
-/* Populates the aggregation expression data for a replace root stage based on the pathSpec specified to $replaceRoot. */
-static void
-PopulateReplaceRootExpressionDataFromSpec(BsonReplaceRootRedactState *expressionData,
-										  pgbson *pathSpec, pgbson *variableSpec,
-										  const char *collationString)
-{
-	bson_iter_t pathSpecIter;
-	PgbsonInitIterator(pathSpec, &pathSpecIter);
-
-	bson_value_t bsonValue;
-	GetBsonValueForReplaceRoot(&pathSpecIter, &bsonValue);
-
-	expressionData->expressionData = palloc0(sizeof(AggregationExpressionData));
-	ParseAggregationExpressionContext parseContext = { 0 };
-
-	/* Add the $$NOW time system variables field from the variableSpec. */
-	GetTimeSystemVariablesFromVariableSpec(variableSpec,
-										   &parseContext.timeSystemVariables);
-
-	if (IsCollationApplicable(collationString))
-	{
-		parseContext.collationString = collationString;
-	}
-
-	ParseAggregationExpressionData(expressionData->expressionData, &bsonValue,
-								   &parseContext);
-
-	SetVariableSpec(&expressionData->variableContext, variableSpec);
 }
 
 

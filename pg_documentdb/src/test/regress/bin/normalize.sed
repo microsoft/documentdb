@@ -6,6 +6,9 @@
 # port number, or a different worker shard, or a different placement, etc.
 # because we are running the tests in a different configuration.
 
+# ignore DEBUG1 messages that Postgres generates
+/^DEBUG:  rehashing catalog cache id .*$/d
+
 s/^-[+-]{2,}$/---------------------------------------------------------------------/g
 s/^\s+/ /g
 s/\s+$//g

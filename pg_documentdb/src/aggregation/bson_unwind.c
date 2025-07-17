@@ -515,9 +515,11 @@ BsonUnwindEmptyArray(pgbson *document, char *path, char *indexFieldName)
 	bool forceProjectId = true;
 	bool allowInclusionExclusion = true;
 
+	pgbson *variableSpec = NULL;
 	const BsonProjectionQueryState *projectionState =
 		GetProjectionStateForBsonProject(&projectSpec,
-										 forceProjectId, allowInclusionExclusion);
+										 forceProjectId, allowInclusionExclusion,
+										 variableSpec);
 	return ProjectDocumentWithState(document, projectionState);
 }
 
