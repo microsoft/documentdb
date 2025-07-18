@@ -56,6 +56,16 @@ typedef struct
 	HTAB *actions;
 } ConsolidatedUserPrivilege;
 
+/*
+ * Hash entry structure for user roles.
+ */
+typedef struct UserRoleHashEntry
+{
+	char *user;
+	HTAB *roles;
+	bool isExternal;
+} UserRoleHashEntry;
+
 /* GUC to enable user crud operations */
 extern bool EnableUserCrud;
 
@@ -102,20 +112,39 @@ static void ConsolidatePrivileges(List **consolidatedPrivileges,
 								  size_t sourcePrivilegeCount);
 static void ConsolidatePrivilege(List **consolidatedPrivileges,
 								 const UserPrivilege *sourcePrivilege);
+static void ConsolidatePrivilegesForRole(const char *roleName,
+										 List **consolidatedPrivileges);
 static bool ComparePrivileges(const ConsolidatedUserPrivilege *privilege1,
 							  const UserPrivilege *privilege2);
 static void DeepFreePrivileges(List *consolidatedPrivileges);
-static void WriteRolePrivileges(const char *roleName,
-								pgbson_array_writer *privilegesArrayWriter);
+static void WriteSingleRolePrivileges(const char *roleName,
+									  pgbson_array_writer *privilegesArrayWriter);
+static void WriteMultipleRolePrivileges(HTAB *rolesTable,
+										pgbson_array_writer *privilegesArrayWriter);
 static void WritePrivilegeListToArray(List *consolidatedPrivileges,
 									  pgbson_array_writer *privilegesArrayWriter);
 static bool ParseConnectionStatusSpec(pgbson *connectionStatusSpec);
 static Datum GetSingleUserInfo(const char *userName, bool returnDocuments);
 static Datum GetAllUsersInfo(void);
-static const char * ExtractFirstUserRoleFromRoleArray(Datum userInfoDatum);
+static void WriteSingleUserDocument(UserRoleHashEntry *userEntry, bool showPrivileges,
+									pgbson_array_writer *userArrayWriter);
 static void WriteRoles(const char *parentRole,
 					   pgbson_array_writer *roleArrayWriter);
-
+static void WriteMultipleRoles(HTAB *rolesTable, pgbson_array_writer *roleArrayWriter);
+static bool IsSupportedBuiltInRole(const char *roleName);
+static HTAB * CreateUserEntryHashSet(void);
+static HTAB * BuildUserRoleEntryTable(Datum *userDatums, int userCount);
+static uint32 UserHashEntryHashFunc(const void *obj, size_t objsize);
+static int UserHashEntryCompareFunc(const void *obj1, const void *obj2,
+									Size objsize);
+static void FreeUserRoleEntryTable(HTAB *userRolesTable);
+static const char * GetAllUsersQuery(void);
+static const char * GetSingleUserQuery(void);
+static const char * GetSingleUserNameQuery(void);
+static const char * GetAllUsersQuery(void);
+const char *GetAllUsersQueryString = NULL;
+const char *GetSingleUserQueryString = NULL;
+const char *GetSingleUserNameQueryString = NULL;
 
 /*
  * Static definitions for user privileges and roles
@@ -182,49 +211,153 @@ static const UserPrivilege readWritePrivileges[] = {
 	}
 };
 
-static const UserPrivilege clusterAdminPrivileges[] = {
+
+static const UserPrivilege dbAdminPrivileges[] = {
+	{
+		.db = "admin",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 15,
+		.actions = (const StringView[]) {
+			{ .string = "analyze", .length = 7 },
+			{ .string = "bypassDocumentValidation", .length = 24 },
+			{ .string = "collMod", .length = 7 },
+			{ .string = "collStats", .length = 9 },
+			{ .string = "compact", .length = 7 },
+			{ .string = "createCollection", .length = 16 },
+			{ .string = "createIndex", .length = 11 },
+			{ .string = "dbStats", .length = 7 },
+			{ .string = "dropCollection", .length = 14 },
+			{ .string = "dropDatabase", .length = 12 },
+			{ .string = "dropIndex", .length = 9 },
+			{ .string = "listCollections", .length = 15 },
+			{ .string = "listIndexes", .length = 11 },
+			{ .string = "reIndex", .length = 7 },
+			{ .string = "validate", .length = 8 }
+		}
+	}
+};
+
+static const UserPrivilege userAdminPrivileges[] = {
+	{
+		.db = "admin",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 8,
+		.actions = (const StringView[]) {
+			{ .string = "createRole", .length = 11 },
+			{ .string = "createUser", .length = 11 },
+			{ .string = "dropRole", .length = 8 },
+			{ .string = "dropUser", .length = 8 },
+			{ .string = "grantRole", .length = 9 },
+			{ .string = "revokeRole", .length = 10 },
+			{ .string = "viewRole", .length = 8 },
+			{ .string = "viewUser", .length = 8 }
+		}
+	}
+};
+
+static const UserPrivilege clusterMonitorPrivileges[] = {
 	{
 		.db = "",
 		.collection = "",
-		.isCluster = false,
-		.numActions = 12,
+		.isCluster = true,
+		.numActions = 11,
 		.actions = (const StringView[]) {
-			{ .string = "analyzeShardKey", .length = 15 },
-			{ .string = "collStats", .length = 9 },
-			{ .string = "dbStats", .length = 7 },
-			{ .string = "dropDatabase", .length = 12 },
-			{ .string = "enableSharding", .length = 14 },
-			{ .string = "getDatabaseVersion", .length = 18 },
-			{ .string = "getShardVersion", .length = 15 },
-			{ .string = "indexStats", .length = 10 },
-			{ .string = "killCursors", .length = 11 },
-			{ .string = "refineCollectionShardKey", .length = 24 },
-			{ .string = "reshardCollection", .length = 17 },
-			{ .string = "splitVector", .length = 11 }
+			{ .string = "connPoolStats", .length = 13 },
+			{ .string = "getDefaultRWConcern", .length = 19 },
+			{ .string = "getCmdLineOpts", .length = 14 },
+			{ .string = "getLog", .length = 6 },
+			{ .string = "getParameter", .length = 12 },
+			{ .string = "getShardMap", .length = 11 },
+			{ .string = "hostInfo", .length = 8 },
+			{ .string = "listDatabases", .length = 13 },
+			{ .string = "listSessions", .length = 12 },
+			{ .string = "listShards", .length = 10 },
+			{ .string = "serverStatus", .length = 12 }
 		}
 	},
 	{
 		.db = "",
 		.collection = "",
-		.isCluster = true,
-		.numActions = 12,
+		.isCluster = false,
+		.numActions = 5,
 		.actions = (const StringView[]) {
-			{ .string = "connPoolStats", .length = 13 },
-			{ .string = "dropConnections", .length = 15 },
-			{ .string = "getClusterParameter", .length = 19 },
-			{ .string = "hostInfo", .length = 8 },
-			{ .string = "killAnyCursor", .length = 13 },
-			{ .string = "killAnySession", .length = 14 },
-			{ .string = "killop", .length = 6 },
-			{ .string = "listDatabases", .length = 13 },
-			{ .string = "listSessions", .length = 12 },
-			{ .string = "serverStatus", .length = 12 },
-			{ .string = "setChangeStreamState", .length = 20 },
-			{ .string = "getChangeStreamState", .length = 20 }
+			{ .string = "collStats", .length = 9 },
+			{ .string = "dbStats", .length = 7 },
+			{ .string = "getDatabaseVersion", .length = 18 },
+			{ .string = "getShardVersion", .length = 15 },
+			{ .string = "indexStats", .length = 10 }
 		}
 	}
 };
 
+static const UserPrivilege clusterManagerPrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = true,
+		.numActions = 6,
+		.actions = (const StringView[]) {
+			{ .string = "getClusterParameter", .length = 19 },
+			{ .string = "getDefaultRWConcern", .length = 19 },
+			{ .string = "listSessions", .length = 12 },
+			{ .string = "listShards", .length = 10 },
+			{ .string = "setChangeStreamState", .length = 20 },
+			{ .string = "getChangeStreamState", .length = 20 }
+		}
+	},
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 5,
+		.actions = (const StringView[]) {
+			{ .string = "analyzeShardKey", .length = 15 },
+			{ .string = "enableSharding", .length = 14 },
+			{ .string = "reshardCollection", .length = 17 },
+			{ .string = "splitVector", .length = 11 },
+			{ .string = "unshardCollection", .length = 17 }
+		}
+	},
+};
+
+static const UserPrivilege hostManagerPrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = true,
+		.numActions = 5,
+		.actions = (const StringView[]) {
+			{ .string = "compact", .length = 7 },
+			{ .string = "dropConnections", .length = 15 },
+			{ .string = "killAnyCursor", .length = 13 },
+			{ .string = "killAnySession", .length = 14 },
+			{ .string = "killop", .length = 6 }
+		}
+	},
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 1,
+		.actions = (const StringView[]) {
+			{ .string = "killCursors", .length = 11 }
+		}
+	}
+};
+
+static const UserPrivilege dropDatabasePrivileges[] = {
+	{
+		.db = "",
+		.collection = "",
+		.isCluster = false,
+		.numActions = 1,
+		.actions = (const StringView[]) {
+			{ .string = "dropDatabase", .length = 12 }
+		}
+	}
+};
 
 /*
  * Parses a connectionStatus spec, executes the connectionStatus command, and returns the result.
@@ -292,9 +425,14 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 
 	/*Verify that we have not yet hit the limit of users allowed */
 	const char *cmdStr = FormatSqlQuery(
-		"SELECT COUNT(*) FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN pg_roles child " \
-		"ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') " \
-		"AND child.rolname NOT IN ('%s', '%s', '%s');", ApiAdminRoleV2, ApiReadOnlyRole,
+		"SELECT COUNT(*) "
+		"FROM pg_roles parent "
+		"JOIN pg_auth_members am ON parent.oid = am.roleid "
+		"JOIN pg_roles child ON am.member = child.oid "
+		"WHERE child.rolcanlogin = true "
+		"  AND parent.rolname IN ('%s', '%s') "
+		"  AND child.rolname NOT IN ('%s', '%s', '%s');",
+		ApiAdminRoleV2, ApiReadOnlyRole,
 		ApiAdminRoleV2, ApiReadOnlyRole, ApiBgWorkerRole);
 
 	bool readOnly = true;
@@ -1071,84 +1209,33 @@ documentdb_extension_get_users(PG_FUNCTION_ARGS)
 					  TYPALIGN_INT, &userDatums, &userIsNullMarker,
 					  &userCount);
 
-	if (userCount > 0)
+	HTAB *userRolesTable = BuildUserRoleEntryTable(userDatums, userCount);
+
+	pgbson_array_writer userArrayWriter;
+	PgbsonWriterStartArray(&finalWriter, "users", 5, &userArrayWriter);
+
+	HASH_SEQ_STATUS userStatus;
+	UserRoleHashEntry *userEntry;
+
+	hash_seq_init(&userStatus, userRolesTable);
+	while ((userEntry = hash_seq_search(&userStatus)) != NULL)
 	{
-		pgbson_array_writer userArrayWriter;
-		PgbsonWriterStartArray(&finalWriter, "users", 5, &userArrayWriter);
-		for (int i = 0; i < userCount; i++)
-		{
-			pgbson_writer userWriter;
-			PgbsonWriterInit(&userWriter);
-
-			/* Convert Datum to a bson_t object */
-			pgbson *bson_doc = DatumGetPgBson(userDatums[i]);
-			bson_iter_t getIter;
-			PgbsonInitIterator(bson_doc, &getIter);
-
-			bool isUserExternal = false;
-			const char *user = NULL;
-
-			/* Initialize iterator */
-			if (bson_iter_find(&getIter, "child_role"))
-			{
-				if (BSON_ITER_HOLDS_UTF8(&getIter))
-				{
-					user = bson_iter_utf8(&getIter, NULL);
-					PgbsonWriterAppendUtf8(&userWriter, "_id", 3, psprintf(
-											   "admin.%s",
-											   user));
-					PgbsonWriterAppendUtf8(&userWriter, "userId", 6,
-										   psprintf("admin.%s", user));
-					PgbsonWriterAppendUtf8(&userWriter, "user", 4, user);
-					PgbsonWriterAppendUtf8(&userWriter, "db", 2, "admin");
-					isUserExternal = IsUserExternal(user);
-				}
-			}
-			if (bson_iter_find(&getIter, "parent_role"))
-			{
-				if (BSON_ITER_HOLDS_UTF8(&getIter))
-				{
-					const char *parentRole = bson_iter_utf8(&getIter, NULL);
-
-					pgbson_array_writer roleArrayWriter;
-					PgbsonWriterStartArray(&userWriter, "roles", 5,
-										   &roleArrayWriter);
-					WriteRoles(parentRole, &roleArrayWriter);
-					PgbsonWriterEndArray(&userWriter, &roleArrayWriter);
-
-					if (EnableUsersInfoPrivileges && showPrivileges)
-					{
-						pgbson_array_writer privilegesArrayWriter;
-						PgbsonWriterStartArray(&userWriter, "privileges",
-											   10,
-											   &privilegesArrayWriter);
-
-						WriteRolePrivileges(parentRole, &privilegesArrayWriter);
-
-						PgbsonWriterEndArray(&userWriter, &privilegesArrayWriter);
-					}
-				}
-			}
-
-			if (isUserExternal)
-			{
-				PgbsonWriterAppendDocument(&userWriter, "customData", 10,
-										   GetUserInfoFromExternalIdentityProvider(user));
-			}
-
-			PgbsonArrayWriterWriteDocument(&userArrayWriter, PgbsonWriterGetPgbson(
-											   &userWriter));
-		}
-
-		PgbsonWriterEndArray(&finalWriter, &userArrayWriter);
+		WriteSingleUserDocument(userEntry, showPrivileges, &userArrayWriter);
 	}
-
+	PgbsonWriterEndArray(&finalWriter, &userArrayWriter);
 	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
 	pgbson *result = PgbsonWriterGetPgbson(&finalWriter);
+
+	FreeUserRoleEntryTable(userRolesTable);
+
 	PG_RETURN_POINTER(result);
 }
 
 
+/*
+ * ParseGetUserSpec parses the wire
+ * protocol message getUser() which gets user info
+ */
 static void
 ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 {
@@ -1252,6 +1339,153 @@ ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
 							"'usersInfo' or 'forAllDBs' must be provided.")));
 	}
+}
+
+
+/*
+ * connection_status implements the
+ * core logic for connectionStatus command
+ */
+Datum
+connection_status(pgbson *showPrivilegesSpec)
+{
+	ReportFeatureUsage(FEATURE_CONNECTION_STATUS);
+
+	bool showPrivileges = false;
+	if (showPrivilegesSpec != NULL)
+	{
+		showPrivileges = ParseConnectionStatusSpec(showPrivilegesSpec);
+	}
+
+	bool noError = true;
+	const char *currentUser = GetUserNameFromId(GetUserId(), noError);
+
+	bool returnDocuments = false;
+	Datum userInfoDatum = GetSingleUserInfo(currentUser, returnDocuments);
+
+	const char *parentRole = text_to_cstring(DatumGetTextP(userInfoDatum));
+	if (parentRole == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Could not find role for user")));
+	}
+
+	/*
+	 * Example output structure:
+	 * {
+	 *   authInfo: {
+	 *     authenticatedUsers: [ { user: ..., db: ... } ], // always 1 element
+	 *     authenticatedUserRoles: [ { role: ..., db: ... }, ... ],
+	 *     authenticatedUserPrivileges: [ { privilege }, ... ] // if showPrivileges
+	 *   },
+	 *   ok: 1
+	 * }
+	 *
+	 * privilege: { resource: { db:, collection: }, actions: [...] }
+	 */
+	pgbson_writer finalWriter;
+	PgbsonWriterInit(&finalWriter);
+	pgbson_writer authInfoWriter;
+	PgbsonWriterStartDocument(&finalWriter, "authInfo", 8,
+							  &authInfoWriter);
+
+	pgbson_array_writer usersArrayWriter;
+	PgbsonWriterStartArray(&authInfoWriter, "authenticatedUsers", 18, &usersArrayWriter);
+	pgbson_writer userWriter;
+	PgbsonArrayWriterStartDocument(&usersArrayWriter, &userWriter);
+	PgbsonWriterAppendUtf8(&userWriter, "user", 4, currentUser);
+	PgbsonWriterAppendUtf8(&userWriter, "db", 2, "admin");
+	PgbsonArrayWriterEndDocument(&usersArrayWriter, &userWriter);
+	PgbsonWriterEndArray(&authInfoWriter, &usersArrayWriter);
+
+	pgbson_array_writer roleArrayWriter;
+	PgbsonWriterStartArray(&authInfoWriter, "authenticatedUserRoles", 22,
+						   &roleArrayWriter);
+	WriteRoles(parentRole, &roleArrayWriter);
+	PgbsonWriterEndArray(&authInfoWriter, &roleArrayWriter);
+
+	if (showPrivileges)
+	{
+		pgbson_array_writer privilegesArrayWriter;
+		PgbsonWriterStartArray(&authInfoWriter, "authenticatedUserPrivileges", 27,
+							   &privilegesArrayWriter);
+		WriteSingleRolePrivileges(parentRole, &privilegesArrayWriter);
+		PgbsonWriterEndArray(&authInfoWriter, &privilegesArrayWriter);
+	}
+
+	PgbsonWriterEndDocument(&finalWriter, &authInfoWriter);
+
+	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+	pgbson *result = PgbsonWriterGetPgbson(&finalWriter);
+	return PointerGetDatum(result);
+}
+
+
+/*
+ * ParseConnectionStatusSpec parses the connectionStatus command parameters
+ * validates the parameters and returns the boolean flag of whether to show privileges.
+ */
+static bool
+ParseConnectionStatusSpec(pgbson *connectionStatusSpec)
+{
+	bson_iter_t connectionIter;
+	PgbsonInitIterator(connectionStatusSpec, &connectionIter);
+
+	bool showPrivileges = false;
+	bool requiredFieldFound = false;
+	while (bson_iter_next(&connectionIter))
+	{
+		const char *key = bson_iter_key(&connectionIter);
+
+		if (strcmp(key, "connectionStatus") == 0)
+		{
+			requiredFieldFound = true;
+			if (bson_iter_type(&connectionIter) == BSON_TYPE_INT32)
+			{
+				if (bson_iter_as_int64(&connectionIter) != 1)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg(
+										"Unsupported value for 'connectionStatus' field.")));
+				}
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"'connectionStatus' must be an integer value")));
+			}
+		}
+		else if (strcmp(key, "showPrivileges") == 0)
+		{
+			if (BSON_ITER_HOLDS_BOOL(&connectionIter))
+			{
+				showPrivileges = bson_iter_as_bool(&connectionIter);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("'showPrivileges' must be a boolean value")));
+			}
+		}
+		else if (strcmp(key, "lsid") == 0 || strcmp(key, "$db") == 0)
+		{
+			continue;
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg("Unsupported field specified: '%s'.", key)));
+		}
+	}
+
+	if (!requiredFieldFound)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"'connectionStatus' must be provided.")));
+	}
+
+	return showPrivileges;
 }
 
 
@@ -1377,11 +1611,93 @@ IsCallingUserExternal()
 
 
 /*
+ * WriteSingleUserDocument creates and writes a BSON document for a single user
+ * to the provided array writer.
+ */
+static void
+WriteSingleUserDocument(UserRoleHashEntry *userEntry, bool showPrivileges,
+						pgbson_array_writer *userArrayWriter)
+{
+	pgbson_writer userWriter;
+	PgbsonWriterInit(&userWriter);
+
+	PgbsonWriterAppendUtf8(&userWriter, "_id", 3, psprintf(
+							   "admin.%s",
+							   userEntry->user));
+	PgbsonWriterAppendUtf8(&userWriter, "userId", 6,
+						   psprintf("admin.%s", userEntry->user));
+	PgbsonWriterAppendUtf8(&userWriter, "user", 4, userEntry->user);
+	PgbsonWriterAppendUtf8(&userWriter, "db", 2, "admin");
+
+	pgbson_array_writer roleArrayWriter;
+	PgbsonWriterStartArray(&userWriter, "roles", 5,
+						   &roleArrayWriter);
+	WriteMultipleRoles(userEntry->roles, &roleArrayWriter);
+	PgbsonWriterEndArray(&userWriter, &roleArrayWriter);
+
+	if (EnableUsersInfoPrivileges && showPrivileges && userEntry->roles != NULL)
+	{
+		pgbson_array_writer privilegesArrayWriter;
+		PgbsonWriterStartArray(&userWriter, "privileges", 10,
+							   &privilegesArrayWriter);
+		WriteMultipleRolePrivileges(userEntry->roles, &privilegesArrayWriter);
+		PgbsonWriterEndArray(&userWriter, &privilegesArrayWriter);
+	}
+
+	if (userEntry->isExternal)
+	{
+		PgbsonWriterAppendDocument(&userWriter, "customData", 10,
+								   GetUserInfoFromExternalIdentityProvider(
+									   userEntry->user));
+	}
+
+	PgbsonArrayWriterWriteDocument(userArrayWriter, PgbsonWriterGetPgbson(
+									   &userWriter));
+}
+
+
+/*
+ * Consolidates privileges for all roles in the provided HTAB and
+ * writes them to the provided BSON array writer.
+ * The rolesTable should contain StringView entries representing role names.
+ */
+static void
+WriteMultipleRolePrivileges(HTAB *rolesTable, pgbson_array_writer *privilegesArrayWriter)
+{
+	if (rolesTable == NULL)
+	{
+		return;
+	}
+
+	List *consolidatedPrivileges = NIL;
+	HASH_SEQ_STATUS status;
+	StringView *roleEntry;
+
+	hash_seq_init(&status, rolesTable);
+	while ((roleEntry = hash_seq_search(&status)) != NULL)
+	{
+		/* Convert StringView to null-terminated string */
+		char *roleName = palloc(roleEntry->length + 1);
+		memcpy(roleName, roleEntry->string, roleEntry->length);
+		roleName[roleEntry->length] = '\0';
+
+		ConsolidatePrivilegesForRole(roleName, &consolidatedPrivileges);
+
+		pfree(roleName);
+	}
+
+	WritePrivilegeListToArray(consolidatedPrivileges, privilegesArrayWriter);
+	DeepFreePrivileges(consolidatedPrivileges);
+}
+
+
+/*
  * Consolidates privileges for a role and
  * writes them to the provided BSON array writer.
  */
 static void
-WriteRolePrivileges(const char *roleName, pgbson_array_writer *privilegesArrayWriter)
+WriteSingleRolePrivileges(const char *roleName,
+						  pgbson_array_writer *privilegesArrayWriter)
 {
 	if (roleName == NULL)
 	{
@@ -1390,35 +1706,114 @@ WriteRolePrivileges(const char *roleName, pgbson_array_writer *privilegesArrayWr
 	}
 
 	List *consolidatedPrivileges = NIL;
+
+	ConsolidatePrivilegesForRole(roleName, &consolidatedPrivileges);
+
+	WritePrivilegeListToArray(consolidatedPrivileges, privilegesArrayWriter);
+	DeepFreePrivileges(consolidatedPrivileges);
+}
+
+
+/*
+ * Consolidates privileges for a given role name into the provided list.
+ * Ignores unknown roles silently.
+ */
+static void
+ConsolidatePrivilegesForRole(const char *roleName, List **consolidatedPrivileges)
+{
+	if (roleName == NULL || consolidatedPrivileges == NULL)
+	{
+		return;
+	}
+
 	size_t sourcePrivilegeCount;
 
 	if (strcmp(roleName, ApiReadOnlyRole) == 0)
 	{
 		sourcePrivilegeCount = sizeof(readOnlyPrivileges) / sizeof(readOnlyPrivileges[0]);
-		ConsolidatePrivileges(&consolidatedPrivileges, readOnlyPrivileges,
+		ConsolidatePrivileges(consolidatedPrivileges, readOnlyPrivileges,
+							  sourcePrivilegeCount);
+	}
+	else if (strcmp(roleName, ApiReadWriteRole) == 0)
+	{
+		sourcePrivilegeCount = sizeof(readWritePrivileges) /
+							   sizeof(readWritePrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, readWritePrivileges,
 							  sourcePrivilegeCount);
 	}
 	else if (strcmp(roleName, ApiAdminRoleV2) == 0)
 	{
 		sourcePrivilegeCount = sizeof(readWritePrivileges) /
 							   sizeof(readWritePrivileges[0]);
-		ConsolidatePrivileges(&consolidatedPrivileges, readWritePrivileges,
+		ConsolidatePrivileges(consolidatedPrivileges, readWritePrivileges,
 							  sourcePrivilegeCount);
 
-		sourcePrivilegeCount = sizeof(clusterAdminPrivileges) /
-							   sizeof(clusterAdminPrivileges[0]);
-		ConsolidatePrivileges(&consolidatedPrivileges, clusterAdminPrivileges,
+		sourcePrivilegeCount = sizeof(clusterManagerPrivileges) /
+							   sizeof(clusterManagerPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, clusterManagerPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(clusterMonitorPrivileges) /
+							   sizeof(clusterMonitorPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, clusterMonitorPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(hostManagerPrivileges) /
+							   sizeof(hostManagerPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, hostManagerPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(dropDatabasePrivileges) /
+							   sizeof(dropDatabasePrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, dropDatabasePrivileges,
 							  sourcePrivilegeCount);
 	}
-	else
+	else if (strcmp(roleName, ApiUserAdminRole) == 0)
 	{
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("Unsupported role specified: '%s'.",
-							   roleName)));
+		sourcePrivilegeCount = sizeof(userAdminPrivileges) /
+							   sizeof(userAdminPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, userAdminPrivileges,
+							  sourcePrivilegeCount);
+	}
+	else if (strcmp(roleName, ApiRootRole) == 0)
+	{
+		sourcePrivilegeCount = sizeof(readWritePrivileges) /
+							   sizeof(readWritePrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, readWritePrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(dbAdminPrivileges) /
+							   sizeof(dbAdminPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, dbAdminPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(userAdminPrivileges) /
+							   sizeof(userAdminPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, userAdminPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(clusterMonitorPrivileges) /
+							   sizeof(clusterMonitorPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, clusterMonitorPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(clusterManagerPrivileges) /
+							   sizeof(clusterManagerPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, clusterManagerPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(hostManagerPrivileges) /
+							   sizeof(hostManagerPrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, hostManagerPrivileges,
+							  sourcePrivilegeCount);
+
+		sourcePrivilegeCount = sizeof(dropDatabasePrivileges) /
+							   sizeof(dropDatabasePrivileges[0]);
+		ConsolidatePrivileges(consolidatedPrivileges, dropDatabasePrivileges,
+							  sourcePrivilegeCount);
 	}
 
-	WritePrivilegeListToArray(consolidatedPrivileges, privilegesArrayWriter);
-	DeepFreePrivileges(consolidatedPrivileges);
+	/* Unknown roles are silently ignored */
 }
 
 
@@ -1690,156 +2085,24 @@ ParseUsersInfoDocument(const bson_value_t *usersInfoBson, GetUserSpec *spec)
 
 
 /*
- * connection_status implements the
- * core logic for connectionStatus command
+ * GetAllUsersInfo queries and returns all users information, including their id, name, and roles.
+ * Returns the user info datum containing the query result.
  */
-Datum
-connection_status(pgbson *showPrivilegesSpec)
+static Datum
+GetAllUsersInfo(void)
 {
-	ReportFeatureUsage(FEATURE_CONNECTION_STATUS);
+	const char *cmdStr = GetAllUsersQuery();
 
-	bool showPrivileges = false;
-	if (showPrivilegesSpec != NULL)
-	{
-		showPrivileges = ParseConnectionStatusSpec(showPrivilegesSpec);
-	}
-
-	bool noError = true;
-	const char *currentUser = GetUserNameFromId(GetUserId(), noError);
-
-	bool returnDocuments = false;
-	Datum userInfoDatum = GetSingleUserInfo(currentUser, returnDocuments);
-
-	const char *parentRole = ExtractFirstUserRoleFromRoleArray(userInfoDatum);
-	if (parentRole == NULL)
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Could not find role for user")));
-	}
-
-	/*
-	 * Example output structure:
-	 * {
-	 *   authInfo: {
-	 *     authenticatedUsers: [ { user: ..., db: ... } ], // always 1 element
-	 *     authenticatedUserRoles: [ { role: ..., db: ... }, ... ],
-	 *     authenticatedUserPrivileges: [ { privilege }, ... ] // if showPrivileges
-	 *   },
-	 *   ok: 1
-	 * }
-	 *
-	 * privilege: { resource: { db:, collection: }, actions: [...] }
-	 */
-	pgbson_writer finalWriter;
-	PgbsonWriterInit(&finalWriter);
-	pgbson_writer authInfoWriter;
-	PgbsonWriterStartDocument(&finalWriter, "authInfo", 8,
-							  &authInfoWriter);
-
-	pgbson_array_writer usersArrayWriter;
-	PgbsonWriterStartArray(&authInfoWriter, "authenticatedUsers", 18, &usersArrayWriter);
-	pgbson_writer userWriter;
-	PgbsonArrayWriterStartDocument(&usersArrayWriter, &userWriter);
-	PgbsonWriterAppendUtf8(&userWriter, "user", 4, currentUser);
-	PgbsonWriterAppendUtf8(&userWriter, "db", 2, "admin");
-	PgbsonArrayWriterEndDocument(&usersArrayWriter, &userWriter);
-	PgbsonWriterEndArray(&authInfoWriter, &usersArrayWriter);
-
-	pgbson_array_writer roleArrayWriter;
-	PgbsonWriterStartArray(&authInfoWriter, "authenticatedUserRoles", 22,
-						   &roleArrayWriter);
-	WriteRoles(parentRole, &roleArrayWriter);
-	PgbsonWriterEndArray(&authInfoWriter, &roleArrayWriter);
-
-	if (showPrivileges)
-	{
-		pgbson_array_writer privilegesArrayWriter;
-		PgbsonWriterStartArray(&authInfoWriter, "authenticatedUserPrivileges", 27,
-							   &privilegesArrayWriter);
-		WriteRolePrivileges(parentRole, &privilegesArrayWriter);
-		PgbsonWriterEndArray(&authInfoWriter, &privilegesArrayWriter);
-	}
-
-	PgbsonWriterEndDocument(&finalWriter, &authInfoWriter);
-
-	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
-	pgbson *result = PgbsonWriterGetPgbson(&finalWriter);
-	return PointerGetDatum(result);
-}
-
-
-/*
- * ParseConnectionStatusSpec parses the connectionStatus command parameters
- * and returns the showPrivileges boolean value.
- */
-static bool
-ParseConnectionStatusSpec(pgbson *connectionStatusSpec)
-{
-	bson_iter_t connectionIter;
-	PgbsonInitIterator(connectionStatusSpec, &connectionIter);
-
-	bool showPrivileges = false;
-	bool requiredFieldFound = false;
-	while (bson_iter_next(&connectionIter))
-	{
-		const char *key = bson_iter_key(&connectionIter);
-
-		if (strcmp(key, "connectionStatus") == 0)
-		{
-			requiredFieldFound = true;
-			if (bson_iter_type(&connectionIter) == BSON_TYPE_INT32)
-			{
-				if (bson_iter_as_int64(&connectionIter) != 1)
-				{
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg(
-										"Unsupported value for 'connectionStatus' field.")));
-				}
-			}
-			else
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg(
-									"'connectionStatus' must be an integer value")));
-			}
-		}
-		else if (strcmp(key, "showPrivileges") == 0)
-		{
-			if (BSON_ITER_HOLDS_BOOL(&connectionIter))
-			{
-				showPrivileges = bson_iter_as_bool(&connectionIter);
-			}
-			else
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("'showPrivileges' must be a boolean value")));
-			}
-		}
-		else if (strcmp(key, "lsid") == 0 || strcmp(key, "$db") == 0)
-		{
-			continue;
-		}
-		else
-		{
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified: '%s'.", key)));
-		}
-	}
-
-	if (!requiredFieldFound)
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"'connectionStatus' must be provided.")));
-	}
-
-	return showPrivileges;
+	bool readOnly = true;
+	bool isNull = false;
+	return ExtensionExecuteQueryViaSPI(cmdStr, readOnly, SPI_OK_SELECT,
+									   &isNull);
 }
 
 
 /*
  * GetSingleUserInfo queries and processes user role information for a given user.
  * Returns the user info datum containing the query result.
- * If returnDocuments is true, returns BSON documents; if false, returns array of strings.
  */
 static Datum
 GetSingleUserInfo(const char *userName, bool returnDocuments)
@@ -1854,18 +2117,11 @@ GetSingleUserInfo(const char *userName, bool returnDocuments)
 
 	if (returnDocuments)
 	{
-		cmdStr = FormatSqlQuery(
-			"WITH r AS (SELECT child.rolname::text AS child_role, parent.rolname::text AS parent_role FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN " \
-			"pg_roles child ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') AND child.rolname = $1) SELECT " \
-			"ARRAY_AGG(%s.row_get_bson(r)) FROM r;", ApiAdminRoleV2, ApiReadOnlyRole,
-			CoreSchemaName);
+		cmdStr = GetSingleUserQuery();
 	}
 	else
 	{
-		cmdStr = FormatSqlQuery(
-			"SELECT ARRAY_AGG(parent.rolname::text) FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN " \
-			"pg_roles child ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') AND child.rolname = $1;",
-			ApiAdminRoleV2, ApiReadOnlyRole);
+		cmdStr = GetSingleUserNameQuery();
 	}
 
 	int argCount = 1;
@@ -1885,61 +2141,102 @@ GetSingleUserInfo(const char *userName, bool returnDocuments)
 
 
 /*
- * ExtractFirstUserRoleFromRoleArray extracts the first role from the user information datum.
- * Returns the first role as a string if found, or NULL if not found.
+ * GetAllUsersQuery returns the SQL query string to fetch all users information, including their id, name, and roles.
+ * Returns the user info datum containing the query result.
  */
 static const char *
-ExtractFirstUserRoleFromRoleArray(Datum userInfoDatum)
+GetAllUsersQuery()
 {
-	if (userInfoDatum == (Datum) 0)
+	if (GetAllUsersQueryString == NULL)
 	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg(
-							"User info is null when extracting the single user role")));
-		return NULL;
+		return FormatSqlQuery(
+			"WITH r AS ("
+			"  SELECT child.rolname::text AS child_role, "
+			"         parent.rolname::text AS parent_role "
+			"  FROM pg_roles parent "
+			"  JOIN pg_auth_members am ON parent.oid = am.roleid "
+			"  JOIN pg_roles child ON am.member = child.oid "
+			"  WHERE child.rolcanlogin = true"
+			") "
+			"SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY child_role) "
+			"FROM r;",
+			CoreSchemaName);
 	}
 
-	ArrayType *roleArray = DatumGetArrayTypeP(userInfoDatum);
-	Datum *roleDatums;
-	bool *roleIsNullMarker;
-	int roleCount;
-
-	bool arrayByVal = false;
-	int elementLength = -1;
-	Oid arrayElementType = ARR_ELEMTYPE(roleArray);
-	deconstruct_array(roleArray,
-					  arrayElementType, elementLength, arrayByVal,
-					  TYPALIGN_INT, &roleDatums, &roleIsNullMarker,
-					  &roleCount);
-
-	if (roleCount > 0 && !roleIsNullMarker[0])
-	{
-		return text_to_cstring(DatumGetTextP(roleDatums[0]));
-	}
-
-	ereport(WARNING, (errmsg("Did not find any user role.")));
-	return NULL;
+	return GetAllUsersQueryString;
 }
 
 
 /*
- * GetAllUsersInfo queries and returns information for all users.
+ * GetSingleUserQuery returns the SQL query string to fetch a user's information, including their id, name, and roles.
  * Returns the user info datum containing the query result.
  */
-static Datum
-GetAllUsersInfo(void)
+static const char *
+GetSingleUserQuery()
 {
-	const char *cmdStr = FormatSqlQuery(
-		"WITH r AS (SELECT child.rolname::text AS child_role, parent.rolname::text AS parent_role FROM pg_roles parent JOIN pg_auth_members am ON parent.oid = am.roleid JOIN " \
-		"pg_roles child ON am.member = child.oid WHERE child.rolcanlogin = true AND parent.rolname IN ('%s', '%s') AND child.rolname NOT IN " \
-		"('%s', '%s', '%s')) SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY child_role) FROM r;",
-		ApiAdminRoleV2, ApiReadOnlyRole, ApiAdminRoleV2, ApiReadOnlyRole, ApiBgWorkerRole,
-		CoreSchemaName);
+	if (GetSingleUserQueryString == NULL)
+	{
+		return FormatSqlQuery(
+			"WITH r AS ("
+			"  SELECT child.rolname::text AS child_role, "
+			"         parent.rolname::text AS parent_role "
+			"  FROM pg_roles parent "
+			"  JOIN pg_auth_members am ON parent.oid = am.roleid "
+			"  JOIN pg_roles child ON am.member = child.oid "
+			"  WHERE child.rolcanlogin = true "
+			"    AND child.rolname = $1"
+			") "
+			"SELECT ARRAY_AGG(%s.row_get_bson(r) ORDER BY r.parent_role) "
+			"FROM r;",
+			CoreSchemaName);
+	}
 
-	bool readOnly = true;
-	bool isNull = false;
-	return ExtensionExecuteQueryViaSPI(cmdStr, readOnly, SPI_OK_SELECT,
-									   &isNull);
+	return GetSingleUserQueryString;
+}
+
+
+/*
+ * GetSingleUserNameQuery returns the SQL query string to fetch a user's name.
+ * Returns the user info datum containing the query result.
+ */
+static const char *
+GetSingleUserNameQuery()
+{
+	if (GetSingleUserNameQueryString == NULL)
+	{
+		return FormatSqlQuery(
+			"SELECT parent.rolname::text "
+			"FROM pg_roles parent "
+			"JOIN pg_auth_members am ON parent.oid = am.roleid "
+			"JOIN pg_roles child ON am.member = child.oid "
+			"WHERE child.rolcanlogin = true "
+			"  AND child.rolname = $1 "
+			"ORDER BY parent.rolname;");
+	}
+
+	return GetSingleUserNameQueryString;
+}
+
+
+/*
+ * WriteMultipleRoles iterates through the roles HTAB and writes each role to the provided BSON array writer.
+ * This is used to write roles for usersInfo and connectionStatus commands.
+ */
+static void
+WriteMultipleRoles(HTAB *rolesTable, pgbson_array_writer *roleArrayWriter)
+{
+	if (rolesTable == NULL)
+	{
+		return;
+	}
+
+	HASH_SEQ_STATUS status;
+	StringView *roleEntry;
+	hash_seq_init(&status, rolesTable);
+	while ((roleEntry = hash_seq_search(&status)) != NULL)
+	{
+		WriteRoles(roleEntry->string, roleArrayWriter);
+	}
 }
 
 
@@ -1965,6 +2262,15 @@ WriteRoles(const char *parentRole, pgbson_array_writer *roleArrayWriter)
 									   PgbsonWriterGetPgbson(
 										   &roleWriter));
 	}
+	else if (strcmp(parentRole, ApiReadWriteRole) == 0)
+	{
+		PgbsonWriterAppendUtf8(&roleWriter, "role", 4,
+							   "readWriteAnyDatabase");
+		PgbsonWriterAppendUtf8(&roleWriter, "db", 2, "admin");
+		PgbsonArrayWriterWriteDocument(roleArrayWriter,
+									   PgbsonWriterGetPgbson(
+										   &roleWriter));
+	}
 	else if (strcmp(parentRole, ApiAdminRoleV2) == 0)
 	{
 		PgbsonWriterAppendUtf8(&roleWriter, "role", 4,
@@ -1981,4 +2287,196 @@ WriteRoles(const char *parentRole, pgbson_array_writer *roleArrayWriter)
 									   PgbsonWriterGetPgbson(
 										   &roleWriter));
 	}
+	else if (strcmp(parentRole, ApiUserAdminRole) == 0)
+	{
+		PgbsonWriterAppendUtf8(&roleWriter, "role", 4,
+							   "userAdminAnyDatabase");
+		PgbsonWriterAppendUtf8(&roleWriter, "db", 2, "admin");
+		PgbsonArrayWriterWriteDocument(roleArrayWriter,
+									   PgbsonWriterGetPgbson(
+										   &roleWriter));
+	}
+	else if (strcmp(parentRole, ApiRootRole) == 0)
+	{
+		PgbsonWriterAppendUtf8(&roleWriter, "role", 4,
+							   "root");
+		PgbsonWriterAppendUtf8(&roleWriter, "db", 2, "admin");
+		PgbsonArrayWriterWriteDocument(roleArrayWriter,
+									   PgbsonWriterGetPgbson(
+										   &roleWriter));
+	}
+	else
+	{
+		return;
+	}
+}
+
+
+/*
+ * BuildUserRoleEntryTable creates and populates a hash table with user role information
+ * from the provided user data array.
+ */
+static HTAB *
+BuildUserRoleEntryTable(Datum *userDatums, int userCount)
+{
+	HTAB *userRolesTable = CreateUserEntryHashSet();
+
+	for (int i = 0; i < userCount; i++)
+	{
+		/* Convert Datum to a bson_t object */
+		pgbson *bson_doc = DatumGetPgBson(userDatums[i]);
+		bson_iter_t getIter;
+		PgbsonInitIterator(bson_doc, &getIter);
+
+		const char *user = NULL;
+
+		/* Initialize iterator */
+		if (bson_iter_find(&getIter, "child_role"))
+		{
+			if (BSON_ITER_HOLDS_UTF8(&getIter))
+			{
+				user = bson_iter_utf8(&getIter, NULL);
+				bool userFound = false;
+				UserRoleHashEntry searchEntry = {
+					.user = (char *) user,
+				};
+
+				hash_search(userRolesTable,
+							&searchEntry,
+							HASH_FIND,
+							&userFound);
+
+				if (!userFound)
+				{
+					UserRoleHashEntry newEntry = {
+						.user = pstrdup(user),
+						.roles = NULL,
+						.isExternal = IsUserExternal(user)
+					};
+
+					bool entryCreated = false;
+					hash_search(userRolesTable, &newEntry, HASH_ENTER, &entryCreated);
+				}
+			}
+		}
+		if (bson_iter_find(&getIter, "parent_role"))
+		{
+			if (BSON_ITER_HOLDS_UTF8(&getIter))
+			{
+				const char *parentRole = bson_iter_utf8(&getIter, NULL);
+
+				if (!IsSupportedBuiltInRole(parentRole))
+				{
+					continue;
+				}
+
+				UserRoleHashEntry userSearchEntry = {
+					.user = (char *) user,
+				};
+
+				bool userFound = false;
+				UserRoleHashEntry *userEntry = hash_search(userRolesTable,
+														   &userSearchEntry,
+														   HASH_FIND,
+														   &userFound);
+
+				if (userFound && userEntry != NULL)
+				{
+					if (userEntry->roles == NULL)
+					{
+						userEntry->roles = CreateStringViewHashSet();
+					}
+
+					StringView roleStringView = {
+						.string = (char *) parentRole,
+						.length = strlen(parentRole)
+					};
+
+					bool roleAdded = false;
+					hash_search(userEntry->roles, &roleStringView, HASH_ENTER,
+								&roleAdded);
+				}
+			}
+		}
+	}
+
+	return userRolesTable;
+}
+
+
+/*
+ * Creates a hash table that maps strings to HTAB pointers.
+ */
+static HTAB *
+CreateUserEntryHashSet()
+{
+	HASHCTL hashInfo = CreateExtensionHashCTL(
+		sizeof(UserRoleHashEntry),
+		sizeof(UserRoleHashEntry),
+		UserHashEntryCompareFunc,
+		UserHashEntryHashFunc
+		);
+	return hash_create("User Entry Hash Table", 32, &hashInfo,
+					   DefaultExtensionHashFlags);
+}
+
+
+/*
+ * UserHashEntryHashFunc is the (HASHCTL.hash) callback used to hash a UserRoleHashEntry
+ */
+static uint32
+UserHashEntryHashFunc(const void *obj, size_t objsize)
+{
+	const UserRoleHashEntry *hashEntry = obj;
+	return hash_bytes((const unsigned char *) hashEntry->user, strlen(hashEntry->user));
+}
+
+
+/*
+ * UserHashEntryCompareFunc is the (HASHCTL.match) callback used to determine if two string keys are same.
+ * Returns 0 if those two string keys are same, non-zero otherwise.
+ */
+static int
+UserHashEntryCompareFunc(const void *obj1, const void *obj2, Size objsize)
+{
+	const UserRoleHashEntry *hashEntry1 = obj1;
+	const UserRoleHashEntry *hashEntry2 = obj2;
+
+	return strcmp(hashEntry1->user, hashEntry2->user);
+}
+
+
+/*
+ * FreeUserRoleEntryTable cleans up the user roles hash table and all nested role hash tables.
+ */
+static void
+FreeUserRoleEntryTable(HTAB *userRolesTable)
+{
+	if (userRolesTable != NULL)
+	{
+		HASH_SEQ_STATUS status;
+		UserRoleHashEntry *userRoleEntry;
+		hash_seq_init(&status, userRolesTable);
+		while ((userRoleEntry = hash_seq_search(&status)) != NULL)
+		{
+			if (userRoleEntry->roles != NULL)
+			{
+				hash_destroy(userRoleEntry->roles);
+			}
+		}
+
+		hash_destroy(userRolesTable);
+	}
+}
+
+
+/*
+ * Returns true if role is supported, and false otherwise.
+ */
+static bool
+IsSupportedBuiltInRole(const char *roleName)
+{
+	return strcmp(roleName, ApiAdminRoleV2) == 0 || strcmp(roleName, ApiReadOnlyRole) ==
+		   0 || strcmp(roleName, ApiReadWriteRole) == 0 ||
+		   strcmp(roleName, ApiRootRole) == 0 || strcmp(roleName, ApiUserAdminRole) == 0;
 }

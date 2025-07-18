@@ -1,6 +1,7 @@
 ### documentdb v1.106-0 (Unreleased) ###
 * Enable let support for update queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
 * Add internal extension that provides extensions to the `rum` index. *[Feature]*
+- Optimized query for `usersInfo` command.
 * Support collation with `delete` *[Feature]*. Requires `EnableCollation` to be `on`.
 
 ### documentdb v0.105-0 (Unreleased) ###

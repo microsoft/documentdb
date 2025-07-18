@@ -108,10 +108,6 @@ static CacheValidityValue CacheValidity = CACHE_INVALID;
 MemoryContext DocumentDBApiMetadataCacheContext = NULL;
 
 PGDLLEXPORT char *ApiDataSchemaName = "documentdb_data";
-PGDLLEXPORT char *ApiAdminRole = "documentdb_admin_role";
-PGDLLEXPORT char *ApiAdminRoleV2 = "documentdb_admin_role";
-PGDLLEXPORT char *ApiReadOnlyRole = "documentdb_readonly_role";
-PGDLLEXPORT char *ApiBgWorkerRole = "documentdb_bg_worker_role";
 PGDLLEXPORT char *ApiSchemaName = "documentdb_api";
 PGDLLEXPORT char *ApiSchemaNameV2 = "documentdb_api";
 PGDLLEXPORT char *ApiInternalSchemaName = "documentdb_api_internal";
@@ -125,6 +121,15 @@ PGDLLEXPORT char *ApiCatalogSchemaNameV2 = "documentdb_api_catalog";
 PGDLLEXPORT char *ApiGucPrefix = "documentdb";
 PGDLLEXPORT char *ApiGucPrefixV2 = "documentdb";
 PGDLLEXPORT char *PostgisSchemaName = "public";
+
+/* Role names */
+PGDLLEXPORT char *ApiAdminRole = "documentdb_admin_role";
+PGDLLEXPORT char *ApiAdminRoleV2 = "documentdb_admin_role";
+PGDLLEXPORT char *ApiBgWorkerRole = "documentdb_bg_worker_role";
+PGDLLEXPORT char *ApiReadOnlyRole = "documentdb_readonly_role";
+PGDLLEXPORT char *ApiReadWriteRole = "documentdb_readwrite_role";
+PGDLLEXPORT char *ApiRootRole = "documentdb_root_role";
+PGDLLEXPORT char *ApiUserAdminRole = "documentdb_user_admin_role";
 
 /* Schema functions migrated from a public API to an internal API schema
  * (e.g. from documentdb_api -> documentdb_api_internal)
