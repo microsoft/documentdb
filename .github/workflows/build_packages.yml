@@ -53,17 +53,26 @@ jobs:
 
       - name: Sign DEB packages
         run: |
-          sudo apt-get install -y gnupg2
-          wget http://archive.ubuntu.com/ubuntu/pool/universe/d/dpkg-sig/dpkg-sig_0.13.1+nmu4_all.deb
-          sudo dpkg -i dpkg-sig_0.13.1+nmu4_all.deb || sudo apt-get -f install -y
-
-          # Generate a temporary signing key for demo purposes
-          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Sign <documentdb@noreply.github.com>' rsa2048 sign 1y
-          KEY_ID="documentdb"
-          for deb_file in packaging/*.deb; do
-            [ -f "$deb_file" ] && dpkg-sig --sign "$KEY_ID" "$deb_file"
+          sudo apt-get update && sudo apt-get install -y gnupg2 devscripts
+          # Generate a compact key with minimal details
+          echo '%echo Generating small signing key
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: DocDB Signer
+          Name-Email: docdb@github.local
+          Expire-Date: 1y
+          %no-protection
+          %commit' > /tmp/keybatch
+          gpg --batch --generate-key /tmp/keybatch
+          KEY="DocumentDB Sign"
+          # Sign all .changes files produced by debuild
+          for c in packaging/*.changes; do
+            [ -f "$c" ] && debsign -k "$KEY" "$c"
           done
-          gpg --armor --export "$KEY_ID" > packaging/documentdb-signing-key.asc
+          # Export public key
+          gpg --armor --export docdb@github.local > packaging/docdb-signing-key.asc
 
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
