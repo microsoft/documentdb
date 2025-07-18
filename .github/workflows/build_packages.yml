@@ -53,9 +53,9 @@ jobs:
 
       - name: Sign DEB packages
         run: |
-          sudo add-apt-repository -y universe
-          sudo apt-get update
-          sudo apt-get install -y gnupg2 dpkg-sig
+          sudo apt-get install -y gnupg2
+          wget http://archive.ubuntu.com/ubuntu/pool/universe/d/dpkg-sig/dpkg-sig_0.13.1+nmu4_all.deb
+          sudo dpkg -i dpkg-sig_0.13.1+nmu4_all.deb || sudo apt-get -f install -y
 
           # Generate a temporary signing key for demo purposes
           gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Signing <documentdb@noreply.github.com>' rsa2048 sign 1y
