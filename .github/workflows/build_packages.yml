@@ -58,8 +58,8 @@ jobs:
           sudo dpkg -i dpkg-sig_0.13.1+nmu4_all.deb || sudo apt-get -f install -y
 
           # Generate a temporary signing key for demo purposes
-          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Signing <documentdb@noreply.github.com>' rsa2048 sign 1y
-          KEY_ID="DocumentDB Package Signing"
+          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Sign <documentdb@noreply.github.com>' rsa2048 sign 1y
+          KEY_ID="DocumentDB Sign"
           for deb_file in packaging/*.deb; do
             [ -f "$deb_file" ] && dpkg-sig --sign "$KEY_ID" "$deb_file"
           done
