@@ -202,27 +202,186 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 /* Shard the collections */
 SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let', '{ "_id": "hashed" }', false);
 
-SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": { "$expr": { "$lt": [ "$_id", "$$varNotRef" ]} }, "let": { "varRef": "3" } }');
--- let support in $expr with nested $let
-SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": { "$expr": { "$let": { "vars": { "varNotRef": 2 }, "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } }} }, "let": { "varRef": 3 } }');
-SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": { "$expr": { "$let": { "vars": { "varRef": 2 }, "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } }} }, "let": { "varRef": 3 } }');
--- same scenario but with aggregation pipeline
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$match": { "$expr": { "$lt": [ "$_id", "$$varRef" ]} } } ], "let": { "varRef": "3" } }');
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$match": { "$expr": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } } } ], "let": { "varRef": 3 } }');
+-- let support in $expr
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_find('db', '{
+    "find": "aggregation_pipeline_let",
+    "projection": { "newField": "$$varRef" },
+    "filter": { "$expr": { "$lt": [ "$_id", "$$varNotRef" ] } },
+    "let": { "varRef": "3" }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- let support in $expr with nested $let
-SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": { "$expr": { "$let": { "vars": { "varNotRef": 2 }, "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } }} }, "let": { "varRef": 3 } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_find('db', '{
+    "find": "aggregation_pipeline_let",
+    "projection": { "newField": "$$varRef" },
+    "filter": {
+      "$expr": {
+        "$let": {
+          "vars": { "varNotRef": 2 },
+          "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] }
+        }
+      }
+    },
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_find('db', '{
+    "find": "aggregation_pipeline_let",
+    "projection": { "newField": "$$varRef" },
+    "filter": {
+      "$expr": {
+        "$let": {
+          "vars": { "varRef": 2 },
+          "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] }
+        }
+      }
+    },
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
 -- same scenario but with aggregation pipeline
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$match": { "$expr": { "$let": { "vars": { "varRef": 2 }, "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } }} } } ], "let": { "varRef": 3 } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      { "$match": { "$expr": { "$lt": [ "$_id", "$$varRef" ] } } }
+    ],
+    "let": { "varRef": "3" }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      { "$match": { "$expr": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] } } }
+    ],
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
+-- let support in $expr with nested $let
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_find('db', '{
+    "find": "aggregation_pipeline_let",
+    "projection": { "newField": "$$varRef" },
+    "filter": {
+      "$expr": {
+        "$let": {
+          "vars": { "varNotRef": 2 },
+          "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] }
+        }
+      }
+    },
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
+-- same scenario but with aggregation pipeline
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      {
+        "$match": {
+          "$expr": {
+            "$let": {
+              "vars": { "varRef": 2 },
+              "in": { "$lt": [ { "$toInt": "$_id" }, "$$varRef" ] }
+            }
+          }
+        }
+      }
+    ],
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- find/aggregate with variables referencing other variables on the same let spec should work
-SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "varRef" : "$$varRef", "add": "$$add", "multiply": "$$multiply"  }, "filter": {}, "let": { "varRef": 20, "add": {"$add": ["$$varRef", 2]}, "multiply": {"$multiply": ["$$add", 2]} } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_find('db', '{
+    "find": "aggregation_pipeline_let",
+    "projection": {
+      "varRef": "$$varRef",
+      "add": "$$add",
+      "multiply": "$$multiply"
+    },
+    "filter": {},
+    "let": {
+      "varRef": 20,
+      "add": { "$add": ["$$varRef", 2] },
+      "multiply": { "$multiply": ["$$add", 2] }
+    }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- nested $let should also work
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [{"$project": { "varRef" : "$$varRef", "add": "$$add", "multiply": "$$multiply", "nestedLet": "$$nestedLet"  }}], "let": { "varRef": 20, "add": {"$add": ["$$varRef", 2]}, "multiply": {"$multiply": ["$$add", 2]}, "nestedLet": {"$let": {"vars": {"add": {"$add": ["$$multiply", 1]}}, "in": "$$add"}} } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [{
+      "$project": {
+        "varRef": "$$varRef",
+        "add": "$$add",
+        "multiply": "$$multiply",
+        "nestedLet": "$$nestedLet"
+      }
+    }],
+    "let": {
+      "varRef": 20,
+      "add": { "$add": ["$$varRef", 2] },
+      "multiply": { "$multiply": ["$$add", 2] },
+      "nestedLet": {
+        "$let": {
+          "vars": { "add": { "$add": ["$$multiply", 1] } },
+          "in": "$$add"
+        }
+      }
+    }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $addFields
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$addFields": { "newField1" : "$$varRef", "c": { "$lt": [ "$_id", "$$varRef" ] } }} ], "let": { "varRef": 3 } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      {
+        "$addFields": {
+          "newField1": "$$varRef",
+          "c": { "$lt": [ "$_id", "$$varRef" ] }
+        }
+      }
+    ],
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $replaceRoot
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$replaceRoot": { "newRoot": { "newField" : "$$varRef", "c": { "$lt": [ "$_id", "$$varRef" ] } } }} ], "let": { "varRef": 3 } }');
@@ -240,16 +399,89 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [{ "$set": {"newField": "new"} }, { "$sort": { "_id": 1} }, { "$group": { "_id": "$$varRef", "bottom": {"$bottom": {"output": [ "$_id" ], "sortBy": { "_id": 1 }}}}} ], "let": { "varRef": 3 } }');
 
 -- $project
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$project": { "_id": 1, "newField" : "$$varRef", "c": { "$lt": [ "$_id", "$$varRef" ] } }} ], "let": { "varRef": 3 } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      {
+        "$project": {
+          "_id": 1,
+          "newField": "$$varRef",
+          "c": { "$lt": [ "$_id", "$$varRef" ] }
+        }
+      }
+    ],
+    "let": { "varRef": 3 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $unionWith
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [{ "$addFields": { "c": "foo" }}, { "$unionWith": { "coll": "aggregation_pipeline_let", "pipeline": [ { "$addFields": { "bar": "$$varRef" } } ] } } ], "let": { "varRef": 30 }}');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      { "$addFields": { "c": "foo" } },
+      {
+        "$unionWith": {
+          "coll": "aggregation_pipeline_let",
+          "pipeline": [
+            { "$addFields": { "bar": "$$varRef" } }
+          ]
+        }
+      }
+    ],
+    "let": { "varRef": 30 }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $sortByCount
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$sortByCount": { "$lt": [ "$_id", "$$varRef" ] } } ], "let": { "varRef": "2" } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      {
+        "$sortByCount": {
+          "$lt": [ "$_id", "$$varRef" ]
+        }
+      }
+    ],
+    "let": { "varRef": "2" }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $facet
-SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let", "pipeline": [ { "$addFields": { "newField": "myvalue" }}, { "$facet": { "sb1": [ { "$addFields": { "myVar": "$$varRef" }} ], "sb2": [ { "$group": { "_id" : "$$varRef", "c": { "$sum": "$$varRef" } } } ] }} ], "let": { "varRef": "2" } }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let",
+    "pipeline": [
+      { "$addFields": { "newField": "myvalue" } },
+      {
+        "$facet": {
+          "sb1": [
+            { "$addFields": { "myVar": "$$varRef" } }
+          ],
+          "sb2": [
+            {
+              "$group": {
+                "_id": "$$varRef",
+                "c": { "$sum": "$$varRef" }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "let": { "varRef": "2" }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $graphLookup
 SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let_gl', '{ "_id": "hashed" }', false);
@@ -264,18 +496,98 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 -- $window operators
 SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let_setWindowFields', '{ "_id": "hashed" }', false);
 
-SELECT document FROM bson_aggregation_pipeline('db',
-    '{ "aggregate": "aggregation_pipeline_let_setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": { "$concat": ["$a", "$$varRef" ] }, "output": {"total": { "$sum": "$$varRefNum"}}}}], "let": { "varRef": "prefix", "varRefNum": 2 } }');
+-- $setWindowFields
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let_setWindowFields",
+    "pipeline": [
+      {
+        "$setWindowFields": {
+          "partitionBy": { "$concat": ["$a", "$$varRef"] },
+          "output": {
+            "total": { "$sum": "$$varRefNum" }
+          }
+        }
+      }
+    ],
+    "let": {
+      "varRef": "prefix",
+      "varRefNum": 2
+    }
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- $lookup
 SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let_pipelineto', '{ "_id": "hashed" }', false);
 
-SELECT document from bson_aggregation_pipeline('db', 
-  '{ "aggregate": "aggregation_pipeline_let_pipelineto", "pipeline": [ { "$lookup": { "from": "aggregation_pipeline_let_pipelinefrom", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$quantity", "$$qval" ] } }}, { "$addFields": { "addedQval": "$$qval" }} ], "as": "matched_docs", "localField": "restaurant_name", "foreignField": "name", "let": { "qval": "$qval" } }} ], "cursor": {} }');
+-- $lookup with nested pipeline and let
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let_pipelineto",
+    "pipeline": [
+      {
+        "$lookup": {
+          "from": "aggregation_pipeline_let_pipelinefrom",
+          "pipeline": [
+            {
+              "$match": {
+                "$expr": {
+                  "$eq": [ "$quantity", "$$qval" ]
+                }
+              }
+            },
+            {
+              "$addFields": {
+                "addedQval": "$$qval"
+              }
+            }
+          ],
+          "as": "matched_docs",
+          "localField": "restaurant_name",
+          "foreignField": "name",
+          "let": { "qval": "$qval" }
+        }
+      }
+    ],
+    "cursor": {}
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 -- Add a $lookup with let but add a subquery stage
-SELECT document from bson_aggregation_pipeline('db', 
-  '{ "aggregate": "aggregation_pipeline_let_pipelineto", "pipeline": [ { "$lookup": { "from": "aggregation_pipeline_let_pipelinefrom", "pipeline": [ { "$sort": { "_id": 1 } }, { "$match": { "$expr": { "$eq": [ "$quantity", "$$qval" ] } }} ], "as": "matched_docs", "localField": "restaurant_name", "foreignField": "name", "let": { "qval": "$qval" } }} ], "cursor": {} }');
+-- $lookup with nested pipeline using $sort and $match with let
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline('db', '{
+    "aggregate": "aggregation_pipeline_let_pipelineto",
+    "pipeline": [
+      {
+        "$lookup": {
+          "from": "aggregation_pipeline_let_pipelinefrom",
+          "pipeline": [
+            { "$sort": { "_id": 1 } },
+            {
+              "$match": {
+                "$expr": {
+                  "$eq": [ "$quantity", "$$qval" ]
+                }
+              }
+            }
+          ],
+          "as": "matched_docs",
+          "localField": "restaurant_name",
+          "foreignField": "name",
+          "let": { "qval": "$qval" }
+        }
+      }
+    ],
+    "cursor": {}
+  }')
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
 SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "aggregation_pipeline_let_pipelineto", "pipeline": [ { "$lookup": { "from": "aggregation_pipeline_let_pipelinefrom", "pipeline": [ { "$addFields": { "addedQvalBefore": "$$qval" }}, { "$sort": { "_id": 1 } }, { "$match": { "$expr": { "$eq": [ "$quantity", "$$qval" ] } }}, { "$addFields": { "addedQvalAfter": "$$qval" }} ], "as": "matched_docs", "localField": "restaurant_name", "foreignField": "name", "let": { "qval": "$qval" } }} ], "cursor": {} }');
@@ -319,15 +631,18 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('
 SET citus.explain_all_tasks to on;
 SET citus.max_adaptive_executor_pool_size to 1;
 SELECT documentdb_api.shard_collection('{ "shardCollection": "db.lookup_left", "key": { "_id": "hashed" }, "numInitialChunks": 2 }');
+
 SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
+
 SELECT documentdb_api.shard_collection('{ "shardCollection": "db.lookup_right", "key": { "_id": "hashed" }, "numInitialChunks": 2 }');
 SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
+
 RESET citus.explain_all_tasks;
 RESET citus.max_adaptive_executor_pool_size;
 
@@ -362,16 +677,16 @@ SELECT documentdb_api.shard_collection('db', 'coll_query_op_let', '{ "_id": "has
 SELECT documentdb_api.insert_one('db', 'coll_query_op_let', '{"_id": 1, "a": "cat" }', NULL);
 SELECT documentdb_api.insert_one('db', 'coll_query_op_let', '{"_id": 2, "a": "dog" }', NULL);
 
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE documentdb_api_internal.bson_query_match(document, '{"$expr": {"$eq": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "cat"} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$ne": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "dog"} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$in": ["$a", ["$$varRef1", "$$varRef2"]] } }', '{ "let": {"varRef1": "cat", "varRef2": "dog"} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$and": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$or": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL);
-SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$not": {"$lt": ["$_id", "$$varRef"] } } }', '{ "let": {"varRef": 1} }', NULL);
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE documentdb_api_internal.bson_query_match(document, '{"$expr": {"$eq": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "cat"} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$ne": ["$a", "$$varRef"] } }', '{ "let": {"varRef": "dog"} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$in": ["$a", ["$$varRef1", "$$varRef2"]] } }', '{ "let": {"varRef1": "cat", "varRef2": "dog"} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$lte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 2} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gt": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$gte": ["$_id", "$$varRef"] } }', '{ "let": {"varRef": 1} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$and": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$or": [{"$lt": ["$_id", "$$varRef1"] }, {"$gt": ["$_id", "$$varRef2"] } ]} }', '{ "let": {"varRef1": 2, "varRef2": 1} }', NULL)  ORDER BY document->'_id';
+SELECT document from documentdb_api.collection('db', 'coll_query_op_let') WHERE  documentdb_api_internal.bson_query_match(document, '{"$expr": {"$not": {"$lt": ["$_id", "$$varRef"] } } }', '{ "let": {"varRef": 1} }', NULL)  ORDER BY document->'_id';
 
 RESET documentdb.enableLetAndCollationForQueryMatch;
 RESET documentdb.enableVariablesSupportForWriteCommands;
