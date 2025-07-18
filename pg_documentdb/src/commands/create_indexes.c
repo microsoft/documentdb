@@ -973,6 +973,12 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 												   AccessShareLock);
 	}
 
+	if (collection == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
+						errmsg("collection does not exist.")));
+	}
+
 	uint64 collectionId = collection->collectionId;
 	bool isUnsharded = collection->shardKey == NULL;
 	AcquireAdvisoryExclusiveLockForCreateIndexes(collectionId);

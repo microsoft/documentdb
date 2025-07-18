@@ -86,23 +86,25 @@ EXPLAIN (COSTS OFF, ANALYZE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bs
                                      QUERY PLAN                                      
 ---------------------------------------------------------------------
  Bitmap Heap Scan on documents_10641_1064002 collection (actual rows=2 loops=1)
+   Recheck Cond: (shard_key_value = '10641'::bigint)
    Filter: (document @#? '{ "price" : { "$ne" : { "$numberInt" : "160" } } }'::bson)
    Heap Blocks: exact=1
-   ->  Bitmap Index Scan on price_1 (actual rows=2 loops=1)
-         Index Cond: (document @!= '{ "price" : { "$numberInt" : "160" } }'::bson)
-(5 rows)
+   ->  Bitmap Index Scan on _id_ (actual rows=2 loops=1)
+         Index Cond: (shard_key_value = '10641'::bigint)
+(6 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_elmdb',
     '{ "find": "cmp_elemmatch_ops", "filter": { "price": { "$elemMatch": { "$nin": [ 160, 110, 140] } } } }');
                                                                   QUERY PLAN                                                                  
 ---------------------------------------------------------------------
  Bitmap Heap Scan on documents_10641_1064002 collection (actual rows=1 loops=1)
+   Recheck Cond: (shard_key_value = '10641'::bigint)
    Filter: (document @#? '{ "price" : { "$nin" : [ { "$numberInt" : "160" }, { "$numberInt" : "110" }, { "$numberInt" : "140" } ] } }'::bson)
    Rows Removed by Filter: 1
    Heap Blocks: exact=1
-   ->  Bitmap Index Scan on price_1 (actual rows=2 loops=1)
-         Index Cond: (document @!*= '{ "price" : [ { "$numberInt" : "160" }, { "$numberInt" : "110" }, { "$numberInt" : "140" } ] }'::bson)
-(6 rows)
+   ->  Bitmap Index Scan on _id_ (actual rows=2 loops=1)
+         Index Cond: (shard_key_value = '10641'::bigint)
+(7 rows)
 
 -- now test some with nested objects
 SELECT documentdb_api.insert_one('comp_elmdb', 'cmp_elemmatch_ops', '{ "_id": 3, "brands": [ { "name" : "alpha", "rating" : 5 }, { "name" : "beta", "rating" : 3 } ] }');

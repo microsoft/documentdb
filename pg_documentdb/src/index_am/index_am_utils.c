@@ -80,7 +80,7 @@ GetBsonIndexAmEntryByIndexOid(Oid indexAm)
 	{
 		return &RumIndexAmEntry;
 	}
-	else if (IsClusterVersionAtleast(DocDB_V0, 103, 1))
+	else
 	{
 		for (int i = 0; i < BsonNumAlternateAmEntries; i++)
 		{

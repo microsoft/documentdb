@@ -954,6 +954,8 @@ HandleSupportRequestCondition(SupportRequestIndexCondition *req)
 			req->lossy = true;
 			return elemMatchExpr;
 		}
+
+		return NULL;
 	}
 
 	if (operator->indexStrategy != BSON_INDEX_STRATEGY_INVALID)
@@ -2124,7 +2126,8 @@ WalkExprAndAddSupportedElemMatchExprs(List *clauses, bytea *options)
 			continue;
 		}
 
-		if (innerOperator->indexStrategy == BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH)
+		if (innerOperator->indexStrategy == BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH ||
+			IsNegationStrategy(innerOperator->indexStrategy))
 		{
 			/* We don't support negation strategies for nested elemMatch
 			 * TODO(Composite): Can we do this safely?

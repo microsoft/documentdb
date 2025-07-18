@@ -1040,7 +1040,7 @@ extension_rumbuild(Relation heapRelation,
 		return rum_index_routine.ambuild(heapRelation, indexRelation, indexInfo);
 	}
 
-	bool amCanBuildParallel = false;
+	bool amCanBuildParallel = true;
 	return extension_rumbuild_core(heapRelation, indexRelation,
 								   indexInfo, &rum_index_routine,
 								   RumUpdateMultiKeyStatus,

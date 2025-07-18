@@ -394,19 +394,26 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 	BsonIndexTerm compareTerm[INDEX_MAX_KEYS] = { 0 };
 	int32_t numTerms = InitializeCompositeIndexTerm(compareValue, compareTerm);
 
-	if (numTerms != runData->metaInfo->numIndexPaths)
+	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
 	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Number of terms in the index term (%d) does not match "
-							   "the number of index paths (%d)",
-							   numTerms, runData->metaInfo->numIndexPaths)));
+		if (!compareTerm[0].isIndexTermMetadata)
+		{
+			return 1;
+		}
+
+		if (compareTerm[0].element.bsonValue.value_type == BSON_TYPE_ARRAY)
+		{
+			return 0;
+		}
+
+		return -1;
 	}
 
 	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY ||
 		strategy == BSON_INDEX_STRATEGY_INVALID)
 	{
 		/* use order by key to signal truncation status of ordering */
-		for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
+		for (int i = 0; i < numTerms; i++)
 		{
 			if (compareTerm[i].isIndexTermTruncated)
 			{
@@ -415,6 +422,14 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 		}
 
 		PG_RETURN_INT32(1);
+	}
+
+	if (numTerms != runData->metaInfo->numIndexPaths)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Number of terms in the index term (%d) does not match "
+							   "the number of index paths (%d)",
+							   numTerms, runData->metaInfo->numIndexPaths)));
 	}
 
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY &&

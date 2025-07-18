@@ -12,6 +12,6 @@ set documentdb.forceUseIndexIfAvailable to on;
 set documentdb.forceDisableSeqScan to on;
 
 SELECT documentdb_api.drop_collection('array_query_db', 'array_operator_tests') IS NOT NULL;
-SELECT documentdb_api_internal.create_indexes_non_concurrently('array_query_db', '{ "createIndexes": "array_operator_tests", "indexes": [ { "key": { "value": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value" }] }', true) IS NOT NULL;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('array_query_db', '{ "createIndexes": "array_operator_tests", "indexes": [ { "key": { "value": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value" }, { "key": { "value.subfield": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value_subfield" }] }', true) IS NOT NULL;
 
 \i sql/bson_query_operator_array_tests_core.sql
