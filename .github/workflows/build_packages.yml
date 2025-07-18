@@ -59,7 +59,7 @@ jobs:
 
           # Generate a temporary signing key for demo purposes
           gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Sign <documentdb@noreply.github.com>' rsa2048 sign 1y
-          KEY_ID="DocDB"
+          KEY_ID="documentdb"
           for deb_file in packaging/*.deb; do
             [ -f "$deb_file" ] && dpkg-sig --sign "$KEY_ID" "$deb_file"
           done
