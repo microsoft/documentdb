@@ -51,47 +51,16 @@ jobs:
           ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }} --test-clean-install
 
       - name: Sign RPM packages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          # Install RPM signing tools
           sudo apt-get update && sudo apt-get install -y rpm gnupg2
-          
-          # Generate a temporary signing key for demo purposes
-          # In production, use proper key management with secure key storage
-          cat > /tmp/gpg-batch <<EOF
-          %echo Generating DocumentDB RPM signing key
-          Key-Type: RSA
-          Key-Length: 2048
-          Subkey-Type: RSA
-          Subkey-Length: 2048
-          Name-Real: DocumentDB RPM Package Signing
-          Name-Email: documentdb@noreply.github.com
-          Expire-Date: 1y
-          %no-ask-passphrase
-          %no-protection
-          %commit
-          %echo done
-          EOF
-          
-          gpg --batch --generate-key /tmp/gpg-batch
-          
-          # Configure RPM signing
+          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB RPM Package Signing <documentdb@noreply.github.com>' rsa2048 sign 1y
           echo "%_gpg_name DocumentDB RPM Package Signing" >> ~/.rpmmacros
-          echo "%_gpg_path /home/runner/.gnupg" >> ~/.rpmmacros # GPG home directory
+          echo "%_gpg_path /home/runner/.gnupg" >> ~/.rpmmacros
           echo "%_signature gpg" >> ~/.rpmmacros
-          echo "%__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --batch --verbose --no-armor --passphrase-fd 3 --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> ~/.rpmmacros
-          
-          # Sign all RPM packages
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --yes -u \"%{_gpg_name}\" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> ~/.rpmmacros
           for rpm_file in packaging/*.rpm; do
-            if [[ -f "$rpm_file" ]]; then
-              echo "Signing RPM package: $rpm_file"
-              # Ensure the GPG agent is running if needed, though --batch might handle it
-              rpm --addsign "$rpm_file"
-            fi
+            [ -f "$rpm_file" ] && rpm --addsign "$rpm_file"
           done
-          
-          # Export public key for verification
-          # Ensure the email matches the one used in Name-Email for key generation
           gpg --armor --export "DocumentDB RPM Package Signing" > packaging/documentdb-rpm-signing-key.asc
 
       - name: Upload RPM Package as Artifact
