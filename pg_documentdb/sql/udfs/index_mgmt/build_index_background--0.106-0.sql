@@ -5,6 +5,6 @@
  */
 CREATE OR REPLACE PROCEDURE __API_SCHEMA_INTERNAL__.build_index_background(IN p_job_index int)
  LANGUAGE C
-AS 'MODULE_PATHNAME', $procedure$build_index_background$procedure$;
+AS 'MODULE_PATHNAME', $procedure$command_build_index_background$procedure$;
 COMMENT ON PROCEDURE __API_SCHEMA_INTERNAL__.build_index_background(int)
     IS 'Builds a index for a collection';

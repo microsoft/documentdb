@@ -874,6 +874,8 @@ GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext)
 
 	/* declared volatile because of the longjmp in PG_CATCH */
 	volatile char *commandQuery = NULL;
+	volatile int errorCode = 0;
+	volatile ErrorData *edata = NULL;
 
 	PG_TRY();
 	{
@@ -925,18 +927,16 @@ GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext)
 	}
 	PG_CATCH();
 	{
-		ereport(LOG, (errmsg("couldn't construct command for the background worker "
-							 "job execution")));
+		MemoryContextSwitchTo(stableContext);
+		edata = CopyErrorDataAndFlush();
+		errorCode = edata->sqlerrcode;
+		MemoryContextSwitchTo(oldMemContext);
 
-		/*
-		 * We don't much expect any error condition to happen here, but
-		 * we still need to be defensive against any kind of failures, such
-		 * as OOM.
-		 *
-		 * For this reason, here we swallow any errors that we could get
-		 * during cleanup.
-		 */
-		FlushErrorState();
+		ereport(LOG, (errcode(errorCode),
+					  errmsg(
+						  "couldn't construct command for the background worker job execution:"
+						  "file: %s, line: %d, message_id: %s",
+						  edata->filename, edata->lineno, edata->message_id)));
 
 		PopAllActiveSnapshots();
 		AbortCurrentTransaction();
