@@ -34,6 +34,7 @@ extern char *ApiDistributedSchemaName;
 
 extern bool EnableMetadataReferenceTableSync;
 extern char *DistributedOperationsQuery;
+extern char *DistributedApplicationNamePrefix;
 
 /* Cached value for the current Global PID - can cache once
  * Since nodeId, Pid are stable.
@@ -663,5 +664,6 @@ InitializeDocumentDBDistributedHooks(void)
 	should_schedule_index_builds_hook = ShouldScheduleIndexBuildsCore;
 
 	DistributedOperationsQuery =
-		"SELECT * FROM pg_stat_activity LEFT JOIN pg_catalog.get_all_active_transactions() ON process_id = pid";
+		"SELECT * FROM pg_stat_activity LEFT JOIN pg_catalog.get_all_active_transactions() ON process_id = pid JOIN pg_catalog.pg_dist_local_group ON TRUE";
+	DistributedApplicationNamePrefix = "citus_internal";
 }
