@@ -72,6 +72,8 @@ ENV ENFORCE_SSL="true" \
     POSTGRESQL_PORT="9712" \
     OWNER="documentdb" \
     ALLOW_EXTERNAL_CONNECTIONS="false" \
+    INIT_DATA="false" \
+    INIT_DATA_PATH="/init_doc_db.d" \
     PATH=/usr/lib/postgresql/16/bin:$PATH
 
 RUN sudo mkdir /home/documentdb/gateway

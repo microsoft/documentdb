@@ -61,7 +61,7 @@ Optional arguments:
                         Overrides INIT_DATA_PATH environment variable.
   --init-data           Enable initialization with built-in sample data.
                         Creates sample collections (users, products, orders, analytics) in 'sampledb' database.
-                        Defaults to true (unless --init-data-path is specified).
+                        Defaults to false.
                         Overrides INIT_DATA environment variable.
                         
 EOF
@@ -158,8 +158,7 @@ do
         shift;;
 
     --init-data)
-        shift
-        export INIT_DATA=$1
+        export INIT_DATA=true
         shift;;
 
     -*)
@@ -178,7 +177,7 @@ export PASSWORD=${PASSWORD:-Admin100}
 export CREATE_USER=${CREATE_USER:-true}
 export START_POSTGRESQL=${START_POSTGRESQL:-true}
 export INIT_DATA_PATH=${INIT_DATA_PATH:-/init_doc_db.d}
-export INIT_DATA=${INIT_DATA:-true}
+export INIT_DATA=${INIT_DATA:-false}
 
 # Validate required parameters
 if [ -z "${PASSWORD:-}" ]; then
@@ -415,7 +414,7 @@ fi
 
 if [ "$custom_data_initialized" = "false" ] && [ "$INIT_DATA" = "false" ]; then
     echo "No initialization data loaded. Use --init-data-path to provide custom initialization scripts"
-    echo "or --init-data=true to load built-in sample data."
+    echo "or --init-data to load built-in sample data."
 fi
 
 # Wait for the gateway process to keep the container alive
