@@ -22,3 +22,4 @@ test: bson_aggregation_type_operators_tests
 test: bson_aggregation_stage_merge_tests
 test: ttl_index_delete_rows
 test: user_crud_commands
+test: role_crud_commands

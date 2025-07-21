@@ -290,6 +290,9 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_QUERY_OPERATOR_SAMPLERATE] = "query_operator_samplerate",
 	[FEATURE_QUERY_OPERATOR_TEXT] = "query_operator_text",
 
+	/* Feature mapping region - Role CRUD */
+	[FEATURE_ROLE_CREATE] = "role_create",
+
 	/* Feature Mapping region - Aggregation stages */
 	[FEATURE_STAGE_ADD_FIELDS] = "add_fields",
 	[FEATURE_STAGE_BUCKET] = "bucket",

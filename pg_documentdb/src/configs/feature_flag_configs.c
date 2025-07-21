@@ -38,6 +38,8 @@ bool EnableUsersInfoPrivileges = DEFAULT_ENABLE_USERS_INFO_PRIVILEGES;
 #define DEFAULT_ENABLE_NATIVE_AUTHENTICATION true
 bool IsNativeAuthEnabled = DEFAULT_ENABLE_NATIVE_AUTHENTICATION;
 
+#define DEFAULT_ENABLE_ROLE_CRUD false
+bool EnableRoleCrud = DEFAULT_ENABLE_ROLE_CRUD;
 
 /*
  * SECTION: Vector Search flags
@@ -574,5 +576,12 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Whether to enable composite unique index support"),
 		NULL, &EnableCompositeUniqueIndex, DEFAULT_ENABLE_COMPOSITE_UNIQUE_INDEX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableRoleCrud", newGucPrefix),
+		gettext_noop(
+			"Enables role crud through the data plane."),
+		NULL, &EnableRoleCrud, DEFAULT_ENABLE_ROLE_CRUD,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }
