@@ -954,8 +954,44 @@ try_explain_rum_index(IndexScanDesc scan, ExplainState *es)
 	/* This function is called from explain.c */
 	int i, j;
 	List *entryList = NIL;
+	const char *scanType = "unknown";
 	RumScanOpaque so = (RumScanOpaque) scan->opaque;
 	ExplainPropertyInteger("innerScanLoops", "loops", so->scanLoops, es);
+
+	switch (so->scanType)
+	{
+		case RumFastScan:
+		{
+			scanType = "fast";
+			break;
+		}
+
+		case RumFullScan:
+		{
+			scanType = "full";
+			break;
+		}
+
+		case RumRegularScan:
+		{
+			scanType = "regular";
+			break;
+		}
+
+		case RumOrderedScan:
+		{
+			scanType = "ordered";
+			break;
+		}
+
+		default:
+		{
+			scanType = "unknown";
+			break;
+		}
+	}
+
+	ExplainPropertyText("scanType", scanType, es);
 	for (i = 0; i < so->nkeys; i++)
 	{
 		StringInfo buf = makeStringInfo();

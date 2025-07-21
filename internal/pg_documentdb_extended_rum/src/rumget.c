@@ -1101,7 +1101,7 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 		 * increased to keep buffer pinned after freeRumBtreeStack() call.
 		 */
 		pageInner = BufferGetPage(entry->buffer);
-		entry->predictNumberResult = gdi->stack->predictNumber * RumPageGetOpaque(
+		entry->predictNumberResult += gdi->stack->predictNumber * RumPageGetOpaque(
 			pageInner)->maxoff;
 
 		/*
@@ -1132,7 +1132,7 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 	else if (RumGetNPosting(itup) > 0)
 	{
 		entry->nlist = RumGetNPosting(itup);
-		entry->predictNumberResult = (uint32) entry->nlist;
+		entry->predictNumberResult += (uint32) entry->nlist;
 		entry->list = (RumItem *) palloc(sizeof(RumItem) * entry->nlist);
 
 		rumReadTuple(&so->rumstate, entry->attnum, itup, entry->list, true);
@@ -1318,34 +1318,32 @@ startScan(IndexScanDesc scan)
 	RumScanType scanType = RumFastScan;
 	MemoryContext oldCtx = MemoryContextSwitchTo(so->keyCtx);
 	bool isSupportedOrderedScan = false;
-	if (RumForceOrderedIndexScan)
-	{
-		/* Validate that there's only 1 attnum in all the keys,
-		 * multiatt ordered scan is not supported
-		 * Ordered scan also requires comparePartial and
-		 * an ordering function on all keys.
-		 */
-		isSupportedOrderedScan = so->nkeys > 0;
-		for (i = 0; i < so->nkeys; i++)
-		{
-			RumScanKey key = so->keys[i];
-			if (key->attnum != so->keys[0]->attnum)
-			{
-				isSupportedOrderedScan = false;
-				break;
-			}
 
-			if (!rumstate->canPartialMatch[key->attnum - 1] ||
-				!rumstate->canOrdering[key->attnum - 1] ||
-				rumstate->orderingFn[key->attnum - 1].fn_nargs != 4)
-			{
-				isSupportedOrderedScan = false;
-				break;
-			}
+	/* Validate that there's only 1 attnum in all the keys,
+	 * multiatt ordered scan is not supported
+	 * Ordered scan also requires comparePartial and
+	 * an ordering function on all keys.
+	 */
+	isSupportedOrderedScan = so->nkeys > 0;
+	for (i = 0; i < so->nkeys; i++)
+	{
+		RumScanKey key = so->keys[i];
+		if (key->attnum != so->keys[0]->attnum)
+		{
+			isSupportedOrderedScan = false;
+			break;
+		}
+
+		if (!rumstate->canPartialMatch[key->attnum - 1] ||
+			!rumstate->canOrdering[key->attnum - 1] ||
+			rumstate->orderingFn[key->attnum - 1].fn_nargs != 4)
+		{
+			isSupportedOrderedScan = false;
+			break;
 		}
 	}
 
-	if (isSupportedOrderedScan)
+	if (RumForceOrderedIndexScan && isSupportedOrderedScan)
 	{
 		scanType = RumOrderedScan;
 		startOrderedScanEntries(scan, rumstate, so);
@@ -1385,8 +1383,8 @@ startScan(IndexScanDesc scan)
 		}
 
 		/* Else check keys for preConsistent method */
-		else if (scanType == RumFastScan && !so->rumstate.canPreConsistent[key->attnum -
-																		   1])
+		else if (scanType == RumFastScan &&
+				 !so->rumstate.canPreConsistent[key->attnum - 1])
 		{
 			scanType = RumRegularScan;
 		}
@@ -2993,7 +2991,6 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 	entry->gdi = NULL;
 	entry->matchSortstate = NULL;
 	entry->reduceResult = false;
-	entry->predictNumberResult = 0;
 
 	rumPrepareEntryScan(&btree, entry->attnum,
 						entry->queryKey, entry->queryCategory,

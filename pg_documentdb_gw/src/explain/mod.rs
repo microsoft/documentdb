@@ -1519,6 +1519,16 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
                     index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
                 }
 
+                if let Some(scan_type) = detail.scan_type.as_deref() {
+                    index_doc.append("scanType", scan_type);
+                }
+
+                if let Some(num_duplicates) = detail.num_duplicates {
+                    if num_duplicates > 0 {
+                        index_doc.append("numDuplicates", smallest_from_i64(num_duplicates));
+                    }
+                }
+
                 if let Some(scan_key_details) = detail.scan_key_details.as_ref() {
                     let mut scan_key_arr = RawArrayBuf::new();
                     scan_key_details.iter().for_each(|key| {
