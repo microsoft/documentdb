@@ -158,27 +158,6 @@ typedef struct
 	List *nonIdFieldPathList;
 } WildcardProjectionPathOps;
 
-typedef struct
-{
-	const char *mongoIndexName;
-	bool isSupported;
-	MongoIndexKind indexKind;
-} MongoIndexSupport;
-
-
-/* Different types of indexes supported
- */
-static const MongoIndexSupport MongoIndexSupportedList[] =
-{
-	{ "2d", true, MongoIndexKind_2d },
-	{ "hashed", true, MongoIndexKind_Hashed },
-	{ "text", true, MongoIndexKind_Text },
-	{ "2dsphere", true, MongoIndexKind_2dsphere },
-	{ "cosmosSearch", true, MongoIndexingKind_CosmosSearch },
-};
-
-static const int NumberOfMongoIndexTypes = sizeof(MongoIndexSupportedList) /
-										   sizeof(MongoIndexSupport);
 
 extern bool ForceIndexTermTruncation;
 extern int IndexTruncationLimitOverride;
@@ -2593,37 +2572,33 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			}
 			else
 			{
-				bool isValidMongoIndexAndSupported = false;
-				for (int i = 0; i < NumberOfMongoIndexTypes; i++)
+				bool isIndexValidAndSupported = false;
+				char *indexKindName = keyValue->value.v_utf8.str;
+				MongoIndexKind supportedIndexKind = GetMongoIndexKind(indexKindName,
+																	  &
+																	  isIndexValidAndSupported);
+
+				if (isIndexValidAndSupported)
 				{
-					MongoIndexSupport idxSupport = MongoIndexSupportedList[i];
-					if (strcmp(keyValue->value.v_utf8.str, idxSupport.mongoIndexName) ==
-						0)
-					{
-						if (idxSupport.isSupported)
-						{
-							indexKind = idxSupport.indexKind;
-							isValidMongoIndexAndSupported = true;
-							break;
-						}
-						else
-						{
-							ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-											errmsg("%s mongo index is not supported yet",
-												   keyValue->value.v_utf8.str),
-											errdetail_log(
-												"%s mongo index is not supported yet",
-												keyValue->value.v_utf8.str)));
-						}
-					}
+					indexKind = supportedIndexKind;
 				}
-
-
-				if (!isValidMongoIndexAndSupported)
+				else
 				{
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-									errmsg("Unknown index plugin %s",
-										   BsonValueToJsonForLogging(keyValue))));
+					if (supportedIndexKind != MongoIndexKind_Unknown)
+					{
+						ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+										errmsg("%s mongo index is not supported yet",
+											   keyValue->value.v_utf8.str),
+										errdetail_log(
+											"%s mongo index is not supported yet",
+											keyValue->value.v_utf8.str)));
+					}
+					else
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+										errmsg("Unknown index plugin %s",
+											   BsonValueToJsonForLogging(keyValue))));
+					}
 				}
 			}
 		}
