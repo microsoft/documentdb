@@ -39,6 +39,8 @@ typedef struct
 	Oid (*get_single_path_op_family_oid)(void);
 	Oid (*get_composite_path_op_family_oid)(void);
 	Oid (*get_text_path_op_family_oid)(void);
+	Oid (*get_hashed_path_op_family_oid)(void);
+	Oid (*get_unique_path_op_family_oid)(void);
 
 	/* optional func to add explain output */
 	TryExplainIndexFunc add_explain_output;

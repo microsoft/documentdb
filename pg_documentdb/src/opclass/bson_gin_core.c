@@ -539,6 +539,12 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 		case BSON_INDEX_STRATEGY_DOLLAR_RANGE:
 		{
 			*recheck = false;
+			DollarRangeValues *rangeValues = (DollarRangeValues *) extra_data[0];
+			if (rangeValues->params.isFullScan)
+			{
+				return check[0] || check[1];
+			}
+
 			if (numKeys == 2)
 			{
 				/* no truncation - recheck if it *only* matched the array term. This case we can't tell if it's
@@ -1801,6 +1807,30 @@ GinBsonExtractQueryDollarRange(BsonExtractQueryArgs *args)
 	DollarRangeParams *params = ParseQueryDollarRange(&filterElement);
 	rangeValues->params = *params;
 
+
+	*nentries = 2;
+	*partialmatch = (bool *) palloc(sizeof(bool) * 4);
+	*extra_data = (Pointer *) palloc(sizeof(Pointer) * 4);
+	Pointer *extraDataArray = *extra_data;
+
+	Datum *entries = (Datum *) palloc(sizeof(Datum) * 4);
+
+	/* Special case, handle full scan of the index here */
+	if (params->isFullScan)
+	{
+		/* We generate 2 terms here - root exists term + root non-exists term */
+		*nentries = 2;
+		entries[0] = GenerateRootExistsTerm(&args->termMetadata);
+		(*partialmatch)[0] = false;
+		extraDataArray[0] = (Pointer) rangeValues;
+
+		entries[1] = GenerateRootNonExistsTerm(&args->termMetadata);
+		(*partialmatch)[1] = false;
+		extraDataArray[1] = (Pointer) rangeValues;
+		return entries;
+	}
+
+
 	pgbsonelement maxElement =
 	{
 		.path = filterElement.path,
@@ -1820,13 +1850,6 @@ GinBsonExtractQueryDollarRange(BsonExtractQueryArgs *args)
 	BsonIndexTermSerialized minSerialized = SerializeBsonIndexTerm(&minElement,
 																   &args->termMetadata);
 	rangeValues->minValueIndexTerm = minSerialized.indexTermVal;
-
-	*nentries = 2;
-	*partialmatch = (bool *) palloc(sizeof(bool) * 4);
-	*extra_data = (Pointer *) palloc(sizeof(Pointer) * 4);
-	Pointer *extraDataArray = *extra_data;
-
-	Datum *entries = (Datum *) palloc(sizeof(Datum) * 4);
 
 	/* The first index term is a range scan from "MINVALUE" to "MAXVALUE"
 	 * We use the same ComparePartial for LessThan so we generate the terms identically.

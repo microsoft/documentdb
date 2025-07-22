@@ -899,21 +899,10 @@ DeleteCollectionIndexRecordCore(uint64 collectionId, int *indexId)
 }
 
 
-/*
- * IndexNameGetIndexDetails returns IndexDetails for the index with given
- * "name" using SPI. Returns NULL If no such index exists.
- */
-IndexDetails *
-IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
+static IndexDetails *
+IndexNameGetIndexDetailsCore(const char *cmdStr, uint64 collectionId, const
+							 char *indexName)
 {
-	const char *cmdStr = FormatSqlQuery(
-		"SELECT index_id, index_spec, %s.index_build_is_in_progress(index_id) "
-		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
-		" (index_spec).index_name = $2 AND"
-		" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
-		ApiInternalSchemaName, ApiCatalogSchemaName,
-		ApiInternalSchemaName);
-
 	int argCount = 2;
 	Oid argTypes[2];
 	Datum argValues[2];
@@ -952,24 +941,44 @@ IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
 
 
 /*
- * IndexKeyGetMatchingIndexes returns a list of IndexDetails objects for the
- * valid indexes with given "key" using SPI.
- *
- * Returns indexes in the order of their ids.
+ * Given a collection and index name, returns the index details for the index
+ * if it is ready to be used. If the index is not ready, returns NULL.
  */
-List *
-IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+IndexDetails *
+IndexNameGetReadyIndexDetails(uint64 collectionId, const char *indexName)
 {
-	const char *cmdStr =
-		FormatSqlQuery(
-			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
-			" array_agg(%s.index_build_is_in_progress(index_id) ORDER BY index_id) "
-			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
-			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND"
-			" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
-			ApiInternalSchemaName, ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
-			FullBsonTypeName, ApiInternalSchemaName);
+	const char *cmdStr = FormatSqlQuery(
+		"SELECT index_id, index_spec, FALSE AS index_build_in_progress "
+		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+		" (index_spec).index_name = $2 AND"
+		" index_is_valid",
+		ApiCatalogSchemaName);
+	return IndexNameGetIndexDetailsCore(cmdStr, collectionId, indexName);
+}
 
+
+/*
+ * IndexNameGetIndexDetails returns IndexDetails for the index with given
+ * "name" using SPI. Returns NULL If no such index exists.
+ */
+IndexDetails *
+IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
+{
+	const char *cmdStr = FormatSqlQuery(
+		"SELECT index_id, index_spec, %s.index_build_is_in_progress(index_id) "
+		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+		" (index_spec).index_name = $2 AND"
+		" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
+		ApiInternalSchemaName, ApiCatalogSchemaName,
+		ApiInternalSchemaName);
+	return IndexNameGetIndexDetailsCore(cmdStr, collectionId, indexName);
+}
+
+
+static List *
+IndexKeyGetMatchingIndexesCore(const char *cmdStr, uint64 collectionId, const
+							   pgbson *indexKeyDocument)
+{
 	int argCount = 2;
 	Oid argTypes[2];
 	Datum argValues[2];
@@ -1037,6 +1046,48 @@ IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
 	}
 
 	return keyMatchedIndexDetailsList;
+}
+
+
+/*
+ * Given a collection and index key, returns the index details for the index
+ * if it is ready to be used. If the index is not ready, returns NULL.
+ */
+List *
+IndexKeyGetReadyMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+{
+	const char *cmdStr =
+		FormatSqlQuery(
+			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
+			" array_agg(NOT(index_is_valid) ORDER BY index_id) "
+			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND index_is_valid",
+			ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
+			FullBsonTypeName);
+	return IndexKeyGetMatchingIndexesCore(cmdStr, collectionId, indexKeyDocument);
+}
+
+
+/*
+ * IndexKeyGetMatchingIndexes returns a list of IndexDetails objects for the
+ * valid indexes with given "key" using SPI.
+ *
+ * Returns indexes in the order of their ids.
+ */
+List *
+IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+{
+	const char *cmdStr =
+		FormatSqlQuery(
+			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
+			" array_agg(%s.index_build_is_in_progress(index_id) ORDER BY index_id) "
+			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND"
+			" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
+			ApiInternalSchemaName, ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
+			FullBsonTypeName, ApiInternalSchemaName);
+
+	return IndexKeyGetMatchingIndexesCore(cmdStr, collectionId, indexKeyDocument);
 }
 
 

@@ -74,6 +74,7 @@ Oid BsonLessThanEqualMatchIndexFunctionId(void);
 Oid BsonRangeMatchFunctionId(void);
 Oid BsonRangeMatchOperatorOid(void);
 Oid BsonFullScanFunctionOid(void);
+Oid BsonIndexHintFunctionOid(void);
 Oid BsonInMatchFunctionId(void);
 Oid BsonNinMatchFunctionId(void);
 Oid BsonNotEqualMatchFunctionId(void);
@@ -227,6 +228,8 @@ Oid BsonRumSinglePathOperatorFamily(void);
 Oid Float8PlusOperatorId(void);
 Oid Float8MinusOperatorId(void);
 Oid Float8MultiplyOperatorId(void);
+Oid BsonRumHashPathOperatorFamily(void);
+Oid BsonRumUniquePathOperatorFamily(void);
 
 /* Vector Functions */
 Oid PgDoubleToVectorFunctionOid(void);

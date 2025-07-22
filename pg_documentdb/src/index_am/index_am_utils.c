@@ -38,6 +38,8 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
 	.get_text_path_op_family_oid = BsonRumTextPathOperatorFamily,
+	.get_unique_path_op_family_oid = BsonRumUniquePathOperatorFamily,
+	.get_hashed_path_op_family_oid = BsonRumHashPathOperatorFamily,
 	.add_explain_output = NULL, /* No explain output for RUM */
 	.am_name = "rum",
 	.get_opclass_catalog_schema = GetRumCatalogSchema,
@@ -184,6 +186,47 @@ IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid)
 	}
 
 	return opFamilyOid == amEntry->get_single_path_op_family_oid();
+}
+
+
+bool
+IsUniqueCheckOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->is_unique_index_supported &&
+		   opFamilyOid == amEntry->get_unique_path_op_family_oid();
+}
+
+
+bool
+IsHashedPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->is_hashed_index_supported &&
+		   opFamilyOid == amEntry->get_hashed_path_op_family_oid();
+}
+
+
+Oid
+GetTextPathOpFamilyOid(Oid relam)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL || amEntry->get_text_path_op_family_oid == NULL)
+	{
+		return InvalidOid;
+	}
+
+	return amEntry->get_text_path_op_family_oid();
 }
 
 

@@ -790,10 +790,11 @@ CreateInverseMatchFromCollectionQuery(InverseMatchArgs *inverseMatchArgs,
 	strncpy((char *) subPipelineContext.collationString, context->collationString,
 			MAX_ICU_COLLATION_LENGTH);
 
-
+	bson_value_t *indexHint = NULL;
 	Query *nestedPipeline = GenerateBaseTableQuery(context->databaseNameDatum,
 												   &inverseMatchArgs->fromCollection,
-												   collectionUuid, &subPipelineContext);
+												   collectionUuid, indexHint,
+												   &subPipelineContext);
 
 	if (subPipelineContext.mongoCollection == NULL)
 	{
@@ -1073,9 +1074,11 @@ HandleUnionWith(const bson_value_t *existingValue, Query *query,
 
 		/* This is unionWith on the base collection */
 		pg_uuid_t *collectionUuid = NULL;
+		bson_value_t *indexHint = NULL;
 		rightQuery = GenerateBaseTableQuery(context->databaseNameDatum,
 											&collectionFrom,
 											collectionUuid,
+											indexHint,
 											&subPipelineContext);
 	}
 	else
@@ -1097,9 +1100,11 @@ HandleUnionWith(const bson_value_t *existingValue, Query *query,
 		}
 		else
 		{
+			bson_value_t *indexHint = NULL;
 			rightQuery = GenerateBaseTableQuery(context->databaseNameDatum,
 												&collectionFrom,
 												collectionUuid,
+												indexHint,
 												&subPipelineContext);
 		}
 
@@ -2101,17 +2106,18 @@ OptimizeLookup(LookupArgs *lookupArgs,
 
 	/* For the right query, generate a base table query for the right collection */
 	pg_uuid_t *collectionUuid = NULL;
-	optimizationArgs->rightBaseQuery = optimizationArgs->isLookupAgnostic ?
-									   GenerateBaseAgnosticQuery(
-		optimizationArgs->rightQueryContext.databaseNameDatum,
-		&optimizationArgs->
-		rightQueryContext) :
-									   GenerateBaseTableQuery(
-		optimizationArgs->rightQueryContext.databaseNameDatum,
-		&lookupArgs->from,
-		collectionUuid,
-		&optimizationArgs->
-		rightQueryContext);
+	bson_value_t *indexHint = NULL;
+	optimizationArgs->rightBaseQuery =
+		optimizationArgs->isLookupAgnostic ?
+		GenerateBaseAgnosticQuery(
+			optimizationArgs->rightQueryContext.databaseNameDatum,
+			&optimizationArgs->rightQueryContext) :
+		GenerateBaseTableQuery(
+			optimizationArgs->rightQueryContext.databaseNameDatum,
+			&lookupArgs->from,
+			collectionUuid,
+			indexHint,
+			&optimizationArgs->rightQueryContext);
 
 	/* Now let's figure out if we can join on _id */
 	optimizationArgs->isLookupJoinOnRightId =
@@ -3531,9 +3537,10 @@ GenerateBaseCaseQuery(AggregationPipelineBuildContext *parentContext,
 	strncpy((char *) subPipelineContext.collationString, parentContext->collationString,
 			MAX_ICU_COLLATION_LENGTH);
 	pg_uuid_t *collectionUuid = NULL;
+	bson_value_t *indexHint = NULL;
 	Query *baseCaseQuery = GenerateBaseTableQuery(parentContext->databaseNameDatum,
 												  &args->fromCollection, collectionUuid,
-												  &subPipelineContext);
+												  indexHint, &subPipelineContext);
 
 	/* Citus doesn't suppor this scenario: ERROR:  recursive CTEs are not supported in distributed queries */
 	if (subPipelineContext.mongoCollection != NULL &&
@@ -3632,9 +3639,10 @@ GenerateRecursiveCaseQuery(AggregationPipelineBuildContext *parentContext,
 	strncpy((char *) subPipelineContext.collationString, parentContext->collationString,
 			MAX_ICU_COLLATION_LENGTH);
 	pg_uuid_t *collectionUuid = NULL;
+	bson_value_t *indexHint = NULL;
 	Query *recursiveQuery = GenerateBaseTableQuery(parentContext->databaseNameDatum,
 												   &args->fromCollection, collectionUuid,
-												   &subPipelineContext);
+												   indexHint, &subPipelineContext);
 	if (args->restrictSearch.value_type != BSON_TYPE_EOD)
 	{
 		recursiveQuery = HandleMatch(&args->restrictSearch, recursiveQuery,

@@ -421,59 +421,6 @@ UpdatePathsToForceRumIndexScanToBitmapHeapScan(PlannerInfo *root, RelOptInfo *re
 
 
 /*
- * Adds optimized paths based on custom scan plans.
- * Currently, this walks the paths and if there's a BitmapAnd with all subpaths that are
- * RUM indexes, then adds a RumCustomJoinScan if the feature is enabled.
- */
-void
-UpdatePathsWithOptimizedExtensionCustomPlans(PlannerInfo *root, RelOptInfo *rel,
-											 RangeTblEntry *rte)
-{
-	ListCell *cell, *innerCell;
-	foreach(cell, rel->pathlist)
-	{
-		Path *inputPath = lfirst(cell);
-		if (IsA(inputPath, BitmapHeapPath))
-		{
-			BitmapHeapPath *bitmapPath = (BitmapHeapPath *) inputPath;
-			if (IsA(bitmapPath->bitmapqual, BitmapAndPath))
-			{
-				/* Now check if all of the inner paths of the bitmapAnd are RUM index scan paths */
-				BitmapAndPath *andPath = (BitmapAndPath *) bitmapPath->bitmapqual;
-				bool isAllRumIndexScans = true;
-				foreach(innerCell, andPath->bitmapquals)
-				{
-					Path *andQual = lfirst(innerCell);
-					if (!IsA(andQual, IndexPath))
-					{
-						isAllRumIndexScans = false;
-						break;
-					}
-
-					IndexPath *andPath = (IndexPath *) andQual;
-					if (!IsBsonRegularIndexAm(andPath->indexinfo->relam))
-					{
-						isAllRumIndexScans = false;
-						break;
-					}
-				}
-
-				if (isAllRumIndexScans)
-				{
-					Path *customPath = TryOptimizePathForBitmapAnd(root, rel, rte,
-																   bitmapPath);
-					if (customPath != NULL)
-					{
-						lfirst(cell) = customPath;
-					}
-				}
-			}
-		}
-	}
-}
-
-
-/*
  * Builds a PathTarget that is valid for a base table Relation.
  */
 PathTarget *
@@ -542,14 +489,14 @@ IsValidScanPath(Path *path)
 
 
 /*
- * UpdatePathsWithExtensionCustomPlans walks the built paths for a given query
+ * UpdatePathsWithExtensionStreamingCursorPlans walks the built paths for a given query
  * and extracts the continuation state for that path.
  * If there is a continuation state, then builds a custom ExtensionPath that
  * wraps the inner path using that continuation state.
  */
 bool
-UpdatePathsWithExtensionCustomPlans(PlannerInfo *root, RelOptInfo *rel,
-									RangeTblEntry *rte)
+UpdatePathsWithExtensionStreamingCursorPlans(PlannerInfo *root, RelOptInfo *rel,
+											 RangeTblEntry *rte)
 {
 	/*
 	 *  Check if we have a non volatile sort key (aka order by random()).

@@ -24,7 +24,10 @@
 #include <optimizer/pathnode.h>
 #include "nodes/pg_list.h"
 #include <pg_config_manual.h>
+#include <utils/lsyscache.h>
+#include <optimizer/restrictinfo.h>
 
+#include "metadata/index.h"
 #include "query/query_operator.h"
 #include "geospatial/bson_geospatial_geonear.h"
 #include "planner/mongo_query_operator.h"
@@ -39,6 +42,7 @@
 #include "query/bson_compare.h"
 #include "index_am/index_am_utils.h"
 #include "query/bson_dollar_selectivity.h"
+#include "planner/documentdb_planner.h"
 
 typedef struct
 {
@@ -51,6 +55,44 @@ typedef struct
 
 	bool isInvalidCandidateForRange;
 } DollarRangeElement;
+
+typedef struct
+{
+	Expr *documentExpr;
+	const char *documentDBIndexName;
+	bool isSparse;
+} IndexHintMatchContext;
+
+typedef struct
+{
+	bson_value_t value;
+	RestrictInfo *restrictInfo;
+} RuntimePrimaryKeyRestrictionData;
+
+typedef struct
+{
+	RestrictInfo *shardKeyQualExpr;
+	struct
+	{
+		bson_value_t equalityBsonValue;
+		RestrictInfo *restrictInfo;
+		bool isPrimaryKeyEquality;
+	} objectId;
+
+
+	/* Found paths */
+	IndexPath *primaryKeyLookupPath;
+
+	/* Runtime expression checks for $eq
+	 * List of RuntimePrimaryKeyRestrictionData
+	 */
+	List *runtimeEqualityRestrictionData;
+
+	/* Runtime expression checks for $in
+	 * List of RuntimePrimaryKeyRestrictionData
+	 */
+	List *runtimeDollarInRestrictionData;
+} PrimaryKeyLookupContext;
 
 typedef List *(*UpdateIndexList)(List *indexes,
 								 ReplaceExtensionFunctionContext *context);
@@ -138,6 +180,10 @@ static bool IsMatchingPathForQueryOperator(RelOptInfo *rel, Path *path,
 										   MatchIndexPath matchIndexPath,
 										   void *matchContext);
 static Expr * ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args);
+static OpExpr * CreateFullScanOpExpr(Expr *documentExpr, const char *sourcePath, uint32_t
+									 sourcePathLength);
+static OpExpr * CreateExistsTrueOpExpr(Expr *documentExpr, const char *sourcePath,
+									   uint32_t sourcePathLength);
 
 /*-------------------------------*/
 /* Force index support functions */
@@ -165,21 +211,42 @@ static bool EnableGeoNearForceIndexPushdown(PlannerInfo *root,
 											ReplaceExtensionFunctionContext *context);
 static bool DefaultTrueForceIndexPushdown(PlannerInfo *root,
 										  ReplaceExtensionFunctionContext *context);
+static bool DefaultFalseForceIndexPushdown(PlannerInfo *root,
+										   ReplaceExtensionFunctionContext *context);
 static Expr * ProcessElemMatchOperator(bytea *options, Datum queryValue, const
 									   MongoIndexOperatorInfo *operator, List *args);
+
+static List * UpdateIndexListForIndexHint(List *existingIndex,
+										  ReplaceExtensionFunctionContext *context);
+static bool MatchIndexPathForIndexHint(IndexPath *path, void *matchContext);
+static bool TryUseAlternateIndexForIndexHint(PlannerInfo *root, RelOptInfo *rel,
+											 ReplaceExtensionFunctionContext *context,
+											 MatchIndexPath matchIndexPath);
+static bool EnableIndexHintForceIndexPushdown(PlannerInfo *root,
+											  ReplaceExtensionFunctionContext *context);
+static void ThrowIndexHintUnableToFindIndex(void);
+
+static List * UpdateIndexListForPrimaryKeyLookup(List *existingIndex,
+												 ReplaceExtensionFunctionContext *context);
+static bool MatchIndexPathForPrimaryKeyLookup(IndexPath *path, void *matchContext);
+static bool TryUseAlternateIndexForPrimaryKeyLookup(PlannerInfo *root, RelOptInfo *rel,
+													ReplaceExtensionFunctionContext *
+													context,
+													MatchIndexPath matchIndexPath);
+static void PrimaryKeyLookupUnableToFindIndex(void);
 
 
 static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
 {
-	{
-		.operator = ForceIndexOpType_GeoNear,
-		.updateIndexes = &UpdateIndexListForGeonear,
-		.matchIndexPath = &MatchIndexPathForGeonear,
-		.alternatePath = &TryUseAlternateIndexGeonear,
-		.noIndexHandler = &ThrowGeoNearUnableToFindIndex,
-		.enableForceIndexPushdown = &EnableGeoNearForceIndexPushdown
+	[ForceIndexOpType_None] = {
+		.operator = ForceIndexOpType_None,
+		.updateIndexes = NULL,
+		.matchIndexPath = &MatchIndexPathEquals,
+		.alternatePath = NULL,
+		.noIndexHandler = NULL,
+		.enableForceIndexPushdown = &DefaultFalseForceIndexPushdown
 	},
-	{
+	[ForceIndexOpType_Text] = {
 		.operator = ForceIndexOpType_Text,
 		.updateIndexes = &UpdateIndexListForText,
 		.matchIndexPath = &MatchIndexPathForText,
@@ -187,23 +254,46 @@ static const ForceIndexSupportFuncs ForceIndexOperatorSupport[] =
 		.alternatePath = &PushTextQueryToRuntime,
 		.enableForceIndexPushdown = &DefaultTrueForceIndexPushdown
 	},
-	{
+	[ForceIndexOpType_GeoNear] = {
+		.operator = ForceIndexOpType_GeoNear,
+		.updateIndexes = &UpdateIndexListForGeonear,
+		.matchIndexPath = &MatchIndexPathForGeonear,
+		.alternatePath = &TryUseAlternateIndexGeonear,
+		.noIndexHandler = &ThrowGeoNearUnableToFindIndex,
+		.enableForceIndexPushdown = &EnableGeoNearForceIndexPushdown
+	},
+	[ForceIndexOpType_VectorSearch] = {
 		.operator = ForceIndexOpType_VectorSearch,
 		.updateIndexes = &UpdateIndexListForVector,
 		.matchIndexPath = &MatchIndexPathForVector,
 		.noIndexHandler = &ThrowNoVectorIndexFound,
 		.enableForceIndexPushdown = &DefaultTrueForceIndexPushdown
+	},
+	[ForceIndexOpType_IndexHint] = {
+		.operator = ForceIndexOpType_IndexHint,
+		.updateIndexes = &UpdateIndexListForIndexHint,
+		.matchIndexPath = &MatchIndexPathForIndexHint,
+		.alternatePath = &TryUseAlternateIndexForIndexHint,
+		.noIndexHandler = &ThrowIndexHintUnableToFindIndex,
+		.enableForceIndexPushdown = &EnableIndexHintForceIndexPushdown
+	},
+	[ForceIndexOpType_PrimaryKeyLookup] = {
+		.operator = ForceIndexOpType_PrimaryKeyLookup,
+		.updateIndexes = &UpdateIndexListForPrimaryKeyLookup,
+		.matchIndexPath = &MatchIndexPathForPrimaryKeyLookup,
+		.alternatePath = &TryUseAlternateIndexForPrimaryKeyLookup,
+		.noIndexHandler = &PrimaryKeyLookupUnableToFindIndex,
+		.enableForceIndexPushdown = &DefaultTrueForceIndexPushdown
 	}
 };
-
-static const int ForceIndexOperatorsCount = sizeof(ForceIndexOperatorSupport) /
-											sizeof(ForceIndexSupportFuncs);
 
 extern bool EnableVectorForceIndexPushdown;
 extern bool EnableGeonearForceIndexPushdown;
 extern bool UseNewElemMatchIndexPushdown;
 extern bool DisableDollarSupportFuncSelectivity;
 extern bool EnableNewOperatorSelectivityMode;
+extern bool EnableIndexHintSupport;
+extern bool UseLegacyForcePushdownBehavior;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -437,6 +527,466 @@ IsOpExprShardKeyForUnshardedCollections(Expr *expr, uint64 collectionId)
 }
 
 
+inline static void
+ThrowIfIncompatibleOpForIndexHint(ForceIndexOpType hintOpType, ForceIndexOpType opType)
+{
+	if (hintOpType != ForceIndexOpType_IndexHint)
+	{
+		return;
+	}
+
+	if (opType == ForceIndexOpType_Text)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("$text queries cannot specify hint")));
+	}
+	else if (opType == ForceIndexOpType_VectorSearch)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("Vector search queries cannot specify hint")));
+	}
+	else if (opType == ForceIndexOpType_GeoNear)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("GeoNear queries cannot specify hint")));
+	}
+}
+
+
+static void
+CheckNullTestForGeoSpatialForcePushdown(ReplaceExtensionFunctionContext *context,
+										NullTest *nullTest)
+{
+	if (context->forceIndexQueryOpData.type != ForceIndexOpType_GeoNear &&
+		nullTest->nulltesttype == IS_NOT_NULL &&
+		IsA(nullTest->arg, FuncExpr))
+	{
+		Oid functionOid = ((FuncExpr *) nullTest->arg)->funcid;
+		if (functionOid == BsonValidateGeographyFunctionId() ||
+			functionOid == BsonValidateGeometryFunctionId())
+		{
+			/*
+			 * The query contains a geospatial operator, now assume that it is a potential
+			 * geonear query as well, because today for few instances we can't uniquely identify
+			 * if the query is a geonear query.
+			 *
+			 * e.g. Sharded collections cases where ORDER BY is not pushed to the shards so we only
+			 * get the PFE of geospatial operators.
+			 */
+			ThrowIfIncompatibleOpForIndexHint(
+				context->forceIndexQueryOpData.type, ForceIndexOpType_GeoNear);
+			context->forceIndexQueryOpData.type = ForceIndexOpType_GeoNear;
+		}
+	}
+}
+
+
+/*
+ * Walks an specific restriction expr and collections the necessary information from it
+ * and stores the relevant information in the ReplaceExtensionFunctionContext. This may be
+ * information about streaming cursors, geospatial indexes, and other index-related metadata.
+ * Note that currentRestrictInfo can be NULL if there's an OR/AND and this is recursing.
+ */
+static void
+CheckRestrictionPathNodeForIndexOperation(Expr *currentExpr,
+										  ReplaceExtensionFunctionContext *context,
+										  PrimaryKeyLookupContext *primaryKeyContext,
+										  RestrictInfo *currentRestrictInfo)
+{
+	CHECK_FOR_INTERRUPTS();
+	check_stack_depth();
+	if (IsA(currentExpr, FuncExpr))
+	{
+		FuncExpr *funcExpr = (FuncExpr *) currentExpr;
+		if (IsClusterVersionAtleast(DocDB_V0, 106, 0) &&
+			funcExpr->funcid == BsonIndexHintFunctionOid())
+		{
+			Node *secondNode = lsecond(funcExpr->args);
+			if (!IsA(secondNode, Const))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("Index hint must be a constant value")));
+			}
+
+			Node *keyDocumentNode = lthird(funcExpr->args);
+			if (!IsA(keyDocumentNode, Const))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("Index key document must be a constant value")));
+			}
+
+			Node *sparseNode = lfourth(funcExpr->args);
+			if (!IsA(sparseNode, Const))
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("Index sparse must be a constant value")));
+			}
+
+			ThrowIfIncompatibleOpForIndexHint(
+				ForceIndexOpType_IndexHint, context->forceIndexQueryOpData.type);
+			Const *secondConst = (Const *) secondNode;
+			IndexHintMatchContext *hintContext = palloc0(
+				sizeof(IndexHintMatchContext));
+			hintContext->documentExpr = linitial(funcExpr->args);
+			hintContext->documentDBIndexName = TextDatumGetCString(
+				secondConst->constvalue);
+			hintContext->isSparse = DatumGetBool(((Const *) sparseNode)->constvalue);
+
+			context->forceIndexQueryOpData.type = ForceIndexOpType_IndexHint;
+			context->forceIndexQueryOpData.path = NULL;
+			context->forceIndexQueryOpData.opExtraState = hintContext;
+		}
+		else if (IsClusterVersionAtleast(DocDB_V0, 10, 0) &&
+				 funcExpr->funcid == ApiBsonSearchParamFunctionId())
+		{
+			/* Just validate indexHint is incompatible with vector search but don't set
+			 * the forceIndexQueryOpData.type to vector search yet to keep compatibility.
+			 */
+			context->hasVectorSearchQuery = true;
+			ThrowIfIncompatibleOpForIndexHint(
+				context->forceIndexQueryOpData.type, ForceIndexOpType_VectorSearch);
+		}
+		else if (funcExpr->funcid == ApiCursorStateFunctionId())
+		{
+			context->hasStreamingContinuationScan = true;
+		}
+		else
+		{
+			const MongoQueryOperator *operator =
+				GetMongoQueryOperatorByQueryOperatorType(QUERY_OPERATOR_TEXT,
+														 MongoQueryOperatorInputType_Bson);
+			if (operator->postgresRuntimeFunctionOidLookup() == funcExpr->funcid)
+			{
+				ThrowIfIncompatibleOpForIndexHint(
+					context->forceIndexQueryOpData.type, ForceIndexOpType_Text);
+				context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
+			}
+			else if (primaryKeyContext != NULL && funcExpr->funcid ==
+					 BsonInMatchFunctionId())
+			{
+				Expr *firstArg = linitial(funcExpr->args);
+				Expr *secondArg = lsecond(funcExpr->args);
+				if (IsA(firstArg, Var) && IsA(secondArg, Const))
+				{
+					Var *var = (Var *) firstArg;
+					Const *rightConst = (Const *) secondArg;
+					if (var->varattno == DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER &&
+						var->varno == (int) context->inputData.rteIndex)
+					{
+						pgbsonelement queryElement;
+						if (TryGetSinglePgbsonElementFromPgbson(
+								DatumGetPgBsonPacked(rightConst->constvalue),
+								&queryElement) &&
+							queryElement.pathLength == 3 && strcmp(queryElement.path,
+																   "_id") == 0)
+						{
+							RuntimePrimaryKeyRestrictionData *runtimeDollarIn =
+								palloc0(sizeof(RuntimePrimaryKeyRestrictionData));
+							runtimeDollarIn->value = queryElement.bsonValue;
+							runtimeDollarIn->restrictInfo = currentRestrictInfo;
+
+							primaryKeyContext->runtimeDollarInRestrictionData =
+								lappend(primaryKeyContext->runtimeDollarInRestrictionData,
+										runtimeDollarIn);
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (primaryKeyContext != NULL && currentRestrictInfo != NULL && IsA(currentExpr,
+																			 OpExpr))
+	{
+		OpExpr *opExpr = (OpExpr *) currentExpr;
+		if (opExpr->opno == BigintEqualOperatorId())
+		{
+			Expr *firstArg = linitial(opExpr->args);
+			if (IsA(firstArg, Var))
+			{
+				Var *var = (Var *) firstArg;
+				if (var->varattno ==
+					DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER &&
+					var->varno == (int) context->inputData.rteIndex)
+				{
+					primaryKeyContext->shardKeyQualExpr = currentRestrictInfo;
+				}
+			}
+		}
+		else if (opExpr->opno == BsonEqualOperatorId())
+		{
+			Expr *firstArg = linitial(opExpr->args);
+			Expr *secondArg = lsecond(opExpr->args);
+			if (IsA(firstArg, Var) && IsA(secondArg, Const))
+			{
+				Var *var = (Var *) firstArg;
+				Const *rightConst = (Const *) secondArg;
+				if (var->varattno == DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER &&
+					var->varno == (int) context->inputData.rteIndex)
+				{
+					pgbsonelement queryElement;
+					primaryKeyContext->objectId.restrictInfo = currentRestrictInfo;
+					primaryKeyContext->objectId.isPrimaryKeyEquality = true;
+					if (TryGetSinglePgbsonElementFromPgbson(
+							DatumGetPgBsonPacked(rightConst->constvalue), &queryElement))
+					{
+						primaryKeyContext->objectId.equalityBsonValue =
+							queryElement.bsonValue;
+					}
+				}
+			}
+		}
+		else if (opExpr->opno == BsonEqualMatchRuntimeOperatorId())
+		{
+			Expr *firstArg = linitial(opExpr->args);
+			Expr *secondArg = lsecond(opExpr->args);
+			if (IsA(firstArg, Var) && IsA(secondArg, Const))
+			{
+				Var *var = (Var *) firstArg;
+				Const *rightConst = (Const *) secondArg;
+				if (var->varattno == DOCUMENT_DATA_TABLE_DOCUMENT_VAR_ATTR_NUMBER &&
+					var->varno == (int) context->inputData.rteIndex)
+				{
+					pgbsonelement queryElement;
+					if (TryGetSinglePgbsonElementFromPgbson(
+							DatumGetPgBsonPacked(rightConst->constvalue),
+							&queryElement) &&
+						queryElement.pathLength == 3 && strcmp(queryElement.path,
+															   "_id") == 0)
+					{
+						RuntimePrimaryKeyRestrictionData *equalityRestrictionData =
+							palloc0(sizeof(RuntimePrimaryKeyRestrictionData));
+						equalityRestrictionData->value = queryElement.bsonValue;
+						equalityRestrictionData->restrictInfo = currentRestrictInfo;
+						primaryKeyContext->runtimeEqualityRestrictionData =
+							lappend(primaryKeyContext->runtimeEqualityRestrictionData,
+									equalityRestrictionData);
+					}
+				}
+			}
+		}
+	}
+	else if (primaryKeyContext != NULL && primaryKeyContext->objectId.restrictInfo ==
+			 NULL &&
+			 IsA(currentExpr, ScalarArrayOpExpr))
+	{
+		ScalarArrayOpExpr *scalarArrayOpExpr = (ScalarArrayOpExpr *) currentExpr;
+		if (scalarArrayOpExpr->opno == BsonEqualOperatorId() &&
+			scalarArrayOpExpr->useOr)
+		{
+			Expr *firstArg = linitial(scalarArrayOpExpr->args);
+			if (IsA(firstArg, Var))
+			{
+				Var *var = (Var *) firstArg;
+				if (var->varattno == DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER &&
+					var->varno == (int) context->inputData.rteIndex)
+				{
+					primaryKeyContext->objectId.restrictInfo = currentRestrictInfo;
+				}
+			}
+		}
+	}
+	else if (IsA(currentExpr, NullTest))
+	{
+		NullTest *nullTest = (NullTest *) currentExpr;
+		CheckNullTestForGeoSpatialForcePushdown(context, nullTest);
+	}
+	else if (IsA(currentExpr, BoolExpr))
+	{
+		BoolExpr *boolExpr = (BoolExpr *) currentExpr;
+		ListCell *boolArgs;
+		PrimaryKeyLookupContext *childContext = NULL;
+		foreach(boolArgs, boolExpr->args)
+		{
+			CheckRestrictionPathNodeForIndexOperation(lfirst(boolArgs), context,
+													  childContext, NULL);
+		}
+	}
+}
+
+
+static bool
+HasTextPathOpFamily(IndexOptInfo *indexInfo)
+{
+	Oid textOpClass = GetTextPathOpFamilyOid(indexInfo->relam);
+	if (textOpClass == InvalidOid)
+	{
+		return false;
+	}
+
+	for (int i = 0; i < indexInfo->ncolumns; i++)
+	{
+		if (indexInfo->opfamily[i] == textOpClass)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+static void
+CheckPathForIndexOperations(Path *path, ReplaceExtensionFunctionContext *context)
+{
+	check_stack_depth();
+	CHECK_FOR_INTERRUPTS();
+
+	if (IsA(path, BitmapOrPath))
+	{
+		BitmapOrPath *orPath = (BitmapOrPath *) path;
+		WalkPathsForIndexOperations(orPath->bitmapquals, context);
+	}
+	else if (IsA(path, BitmapAndPath))
+	{
+		BitmapAndPath *andPath = (BitmapAndPath *) path;
+		WalkPathsForIndexOperations(andPath->bitmapquals, context);
+	}
+	else if (IsA(path, BitmapHeapPath))
+	{
+		BitmapHeapPath *heapPath = (BitmapHeapPath *) path;
+		CheckPathForIndexOperations(heapPath->bitmapqual, context);
+	}
+	else if (IsA(path, IndexPath))
+	{
+		IndexPath *indexPath = (IndexPath *) path;
+
+		/* Ignore primary key lookup paths parented in a bitmap scan:
+		 * This can happen because a RUM index lookup can produce a 0 cost query as well
+		 * and Postgres picks both and does a BitmapAnd - instead rely on a top level index path.
+		 */
+		if (IsBtreePrimaryKeyIndex(indexPath->indexinfo) &&
+			list_length(indexPath->indexclauses) > 1)
+		{
+			context->primaryKeyLookupPath = indexPath;
+		}
+
+		const VectorIndexDefinition *vectorDefinition = NULL;
+		if (indexPath->indexorderbys != NIL)
+		{
+			/* Only check for vector when there's an order by */
+			vectorDefinition = GetVectorIndexDefinitionByIndexAmOid(
+				indexPath->indexinfo->relam);
+		}
+
+		if (vectorDefinition != NULL)
+		{
+			context->hasVectorSearchQuery = true;
+			context->queryDataForVectorSearch.VectorAccessMethodOid =
+				indexPath->indexinfo->relam;
+
+			/*
+			 * For vector search, we also need to extract the search parameter from the wrap function.
+			 * ApiCatalogSchemaName.bson_search_param(document, '{ "nProbes": 4 }'::ApiCatalogSchemaName.bson)
+			 */
+			ExtractAndSetSearchParamterFromWrapFunction(indexPath, context);
+
+			if (EnableVectorForceIndexPushdown)
+			{
+				context->forceIndexQueryOpData.type = ForceIndexOpType_VectorSearch;
+				context->forceIndexQueryOpData.path = indexPath;
+			}
+		}
+		else if (indexPath->indexinfo->relam == GIST_AM_OID &&
+				 list_length(indexPath->indexorderbys) == 1)
+		{
+			/* Specific to geonear: Check if the geonear query is pushed to index */
+			Expr *orderByExpr = linitial(indexPath->indexorderbys);
+			if (IsA(orderByExpr, OpExpr) && ((OpExpr *) orderByExpr)->opno ==
+				BsonGeonearDistanceOperatorId())
+			{
+				context->forceIndexQueryOpData.type = ForceIndexOpType_GeoNear;
+				context->forceIndexQueryOpData.path = indexPath;
+			}
+		}
+		else if (HasTextPathOpFamily(indexPath->indexinfo))
+		{
+			/* RUM/GIST indexes */
+			ListCell *indexPathCell;
+			foreach(indexPathCell, indexPath->indexclauses)
+			{
+				IndexClause *iclause = (IndexClause *) lfirst(indexPathCell);
+				bytea *options = NULL;
+				if (indexPath->indexinfo->opclassoptions != NULL)
+				{
+					options = indexPath->indexinfo->opclassoptions[iclause->indexcol];
+				}
+
+				/* Specific to text indexes: If the OpFamily is for Text, update the context
+				 * with the index options for text. This is used later to process restriction info
+				 * so that we can push down the TSQuery with the appropriate default language settings.
+				 */
+				if (IsTextPathOpFamilyOid(
+						indexPath->indexinfo->relam,
+						indexPath->indexinfo->opfamily[iclause->indexcol]))
+				{
+					/* If there's no options, set it. Otherwise, fail with "too many paths" */
+					if (context->forceIndexQueryOpData.opExtraState != NULL)
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+										errmsg("Too many text expressions")));
+					}
+					context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
+					context->forceIndexQueryOpData.path = indexPath;
+					QueryTextIndexData *textIndexData = palloc0(
+						sizeof(QueryTextIndexData));
+					textIndexData->indexOptions = options;
+					context->forceIndexQueryOpData.opExtraState = (void *) textIndexData;
+				}
+			}
+		}
+	}
+}
+
+
+void
+WalkPathsForIndexOperations(List *pathsList,
+							ReplaceExtensionFunctionContext *context)
+{
+	ListCell *cell;
+	foreach(cell, pathsList)
+	{
+		Path *path = (Path *) lfirst(cell);
+		CheckPathForIndexOperations(path, context);
+	}
+}
+
+
+void
+WalkRestrictionPathsForIndexOperations(List *restrictInfo,
+									   ReplaceExtensionFunctionContext *
+									   context)
+{
+	PrimaryKeyLookupContext primaryKeyContext = { 0 };
+
+	ListCell *cell;
+	foreach(cell, restrictInfo)
+	{
+		RestrictInfo *rinfo = lfirst_node(RestrictInfo, cell);
+		CheckRestrictionPathNodeForIndexOperation(
+			rinfo->clause, context, &primaryKeyContext, rinfo);
+	}
+
+	/* Set primary key force pushdown if requested. */
+	if (context->forceIndexQueryOpData.type == ForceIndexOpType_None &&
+		primaryKeyContext.shardKeyQualExpr != NULL &&
+		primaryKeyContext.objectId.restrictInfo != NULL)
+	{
+		PrimaryKeyLookupContext *pkContext = palloc(sizeof(PrimaryKeyLookupContext));
+		primaryKeyContext.primaryKeyLookupPath = context->primaryKeyLookupPath;
+
+		*pkContext = primaryKeyContext;
+		context->forceIndexQueryOpData.type = ForceIndexOpType_PrimaryKeyLookup;
+		context->forceIndexQueryOpData.path = NULL;
+		context->forceIndexQueryOpData.opExtraState = pkContext;
+	}
+	else
+	{
+		list_free_deep(primaryKeyContext.runtimeDollarInRestrictionData);
+		list_free_deep(primaryKeyContext.runtimeEqualityRestrictionData);
+	}
+}
+
+
 /*
  * Given a set of restriction paths (Qualifiers) built from the query plan,
  * Replaces any unresolved bson_dollar_<op> functions with the equivalent
@@ -568,23 +1118,16 @@ void
 ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 							ReplaceExtensionFunctionContext *context)
 {
-	if (context->forceIndexQueryOpData.type == ForceIndexOpType_None)
+	if (context->forceIndexQueryOpData.type == ForceIndexOpType_None ||
+		context->forceIndexQueryOpData.type >= ForceIndexOpType_Max)
 	{
 		/* If no special operator requirement */
 		return;
 	}
 
-	ForceIndexSupportFuncs *forceIndexFuncs = NULL;
-	for (int i = 0; i < ForceIndexOperatorsCount; i++)
-	{
-		if (ForceIndexOperatorSupport[i].operator == context->forceIndexQueryOpData.type)
-		{
-			forceIndexFuncs = (ForceIndexSupportFuncs *) &ForceIndexOperatorSupport[i];
-		}
-	}
-
-	if (forceIndexFuncs == NULL || !forceIndexFuncs->enableForceIndexPushdown(root,
-																			  context))
+	const ForceIndexSupportFuncs *forceIndexFuncs =
+		&ForceIndexOperatorSupport[context->forceIndexQueryOpData.type];
+	if (!forceIndexFuncs->enableForceIndexPushdown(root, context))
 	{
 		/* No index support functions !!, or force index pushdown not required then can't do anything */
 		return;
@@ -615,22 +1158,27 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 	List *oldPathList = rel->pathlist;
 	List *oldPartialPathList = rel->partial_pathlist;
 
+	Path *matchingPath = NULL;
+
 	/* Only consider the indexes that we want to push to based on the operator */
 	List *newIndexList = forceIndexFuncs->updateIndexes(oldIndexList, context);
+	if (list_length(newIndexList) > 0)
+	{
+		/* Generate interesting index paths again with filtered indexes */
+		rel->indexlist = newIndexList;
+		rel->pathlist = NIL;
+		rel->partial_pathlist = NIL;
 
-	/* Generate interesting index paths again with filtered indexes */
-	rel->indexlist = newIndexList;
-	rel->pathlist = NIL;
-	rel->partial_pathlist = NIL;
+		create_index_paths(root, rel);
 
-	create_index_paths(root, rel);
+		/* Check if index path was created for the operator based on matching criteria */
+		matchingPath = FindIndexPathForQueryOperator(rel, rel->pathlist,
+													 context,
+													 forceIndexFuncs->matchIndexPath,
+													 context->forceIndexQueryOpData.
+													 opExtraState);
+	}
 
-	/* Check if index path was created for the operator based on matching criteria */
-	Path *matchingPath = FindIndexPathForQueryOperator(rel, rel->pathlist,
-													   context,
-													   forceIndexFuncs->matchIndexPath,
-													   context->forceIndexQueryOpData.
-													   opExtraState);
 	if (matchingPath == NULL)
 	{
 		/* We didn't find any index path for the query operators by just updating the
@@ -661,10 +1209,13 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 		rel->partial_pathlist = oldPartialPathList;
 	}
 
-	/* Replace the func exprs to opExpr for consistency if new quals are added above */
-	rel->baserestrictinfo =
-		ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
-															context);
+	if (UseLegacyForcePushdownBehavior)
+	{
+		/* Replace the func exprs to opExpr for consistency if new quals are added above */
+		rel->baserestrictinfo =
+			ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
+																context);
+	}
 }
 
 
@@ -1287,6 +1838,18 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 				context->forceIndexQueryOpData.path = indexPath;
 			}
 		}
+		else if (indexPath->indexinfo->relam == GIST_AM_OID &&
+				 list_length(indexPath->indexorderbys) == 1)
+		{
+			/* Specific to geonear: Check if the geonear query is pushed to index */
+			Expr *orderByExpr = linitial(indexPath->indexorderbys);
+			if (IsA(orderByExpr, OpExpr) && ((OpExpr *) orderByExpr)->opno ==
+				BsonGeonearDistanceOperatorId())
+			{
+				context->forceIndexQueryOpData.type = ForceIndexOpType_GeoNear;
+				context->forceIndexQueryOpData.path = indexPath;
+			}
+		}
 		else
 		{
 			/* RUM/GIST indexes */
@@ -1305,7 +1868,8 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 				 * with the index options for text. This is used later to process restriction info
 				 * so that we can push down the TSQuery with the appropriate default language settings.
 				 */
-				if (IsTextPathOpFamilyOid(
+				if (UseLegacyForcePushdownBehavior &&
+					IsTextPathOpFamilyOid(
 						indexPath->indexinfo->relam,
 						indexPath->indexinfo->opfamily[iclause->indexcol]))
 				{
@@ -1322,43 +1886,15 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 					textIndexData = palloc0(sizeof(QueryTextIndexData));
 					textIndexData->indexOptions = options;
 					context->forceIndexQueryOpData.opExtraState = (void *) textIndexData;
+				}
 
-					ReplaceExtensionFunctionContext childContext = {
-						{ 0 }, false, false, context->inputData,
-						{ .path = NULL, .type = ForceIndexOpType_None, .opExtraState =
-							  NULL }
-					};
-					childContext.forceIndexQueryOpData = context->forceIndexQueryOpData;
-					bool trimClauses = false;
-					rinfo->clause = ProcessRestrictionInfoAndRewriteFuncExpr(
-						rinfo->clause,
-						&childContext, trimClauses);
-				}
-				else
-				{
-					ReplaceExtensionFunctionContext childContext = {
-						{ 0 }, false, false, context->inputData,
-						{ .path = NULL, .type = ForceIndexOpType_None, .opExtraState =
-							  NULL }
-					};
-					bool trimClauses = false;
-					rinfo->clause = ProcessRestrictionInfoAndRewriteFuncExpr(
-						rinfo->clause,
-						&childContext, trimClauses);
-				}
-			}
-
-			if (indexPath->indexinfo->relam == GIST_AM_OID &&
-				list_length(indexPath->indexorderbys) == 1)
-			{
-				/* Specific to geonear: Check if the geonear query is pushed to index */
-				Expr *orderByExpr = linitial(indexPath->indexorderbys);
-				if (IsA(orderByExpr, OpExpr) && ((OpExpr *) orderByExpr)->opno ==
-					BsonGeonearDistanceOperatorId())
-				{
-					context->forceIndexQueryOpData.type = ForceIndexOpType_GeoNear;
-					context->forceIndexQueryOpData.path = indexPath;
-				}
+				ReplaceExtensionFunctionContext childContext = { 0 };
+				childContext.inputData = context->inputData;
+				childContext.forceIndexQueryOpData = context->forceIndexQueryOpData;
+				bool trimClauses = false;
+				rinfo->clause = ProcessRestrictionInfoAndRewriteFuncExpr(
+					rinfo->clause,
+					&childContext, trimClauses);
 			}
 
 			if (IsBsonRegularIndexAm(indexPath->indexinfo->relam))
@@ -1400,7 +1936,18 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 			 * the serialization details of the index. This is then later used in $meta
 			 * queries to get the rank
 			 */
-			context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
+			if (context->forceIndexQueryOpData.type == ForceIndexOpType_None)
+			{
+				context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
+			}
+
+			if (context->forceIndexQueryOpData.type != ForceIndexOpType_Text)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"Text index pushdown is not supported for this query")));
+			}
+
 			QueryTextIndexData *textIndexData =
 				(QueryTextIndexData *) context->forceIndexQueryOpData.opExtraState;
 
@@ -1429,10 +1976,15 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 			return (Expr *) GetOpExprClauseFromIndexOperator(operator, args,
 															 NULL);
 		}
-		else if (IsA(clause, FuncExpr))
+		else if (trimClauses && IsA(clause, FuncExpr))
 		{
 			FuncExpr *funcExpr = (FuncExpr *) clause;
-			if (funcExpr->funcid == BsonFullScanFunctionOid() && trimClauses)
+			if (funcExpr->funcid == BsonFullScanFunctionOid())
+			{
+				/* Trim these */
+				return NULL;
+			}
+			else if (funcExpr->funcid == BsonIndexHintFunctionOid())
 			{
 				/* Trim these */
 				return NULL;
@@ -1442,25 +1994,7 @@ ProcessRestrictionInfoAndRewriteFuncExpr(Expr *clause,
 	else if (IsA(clause, NullTest))
 	{
 		NullTest *nullTest = (NullTest *) clause;
-		if (context->forceIndexQueryOpData.type == ForceIndexOpType_None &&
-			nullTest->nulltesttype == IS_NOT_NULL &&
-			IsA(nullTest->arg, FuncExpr))
-		{
-			Oid functionOid = ((FuncExpr *) nullTest->arg)->funcid;
-			if (functionOid == BsonValidateGeographyFunctionId() ||
-				functionOid == BsonValidateGeometryFunctionId())
-			{
-				/*
-				 * The query contains a geospatial operator, now assume that it is a potential
-				 * geonear query as well, because today for few instances we can't uniquely identify
-				 * if the query is a geonear query.
-				 *
-				 * e.g. Sharded collections cases where ORDER BY is not pushed to the shards so we only
-				 * get the PFE of geospatial operators.
-				 */
-				context->forceIndexQueryOpData.type = ForceIndexOpType_GeoNear;
-			}
-		}
+		CheckNullTestForGeoSpatialForcePushdown(context, nullTest);
 	}
 	else if (IsA(clause, ScalarArrayOpExpr))
 	{
@@ -2018,6 +2552,14 @@ DefaultTrueForceIndexPushdown(PlannerInfo *root, ReplaceExtensionFunctionContext
 }
 
 
+static bool
+DefaultFalseForceIndexPushdown(PlannerInfo *root,
+							   ReplaceExtensionFunctionContext *context)
+{
+	return false;
+}
+
+
 /*
  * Matches the indexPath for $text query. It just checks if the index used
  * is a text index, as there can only be at max one text index for a collection.
@@ -2085,6 +2627,360 @@ UpdateIndexListForVector(List *existingIndex,
 		}
 	}
 	return newIndexesListForVector;
+}
+
+
+static List *
+UpdateIndexListForIndexHint(List *existingIndex,
+							ReplaceExtensionFunctionContext *context)
+{
+	/* Trim all indexes except those that match the hint */
+	const IndexHintMatchContext *hintContext = (const
+												IndexHintMatchContext *) context->
+											   forceIndexQueryOpData.opExtraState;
+	List *newIndexesListForHint = NIL;
+	ListCell *indexCell;
+	foreach(indexCell, existingIndex)
+	{
+		bool useLibPq = false;
+		IndexOptInfo *index = lfirst_node(IndexOptInfo, indexCell);
+		const char *docdbIndexName = ExtensionIndexOidGetIndexName(index->indexoid,
+																   useLibPq);
+		if (docdbIndexName == NULL)
+		{
+			continue;
+		}
+
+		if (strcmp(docdbIndexName, hintContext->documentDBIndexName) == 0)
+		{
+			newIndexesListForHint = lappend(newIndexesListForHint, index);
+		}
+	}
+
+	return newIndexesListForHint;
+}
+
+
+static bool
+MatchIndexPathForIndexHint(IndexPath *path, void *matchContext)
+{
+	const IndexHintMatchContext *context = (const IndexHintMatchContext *) matchContext;
+	bool useLibPq = false;
+	const char *docdbIndexName = ExtensionIndexOidGetIndexName(path->indexinfo->indexoid,
+															   useLibPq);
+
+	if (docdbIndexName == NULL)
+	{
+		return false;
+	}
+
+	/*
+	 * Given that we force this index down we update the cost for it to be 0.
+	 * In theory this is not needed since this is the only path available.
+	 * However, this raised an issue where for RUM, we set the cost to INFINITY.
+	 * In explain this is logged as cost: Infinity (without quotes) which breaks
+	 * some Json parsers. To not have that happen for selected paths, we explicitly
+	 * also set the costs to 0.
+	 */
+	bool isMatch = (strcmp(docdbIndexName, context->documentDBIndexName) == 0);
+	if (isMatch)
+	{
+		path->indextotalcost = 0;
+		path->path.total_cost = 0;
+		path->path.startup_cost = 0;
+	}
+
+	return isMatch;
+}
+
+
+static bool
+TryUseAlternateIndexForIndexHint(PlannerInfo *root, RelOptInfo *rel,
+								 ReplaceExtensionFunctionContext *context,
+								 MatchIndexPath matchIndexPath)
+{
+	IndexHintMatchContext *hintContext =
+		(IndexHintMatchContext *) context->forceIndexQueryOpData.opExtraState;
+
+	IndexOptInfo *matchedInfo = NULL;
+	if (list_length(rel->indexlist) < 1)
+	{
+		return false;
+	}
+
+	matchedInfo = linitial(rel->indexlist);
+
+	/* Non composite op classes do not support fullscan operators */
+	const char *firstIndexPath = NULL;
+
+	if (matchedInfo->unique && matchedInfo->nkeycolumns == 2 &&
+		matchedInfo->relam == BTREE_AM_OID)
+	{
+		/* This will be the primary key Btree create an empty scan on it */
+		IndexPath *newPath = create_index_path(root, matchedInfo, NIL, NIL, NIL, NIL,
+											   ForwardScanDirection, false, NULL, 1,
+											   false);
+		add_path(rel, (Path *) newPath);
+		return true;
+	}
+
+	int indexCol = 0;
+	bool isHashedIndex = false;
+	bool isWildCardIndex = false;
+	if (IsBsonRegularIndexAm(matchedInfo->relam))
+	{
+		bytea *opClassOptions = matchedInfo->opclassoptions[0];
+		if (opClassOptions == NULL &&
+			IsUniqueCheckOpFamilyOid(matchedInfo->relam, matchedInfo->opfamily[0]))
+		{
+			/* For unique indexes, the first column is the shard key constraint */
+			opClassOptions = matchedInfo->opclassoptions[1];
+			indexCol = 1;
+		}
+
+		isHashedIndex = IsHashedPathOpFamilyOid(
+			matchedInfo->relam, matchedInfo->opfamily[indexCol]);
+
+		if (opClassOptions != NULL)
+		{
+			firstIndexPath = GetFirstPathFromIndexOptionsIfApplicable(
+				opClassOptions, &isWildCardIndex);
+		}
+	}
+
+	if (firstIndexPath == NULL || isWildCardIndex)
+	{
+		/* For hashed indexes, we don't support pushing down a full scan
+		 * TODO: Support that. But in the interim for this unsupported index thunk to
+		 * SeqScan.
+		 * TODO: Should we do this for all unsupported cases (e.g. geospatial)
+		 */
+		if (isHashedIndex)
+		{
+			Path *seqscan = create_seqscan_path(root, rel, NULL, 0);
+			add_path(rel, seqscan);
+			return true;
+		}
+
+		return false;
+	}
+
+	/* For Sparse indexes with hint, we create an { exists: true } clause */
+	OpExpr *scanClause;
+	if (hintContext->isSparse)
+	{
+		scanClause = CreateExistsTrueOpExpr(
+			hintContext->documentExpr,
+			firstIndexPath, strlen(firstIndexPath));
+	}
+	else
+	{
+		scanClause = CreateFullScanOpExpr(
+			hintContext->documentExpr,
+			firstIndexPath, strlen(firstIndexPath));
+	}
+
+	RestrictInfo *fullScanRestrictInfo =
+		make_simple_restrictinfo(root, (Expr *) scanClause);
+	IndexClause *singleIndexClause = makeNode(IndexClause);
+	singleIndexClause->rinfo = fullScanRestrictInfo;
+	singleIndexClause->indexquals = list_make1(fullScanRestrictInfo);
+	singleIndexClause->lossy = false;
+	singleIndexClause->indexcol = indexCol;
+	singleIndexClause->indexcols = NIL;
+
+	List *indexClauses = list_make1(singleIndexClause);
+	IndexPath *newPath = create_index_path(root, matchedInfo, indexClauses, NIL, NIL, NIL,
+										   ForwardScanDirection, false, NULL, 1,
+										   false);
+
+	/* See comment as well in MatchIndexPathForIndexHint */
+	newPath->indextotalcost = 0;
+	newPath->path.total_cost = 0;
+	newPath->path.startup_cost = 0;
+	add_path(rel, (Path *) newPath);
+	return true;
+}
+
+
+static void
+ThrowIndexHintUnableToFindIndex(void)
+{
+	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNABLETOFINDINDEX),
+					errmsg(
+						"index specified by index hint is not found or invalid for the filters")));
+}
+
+
+static bool
+EnableIndexHintForceIndexPushdown(PlannerInfo *root,
+								  ReplaceExtensionFunctionContext *context)
+{
+	return EnableIndexHintSupport && !UseLegacyForcePushdownBehavior &&
+		   IsClusterVersionAtleast(DocDB_V0, 106, 0);
+}
+
+
+static List *
+UpdateIndexListForPrimaryKeyLookup(List *existingIndex,
+								   ReplaceExtensionFunctionContext *context)
+{
+	/* This is done in the alternate path scenario */
+	return NIL;
+}
+
+
+static bool
+MatchIndexPathForPrimaryKeyLookup(IndexPath *path, void *matchContext)
+{
+	/* TODO: Can we do better here */
+	return false;
+}
+
+
+inline static IndexClause *
+BuildPointReadIndexClause(RestrictInfo *restrictInfo, int indexCol)
+{
+	IndexClause *iclause = makeNode(IndexClause);
+	iclause->rinfo = restrictInfo;
+	iclause->indexquals = list_make1(restrictInfo);
+	iclause->lossy = false;
+	iclause->indexcol = indexCol;
+	iclause->indexcols = NIL;
+	return iclause;
+}
+
+
+static bool
+TryUseAlternateIndexForPrimaryKeyLookup(PlannerInfo *root, RelOptInfo *rel,
+										ReplaceExtensionFunctionContext *indexContext,
+										MatchIndexPath matchIndexPath)
+{
+	PrimaryKeyLookupContext *context =
+		(PrimaryKeyLookupContext *) indexContext->forceIndexQueryOpData.opExtraState;
+
+	IndexOptInfo *primaryKeyInfo = NULL;
+	ListCell *index;
+	foreach(index, rel->indexlist)
+	{
+		IndexOptInfo *indexInfo = lfirst(index);
+		if (IsBtreePrimaryKeyIndex(indexInfo))
+		{
+			primaryKeyInfo = indexInfo;
+			break;
+		}
+	}
+
+	if (primaryKeyInfo == NULL)
+	{
+		return false;
+	}
+
+	IndexClause *objectIdClause =
+		BuildPointReadIndexClause(context->objectId.restrictInfo, 1);
+
+	IndexPath *path = NULL;
+	if (context->primaryKeyLookupPath != NULL && IsA(context->primaryKeyLookupPath,
+													 IndexPath))
+	{
+		path = (IndexPath *) context->primaryKeyLookupPath;
+
+		bool indexPathHasEquality = false;
+		ListCell *clauseCell;
+		foreach(clauseCell, path->indexclauses)
+		{
+			IndexClause *clause = (IndexClause *) lfirst(clauseCell);
+			if (clause->rinfo == context->objectId.restrictInfo)
+			{
+				indexPathHasEquality = true;
+				break;
+			}
+		}
+
+		if (!indexPathHasEquality)
+		{
+			path->indexclauses = lappend(path->indexclauses, objectIdClause);
+		}
+	}
+	else
+	{
+		IndexClause *shardKeyClause =
+			BuildPointReadIndexClause(context->shardKeyQualExpr, 0);
+		List *clauses = list_make2(shardKeyClause, objectIdClause);
+		List *orderbys = NIL;
+		List *orderbyCols = NIL;
+		List *pathKeys = NIL;
+		bool indexOnly = false;
+		Relids outerRelids = NULL;
+		double loopCount = 1;
+		bool partialPath = false;
+		path = create_index_path(root, primaryKeyInfo, clauses, orderbys,
+								 orderbyCols, pathKeys,
+								 ForwardScanDirection, indexOnly,
+								 outerRelids,
+								 loopCount, partialPath);
+	}
+
+	path->indextotalcost = 0;
+	path->path.startup_cost = 0;
+	path->path.total_cost = 0;
+
+	/* Set cardinality for primary key lookup */
+	if (context->objectId.isPrimaryKeyEquality)
+	{
+		path->path.rows = 1;
+	}
+
+	add_path(rel, (Path *) path);
+
+	/* Trim the runtime expr if available */
+	ListCell *runtimeCell;
+	if (context->objectId.equalityBsonValue.value_type != BSON_TYPE_EOD)
+	{
+		foreach(runtimeCell, context->runtimeEqualityRestrictionData)
+		{
+			RuntimePrimaryKeyRestrictionData *equalityRestrictionData =
+				(RuntimePrimaryKeyRestrictionData *) lfirst(runtimeCell);
+			if (equalityRestrictionData->restrictInfo != NULL &&
+				context->objectId.equalityBsonValue.value_type != BSON_TYPE_EOD &&
+				BsonValueEquals(&context->objectId.equalityBsonValue,
+								&equalityRestrictionData->value))
+			{
+				rel->baserestrictinfo = list_delete_ptr(rel->baserestrictinfo,
+														equalityRestrictionData->
+														restrictInfo);
+			}
+		}
+	}
+	else if (IsA(context->objectId.restrictInfo->clause, ScalarArrayOpExpr))
+	{
+		foreach(runtimeCell, context->runtimeDollarInRestrictionData)
+		{
+			RuntimePrimaryKeyRestrictionData *equalityRestrictionData =
+				(RuntimePrimaryKeyRestrictionData *) lfirst(runtimeCell);
+			if (equalityRestrictionData->restrictInfo != NULL &&
+				IsA(context->objectId.restrictInfo->clause, ScalarArrayOpExpr) &&
+				InMatchIsEquvalentTo(
+					(ScalarArrayOpExpr *) context->objectId.restrictInfo->clause,
+					&equalityRestrictionData->value))
+			{
+				rel->baserestrictinfo = list_delete_ptr(rel->baserestrictinfo,
+														equalityRestrictionData->
+														restrictInfo);
+			}
+		}
+	}
+
+	list_free_deep(context->runtimeDollarInRestrictionData);
+	list_free_deep(context->runtimeEqualityRestrictionData);
+	return true;
+}
+
+
+static void
+PrimaryKeyLookupUnableToFindIndex(void)
+{
+	/* Do nothing and fall back to current behavior/logic */
 }
 
 
@@ -2207,6 +3103,63 @@ ProcessElemMatchOperator(bytea *options, Datum queryValue, const
 }
 
 
+static OpExpr *
+CreateExistsTrueOpExpr(Expr *documentExpr, const char *sourcePath,
+					   uint32_t sourcePathLength)
+{
+	/* If the index is valid for the function, convert it to an OpExpr for a
+	 * $exists true.
+	 */
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+
+	bson_value_t minKey = { 0 };
+	minKey.value_type = BSON_TYPE_MINKEY;
+	PgbsonWriterAppendValue(&writer, sourcePath, sourcePathLength, &minKey);
+	Const *bsonConst = makeConst(BsonTypeId(), -1, InvalidOid, -1, PointerGetDatum(
+									 PgbsonWriterGetPgbson(&writer)), false,
+								 false);
+
+	const MongoIndexOperatorInfo *info = GetMongoIndexOperatorInfoByPostgresFuncId(
+		BsonGreaterThanEqualMatchIndexFunctionId());
+	OpExpr *opExpr = (OpExpr *) make_opclause(GetMongoQueryOperatorOid(info), BOOLOID,
+											  false,
+											  documentExpr,
+											  (Expr *) bsonConst, InvalidOid,
+											  InvalidOid);
+	opExpr->opfuncid = BsonGreaterThanEqualMatchIndexFunctionId();
+	return opExpr;
+}
+
+
+static OpExpr *
+CreateFullScanOpExpr(Expr *documentExpr, const char *sourcePath, uint32_t
+					 sourcePathLength)
+{
+	/* If the index is valid for the function, convert it to an OpExpr for a
+	 * $range full scan.
+	 */
+	pgbson_writer writer;
+	PgbsonWriterInit(&writer);
+	pgbson_writer rangeWriter;
+	PgbsonWriterStartDocument(&writer, sourcePath, sourcePathLength,
+							  &rangeWriter);
+	PgbsonWriterAppendBool(&rangeWriter, "fullScan", 8, true);
+	PgbsonWriterEndDocument(&writer, &rangeWriter);
+
+	Const *bsonConst = makeConst(BsonTypeId(), -1, InvalidOid, -1, PointerGetDatum(
+									 PgbsonWriterGetPgbson(&writer)), false,
+								 false);
+	OpExpr *opExpr = (OpExpr *) make_opclause(BsonRangeMatchOperatorOid(), BOOLOID,
+											  false,
+											  documentExpr,
+											  (Expr *) bsonConst, InvalidOid,
+											  InvalidOid);
+	opExpr->opfuncid = BsonRangeMatchFunctionId();
+	return opExpr;
+}
+
+
 /*
  * When querying a table with no filters and an orderby, there is a full scan
  * filter applied that allows for index pushdowns. If this is the first key
@@ -2267,22 +3220,7 @@ ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
 	 */
 	pgbsonelement sourceElement;
 	PgbsonToSinglePgbsonElement(DatumGetPgBson(queryValue), &sourceElement);
-	pgbson_writer writer;
-	PgbsonWriterInit(&writer);
-	pgbson_writer rangeWriter;
-	PgbsonWriterStartDocument(&writer, sourceElement.path, sourceElement.pathLength,
-							  &rangeWriter);
-	PgbsonWriterAppendBool(&rangeWriter, "fullScan", 8, true);
-	PgbsonWriterEndDocument(&writer, &rangeWriter);
 
-	Const *bsonConst = makeConst(BsonTypeId(), -1, InvalidOid, -1, PointerGetDatum(
-									 PgbsonWriterGetPgbson(&writer)), false,
-								 false);
-	OpExpr *opExpr = (OpExpr *) make_opclause(BsonRangeMatchOperatorOid(), BOOLOID,
-											  false,
-											  linitial(args),
-											  (Expr *) bsonConst, InvalidOid,
-											  InvalidOid);
-	opExpr->opfuncid = BsonRangeMatchFunctionId();
-	return (Expr *) opExpr;
+	return (Expr *) CreateFullScanOpExpr(
+		linitial(args), sourceElement.path, sourceElement.pathLength);
 }

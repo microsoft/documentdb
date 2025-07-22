@@ -95,7 +95,7 @@ EXPLAIN (COSTS OFF) SELECT document FROM documentdb_api.collection('db', 'test_o
          Node: host=localhost port=58070 dbname=regression
          ->  Index Scan using _id_ on documents_2510_251007 collection
                Index Cond: ((shard_key_value = '2510'::bigint) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"15\" } }","{ \"\" : { \"$numberInt\" : \"16\" } }","{ \"\" : { \"$numberInt\" : \"17\" } }"}'::documentdb_core.bson[])) AND (object_id OPERATOR(documentdb_core.=) ANY ('{"{ \"\" : { \"$numberInt\" : \"16\" } }","{ \"\" : { \"$numberInt\" : \"17\" } }","{ \"\" : { \"$numberInt\" : \"18\" } }"}'::documentdb_core.bson[])))
-               Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "_id" : [ { "$numberInt" : "15" }, { "$numberInt" : "16" }, { "$numberInt" : "17" } ] }'::documentdb_core.bson)
+               Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "_id" : [ { "$numberInt" : "16" }, { "$numberInt" : "17" }, { "$numberInt" : "18" } ] }'::documentdb_core.bson)
 (8 rows)
 
 EXPLAIN (COSTS OFF) SELECT document FROM documentdb_api.collection('db', 'test_object_id_index') WHERE document @@ '{ "$and": [ {"_id": { "$gt": 50 } }, { "_id": { "$lt": 60 } } ] }';

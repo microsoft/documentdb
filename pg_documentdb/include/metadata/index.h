@@ -227,8 +227,11 @@ IndexDetails * FindIndexWithSpecOptions(uint64 collectionId,
 										const IndexSpec *targetIndexSpec);
 IndexDetails * IndexIdGetIndexDetails(int indexId);
 IndexDetails * IndexNameGetIndexDetails(uint64 collectionId, const char *indexName);
+IndexDetails * IndexNameGetReadyIndexDetails(uint64 collectionId, const char *indexName);
 List * IndexKeyGetMatchingIndexes(uint64 collectionId,
 								  const pgbson *indexKeyDocument);
+List * IndexKeyGetReadyMatchingIndexes(uint64 collectionId,
+									   const pgbson *indexKeyDocument);
 List * CollectionIdGetIndexes(uint64 collectionId, bool excludeIdIndex,
 							  bool enableNestedDistribution);
 List * CollectionIdGetValidIndexes(uint64 collectionId, bool excludeIdIndex,

@@ -276,6 +276,7 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_EXTERNAL_IDENTITY_USER_GET] = "external_identity_user_get",
 
 	[FEATURE_INDEX_AM_PREREGISTERED] = "index_am_preregistered",
+	[FEATURE_INDEX_HINT] = "index_hint",
 
 	/* Feature counter region - Top-level let support */
 	[FEATURE_LET_TOP_LEVEL] = "let_top_level",

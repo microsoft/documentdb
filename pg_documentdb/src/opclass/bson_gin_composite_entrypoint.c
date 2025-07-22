@@ -939,6 +939,22 @@ IsBsonDollarNinArrayContainsArrays(const bson_value_t *bsonValue)
 }
 
 
+const char *
+GetCompositeFirstIndexPath(void *contextOptions)
+{
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) contextOptions;
+
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
+
+	GetIndexPathsFromOptions(
+		options,
+		indexPaths, sortOrders);
+	return pstrdup(indexPaths[0]);
+}
+
+
 int32_t
 GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 								int8_t *sortDirection)

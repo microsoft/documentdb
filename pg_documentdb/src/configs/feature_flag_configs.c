@@ -154,6 +154,14 @@ bool UseLegacyOrderByBehavior = DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR;
 #define DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR false
 bool UseLegacyNullEqualityBehavior = DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR;
 
+/* Remove after v108 */
+#define DEFAULT_ENABLE_INDEX_HINT_SUPPORT true
+bool EnableIndexHintSupport = DEFAULT_ENABLE_INDEX_HINT_SUPPORT;
+
+/* Remove after v109 */
+#define DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR false
+bool UseLegacyForcePushdownBehavior = DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR;
+
 
 /*
  * SECTION: Let support feature flags
@@ -578,6 +586,19 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		NULL, &EnableCompositeUniqueIndex, DEFAULT_ENABLE_COMPOSITE_UNIQUE_INDEX,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexHintSupport", newGucPrefix),
+		gettext_noop(
+			"Whether to enable index hint support for index pushdown."),
+		NULL, &EnableIndexHintSupport, DEFAULT_ENABLE_INDEX_HINT_SUPPORT,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyForcePushdownBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether to use legacy force index pushdown behavior."),
+		NULL, &UseLegacyForcePushdownBehavior, DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
 	DefineCustomBoolVariable(
 		psprintf("%s.enableRoleCrud", newGucPrefix),
 		gettext_noop(

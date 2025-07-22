@@ -201,7 +201,9 @@ bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath,
 
 int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 										int8_t *sortDirection);
-
+const char * GetCompositeFirstIndexPath(void *contextOptions);
+const char * GetFirstPathFromIndexOptionsIfApplicable(bytea *indexOptions,
+													  bool *isWildcardIndex);
 bool PathHasArrayIndexElements(const StringView *path);
 
 /* Helper macro to retrieve a length prefixed value in the index options */

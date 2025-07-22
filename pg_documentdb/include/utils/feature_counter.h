@@ -19,7 +19,7 @@
 #include <port/atomics.h>
 
 #define MAX_FEATURE_NAME_LENGTH 255
-#define MAX_FEATURE_COUNT 292
+#define MAX_FEATURE_COUNT 300
 
 /* Internal features that are not exposed */
 #define INTERNAL_FEATURE_TYPE MAX_FEATURE_COUNT
@@ -263,6 +263,7 @@ typedef enum
 	FEATURE_EXTERNAL_IDENTITY_USER_GET,
 
 	FEATURE_INDEX_AM_PREREGISTERED,
+	FEATURE_INDEX_HINT,
 
 	/* Feature counter region - let support */
 	FEATURE_LET_TOP_LEVEL,

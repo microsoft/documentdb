@@ -1117,9 +1117,11 @@ GeneratePrefilteringVectorSearchQuery(Query *searchQuery,
 		 * 2. construct filterQuery: add match expression into where clause
 		 */
 		pg_uuid_t *collectionUuid = NULL;
+		const bson_value_t *indexHint = NULL;
 		Query *filterQuery = GenerateBaseTableQuery(context->databaseNameDatum,
 													&context->collectionNameView,
 													collectionUuid,
+													indexHint,
 													context);
 
 		/* Add filters to the filter query */

@@ -57,6 +57,7 @@
 #include "utils/feature_counter.h"
 #include "utils/version_utils.h"
 #include "aggregation/bson_query.h"
+#include "metadata/index.h"
 
 #include "aggregation/bson_aggregation_pipeline_private.h"
 #include "aggregation/bson_bucket_auto.h"
@@ -78,6 +79,7 @@ extern bool DefaultInlineWriteOperations;
 extern bool EnableSortbyIdPushDownToPrimaryKey;
 extern int MaxAggregationStagesAllowed;
 extern bool EnableIndexOrderbyPushdown;
+extern bool EnableIndexHintSupport;
 
 /* GUC to config tdigest compression */
 extern int TdigestCompressionAccuracy;
@@ -1035,6 +1037,28 @@ CreateNamespaceName(text *databaseName, const StringView *collectionName)
 }
 
 
+static void
+ProcessIndexHint(bson_iter_t *iterator, bson_value_t *targetHintValue)
+{
+	ReportFeatureUsage(FEATURE_INDEX_HINT);
+	if (EnableIndexHintSupport)
+	{
+		const bson_value_t *value = bson_iter_value(iterator);
+		if (value->value_type == BSON_TYPE_UTF8 ||
+			value->value_type == BSON_TYPE_DOCUMENT)
+		{
+			/* The mongo index is specified as a utf8 string index name */
+			*targetHintValue = *value;
+		}
+		else
+		{
+			EnsureTopLevelFieldType("hint", iterator,
+									BSON_TYPE_UTF8);
+		}
+	}
+}
+
+
 /*
  * Validates the sanity of an aggregation pipeline.
  * For this we simply create the query from it and let the validation take place.
@@ -1047,9 +1071,11 @@ ValidateAggregationPipeline(text *databaseDatum, const StringView *baseCollectio
 	validationContext.databaseNameDatum = databaseDatum;
 
 	pg_uuid_t *collectionUuid = NULL;
+	bson_value_t *indexHint = NULL;
 	Query *validationQuery = GenerateBaseTableQuery(databaseDatum,
 													baseCollection,
 													collectionUuid,
+													indexHint,
 													&validationContext);
 	List *stages = ExtractAggregationStages(pipelineValue,
 											&validationContext);
@@ -1162,6 +1188,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 	StringView collectionName = { 0 };
 	bson_value_t pipelineValue = { 0 };
 	bson_value_t let = { 0 };
+	bson_value_t indexHint = { 0 };
 	pg_uuid_t *collectionUuid = NULL;
 
 	bool explain = false;
@@ -1211,7 +1238,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 		}
 		else if (StringViewEqualsCString(&keyView, "hint"))
 		{
-			/* We ignore this for now (TODO Support this) */
+			ProcessIndexHint(&aggregationIterator, &indexHint);
 		}
 		else if (StringViewEqualsCString(&keyView, "let"))
 		{
@@ -1326,7 +1353,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 	else
 	{
 		query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
-									   collectionUuid,
+									   collectionUuid, &indexHint,
 									   &context);
 	}
 
@@ -1391,6 +1418,26 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 }
 
 
+inline static bool
+IsNaturalSortHint(const bson_value_t *hintValue)
+{
+	if (hintValue == NULL ||
+		hintValue->value_type != BSON_TYPE_DOCUMENT)
+	{
+		return false;
+	}
+
+	pgbsonelement indexHintElement;
+	bson_iter_t indexHintIterator;
+	BsonValueInitIterator(hintValue, &indexHintIterator);
+	return hintValue->value_type == BSON_TYPE_DOCUMENT &&
+		   TryGetSinglePgbsonElementFromBsonIterator(&indexHintIterator,
+													 &indexHintElement) &&
+		   strcmp(indexHintElement.path, "$natural") == 0 &&
+		   BsonValueAsInt32(&indexHintElement.bsonValue) != 0;
+}
+
+
 /*
  * Applies a find spec against a query and expands it into the underlying SQL AST.
  */
@@ -1418,6 +1465,7 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 	bson_value_t sort = { 0 };
 	bson_value_t skip = { 0 };
 	bson_value_t let = { 0 };
+	bson_value_t indexHint = { 0 };
 	pg_uuid_t *collectionUuid = NULL;
 
 	/* For finds, we can generally query the shard directly if available. */
@@ -1538,7 +1586,7 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 			{
 				if (StringViewEqualsCString(&keyView, "hint"))
 				{
-					/* We ignore this for now (TODO Support this?) */
+					ProcessIndexHint(&findIterator, &indexHint);
 					continue;
 				}
 
@@ -1782,8 +1830,20 @@ default_find_case:
 		context.requiresPersistentCursor = true;
 	}
 
+	if (indexHint.value_type != BSON_TYPE_EOD)
+	{
+		/* Validate hint */
+		if (!IsNaturalSortHint(&indexHint) &&
+			IsNaturalSortHint(&sort))
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg(
+								"Cannot provide natural sort with a non-natural index hint")));
+		}
+	}
+
 	Query *query = GenerateBaseTableQuery(context.databaseNameDatum, &collectionName,
-										  collectionUuid,
+										  collectionUuid, &indexHint,
 										  &context);
 	Query *baseQuery = query;
 
@@ -1881,9 +1941,11 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 	bson_value_t filter = { 0 };
 	bson_value_t limit = { 0 };
 	bson_value_t skip = { 0 };
+	bson_value_t indexHint = { 0 };
 	pg_uuid_t *collectionUuid = NULL;
 
 	bool hasQueryModifier = false;
+	context.allowShardBaseTable = true;
 	while (bson_iter_next(&countIterator))
 	{
 		StringView keyView = bson_iter_key_string_view(&countIterator);
@@ -1913,8 +1975,11 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 			skip = *value;
 			hasQueryModifier = true;
 		}
-		else if (StringViewEqualsCString(&keyView, "hint") ||
-				 StringViewEqualsCString(&keyView, "fields"))
+		else if (StringViewEqualsCString(&keyView, "hint"))
+		{
+			ProcessIndexHint(&countIterator, &indexHint);
+		}
+		else if (StringViewEqualsCString(&keyView, "fields"))
 		{
 			/* We ignore this for now (TODO Support this?) */
 		}
@@ -1938,7 +2003,7 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 	}
 
 	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
-										  &context);
+										  &indexHint, &context);
 
 	/*
 	 * the count() query which has no filter/skip/limit/etc can be done via an estimatedDocumentCount
@@ -2069,6 +2134,7 @@ GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStateme
 	StringView collectionName = { 0 };
 	bool hasDistinct = false;
 	bson_value_t filter = { 0 };
+	bson_value_t indexHint = { 0 };
 	StringView distinctKey = { 0 };
 	pg_uuid_t *collectionUuid = NULL;
 
@@ -2134,7 +2200,7 @@ GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStateme
 	}
 
 	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
-										  &context);
+										  &indexHint, &context);
 
 	/* First apply match */
 	if (filter.value_type != BSON_TYPE_EOD)
@@ -6588,7 +6654,7 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
  */
 Query *
 GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView,
-					   pg_uuid_t *collectionUuid,
+					   pg_uuid_t *collectionUuid, const bson_value_t *indexHint,
 					   AggregationPipelineBuildContext *context)
 {
 	Query *query = makeNode(Query);
@@ -6780,6 +6846,87 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 		/* add the filter to WHERE */
 		query->jointree->quals = (Node *) zeroShardKeyFilter;
+	}
+
+	/* Before applying the view stages, apply the hint on the base table */
+	if (collection != NULL && indexHint != NULL &&
+		indexHint->value_type != BSON_TYPE_EOD &&
+		IsClusterVersionAtleast(DocDB_V0, 106, 0))
+	{
+		const char *indexName = NULL;
+		bool isSparse = false;
+		pgbson *indexKeyDocument = NULL;
+		if (indexHint->value_type == BSON_TYPE_UTF8)
+		{
+			indexName = indexHint->value.v_utf8.str;
+			IndexDetails *details = IndexNameGetReadyIndexDetails(
+				collection->collectionId, indexName);
+			if (details == NULL)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"index specified by index hint is not found: "
+									"hint provided does not correspond to an existing index")));
+			}
+
+			indexKeyDocument = details->indexSpec.indexKeyDocument;
+			isSparse = details->indexSpec.indexSparse;
+		}
+		else if (indexHint->value_type == BSON_TYPE_DOCUMENT)
+		{
+			indexKeyDocument = PgbsonInitFromDocumentBsonValue(indexHint);
+			if (IsNaturalSortHint(indexHint))
+			{
+				/* Index hint is $natural, in this case */
+				indexName = "_id_";
+			}
+			else
+			{
+				List *indexDocs = IndexKeyGetReadyMatchingIndexes(
+					collection->collectionId,
+					indexKeyDocument);
+
+				if (list_length(indexDocs) == 0)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg(
+										"index specified by index hint is not found: "
+										"hint provided does not correspond to an existing index")));
+				}
+				else if (list_length(indexDocs) > 1)
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg(
+										"index specified by index hint is ambiguous. please specify hint by name")));
+				}
+
+				IndexDetails *detail = linitial(indexDocs);
+				indexName = pstrdup(detail->indexSpec.indexName);
+				isSparse = detail->indexSpec.indexSparse;
+				list_free_deep(indexDocs);
+			}
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
+							errmsg("Index hint must be a string or a document")));
+		}
+
+		FuncExpr *indexHintExpr = makeFuncExpr(
+			BsonIndexHintFunctionOid(), BOOLOID,
+			list_make4(documentEntry, MakeTextConst(indexName, strlen(indexName)),
+					   MakeBsonConst(indexKeyDocument), makeBoolConst(isSparse, false)),
+			InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+		if (query->jointree->quals == NULL)
+		{
+			query->jointree->quals = (Node *) indexHintExpr;
+		}
+		else
+		{
+			List *currentQuals = make_ands_implicit((Expr *) query->jointree->quals);
+			currentQuals = lappend(currentQuals, indexHintExpr);
+			query->jointree->quals = (Node *) make_ands_explicit(currentQuals);
+		}
 	}
 
 	/* Now if there's pipeline stages, apply the stages in reverse (innermost first) */

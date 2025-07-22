@@ -50,6 +50,10 @@ bool IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid);
  * Whether the Oid of the oprator family points to a text path operator family.
  */
 bool IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid);
+Oid GetTextPathOpFamilyOid(Oid relam);
+
+bool IsUniqueCheckOpFamilyOid(Oid relam, Oid opFamilyOid);
+bool IsHashedPathOpFamilyOid(Oid relam, Oid opFamilyOid);
 
 bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 

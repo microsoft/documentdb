@@ -198,7 +198,7 @@ Aggref * CreateMultiArgAggregate(Oid aggregateFunctionId, List *args, List *argT
 List * ExtractAggregationStages(const bson_value_t *pipelineValue,
 								AggregationPipelineBuildContext *context);
 Query * GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView,
-							   pg_uuid_t *collectionUuid,
+							   pg_uuid_t *collectionUuid, const bson_value_t *indexHint,
 							   AggregationPipelineBuildContext *context);
 Query * GenerateBaseAgnosticQuery(text *databaseDatum,
 								  AggregationPipelineBuildContext *context);

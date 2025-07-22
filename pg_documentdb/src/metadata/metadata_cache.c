@@ -412,6 +412,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* Oid of the bson_full_scan function */
 	Oid BsonFullScanFunctionId;
 
+	/* Oid of the index hint function */
+	Oid BsonIndexHintFunctionId;
+
 	/* Oid of the $range runtime operator #<> */
 	Oid BsonRangeMatchOperatorOid;
 
@@ -664,6 +667,12 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* OID of the operator class for BSON Text operations with {ExtensionObjectPrefix}_rum */
 	Oid BsonRumTextPathOperatorFamily;
+
+	/* OID of the operator class for BSON Unique Path operations with {ExtensionObjectPrefix}_rum */
+	Oid BsonRumUniquePathOperatorFamily;
+
+	/* OID of the operator class for BSON Path operations with {ExtensionObjectPrefix}_rum */
+	Oid BsonRumHashPathOperatorFamily;
 
 	/* OID of the operator class for BSON GIST geography */
 	Oid BsonGistGeographyOperatorFamily;
@@ -1852,6 +1861,19 @@ BsonFullScanFunctionOid(void)
 	return GetSchemaFunctionIdWithNargs(&Cache.BsonFullScanFunctionId,
 										ApiInternalSchemaNameV2,
 										"bson_dollar_fullscan", nargs, argTypes,
+										missingOk);
+}
+
+
+Oid
+BsonIndexHintFunctionOid(void)
+{
+	int nargs = 4;
+	Oid argTypes[4] = { BsonTypeId(), TEXTOID, BsonTypeId(), BOOLOID };
+	bool missingOk = true;
+	return GetSchemaFunctionIdWithNargs(&Cache.BsonIndexHintFunctionId,
+										ApiInternalSchemaNameV2,
+										"bson_dollar_index_hint", nargs, argTypes,
 										missingOk);
 }
 
@@ -6262,6 +6284,46 @@ BsonRumTextPathOperatorFamily(void)
 	}
 
 	return Cache.BsonRumTextPathOperatorFamily;
+}
+
+
+Oid
+BsonRumUniquePathOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumUniquePathOperatorFamily == InvalidOid)
+	{
+		/* Handles extension version upgrades */
+		bool missingOk = true;
+		Oid rumAmId = RumIndexAmId();
+		Cache.BsonRumUniquePathOperatorFamily = get_opfamily_oid(
+			rumAmId, list_make2(makeString(ApiInternalSchemaNameV2), makeString(
+									"bson_rum_unique_shard_path_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonRumUniquePathOperatorFamily;
+}
+
+
+Oid
+BsonRumHashPathOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumHashPathOperatorFamily == InvalidOid)
+	{
+		bool missingOk = false;
+		Oid rumAmId = RumIndexAmId();
+		Cache.BsonRumHashPathOperatorFamily = get_opfamily_oid(
+			rumAmId, list_make2(makeString(ApiCatalogSchemaName), makeString(
+									psprintf("%s_rum_hashed_ops",
+											 ExtensionObjectPrefix))),
+			missingOk);
+	}
+
+	return Cache.BsonRumHashPathOperatorFamily;
 }
 
 

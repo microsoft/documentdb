@@ -15,3 +15,5 @@
 #include "udfs/roles/update_role--0.106-0.sql"
 #include "udfs/aggregation/group_aggregates_support--0.106-0.sql"
 #include "udfs/aggregation/group_aggregates--0.106-0.sql"
+
+#include "udfs/query/bson_dollar_index_hints--0.106-0.sql"

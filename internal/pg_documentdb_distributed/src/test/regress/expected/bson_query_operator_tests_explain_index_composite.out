@@ -1343,7 +1343,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Index Scan using _id_ on documents_1200_1200005 collection (actual rows=0 loops=1)
                Index Cond: ((shard_key_value = '1200'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "2" } }'::documentdb_core.bson))
-               Filter: ((document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "2" } }'::documentdb_core.bson))
+               Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
 (10 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "_id"  : { "$gt" : 1, "$lte" : 5 }}' ORDER BY object_id;
@@ -1373,8 +1373,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, docum
          Node: host=localhost port=58070 dbname=regression
          ->  Index Scan using _id_ on documents_1200_1200005 collection (actual rows=1 loops=1)
                Index Cond: ((shard_key_value = '1200'::bigint) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson) AND (object_id OPERATOR(documentdb_core.=) '{ "" : { "$numberInt" : "1" } }'::documentdb_core.bson))
-               Filter: (document OPERATOR(documentdb_api_catalog.@=) '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
-(10 rows)
+(9 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [{"_id":1},{"_id":2}]}' ORDER BY object_id;
                                                                                                                                QUERY PLAN                                                                                                                               
