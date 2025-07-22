@@ -138,6 +138,15 @@ _PG_init(void)
 		PGC_USERSET, 0,
 		NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".preferOrderedIndexScan",
+		"Sets whether or not to prefer the ordered scan when available",
+		NULL,
+		&RumPreferOrderedIndexScan,
+		RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
 
 	rum_relopt_kind = add_reloption_kind();

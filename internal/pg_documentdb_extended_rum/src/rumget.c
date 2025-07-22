@@ -35,6 +35,7 @@ bool RumEnableRefindLeafOnEntryNextItem =
 bool RumDisableFastScan = RUM_DEFAULT_DISABLE_FAST_SCAN;
 bool RumEnableEntryFindItemOnScan = RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN;
 bool RumForceOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
+bool RumPreferOrderedIndexScan = RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN;
 
 static bool scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item,
 					 bool equalOk);
@@ -1351,6 +1352,16 @@ startScan(IndexScanDesc scan)
 	else if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
 			 so->willSort && !rumstate->useAlternativeOrder)
 	{
+		scanType = RumOrderedScan;
+		startOrderedScanEntries(scan, rumstate, so);
+	}
+	else if (isSupportedOrderedScan && RumPreferOrderedIndexScan &&
+			 so->totalentries == 1 && so->entries[0]->isPartialMatch)
+	{
+		/* We can simply use an ordered scan if there's only 1 entry
+		 * This would happen for any scenario that is not needing a
+		 * consistent check intersection.
+		 */
 		scanType = RumOrderedScan;
 		startOrderedScanEntries(scan, rumstate, so);
 	}

@@ -124,6 +124,7 @@ set local enable_seqscan TO off;
 set local documentdb.forceUseIndexIfAvailable to on;
 set local documentdb.enableNewCompositeIndexOpClass to on;
 set local documentdb.enableExtendedExplainPlans to on;
+set local documentdb.forceRumIndexScanToBitmapHeapScan to off;
 \i sql/bson_query_operator_tests_explain_core.sql
 \i sql/bson_query_operator_tests_insert.sql
 SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 1, "a" : { "b" : 0 }}', NULL);
@@ -1685,12 +1686,10 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT obje
                      innerScanLoops: 0 loops
                      scanType: regular
                      scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 0)]
-                     ->  Bitmap Heap Scan on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
+                     ->  Index Scan using queryoperator_b_a on documentdb_data.documents_1200_1200005 collection (actual rows=0 loops=1)
                            Output: object_id, document
-                           Recheck Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson))
-                           ->  Bitmap Index Scan on queryoperator_b_a (actual rows=0 loops=1)
-                                 Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson))
-(26 rows)
+                           Index Cond: ((collection.document OPERATOR(documentdb_api_catalog.@=) '{ "a" : { "$numberInt" : "3" } }'::documentdb_core.bson) AND (collection.document OPERATOR(documentdb_api_catalog.@=) '{ "b" : null }'::documentdb_core.bson))
+(24 rows)
 
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF, VERBOSE ON) SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "$and" : [ { "a": 3 }, { "$or": [ { "b": null }, { "b": { "$exists": true }} ] } ] }' ORDER BY object_id;
                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                     

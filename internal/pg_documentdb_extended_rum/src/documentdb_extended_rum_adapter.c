@@ -23,7 +23,6 @@
 #include "index_am/index_am_exports.h"
 #include "index_am/documentdb_rum.h"
 
-
 /* Data Type declarations */
 typedef struct DocumentDBRumOidCacheData
 {
@@ -123,7 +122,7 @@ extension_documentdb_extended_rumrescan(IndexScanDesc scan, ScanKey scankey, int
 	EnsureDocumentDBExtendedRumLib();
 	extension_rumrescan_core(scan, scankey, nscankeys,
 							 orderbys, norderbys, &core_rum_routine,
-							 RumGetMultikeyStatus);
+							 RumGetMultikeyStatus, can_rum_index_scan_ordered);
 }
 
 

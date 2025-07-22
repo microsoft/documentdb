@@ -948,6 +948,34 @@ rumrestrpos(PG_FUNCTION_ARGS)
 }
 
 
+PGDLLEXPORT bool
+can_rum_index_scan_ordered(IndexScanDesc scan)
+{
+	RumScanOpaque so = (RumScanOpaque) scan->opaque;
+	bool isSupportedOrderedScan = scan->numberOfKeys > 0;
+	int i = 0;
+	for (i = 0; i < scan->numberOfKeys; i++)
+	{
+		AttrNumber keyAttr = scan->keyData[i].sk_attno;
+		if (keyAttr != scan->keyData[i].sk_attno)
+		{
+			isSupportedOrderedScan = false;
+			break;
+		}
+
+		if (!so->rumstate.canPartialMatch[keyAttr - 1] ||
+			!so->rumstate.canOrdering[keyAttr - 1] ||
+			so->rumstate.orderingFn[keyAttr - 1].fn_nargs != 4)
+		{
+			isSupportedOrderedScan = false;
+			break;
+		}
+	}
+
+	return isSupportedOrderedScan;
+}
+
+
 extern PGDLLEXPORT void
 try_explain_rum_index(IndexScanDesc scan, ExplainState *es)
 {

@@ -921,7 +921,7 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN true
 #define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
 #define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
-
+#define RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN true
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
@@ -934,6 +934,7 @@ extern bool RumDisableFastScan;
 extern bool RumEnableEntryFindItemOnScan;
 extern bool RumSkipRetryOnDeletePage;
 extern bool RumForceOrderedIndexScan;
+extern bool RumPreferOrderedIndexScan;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in
@@ -1198,5 +1199,6 @@ void InitializeDocumentDBRum(void);
 struct ExplainState;
 extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
 											  struct ExplainState *es);
+extern PGDLLEXPORT bool can_rum_index_scan_ordered(IndexScanDesc scan);
 
 #endif   /* __RUM_H__ */

@@ -106,6 +106,9 @@ static bool extension_ruminsert(Relation indexRelation,
 								IndexUniqueCheck checkUnique,
 								bool indexUnchanged,
 								struct IndexInfo *indexInfo);
+static bool RumScanOrderedFalse(IndexScanDesc scan);
+
+static CanOrderInIndexScan rum_index_scan_ordered = RumScanOrderedFalse;
 
 inline static void
 EnsureRumLibLoaded(void)
@@ -286,6 +289,15 @@ LoadRumRoutine(void)
 	if (explain_index_func != NULL)
 	{
 		RumIndexAmEntry.add_explain_output = explain_index_func;
+	}
+
+	CanOrderInIndexScan scanOrderedFunc =
+		load_external_function(rumLibPath,
+							   "can_rum_index_scan_ordered", !missingOk,
+							   ignoreLibFileHandle);
+	if (scanOrderedFunc != NULL)
+	{
+		rum_index_scan_ordered = scanOrderedFunc;
 	}
 
 	if (IndexArrayStateFuncs == NULL)
@@ -534,6 +546,13 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 
 	/* Equality prefix with order by on the column is supported. */
 	return true;
+}
+
+
+static bool
+RumScanOrderedFalse(IndexScanDesc scan)
+{
+	return false;
 }
 
 
@@ -816,7 +835,7 @@ extension_rumrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 	extension_rumrescan_core(scan, scankey, nscankeys,
 							 orderbys, norderbys, &rum_index_routine,
-							 RumGetMultikeyStatus);
+							 RumGetMultikeyStatus, rum_index_scan_ordered);
 }
 
 
@@ -824,7 +843,8 @@ void
 extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 						 ScanKey orderbys, int norderbys,
 						 IndexAmRoutine *coreRoutine,
-						 GetMultikeyStatusFunc multiKeyStatusFunc)
+						 GetMultikeyStatusFunc multiKeyStatusFunc,
+						 CanOrderInIndexScan isIndexScanOrdered)
 {
 	if (IsCompositeOpClass(scan->indexRelation))
 	{
@@ -853,6 +873,42 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		int32_t nInnerorderbys = 0;
 		if (EnableIndexOrderbyPushdown)
 		{
+			innerOrderBy = orderbys;
+			nInnerorderbys = norderbys;
+		}
+
+		ScanKey innerScanKey = scankey;
+		int32_t nInnerScanKeys = nscankeys;
+
+		/* There are 2 paths here, regular queries, or unique order by
+		 * If this is a unique order by, we need to modify the scan keys
+		 * for both paths.
+		 */
+		if (ModifyScanKeysForCompositeScan(scankey, nscankeys,
+										   &outerScanState->compositeKey,
+										   outerScanState->multiKeyStatus ==
+										   IndexMultiKeyStatus_HasArrays,
+										   nInnerorderbys > 0))
+		{
+			innerScanKey = &outerScanState->compositeKey;
+			nInnerScanKeys = 1;
+		}
+
+		if (outerScanState->innerScan == NULL)
+		{
+			/* Initialize the inner scan if not initialized using the order by and keys */
+			outerScanState->innerScan = coreRoutine->ambeginscan(scan->indexRelation,
+																 nInnerScanKeys,
+																 nInnerorderbys);
+		}
+
+		coreRoutine->amrescan(outerScanState->innerScan,
+							  innerScanKey, nInnerScanKeys,
+							  innerOrderBy,
+							  nInnerorderbys);
+
+		if (isIndexScanOrdered(outerScanState->innerScan) || nInnerorderbys > 0)
+		{
 			if (outerScanState->multiKeyStatus == IndexMultiKeyStatus_HasArrays)
 			{
 				if (IndexArrayStateFuncs != NULL)
@@ -865,55 +921,12 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 					outerScanState->indexArrayState = IndexArrayStateFuncs->createState();
 				}
-				else
+				else if (nInnerorderbys > 0)
 				{
 					ereport(ERROR, (errmsg(
 										"Cannot push down order by on path with arrays")));
 				}
 			}
-
-			innerOrderBy = orderbys;
-			nInnerorderbys = norderbys;
-		}
-
-		/* There are 2 paths here, regular queries, or unique order by
-		 * If this is a unique order by, we need to modify the scan keys
-		 * for both paths.
-		 */
-		if (ModifyScanKeysForCompositeScan(scankey, nscankeys,
-										   &outerScanState->compositeKey,
-										   outerScanState->multiKeyStatus ==
-										   IndexMultiKeyStatus_HasArrays,
-										   nInnerorderbys > 0))
-		{
-			if (outerScanState->innerScan == NULL)
-			{
-				/* Initialize the inner scan if not initialized using the order by and keys */
-				outerScanState->innerScan = coreRoutine->ambeginscan(scan->indexRelation,
-																	 1,
-																	 nInnerorderbys);
-			}
-
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  &outerScanState->compositeKey, 1,
-								  innerOrderBy,
-								  nInnerorderbys);
-		}
-		else
-		{
-			/* This is a unique index check or unknown - let the inner scan deal with it */
-			if (outerScanState->innerScan == NULL)
-			{
-				/* Initialize the inner scan if not initialized using the order by and keys */
-				outerScanState->innerScan = coreRoutine->ambeginscan(scan->indexRelation,
-																	 nscankeys,
-																	 norderbys);
-			}
-
-			coreRoutine->amrescan(outerScanState->innerScan,
-								  scankey, nscankeys,
-								  orderbys,
-								  norderbys);
 		}
 	}
 	else
