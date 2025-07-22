@@ -184,6 +184,10 @@ static inline TargetEntry * MakeExtractFuncExprForMergeTE(const char *onField, u
 														  const int resNum);
 static void TruncateDataTable(int collectionId);
 static inline bool CheckSchemaValidationEnabledForDollarMergeOut(void);
+static inline void ValidateTargetNameSpaceForOutputStage(const StringView *targetDB,
+														 const StringView *
+														 targetCollection,
+														 bool isMergeStage);
 
 PG_FUNCTION_INFO_V1(bson_dollar_merge_handle_when_matched);
 PG_FUNCTION_INFO_V1(bson_dollar_merge_add_object_id);
@@ -646,6 +650,9 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 	/* if target collection not exist create one */
 	if (targetCollection == NULL)
 	{
+		bool isMergeStage = true;
+		ValidateTargetNameSpaceForOutputStage(&mergeArgs.targetDB,
+											  &mergeArgs.targetCollection, isMergeStage);
 		int ignoreCollectionID = 0;
 		VaildateMergeOnFieldValues(&mergeArgs.on, ignoreCollectionID);
 		targetCollection = CreateCollectionForInsert(databaseNameDatum,
@@ -1952,6 +1959,10 @@ HandleOut(const bson_value_t *existingValue, Query *query,
 	}
 	else
 	{
+		bool isMergeStage = false;
+		ValidateTargetNameSpaceForOutputStage(&outArgs.targetDB,
+											  &outArgs.targetCollection, isMergeStage);
+
 		/* Create the target collection if it does not exist */
 		targetCollection =
 			CreateCollectionForInsert(StringViewGetTextDatum(&outArgs.targetDB),
@@ -2141,4 +2152,38 @@ static inline bool
 CheckSchemaValidationEnabledForDollarMergeOut(void)
 {
 	return EnableSchemaValidation;
+}
+
+
+/*
+ * Output stages can not write into db name : `config`, `local`, `admin`
+ * Output stages can not write into collections starts from `system.`
+ */
+static inline void
+ValidateTargetNameSpaceForOutputStage(const StringView *targetDB,
+									  const StringView *targetCollection,
+									  const bool isMergeStage)
+{
+	const char *stageName = isMergeStage ? "$merge" : "$out";
+
+	if (StringViewEqualsCString(targetDB, "config") ||
+		StringViewEqualsCString(targetDB, "local") ||
+		StringViewEqualsCString(targetDB, "admin"))
+	{
+		int errorCode = isMergeStage ? ERRCODE_DOCUMENTDB_LOCATION31320 :
+						ERRCODE_DOCUMENTDB_LOCATION31321;
+		ereport(ERROR, (errcode(errorCode),
+						errmsg("Cannot %s to internal database: %s", stageName,
+							   targetDB->string)));
+	}
+
+	const StringView SystemPrefix = { .length = 7, .string = "system." };
+	if (StringViewStartsWithStringView(targetCollection, &SystemPrefix))
+	{
+		int errorCode = isMergeStage ? ERRCODE_DOCUMENTDB_LOCATION31319 :
+						ERRCODE_DOCUMENTDB_LOCATION17385;
+		ereport(ERROR, (errcode(errorCode),
+						errmsg(" Can't %s to special collection: %s",
+							   stageName, targetCollection->string)));
+	}
 }
