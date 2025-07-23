@@ -329,15 +329,23 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 			SetExplicitStatementTimeout(BsonValueAsInt32(bson_iter_value(
 															 deleteCommandIter)));
 		}
-		else if (EnableVariablesSupportForWriteCommands && strcmp(field, "let") == 0)
+		else if (strcmp(field, "let") == 0)
 		{
 			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
-			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
-																	 deleteCommandIter,
-																	 BSON_TYPE_DOCUMENT);
-			if (hasValue)
+			if (EnableVariablesSupportForWriteCommands)
 			{
-				let = *bson_iter_value(deleteCommandIter);
+				bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
+																		 deleteCommandIter,
+																		 BSON_TYPE_DOCUMENT);
+				if (hasValue)
+				{
+					let = *bson_iter_value(deleteCommandIter);
+				}
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg("'delete.let' is not yet supported")));
 			}
 		}
 		else if (IsCommonSpecIgnoredField(field))

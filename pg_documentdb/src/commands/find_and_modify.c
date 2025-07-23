@@ -25,8 +25,9 @@
 #include "query/query_operator.h"
 #include "sharding/sharding.h"
 #include "utils/feature_counter.h"
+#include "utils/version_utils.h"
 #include "schema_validation/schema_validation.h"
-
+#include "operators/bson_expression.h"
 
 /* Represents bson message passed to a findAndModify command */
 typedef struct
@@ -65,6 +66,9 @@ typedef struct
 
 	/* "bypassDocumentValidation" field */
 	bool bypassDocumentValidation;
+
+	/* parsed variable spec */
+	bson_value_t variableSpec;
 } FindAndModifySpec;
 
 
@@ -126,6 +130,7 @@ static pgbson * BuildResponseMessage(FindAndModifyResult *result);
 extern bool SkipFailOnCollation;
 extern bool EnableBypassDocumentValidation;
 extern bool EnableSchemaValidation;
+extern bool EnableVariablesSupportForWriteCommands;
 
 /*
  * command_find_and_modify implements findAndModify command.
@@ -236,8 +241,11 @@ command_find_and_modify(PG_FUNCTION_ARGS)
 static FindAndModifySpec
 ParseFindAndModifyMessage(pgbson *message)
 {
+	bson_value_t let = { 0 };
 	FindAndModifySpec spec = { 0 };
 	spec.bypassDocumentValidation = false;
+	bool applyVariableSpec = EnableVariablesSupportForWriteCommands &&
+							 IsClusterVersionAtleast(DocDB_V0, 106, 0);
 
 	bson_iter_t messageIter;
 	PgbsonInitIterator(message, &messageIter);
@@ -367,6 +375,22 @@ ParseFindAndModifyMessage(pgbson *message)
 
 			spec.bypassDocumentValidation = bson_iter_bool(&messageIter);
 		}
+		else if (strcmp(key, "let") == 0)
+		{
+			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+			if (applyVariableSpec)
+			{
+				EnsureTopLevelFieldType("findAndModify.let", &messageIter,
+										BSON_TYPE_DOCUMENT);
+
+				let = *bson_iter_value(&messageIter);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg("findAndModify.let is not yet supported")));
+			}
+		}
 		else
 		{
 			knownField = false;
@@ -383,7 +407,6 @@ ParseFindAndModifyMessage(pgbson *message)
 		 *  - comment
 		 *	- bypassDocumentValidation
 		 *  - collation
-		 *  - let
 		 *  - maxTimeMS
 		 */
 		if (IsCommonSpecIgnoredField(key))
@@ -456,6 +479,15 @@ ParseFindAndModifyMessage(pgbson *message)
 		*spec.query = ConvertPgbsonToBsonValue(emptyQuery);
 	}
 
+	if (applyVariableSpec)
+	{
+		bool isWriteCommand = true;
+		TimeSystemVariables *timeSysVars = NULL;
+		pgbson *parsedVariables = ParseAndGetTopLevelVariableSpec(&let, timeSysVars,
+																  isWriteCommand);
+		spec.variableSpec = ConvertPgbsonToBsonValue(parsedVariables);
+	}
+
 	return spec;
 }
 
@@ -470,13 +502,13 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 {
 	int64 shardKeyHash = 0;
 	bool shardKeyValueCollationAware = false;
-	bool hasShardKeyValueFilter = ComputeShardKeyHashForQueryValue(collection->shardKey,
-																   collection->
-																   collectionId,
-																   spec->query,
-																   &shardKeyHash,
-																   &
-																   shardKeyValueCollationAware);
+	bool hasShardKeyValueFilter =
+		ComputeShardKeyHashForQueryValue(collection->shardKey,
+										 collection->
+										 collectionId,
+										 spec->query,
+										 &shardKeyHash,
+										 &shardKeyValueCollationAware);
 
 	if (!hasShardKeyValueFilter)
 	{
@@ -492,7 +524,7 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 			.returnFields = spec->returnFields,
 			.returnDeletedDocument = true,
 			.sort = spec->sort,
-			.variableSpec = NULL
+			.variableSpec = &spec->variableSpec
 		};
 
 		DeleteOneResult deleteOneResult = { 0 };
@@ -532,7 +564,7 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 			.returnFields = spec->returnFields,
 			.sort = spec->sort,
 			.update = spec->update,
-			.variableSpec = NULL
+			.variableSpec = &spec->variableSpec
 		};
 
 		UpdateOneResult updateOneResult = { 0 };
