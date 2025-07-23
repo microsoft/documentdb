@@ -311,6 +311,13 @@ pub trait PgDataClient: Send + Sync {
         connection_context: &ConnectionContext,
     ) -> Result<Response>;
 
+    async fn execute_compact(
+        &self,
+        request: &Request<'_>,
+        request_info: &mut RequestInfo<'_>,
+        connection_context: &ConnectionContext,
+    ) -> Result<Response>;
+
     async fn run_readonly_if_needed<F, Fut>(
         &self,
         is_read_only_for_disk_full: bool,

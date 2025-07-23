@@ -75,6 +75,7 @@ pub struct QueryCatalog {
     pub db_stats: String,
     pub current_op: String,
     pub get_parameter: String,
+    pub compact: String,
 
     // indexing.rs
     pub create_indexes_background: String,
@@ -347,6 +348,10 @@ impl QueryCatalog {
     pub fn unshard_collection(&self) -> &str {
         &self.unshard_collection
     }
+
+    pub fn compact(&self) -> &str {
+        &self.compact
+    }
 }
 
 pub fn create_query_catalog() -> QueryCatalog {
@@ -415,6 +420,7 @@ pub fn create_query_catalog() -> QueryCatalog {
             db_stats: "SELECT documentdb_api.db_stats($1, $2, $3)".to_string(),
             current_op: "SELECT documentdb_api.current_op($1, $2, $3)".to_string(),
             get_parameter: "SELECT documentdb_api.get_parameter($1, $2, $3)".to_string(),
+            compact: "SELECT documentdb_api.compact($1)".to_string(),
 
             // indexing.rs
             create_indexes_background: "SELECT * FROM documentdb_api.create_indexes_background($1, $2)".to_string(),

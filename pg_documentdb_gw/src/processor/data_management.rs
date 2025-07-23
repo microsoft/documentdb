@@ -332,3 +332,14 @@ pub async fn process_get_parameter(
     )
     .await
 }
+
+pub async fn process_compact(
+    request: &Request<'_>,
+    request_info: &mut RequestInfo<'_>,
+    connection_context: &ConnectionContext,
+    pg_data_client: &impl PgDataClient,
+) -> Result<Response> {
+    pg_data_client
+        .execute_compact(request, request_info, connection_context)
+        .await
+}

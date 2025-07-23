@@ -65,6 +65,15 @@ pub async fn process_request(
                 )
                 .await
             }
+            RequestType::Compact => {
+                data_management::process_compact(
+                    request,
+                    request_info,
+                    connection_context,
+                    &pg_data_client,
+                )
+                .await
+            }
             RequestType::ConnectionStatus => {
                 if dynamic_config.enable_connection_status().await {
                     users::process_connection_status(
