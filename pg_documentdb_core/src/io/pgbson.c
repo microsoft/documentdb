@@ -447,7 +447,15 @@ PgbsonToLegacyJson(const pgbson *bsonDocument)
 	}
 
 	/* since bson strings are palloced - we can simply return the string created. */
+#if BSON_CHECK_VERSION(1, 29, 0)
+	/*
+	 * bson_as_json is deprecated since mongodb-c-driver 1.29.0
+	 * See: https://www.mongodb.com/community/forums/t/mongodb-c-driver-1-29-0-released/303281
+	 */
+	return bson_as_legacy_extended_json(&bson, NULL);
+#else
 	return bson_as_json(&bson, NULL);
+#endif
 }
 
 
