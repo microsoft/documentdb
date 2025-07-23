@@ -6148,7 +6148,6 @@ generate_create_index_arg(PG_FUNCTION_ARGS)
 
 /*
  * Validate index name is not invalid. Constraints on index names can be checked here.
- * Today these are determined empirically from JSTests.
  */
 static void
 ValidateIndexName(const bson_value_t *indexName)
@@ -6166,7 +6165,7 @@ ValidateIndexName(const bson_value_t *indexName)
 				errmsg("The index name cannot contain embedded nulls"));
 	}
 
-	/* This makes a jstest happy - but can't find docs on other illegal characters */
+	/* illegal characters */
 	if (strcmp(indexName->value.v_utf8.str, "*") == 0)
 	{
 		ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_BADVALUE),
