@@ -20,7 +20,6 @@
 #include "utils/list_utils.h"
 #include "roles.h"
 #include <utils/elog.h>
-#include <distributed/log_utils.h>
 
 /* GUC to enable user crud operations */
 extern bool EnableRoleCrud;
