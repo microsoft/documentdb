@@ -52,17 +52,38 @@ jobs:
           ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
 
       - name: Sign DEB packages
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          sudo apt-get install -y gnupg2
+          # Install GPG and dpkg-sig for signing DEB packages
+          sudo apt-get update && sudo apt-get install -y gnupg2
           wget http://archive.ubuntu.com/ubuntu/pool/universe/d/dpkg-sig/dpkg-sig_0.13.1+nmu4_all.deb
           sudo dpkg -i dpkg-sig_0.13.1+nmu4_all.deb || sudo apt-get -f install -y
-
-          # Generate a temporary signing key for demo purposes
-          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB Package Sign <documentdb@noreply.github.com>' rsa2048 sign 1y
-          KEY_ID="docdb"
+          
+          # Import the private key from GitHub Secrets
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          
+          # Configure GPG to use the passphrase non-interactively
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          gpgconf --kill gpg-agent
+          
+          # Get the key ID from the imported key
+          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | sed 's/.*\/\([A-F0-9]*\).*/\1/')
+          echo "Using key ID: $KEY_ID"
+          
+          # Sign all DEB packages using dpkg-sig
           for deb_file in packaging/*.deb; do
-            [ -f "$deb_file" ] && dpkg-sig --sign "$KEY_ID" "$deb_file"
+            if [[ -f "$deb_file" ]]; then
+              echo "Signing package: $deb_file"
+              echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --detach-sign --armor "$deb_file"
+              dpkg-sig --sign builder "$deb_file"
+            fi
           done
+          
+          # Export public key for verification
           gpg --armor --export "$KEY_ID" > packaging/documentdb-signing-key.asc
 
       - name: Upload Debian Package as Artifact
