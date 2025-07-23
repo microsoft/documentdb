@@ -178,6 +178,12 @@ typedef struct
 
 	/* Feature flag to enable the composite term index */
 	BoolIndexOption enableReducedWildcardTerms;
+
+	/*
+	 * Whether or not this index should be created as a blocking
+	 * index create. Default is off (concurrent).
+	 */
+	bool blocking;
 } IndexDef;
 
 /*

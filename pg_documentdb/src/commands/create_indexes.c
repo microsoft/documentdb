@@ -1424,6 +1424,78 @@ ParseIndexDefDocument(const bson_iter_t *indexesArrayIter, bool ignoreUnknownInd
 }
 
 
+static bool
+ParseCustomIndexDefOption(const char *indexDefDocKey, bson_iter_t *indexDefDocIter,
+						  IndexDef *indexDef)
+{
+	if (strcmp(indexDefDocKey, "enableLargeIndexKeys") == 0)
+	{
+		const bson_value_t *value = bson_iter_value(indexDefDocIter);
+		if (BsonValueAsBool(value))
+		{
+			indexDef->enableLargeIndexKeys = BoolIndexOption_True;
+		}
+		else
+		{
+			indexDef->enableLargeIndexKeys = BoolIndexOption_False;
+		}
+
+		return true;
+	}
+
+	if (EnableNewCompositeIndexOpclass &&
+		(strcmp(indexDefDocKey, "enableCompositeTerm") == 0 || strcmp(
+			 indexDefDocKey, "enableOrderedIndex") == 0))
+	{
+		EnsureTopLevelFieldIsBooleanLike(indexDefDocKey, indexDefDocIter);
+		const bson_value_t *value = bson_iter_value(indexDefDocIter);
+		if (BsonValueAsBool(value))
+		{
+			indexDef->enableCompositeTerm = BoolIndexOption_True;
+		}
+		else
+		{
+			indexDef->enableCompositeTerm = BoolIndexOption_False;
+		}
+
+		return true;
+	}
+
+	if (strcmp(indexDefDocKey, "enableReducedWildcardTerm") == 0)
+	{
+		const bson_value_t *value = bson_iter_value(indexDefDocIter);
+		if (BsonValueAsBool(value))
+		{
+			indexDef->enableReducedWildcardTerms = BoolIndexOption_True;
+		}
+		else
+		{
+			indexDef->enableReducedWildcardTerms = BoolIndexOption_False;
+		}
+
+		return true;
+	}
+
+	if (strcmp(indexDefDocKey, "blocking") == 0)
+	{
+		EnsureTopLevelFieldIsBooleanLike(indexDefDocKey, indexDefDocIter);
+		const bson_value_t *value = bson_iter_value(indexDefDocIter);
+		if (BsonValueAsBool(value))
+		{
+			indexDef->blocking = BoolIndexOption_True;
+		}
+		else
+		{
+			indexDef->blocking = BoolIndexOption_False;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+
 /*
  * ParseIndexDefDocumentInternal returns an IndexDef object by parsing value
  * of pgbson iterator that points to the "indexes" field of "arg" document
@@ -1804,49 +1876,44 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			*(indexDef->coarsestIndexedLevel) = BsonValueAsInt32(bson_iter_value(
 																	 &indexDefDocIter));
 		}
-		else if (strcmp(indexDefDocKey, "enableLargeIndexKeys") == 0)
+		else if (ParseCustomIndexDefOption(indexDefDocKey, &indexDefDocIter, indexDef))
 		{
-			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
-			if (BsonValueAsBool(value))
-			{
-				indexDef->enableLargeIndexKeys = BoolIndexOption_True;
-			}
-			else
-			{
-				indexDef->enableLargeIndexKeys = BoolIndexOption_False;
-			}
-		}
-		else if (EnableNewCompositeIndexOpclass &&
-				 (strcmp(indexDefDocKey, "enableCompositeTerm") == 0 || strcmp(
-					  indexDefDocKey, "enableOrderedIndex") == 0))
-		{
-			EnsureTopLevelFieldIsBooleanLike(indexDefDocKey, &indexDefDocIter);
-			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
-			if (BsonValueAsBool(value))
-			{
-				indexDef->enableCompositeTerm = BoolIndexOption_True;
-			}
-			else
-			{
-				indexDef->enableCompositeTerm = BoolIndexOption_False;
-			}
-		}
-		else if (strcmp(indexDefDocKey, "enableReducedWildcardTerm") == 0)
-		{
-			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
-			if (BsonValueAsBool(value))
-			{
-				indexDef->enableReducedWildcardTerms = BoolIndexOption_True;
-			}
-			else
-			{
-				indexDef->enableReducedWildcardTerms = BoolIndexOption_False;
-			}
+			/* parsed by the method above*/
+			continue;
 		}
 		else if (!SkipFailOnCollation && strcmp(indexDefDocKey, "collation") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 							errmsg("createIndex.collation is not implemented yet")));
+		}
+		else if (strcmp(indexDefDocKey, "storageEngine") == 0)
+		{
+			/* We use storageEngine to pass custom options from the client as drivers pass through
+			 * the storageEngine option. This allows for more flexible index creation options.
+			 */
+			EnsureIndexDefDocFieldType(&indexDefDocIter, BSON_TYPE_DOCUMENT);
+			bson_iter_t storageEngineIter;
+			bson_iter_recurse(&indexDefDocIter, &storageEngineIter);
+
+			while (bson_iter_next(&storageEngineIter))
+			{
+				const char *key = bson_iter_key(&storageEngineIter);
+				if (ParseCustomIndexDefOption(key, &storageEngineIter, indexDef))
+				{
+					continue;
+				}
+				else if (!ignoreUnknownIndexOptions)
+				{
+					ereport(ERROR, (errcode(
+										ERRCODE_DOCUMENTDB_INVALIDINDEXSPECIFICATIONOPTION),
+									errmsg(
+										"The field 'storageEngine.%s' is not valid for an index "
+										"specification. Specification: %s",
+										key,
+										PgbsonIterDocumentToJsonForLogging(
+											indexesArrayIter))));
+				}
+			}
 		}
 		else if (!ignoreUnknownIndexOptions)
 		{
@@ -4447,7 +4514,7 @@ TryCreateInvalidCollectionIndexes(uint64 collectionId, List *indexDefList,
 		 */
 		set_indexsafe_procflags();
 
-		bool createIndexesConcurrently = true;
+		bool createIndexesConcurrently = !indexDef->blocking;
 		bool isTempCollection = false;
 		CreatePostgresIndex(collectionId, indexDef, indexId, createIndexesConcurrently,
 							isTempCollection, isUnsharded);
