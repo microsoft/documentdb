@@ -10,7 +10,7 @@ use bson::{RawDocument, RawDocumentBuf};
 
 use crate::error::Result;
 
-/// A response constructed by the gateway
+/// Response constructed by the gateway from a raw BSON document.
 #[derive(Debug)]
 pub struct RawResponse(pub RawDocumentBuf);
 

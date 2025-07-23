@@ -10,6 +10,7 @@ use crate::{
     context::ConnectionContext,
     error::DocumentDBError,
     protocol::{header::Header, opcode::OpCode},
+    responses::constant::bson_serialize_error_message,
 };
 use bson::{to_raw_document_buf, RawDocument};
 use tokio::{
@@ -123,9 +124,7 @@ pub async fn write_error(
     stream: &mut SslStream<TcpStream>,
 ) -> Result<(), DocumentDBError> {
     let response = to_raw_document_buf(&CommandError::from_error(connection_context, &err).await)
-        .map_err(|e| {
-        DocumentDBError::internal_error(format!("Failed to serialize error with: {}", e))
-    })?;
+        .map_err(|e| DocumentDBError::internal_error(bson_serialize_error_message(e)))?;
     write_response(header, &response, stream).await?;
     stream.flush().await?;
     Ok(())
@@ -140,9 +139,7 @@ where
     R: AsyncRead + AsyncWrite + Unpin + Send,
 {
     let response = to_raw_document_buf(&CommandError::from_error(connection_context, &err).await)
-        .map_err(|e| {
-        DocumentDBError::internal_error(format!("Failed to serialize error with: {}", e))
-    })?;
+        .map_err(|e| DocumentDBError::internal_error(bson_serialize_error_message(e)))?;
 
     let header = Header {
         length: (response.as_bytes().len() + 1) as i32,

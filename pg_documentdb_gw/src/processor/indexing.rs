@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use bson::{Document, RawDocumentBuf};
 
 use crate::postgres::PgDataClient;
+use crate::responses::constant::pg_returned_invalid_response_message;
 use crate::{
     configuration::DynamicConfiguration,
     context::ConnectionContext,
@@ -174,9 +175,9 @@ pub async fn process_drop_indexes(
 
     // TODO: It should not be needed to convert the document, but the backend returns ok:true instead of ok:1
     let mut response = Document::try_from(response.as_raw_document()?)?;
-    let is_response_ok = response.get_bool("ok").map_err(|e| {
-        DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
-    })?;
+    let is_response_ok = response
+        .get_bool("ok")
+        .map_err(|e| DocumentDBError::internal_error(pg_returned_invalid_response_message(e)))?;
 
     response.insert("ok", if is_response_ok { 1 } else { 0 });
 
@@ -186,10 +187,10 @@ pub async fn process_drop_indexes(
         )?)))
     } else {
         let error_message = response.get_str("errmsg").map_err(|e| {
-            DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+            DocumentDBError::internal_error(pg_returned_invalid_response_message(e))
         })?;
         let error_code = response.get_i32("code").map_err(|e| {
-            DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+            DocumentDBError::internal_error(pg_returned_invalid_response_message(e))
         })?;
 
         Err(DocumentDBError::PostgresDocumentDBError(
