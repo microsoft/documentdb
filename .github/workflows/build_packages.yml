@@ -7,10 +7,17 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "main"
+      - 'main'
     paths-ignore:
-      - ".devcontainer/**"
-      - "*.md"
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths-ignore:
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '*.md'
 
 permissions:
   packages: write
@@ -51,53 +58,18 @@ jobs:
         run: |
           ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }}
 
-      - name: Sign DEB packages
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          # Install GPG and dpkg-sig for signing DEB packages
-          sudo apt-get update && sudo apt-get install -y gnupg2
-          wget http://archive.ubuntu.com/ubuntu/pool/universe/d/dpkg-sig/dpkg-sig_0.13.1+nmu4_all.deb
-          sudo dpkg -i dpkg-sig_0.13.1+nmu4_all.deb || sudo apt-get -f install -y
-          
-          # Import the private key from GitHub Secrets
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          
-          # Configure GPG to use the passphrase non-interactively
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          gpgconf --kill gpg-agent
-          
-          # Get the key ID from the imported key
-          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | sed 's/.*\/\([A-F0-9]*\).*/\1/')
-          echo "Using key ID: $KEY_ID"
-          
-          # Sign all DEB packages using dpkg-sig
-          for deb_file in packaging/*.deb; do
-            if [[ -f "$deb_file" ]]; then
-              echo "Signing package: $deb_file"
-              echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --detach-sign --armor "$deb_file"
-              dpkg-sig --sign builder "$deb_file"
-            fi
-          done
-          
-          # Export public key for verification
-          gpg --armor --export "$KEY_ID" > packaging/documentdb-signing-key.asc
-
       - name: Upload Debian Package as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: archive-${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}-documentdb-${{ env.DOCUMENTDB_VERSION }}
           path: |
             packaging/*.deb
-            packaging/documentdb-signing-key.asc
           retention-days: 7
           if-no-files-found: error
           compression-level: 0
 
       - name: Login to GHCR
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -105,12 +77,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/setup-buildx-action@v3
 
       - name: Extract image build metadata
+        if: startsWith(github.ref, 'refs/tags/')
         id: image_metadata
         run: |
           PACKAGE_NAME=$(ls packaging/*.deb | grep -v dbgsym | head -n1)
@@ -135,7 +110,7 @@ jobs:
           echo "BASE_IMAGE=$BASE_IMAGE" >> $GITHUB_ENV
 
       - name: Build and Push Docker Image
-        if: matrix.os == 'ubuntu22.04'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/build-push-action@v6.18.0
         env:
           DOCKER_BUILD_SUMMARY: false
@@ -157,17 +132,18 @@ jobs:
             org.opencontainers.image.licenses=MIT
 
       - name: Install cosign
-        if: matrix.os == 'ubuntu22.04'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: sigstore/cosign-installer@main
 
       - name: Sign manifest (keyless)
-        if: matrix.os == 'ubuntu22.04'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           cosign sign ghcr.io/${{ github.repository }}/documentdb-oss:PG${{ matrix.pg_version }}-${{ matrix.arch }}-${{ env.DOCUMENTDB_VERSION }} -y
       
       - name: Verify manifest signature (keyless)
-        if: matrix.os == 'ubuntu22.04'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
+          run: |
           cosign verify \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build_packages.yml@refs/(heads|tags)/${{ github.ref_name }}" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
