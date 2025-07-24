@@ -51,17 +51,42 @@ jobs:
           ./packaging/build_packages.sh --os ${{ matrix.os }} --pg ${{ matrix.pg_version }} --version ${{ env.DOCUMENTDB_VERSION }} --test-clean-install
 
       - name: Sign RPM packages
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           sudo apt-get update && sudo apt-get install -y rpm gnupg2
-          gpg --batch --passphrase '' --quick-gen-key 'DocumentDB RPM Package Signing <documentdb@noreply.github.com>' rsa2048 sign 1y
-          echo "%_gpg_name DocumentDB RPM Package Signing" >> ~/.rpmmacros
-          echo "%_gpg_path /home/runner/.gnupg" >> ~/.rpmmacros
+          
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          
+          # Configure GPG for non-interactive use
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          gpgconf --kill gpg-agent
+          
+          # Get the key ID from the imported key
+          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | sed 's/.*\/\([A-F0-9]*\).*/\1/')
+          GPG_NAME=$(gpg --list-keys --keyid-format LONG "$KEY_ID" | grep 'uid' | head -n1 | sed 's/uid.*] //')
+          echo "Using key ID: $KEY_ID"
+          echo "Using GPG name: $GPG_NAME"
+          
+          # Configure RPM macros for signing
+          echo "%_gpg_name $KEY_ID" >> ~/.rpmmacros
+          echo "%_gpg_path $HOME/.gnupg" >> ~/.rpmmacros
           echo "%_signature gpg" >> ~/.rpmmacros
-          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --yes -u \"%{_gpg_name}\" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> ~/.rpmmacros
+          echo "%__gpg_sign_cmd %{__gpg} gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 -u \"%{_gpg_name}\" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> ~/.rpmmacros
+          
+          # Sign all RPM packages
           for rpm_file in packaging/*.rpm; do
-            [ -f "$rpm_file" ] && rpm --addsign "$rpm_file"
+            if [[ -f "$rpm_file" ]]; then
+              echo "Signing RPM package: $rpm_file"
+              echo "$GPG_PASSPHRASE" | rpm --addsign "$rpm_file"
+            fi
           done
-          gpg --armor --export "DocumentDB RPM Package Signing" > packaging/documentdb-rpm-signing-key.asc
+          
+          # Export public key for verification (same as DEB packages)
+          gpg --armor --export "$KEY_ID" > packaging/documentdb-rpm-signing-key.asc
 
       - name: Upload RPM Package as Artifact
         uses: actions/upload-artifact@v4
