@@ -61,7 +61,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ 
 
 -- validate specifying just one path
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "a": 2 } }');
+
+-- this fails (requires specifiying column 0)
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "b": false } }');
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "a": { "$exists": true }, "b": false } }');
 
 -- prefix inequality
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection_desc", "filter": { "a": { "$gt": 0 }, "b": false } }');
@@ -108,7 +111,11 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q
 SELECT FORMAT('{ "find": "comp_collection_desc", "filter": { "a": { "key": "%s" } }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
 
+-- this fails since column 0 is not specified
 SELECT FORMAT('{ "find": "comp_collection_desc", "filter": { "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
+SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
+
+SELECT FORMAT('{ "find": "comp_collection_desc", "filter": { "a": { "$exists": true }, "b": "%s" }, "projection": { "_id": 1 } }', repeat('a', 10000)) AS q1 \gset
 SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', :'q1'::bson);
 
 -- multi-bound queries

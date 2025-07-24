@@ -5,7 +5,6 @@
  *
  *-------------------------------------------------------------------------
  */
-#![allow(clippy::unnecessary_to_owned)]
 
 use core::f64;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
@@ -1518,6 +1517,16 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
 
                 if let Some(inner_scan_loops) = detail.inner_scan_loops {
                     index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
+                }
+
+                if let Some(scan_type) = detail.scan_type.as_deref() {
+                    index_doc.append("scanType", scan_type);
+                }
+
+                if let Some(num_duplicates) = detail.num_duplicates {
+                    if num_duplicates > 0 {
+                        index_doc.append("numDuplicates", smallest_from_i64(num_duplicates));
+                    }
                 }
 
                 if let Some(scan_key_details) = detail.scan_key_details.as_ref() {

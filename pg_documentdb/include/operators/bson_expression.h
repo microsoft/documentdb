@@ -241,7 +241,7 @@ void VariableContextSetVariableData(ExpressionVariableContext *variableContext, 
 									VariableData *variableData);
 void ValidateVariableName(StringView name);
 
-void GetTimeSystemVariablesFromVariableSpec(pgbson *variableSpec,
+void GetTimeSystemVariablesFromVariableSpec(const pgbson *variableSpec,
 											TimeSystemVariables *timeSystemVariables);
 pgbson * ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
 										 TimeSystemVariables *timeSystemVariables,

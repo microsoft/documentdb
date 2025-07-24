@@ -196,11 +196,14 @@ typedef struct SortIndexInputDetails
 struct IndexPath;
 bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath,
 										   List *sortDetails,
-										   int32_t *maxPathKeySupported);
+										   int32_t *maxPathKeySupported,
+										   bool isGroupBy);
 
 int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 										int8_t *sortDirection);
-
+const char * GetCompositeFirstIndexPath(void *contextOptions);
+const char * GetFirstPathFromIndexOptionsIfApplicable(bytea *indexOptions,
+													  bool *isWildcardIndex);
 bool PathHasArrayIndexElements(const StringView *path);
 
 /* Helper macro to retrieve a length prefixed value in the index options */

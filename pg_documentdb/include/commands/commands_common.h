@@ -69,9 +69,11 @@ typedef struct WriteError
 bool FindShardKeyValueForDocumentId(MongoCollection *collection, const
 									bson_value_t *queryDoc,
 									bson_value_t *objectId,
+									bool isIdValueCollationAware,
 									bool queryHasNonIdFilters,
 									int64 *shardKeyValue,
-									const bson_value_t *variableSpec);
+									const bson_value_t *variableSpec,
+									const char *collationString);
 
 bool IsCommonSpecIgnoredField(const char *fieldName);
 
@@ -79,8 +81,10 @@ WriteError * GetWriteErrorFromErrorData(ErrorData *errorData, int writeErrorIdx)
 bool TryGetErrorMessageAndCode(ErrorData *errorData, int *code, char **errmessage);
 
 pgbson * GetObjectIdFilterFromQueryDocumentValue(const bson_value_t *queryDoc,
-												 bool *hasNonIdFields);
-pgbson * GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *hasNonIdFields);
+												 bool *hasNonIdFields,
+												 bool *isObjectIdFilter);
+pgbson * GetObjectIdFilterFromQueryDocument(pgbson *queryDoc, bool *hasNonIdFields,
+											bool *isIdValueCollationAware);
 
 
 pgbson * RewriteDocumentAddObjectId(pgbson *document);

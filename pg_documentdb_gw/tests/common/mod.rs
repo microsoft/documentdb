@@ -68,10 +68,14 @@ async fn run(config: DocumentDBSetupConfiguration) {
         populate_ssl_certificates().await.unwrap()
     };
 
-    let dynamic_configuration =
-        PgConfiguration::new(&query_catalog, &config, &system_pool, "documentdb.")
-            .await
-            .unwrap();
+    let dynamic_configuration = PgConfiguration::new(
+        &query_catalog,
+        &config,
+        &system_pool,
+        vec!["documentdb.".to_string()],
+    )
+    .await
+    .unwrap();
 
     let authentication_pool = ConnectionPool::new_with_user(
         &config,
@@ -207,7 +211,7 @@ pub async fn create_user(user: &str, pass: &str, query_catalog: &QueryCatalog) -
         ))
         .await
         .unwrap()
-        .get(0)
+        .first()
         .unwrap()
     {
         log::info!("Test can create: {:?}", result.get("rolcreaterole"));

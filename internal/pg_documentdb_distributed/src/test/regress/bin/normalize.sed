@@ -23,3 +23,5 @@ s/Type oid not supported \d+/Type oid not supported ddd/g
 s/\"now\" : \{ \"\$date\" : \{ \"\$numberLong\" : \"[0-9]*\" \} \}/\"now\" : NOW_SYS_VARIABLE/g
 s/\"sn\" : \{ \"\$date\" : \{ \"\$numberLong\" : \"[0-9]*\" \} \}/\"sn\" : NOW_SYS_VARIABLE/g
 s/documentdb_api_catalog.shard_key_and_document/shard_key_and_document/g
+s/documentdb_api_internal.generate_unique_shard_document/generate_unique_shard_document/g
+s/documentdb_core.bson/bson/g

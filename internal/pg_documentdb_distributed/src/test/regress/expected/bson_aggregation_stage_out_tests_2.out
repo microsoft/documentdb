@@ -437,7 +437,6 @@ NOTICE:  creating collection
 
 SELECT * FROM aggregate_cursor_first_page('newdb', '{ "aggregate": "source", "pipeline": [ {"$project" : {"_id" : 0} } ,{"$out" : "target"  } ], "cursor": { "batchSize": 1 } }', 4294967294);
 NOTICE:  creating collection
-NOTICE:  There are open held portals. Closing them
                                                             cursorpage                                                             | continuation | persistconnection | cursorid 
 ---------------------------------------------------------------------
  { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "newdb.source", "firstBatch" : [  ] }, "ok" : { "$numberDouble" : "1.0" } } |              | f                 |        0

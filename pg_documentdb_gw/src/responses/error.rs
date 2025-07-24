@@ -17,23 +17,26 @@ use tokio_postgres::error::SqlState;
 use crate::context::ConnectionContext;
 use crate::error::{DocumentDBError, ErrorCode, Result};
 use crate::protocol::OK_FAILED;
+use crate::responses::constant::{
+    bson_serialize_error_message, documentdb_error_message, value_access_error_message,
+};
 
 use super::pg::PgResponse;
 
-/// An error that occurred due to a database command failing.
+/// Represents an error returned by a command execution.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct CommandError {
     pub ok: f64,
 
-    /// Identifies the type of error.
+    /// The error code in i32, e.g. InternalError has error code 1.
     pub code: i32,
 
-    /// The name associated with the error code.
+    /// The error string, e.g. Internal Error.
     #[serde(rename = "codeName", default)]
     pub code_name: String,
 
-    /// A description of the error that occurred.
+    /// A human-readable description of the error.
     #[serde(rename = "errmsg", default = "String::new")]
     pub message: String,
 }
@@ -49,9 +52,8 @@ impl CommandError {
     }
 
     pub fn to_raw_document_buf(&self) -> Result<RawDocumentBuf> {
-        ::bson::to_raw_document_buf(self).map_err(|e| {
-            DocumentDBError::internal_error(format!("Failed to serialize error with: {}", e))
-        })
+        bson::to_raw_document_buf(self)
+            .map_err(|e| DocumentDBError::internal_error(bson_serialize_error_message(e)))
     }
 
     fn internal(msg: String) -> Self {
@@ -79,19 +81,19 @@ impl CommandError {
                         return known_error;
                     }
                 }
-                CommandError::new(*e, "DocumentDB Error".to_string(), msg.to_string())
+                CommandError::new(*e, documentdb_error_message(), msg.to_string())
             }
             DocumentDBError::RawBsonError(e, _) => {
-                CommandError::internal(format!("Operation failed with raw BSON: {}", e))
+                CommandError::internal(format!("Raw BSON error: {}", e))
             }
             DocumentDBError::PoolError(e, _) => {
-                CommandError::internal(format!("Pool failed with: {}", e))
+                CommandError::internal(format!("Pool error: {}", e))
             }
             DocumentDBError::CreatePoolError(e, _) => {
-                CommandError::internal(format!("Create pool failed with: {}", e))
+                CommandError::internal(format!("Create pool error: {}", e))
             }
             DocumentDBError::BuildPoolError(e, _) => {
-                CommandError::internal(format!("Build pool failed with: {}", e))
+                CommandError::internal(format!("Build pool error: {}", e))
             }
             DocumentDBError::DocumentDBError(error_code, msg, _) => {
                 CommandError::new(*error_code as i32, error_code.to_string(), msg.to_string())
@@ -100,17 +102,17 @@ impl CommandError {
                 CommandError::new(*error_code, code.clone(), msg.to_string())
             }
             DocumentDBError::SSLErrorStack(error_stack, _) => {
-                CommandError::internal(format!("SSL failed with: {}", error_stack))
+                CommandError::internal(format!("SSL error stack: {}", error_stack))
             }
             DocumentDBError::SSLError(error, _) => {
-                CommandError::internal(format!("SSL failed with: {}", error))
+                CommandError::internal(format!("SSL error: {}", error))
             }
             DocumentDBError::ValueAccessError(error, _) => match &error.kind {
                 ValueAccessErrorKind::UnexpectedType {
                     actual, expected, ..
                 } => CommandError::new(
                     ErrorCode::TypeMismatch as i32,
-                    "Value Access Error".to_string(),
+                    value_access_error_message(),
                     format!(
                         "Expected {:?} but got {:?}, at key {}",
                         expected,
@@ -120,18 +122,18 @@ impl CommandError {
                 ),
                 ValueAccessErrorKind::InvalidBson(_) => CommandError::new(
                     ErrorCode::BadValue as i32,
-                    "Value Access Error".to_string(),
-                    "Value is Invalid Bson".to_string(),
+                    value_access_error_message(),
+                    "Value is not a valid BSON".to_string(),
                 ),
                 ValueAccessErrorKind::NotPresent => CommandError::new(
                     ErrorCode::BadValue as i32,
-                    "Value Access Error".to_string(),
+                    value_access_error_message(),
                     "Value is not present".to_string(),
                 ),
                 _ => CommandError::new(
                     ErrorCode::BadValue as i32,
-                    "Value Access Error".to_string(),
-                    "Value Error".to_string(),
+                    value_access_error_message(),
+                    "Unexpected value".to_string(),
                 ),
             },
         }
@@ -139,7 +141,6 @@ impl CommandError {
 
     pub async fn from_pg_error(context: &ConnectionContext, e: &tokio_postgres::Error) -> Self {
         if let Some(state) = e.code() {
-            // Check if the code has a known conversion to gateway code
             if let Some(known_error) =
                 Self::known_pg_error(context, state, e.as_db_error().map_or("", |e| e.message()))
                     .await
@@ -148,7 +149,7 @@ impl CommandError {
             }
             CommandError::new(
                 PgResponse::postgres_sqlstate_to_i32(state),
-                "Error".to_string(),
+                documentdb_error_message(),
                 Self::pg_error_to_msg(e),
             )
         } else {
@@ -166,7 +167,7 @@ impl CommandError {
         {
             Some(CommandError::new(
                 code,
-                code_name.unwrap_or("Backend error".to_string()),
+                code_name.unwrap_or(documentdb_error_message()),
                 error_msg.to_string(),
             ))
         } else {

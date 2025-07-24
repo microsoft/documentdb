@@ -386,6 +386,44 @@ DrainTailableQuery(HTAB *cursorMap, Query *query, int batchSize,
 }
 
 
+void
+CreateAndDrainSingleBatchQuery(const char *cursorName, Query *query,
+							   int batchSize, int32_t *numIterations, uint32_t
+							   accumulatedSize, pgbson_array_writer *arrayWriter)
+{
+	bool closeCursor = true;
+	if (UseRawExecutorForQueryPlan)
+	{
+		/* Set up cursor flags */
+		int cursorOptions = CURSOR_OPT_BINARY | CURSOR_OPT_HOLD;
+
+		/* Save the context before doing SPI */
+		MemoryContext currentContext = CurrentMemoryContext;
+
+		/* Plan the query */
+		ParamListInfo paramList = NULL;
+		PlannedStmt *queryPlan = pg_plan_query(query, NULL, cursorOptions, paramList);
+		BsonStoreTupleDestReceiver *receiver = CreateBsonStoreTupleDestReceiver(
+			arrayWriter,
+			CurrentMemoryContext,
+			batchSize,
+			cursorName,
+			accumulatedSize,
+			closeCursor);
+		DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
+								  currentContext);
+	}
+	else
+	{
+		bool isHoldCursor = false;
+		CreateAndDrainPersistedQuery(cursorName, query,
+									 batchSize, numIterations,
+									 accumulatedSize, arrayWriter,
+									 isHoldCursor, closeCursor);
+	}
+}
+
+
 /*
  * Given a query that needs a persistent cursor, creates the portal for that
  * query in-line and then drains it and gets the first page.
@@ -559,7 +597,7 @@ CreateAndDrainPersistedQueryWithFiles(const char *cursorName, Query *query,
  * Tries to apply a fast-path planner for point reads - if it fails
  * then falls back to default planning.
  */
-bool
+void
 CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 							 int32_t *numIterations, uint32_t
 							 accumulatedSize,
@@ -592,12 +630,12 @@ CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 			closeCursor);
 		DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
 								  currentContext);
-		return true;
+		return;
 	}
 
-	return DrainStatementViaPortal(cursorName, cursorOptions, queryPlan,
-								   paramList, &accumulatedSize, arrayWriter,
-								   currentContext);
+	DrainStatementViaPortal(cursorName, cursorOptions, queryPlan,
+							paramList, &accumulatedSize, arrayWriter,
+							currentContext);
 }
 
 

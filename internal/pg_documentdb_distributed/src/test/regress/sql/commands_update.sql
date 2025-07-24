@@ -3,6 +3,8 @@ SET citus.next_shard_id TO 649000;
 SET documentdb.next_collection_id TO 6490;
 SET documentdb.next_collection_index_id TO 6490;
 
+SET documentdb.EnableVariablesSupportForWriteCommands TO on;
+
 select 1 from documentdb_api.insert_one('db', 'updateme', '{"a":1,"_id":1,"b":1}');
 select 1 from documentdb_api.insert_one('db', 'updateme', '{"a":2,"_id":2,"b":2}');
 select 1 from documentdb_api.insert_one('db', 'updateme', '{"a":3,"_id":3,"b":3}');
@@ -776,4 +778,197 @@ SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort')
 -- expect to throw error but the first one should succeed
 SELECT documentdb_api.update('update', '{"update":"test_update_one_sort", "updates":[{"q":{"_id":3, "a":3},"u":{"$set":{"b":-10}},"multi":true,"upsert":false},{"q":{"_id":3, "a":3},"u":{"$set":{"b":-2}},"multi":true,"upsert":false, "sort": {"_id": -1}}]}');
 SELECT document FROM documentdb_api.collection('update', 'test_update_one_sort');
+
+-- let support
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 1, "a":"kofi"}');
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 2, "a":"ama"}');
+SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 3, "a":"$$varRef"}');
+
+-- EnableVariablesSupportForWriteCommands GUC off: ignore variableSpec
+SET documentdb.EnableVariablesSupportForWriteCommands TO off;
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": "ama"} }');
+
+-- EnableVariablesSupportForWriteCommands GUC on: user variableSpec
+SET documentdb.EnableVariablesSupportForWriteCommands TO on;
+
+-- variables accessed outside $expr will not evaluate to let variable value in 'q'
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": "$$varRef" }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": 2}} ');
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": "$$varRef" }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2}} ');
+
+BEGIN;
+-- updateMany
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": 2} }');
+ROLLBACK;
+
+BEGIN;
+-- updateOne
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": "ama"} }');
+EXPLAIN (VERBOSE ON, COSTS OFF) SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": false}], "let": {"varRef": 2} }');
+ROLLBACK;
+
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "kojo"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "kojo"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "kojo"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "kojo"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+
+-- let support: variables in 'u'
+BEGIN;
+-- variables are accessible in aggregation pipeline
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": {"$set": {"set": "$$varRef"}}, "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+-- updateMany: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": [{"$addFields": {"addFields": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gte": ["$_id", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+-- updateOne: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lt": ["$a", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": [{"$addFields": {"addField": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gt": ["$a", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+-- let support: sharded collection
+SELECT documentdb_api.shard_collection('db', 'coll_update', '{ "a": "hashed" }', false);
+
+BEGIN;
+-- updateMany
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"a": 1, "$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "anomaa"}}, "multi": true}], "let": {"varRef": "kofi"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+-- updateOne
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"a": 2, "$expr": {"$lt": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "ako"}}, "multi": false}], "let": {"varRef": "ama"} }');
+ROLLBACK;
+
+BEGIN;
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+SELECT documentdb_api.update(
+    'db',
+    '{
+        "update": "coll_update",
+        "updates": [
+            {"q": {"$expr": {"$eq": ["$a", "$$varRef2"]}}, "u": {"$set": {"b": "akua"}}, "multi": true},
+            {"q": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef1"]}}, "u": {"$set": {"b": "abena"}}, "multi": false}
+        ],
+        "ordered": true,
+        "let": {"varRef1": 1, "varRef2": "ama"}
+    }'
+);
+
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+-- updateMany: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$lte": ["$_id", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "u": [{"$addFields": {"addFields": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$gte": ["$_id", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": true}], "let": {"varRef": 2} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateMany: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": true}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
+
+BEGIN;
+-- updateOne: $set
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 3, "$expr": {"$lt": ["$a", "$$varRef"] } }, "u": [{"$set": {"set": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: addFields
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$a", "$$varRef"] } }, "u": [{"$addFields": {"addField": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $project
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 1, "$expr": {"$gt": ["$a", "$$varRef"] } }, "u": [{"$project": {"project": "$$varRef"}}], "multi": false}], "let": {"varRef": "ama"} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $replaceRoot
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceRoot": {"newRoot": "$$varRef2"}}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"newRoot": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+
+-- updateOne: $replaceWith
+SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"_id": 2, "$expr": {"$eq": ["$_id", "$$varRef1"] } }, "u": [{"$replaceWith": "$$varRef2"}], "multi": false}], "let": {"varRef1": 2, "varRef2": {"replaceWith": 1 }} }');
+SELECT document FROM documentdb_api.collection('db', 'coll_update');
+ROLLBACK;
 

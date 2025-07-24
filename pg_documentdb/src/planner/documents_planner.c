@@ -108,13 +108,22 @@ static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundP
 
 static void ForceExcludeNonIndexPaths(PlannerInfo *root, RelOptInfo *rel,
 									  Index rti, RangeTblEntry *rte);
+static void ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
+											RangeTblEntry *rte, uint64 collectionId, bool
+											isShardQuery);
+static void ExtensionRelPathlistHookCoreLegacy(PlannerInfo *root, RelOptInfo *rel, Index
+											   rti,
+											   RangeTblEntry *rte, uint64 collectionId,
+											   bool isShardQuery);
 
 extern bool ForceRUMIndexScanToBitmapHeapScan;
+extern bool EnableCollation;
 extern bool EnableLetAndCollationForQueryMatch;
 extern bool EnableVariablesSupportForWriteCommands;
 extern bool EnableIndexOrderbyPushdown;
 extern bool ForceDisableSeqScan;
 extern bool EnableExtendedExplainPlans;
+extern bool UseLegacyForcePushdownBehavior;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -311,7 +320,7 @@ TryExtractObjectIdDataFormFuncExprRestrictInfo(RestrictInfo *rinfo, Oid funcOid,
 }
 
 
-static bool
+bool
 InMatchIsEquvalentTo(ScalarArrayOpExpr *opExpr, const bson_value_t *arrayValue)
 {
 	if (opExpr == NULL || arrayValue->value_type != BSON_TYPE_ARRAY)
@@ -425,8 +434,14 @@ TrimPrimaryKeyQuals(List *restrictInfo, IndexPath *primaryKeyPath)
 	/* Deterministically pick the primary key for $in/$eq similar to the path below */
 	if (opNo == BsonEqualOperatorId() || IsA(objectIdFilter->clause, ScalarArrayOpExpr))
 	{
+		primaryKeyPath->indextotalcost = 0;
 		primaryKeyPath->path.startup_cost = 0;
 		primaryKeyPath->path.total_cost = 0;
+		if (opNo == BsonEqualOperatorId())
+		{
+			/* For primary key, force cardinality to 1 */
+			primaryKeyPath->path.rows = 1;
+		}
 	}
 
 	if (objectIdColumnFilter.value_type == BSON_TYPE_EOD && objectIdInFilter == NULL)
@@ -605,6 +620,13 @@ AddPointLookupQuery(List *restrictInfo, PlannerInfo *root, RelOptInfo *rel)
 				path->indextotalcost = 0;
 				path->path.startup_cost = 0;
 				path->path.total_cost = 0;
+
+				/* Set cardinality for primary key lookup */
+				if (docObjectIdFilterEqualsIndex >= 0)
+				{
+					path->path.rows = 1;
+				}
+
 				add_path(rel, (Path *) path);
 
 				if (objectIdColumnFilter.value_type != BSON_TYPE_EOD &&
@@ -658,13 +680,32 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 		return;
 	}
 
+	if (UseLegacyForcePushdownBehavior)
+	{
+		ExtensionRelPathlistHookCoreLegacy(root, rel, rti, rte, collectionId,
+										   isShardQuery);
+	}
+	else
+	{
+		ExtensionRelPathlistHookCoreNew(root, rel, rti, rte, collectionId, isShardQuery);
+	}
+}
+
+
+static void
+ExtensionRelPathlistHookCoreLegacy(PlannerInfo *root, RelOptInfo *rel, Index rti,
+								   RangeTblEntry *rte, uint64 collectionId, bool
+								   isShardQuery)
+{
 	ReplaceExtensionFunctionContext indexContext = {
 		.queryDataForVectorSearch = { 0 },
 		.hasVectorSearchQuery = false,
+		.hasStreamingContinuationScan = false,
 		.primaryKeyLookupPath = NULL,
 		.inputData = {
 			.collectionId = collectionId,
-			.isShardQuery = isShardQuery
+			.isShardQuery = isShardQuery,
+			.rteIndex = rti,
 		},
 		.forceIndexQueryOpData = {
 			.type = ForceIndexOpType_None,
@@ -708,13 +749,10 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 
 	ForceIndexForQueryOperators(root, rel, &indexContext);
 
-	/* Now before modifying any paths, walk to check for raw path optimizations */
-	UpdatePathsWithOptimizedExtensionCustomPlans(root, rel, rte);
-
 	/*
 	 * Update any paths with custom scans as appropriate.
 	 */
-	bool updatedPaths = UpdatePathsWithExtensionCustomPlans(root, rel, rte);
+	bool updatedPaths = UpdatePathsWithExtensionStreamingCursorPlans(root, rel, rte);
 	if (!updatedPaths)
 	{
 		/* Not a streaming cursor scenario.
@@ -751,6 +789,113 @@ ExtensionRelPathlistHookCore(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	if (EnableExtendedExplainPlans)
 	{
 		/* Add the custom scan wrapper for explain plans */
+		AddExplainCustomScanWrapper(root, rel, rte);
+	}
+}
+
+
+static void
+ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
+								RangeTblEntry *rte, uint64 collectionId, bool
+								isShardQuery)
+{
+	ReplaceExtensionFunctionContext indexContext = {
+		.queryDataForVectorSearch = { 0 },
+		.hasVectorSearchQuery = false,
+		.hasStreamingContinuationScan = false,
+		.primaryKeyLookupPath = NULL,
+		.inputData = {
+			.collectionId = collectionId,
+			.isShardQuery = isShardQuery,
+			.rteIndex = rti
+		},
+		.forceIndexQueryOpData = {
+			.type = ForceIndexOpType_None,
+			.path = NULL,
+			.opExtraState = NULL
+		}
+	};
+
+	if (ForceDisableSeqScan)
+	{
+		ForceExcludeNonIndexPaths(root, rel, rti, rte);
+	}
+
+	/*
+	 * Before determining anything further, detect any force pushdown scenarios by walking
+	 * the restriction paths.
+	 */
+	WalkPathsForIndexOperations(rel->pathlist, &indexContext);
+	WalkRestrictionPathsForIndexOperations(rel->baserestrictinfo,
+										   &indexContext);
+
+	/* Before we *replace* function operators in restriction paths, we should apply the force pushdown
+	 * logic while we still have the FuncExprs available.
+	 */
+	if (indexContext.forceIndexQueryOpData.type != ForceIndexOpType_None)
+	{
+		ForceIndexForQueryOperators(root, rel, &indexContext);
+	}
+
+	/*
+	 * Replace all function operators that haven't been transformed in indexed
+	 * paths into OpExpr clauses.
+	 */
+	ReplaceExtensionFunctionOperatorsInPaths(root, rel, rel->pathlist, PARENTTYPE_NONE,
+											 &indexContext);
+
+	rel->baserestrictinfo =
+		ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
+															&indexContext);
+
+	if (EnableIndexOrderbyPushdown)
+	{
+		ConsiderIndexOrderByPushdown(root, rel, rte, rti, &indexContext);
+	}
+
+	/*
+	 * Update any paths with custom scans as appropriate.
+	 */
+	bool updatedPaths = false;
+	if (indexContext.hasStreamingContinuationScan)
+	{
+		updatedPaths = UpdatePathsWithExtensionStreamingCursorPlans(root, rel, rte);
+	}
+
+	/* Not a streaming cursor scenario.
+	 * Streaming cursors auto convert into Bitmap Paths.
+	 * Handle force conversion of bitmap paths.
+	 */
+	if (!updatedPaths &&
+		ForceRUMIndexScanToBitmapHeapScan &&
+		!EnableIndexOrderbyPushdown &&
+		!IsAMergeOuterQuery(root, rel))
+	{
+		UpdatePathsToForceRumIndexScanToBitmapHeapScan(root, rel);
+	}
+
+	/* For vector, text search inject custom scan path to track lifetime of
+	 * $meta/ivfprobes.
+	 */
+	if (indexContext.hasVectorSearchQuery)
+	{
+		AddExtensionQueryScanForVectorQuery(root, rel, rte,
+											&indexContext.queryDataForVectorSearch);
+	}
+	else if (indexContext.forceIndexQueryOpData.type == ForceIndexOpType_Text)
+	{
+		QueryTextIndexData *textIndexData =
+			(QueryTextIndexData *) indexContext.forceIndexQueryOpData.opExtraState;
+		if (textIndexData != NULL && textIndexData->indexOptions != NULL &&
+			textIndexData->query != (Datum) 0)
+		{
+			AddExtensionQueryScanForTextQuery(root, rel, rte, textIndexData);
+		}
+	}
+
+	if (EnableExtendedExplainPlans)
+	{
+		/* Finally: Add the custom scan wrapper for explain plans */
 		AddExplainCustomScanWrapper(root, rel, rte);
 	}
 }
@@ -889,7 +1034,8 @@ DocumentDbQueryFlagsWalker(Node *node, DocumentDbQueryFlagsState *queryFlags)
 			}
 		}
 
-		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+		bool useQueryMatchWithLetAndCollation = EnableCollation ||
+												EnableLetAndCollationForQueryMatch ||
 												EnableVariablesSupportForWriteCommands;
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
@@ -1237,25 +1383,36 @@ GetDocumentDBIndexNameFromPostgresIndex(const char *pgIndexName, bool useLibPq)
 	{
 		int64 indexIdValue = atoll(pgIndexName + prefixLength);
 		StringInfo indexNameQuery = makeStringInfo();
-		appendStringInfo(indexNameQuery,
-						 "SELECT (index_spec).index_name FROM %s.collection_indexes WHERE index_id = %ld",
-						 ApiCatalogSchemaName, indexIdValue);
-
 		const char *indexName = NULL;
 		if (useLibPq)
 		{
+			appendStringInfo(indexNameQuery,
+							 "SELECT (index_spec).index_name FROM %s.collection_indexes WHERE index_id = %ld",
+							 ApiCatalogSchemaName, indexIdValue);
+
 			indexName = ExtensionExecuteQueryOnLocalhostViaLibPQ(indexNameQuery->data);
 		}
 		else
 		{
+			appendStringInfo(indexNameQuery,
+							 "SELECT (index_spec).index_name FROM %s.collection_indexes WHERE index_id = $1",
+							 ApiCatalogSchemaName);
+
 			bool readOnly = true;
-			bool isNull;
-			Datum resultDatum = ExtensionExecuteQueryViaSPI(indexNameQuery->data,
-															readOnly,
-															SPI_OK_SELECT, &isNull);
-			if (!isNull)
+			bool isNull[1] = { true };
+			Datum resultDatum[1] = { 0 };
+
+			Datum args[1] = { Int64GetDatum(indexIdValue) };
+			Oid argTypes[1] = { INT8OID };
+			char argNulls[1] = { ' ' };
+
+			RunMultiValueQueryWithNestedDistribution(indexNameQuery->data, 1, argTypes,
+													 args, argNulls, readOnly,
+													 SPI_OK_SELECT, resultDatum, isNull,
+													 1);
+			if (!isNull[0])
 			{
-				indexName = TextDatumGetCString(resultDatum);
+				indexName = TextDatumGetCString(resultDatum[0]);
 			}
 		}
 

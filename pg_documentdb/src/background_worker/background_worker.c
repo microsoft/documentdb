@@ -167,6 +167,16 @@ static BackgroundWorkerJob JobRegistry[MAX_BACKGROUND_WORKER_JOBS];
 static int JobEntries = 0;
 
 
+/* Default implementation of the hook. Presently just returns a const.
+ * XXX: maybe this can be a GUC itself
+ */
+inline static int
+GetDefaultScheduleIntervalInSeconds(void)
+{
+	return 60;
+}
+
+
 /*
  * DocumentDB background worker entry point.
  */
@@ -269,7 +279,8 @@ DocumentDBBackgroundWorkerMain(Datum main_arg)
 		}
 
 		waitResult = WaitLatch(&BackgroundWorkerShmem->latch,
-							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH,
+							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH |
+							   WL_POSTMASTER_DEATH,
 							   latchTimeOut * ONE_SEC_IN_MS,
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);
@@ -348,6 +359,15 @@ RegisterBackgroundWorkerJob(BackgroundWorkerJob job)
 						MAX_BACKGROUND_WORKER_JOBS)));
 	}
 
+	if (job.get_schedule_interval_in_seconds_hook == NULL)
+	{
+		/*
+		 * If the hook is not set, use the default schedule interval.
+		 * Useful for jobs that do not require dynamic scheduling.
+		 */
+		job.get_schedule_interval_in_seconds_hook = GetDefaultScheduleIntervalInSeconds;
+	}
+
 	/* Fails if job is not valid. */
 	ValidateJob(job);
 
@@ -401,17 +421,17 @@ CanExecuteJob(BackgroundWorkerJobExecution *jobExec, TimestampTz currentTime)
 		return false;
 	}
 
+	int scheduleIntervalInSeconds = jobExec->job.get_schedule_interval_in_seconds_hook();
+
 	/*
 	 * Executions do not start from t0, they always start from t0 + interval.
 	 * We are assuming that job schedule intervals are a multiple of LatchTimeoutSec, therefore we do
 	 * not have to handle odd intervals such as LatchTimeoutSec of 10 seconds and job interval of 15 seconds.
 	 */
 	return jobExec->state == JOB_IDLE &&
-		   jobExec->job.scheduleIntervalInSeconds > 0 &&
-		   TimestampDifferenceExceeds(
-		jobExec->lastStartTime,
-		currentTime,
-		jobExec->job.scheduleIntervalInSeconds * ONE_SEC_IN_MS);
+		   scheduleIntervalInSeconds > 0 &&
+		   TimestampDifferenceExceeds(jobExec->lastStartTime, currentTime,
+									  scheduleIntervalInSeconds * ONE_SEC_IN_MS);
 }
 
 
@@ -474,11 +494,12 @@ WaitForBackgroundWorkerDependencies(void)
 	int waitTimeoutInSec = 10;
 	bool roleExists = false;
 
-	while (!roleExists)
+	while (!roleExists && !got_sigterm)
 	{
 		waitResult = 0;
 		waitResult = WaitLatch(&BackgroundWorkerShmem->latch,
-							   WL_TIMEOUT | WL_EXIT_ON_PM_DEATH,
+							   WL_LATCH_SET | WL_TIMEOUT | WL_EXIT_ON_PM_DEATH |
+							   WL_POSTMASTER_DEATH,
 							   waitTimeoutInSec * ONE_SEC_IN_MS,
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);
@@ -662,28 +683,26 @@ ValidateJob(BackgroundWorkerJob job)
 							"Background worker job argument can not be NULL when isnull is set to false.")));
 	}
 
-	if (job.scheduleIntervalInSeconds <= 0 ||
-		job.scheduleIntervalInSeconds < LatchTimeOutSec)
+	const int scheduleIntervalInSeconds = job.get_schedule_interval_in_seconds_hook();
+
+	if (scheduleIntervalInSeconds <= 0 ||
+		scheduleIntervalInSeconds < LatchTimeOutSec ||
+		scheduleIntervalInSeconds % LatchTimeOutSec != 0)
 	{
 		ereport(ERROR, (errmsg(
-							"Schedule interval of background worker job \'%s\' is either <= 0 or less than value of latch_timeout=%d",
-							job.jobName, LatchTimeOutSec)));
+							"Schedule interval of background worker job \'%s\' is either <= 0 "
+							"or less than value of latch_timeout=%d "
+							"or not a multiple of latch_timeout=%d",
+							job.jobName, LatchTimeOutSec, LatchTimeOutSec)));
 	}
 
 	/* This is added because we rely on TimestampDifferenceExceeds to find whether to schedule the job which takes int (time in ms) */
 	int threshold = (int) INT_MAX / ONE_SEC_IN_MS;
-	if (job.scheduleIntervalInSeconds > threshold)
+	if (scheduleIntervalInSeconds > threshold)
 	{
 		ereport(ERROR, (errmsg(
 							"Schedule interval of background worker job \'%s\' cannot be larger than %d seconds",
 							job.jobName, threshold)));
-	}
-
-	if (job.scheduleIntervalInSeconds % LatchTimeOutSec != 0)
-	{
-		ereport(ERROR, (errmsg(
-							"Schedule interval of background worker job \'%s\' must be a multiple of LatchTimeOutSec %d seconds",
-							job.jobName, LatchTimeOutSec)));
 	}
 
 	/* Enforce that job timeout cannot be less or equal to 0 seconds. */
@@ -855,6 +874,8 @@ GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext)
 
 	/* declared volatile because of the longjmp in PG_CATCH */
 	volatile char *commandQuery = NULL;
+	volatile int errorCode = 0;
+	volatile ErrorData *edata = NULL;
 
 	PG_TRY();
 	{
@@ -906,18 +927,16 @@ GenerateCommandQuery(BackgroundWorkerJob job, MemoryContext stableContext)
 	}
 	PG_CATCH();
 	{
-		ereport(LOG, (errmsg("couldn't construct command for the background worker "
-							 "job execution")));
+		MemoryContextSwitchTo(stableContext);
+		edata = CopyErrorDataAndFlush();
+		errorCode = edata->sqlerrcode;
+		MemoryContextSwitchTo(oldMemContext);
 
-		/*
-		 * We don't much expect any error condition to happen here, but
-		 * we still need to be defensive against any kind of failures, such
-		 * as OOM.
-		 *
-		 * For this reason, here we swallow any errors that we could get
-		 * during cleanup.
-		 */
-		FlushErrorState();
+		ereport(LOG, (errcode(errorCode),
+					  errmsg(
+						  "couldn't construct command for the background worker job execution:"
+						  "file: %s, line: %d, message_id: %s",
+						  edata->filename, edata->lineno, edata->message_id)));
 
 		PopAllActiveSnapshots();
 		AbortCurrentTransaction();

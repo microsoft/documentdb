@@ -102,7 +102,10 @@ typedef struct MongoUpdateOperatorSpec
 
 struct AggregationPipelineUpdateState * GetAggregationPipelineUpdateState(const
 																		  bson_value_t *
-																		  updateSpec);
+																		  updateSpec,
+																		  const
+																		  bson_value_t *
+																		  variableSpec);
 
 pgbson * ProcessAggregationPipelineUpdate(pgbson *sourceDoc,
 										  const struct AggregationPipelineUpdateState *

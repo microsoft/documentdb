@@ -49,9 +49,9 @@ SELECT documentdb_api.insert('db', '{"insert":"4col", "documents":[ { "_id" : 3}
 
 -- (1.3)  update to 4 column collection
 SELECT documentdb_api.update('db', '{"update":"4col", "updates":[{"q":{"_id":{"$eq":1}},"u":[{"$set":{"a" : 1} }]}]}');
-                                                                update                                                                
+                                                               update                                                               
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
 (1 row)
 
 -- (1.4)  aggregate to 4 column collection
@@ -110,9 +110,9 @@ SELECT documentdb_api.insert('db', '{"insert":"3col", "documents":[ { "_id" : 3}
 
 -- (2.3)  update to 3 column collection
 SELECT documentdb_api.update('db', '{"update":"3col", "updates":[{"q":{"_id":{"$eq":1}},"u":[{"$set":{"a" : 1} }]}]}');
-                                                                update                                                                
+                                                               update                                                               
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" } }",t)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
 (1 row)
 
 -- (2.4)  aggregate to 3 column collection
@@ -146,9 +146,9 @@ SELECT documentdb_api.insert('db', '{"insert":"3col", "documents":[ { "_id" : 30
 
 -- (3.3)  update to 3 column collection
 SELECT documentdb_api.update('db', '{"update":"3col", "updates":[{"q":{"_id":{"$eq":1}},"u":[{"$set":{"a" : 1} }]}]}');
-                                                                update                                                                
+                                                               update                                                               
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" } }",t)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
 (1 row)
 
 -- (3.4)  aggregate to 3 column collection

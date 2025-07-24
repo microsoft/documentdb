@@ -14,13 +14,12 @@
 #include <fmgr.h>
 #include <access/amapi.h>
 #include <nodes/pathnodes.h>
+#include "index_am/index_am_exports.h"
 
 typedef void *(*CreateIndexArrayTrackerState)(void);
 typedef bool (*IndexArrayTrackerAdd)(void *state, ItemPointer item);
 typedef void (*FreeIndexArrayTrackerState)(void *);
 typedef void (*UpdateMultikeyStatusFunc)(bool isBuild, Relation index);
-
-typedef bool (*GetMultikeyStatusFunc)(Relation indexRelation);
 
 /*
  * Adapter struct that provides function pointers to allow
@@ -57,6 +56,7 @@ typedef enum RumLibraryLoadOptions
 
 /* Registers an extensibility that handles index array deduplication */
 void RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs);
+typedef bool (*CanOrderInIndexScan)(IndexScanDesc scan);
 
 extern RumLibraryLoadOptions DocumentDBRumLibraryLoadOption;
 void LoadRumRoutine(void);
@@ -68,7 +68,8 @@ void extension_rumendscan_core(IndexScanDesc scan, IndexAmRoutine *coreRoutine);
 void extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 							  ScanKey orderbys, int norderbys,
 							  IndexAmRoutine *coreRoutine,
-							  GetMultikeyStatusFunc multiKeyStatusFunc);
+							  GetMultikeyStatusFunc multiKeyStatusFunc,
+							  CanOrderInIndexScan indexScanOrderedFunc);
 int64 extension_rumgetbitmap_core(IndexScanDesc scan, TIDBitmap *tbm,
 								  IndexAmRoutine *coreRoutine);
 bool extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,

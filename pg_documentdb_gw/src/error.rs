@@ -14,6 +14,8 @@ use openssl::error::ErrorStack;
 
 use documentdb_macros::documentdb_error_code_enum;
 
+use crate::responses::constant::pg_returned_invalid_response_message;
+
 documentdb_error_code_enum!();
 
 #[derive(Debug)]
@@ -42,7 +44,7 @@ impl DocumentDBError {
     }
 
     pub fn pg_response_invalid(e: ValueAccessError) -> Self {
-        DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+        DocumentDBError::internal_error(pg_returned_invalid_response_message(e))
     }
 
     pub fn sasl_payload_invalid() -> Self {

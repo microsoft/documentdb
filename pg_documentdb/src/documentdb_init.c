@@ -74,6 +74,7 @@ InitApiConfigurations(char *prefix, char *newGucPrefix)
 	InitializeFeatureFlagConfigurations(prefix, newGucPrefix);
 	InitializeBackgroundJobConfigurations(prefix, newGucPrefix);
 	InitializeSystemConfigurations(prefix, newGucPrefix);
+	InitDocumentDBBackgroundWorkerConfigurations(newGucPrefix);
 }
 
 
@@ -113,9 +114,6 @@ void
 InitializeDocumentDBBackgroundWorker(char *libraryName, char *gucPrefix,
 									 char *extensionObjectPrefix)
 {
-	/* Initialize GUCs */
-	InitDocumentDBBackgroundWorkerGucs(gucPrefix);
-
 	if (!EnableBackgroundWorker)
 	{
 		return;

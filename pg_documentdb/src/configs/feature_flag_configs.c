@@ -38,6 +38,8 @@ bool EnableUsersInfoPrivileges = DEFAULT_ENABLE_USERS_INFO_PRIVILEGES;
 #define DEFAULT_ENABLE_NATIVE_AUTHENTICATION true
 bool IsNativeAuthEnabled = DEFAULT_ENABLE_NATIVE_AUTHENTICATION;
 
+#define DEFAULT_ENABLE_ROLE_CRUD false
+bool EnableRoleCrud = DEFAULT_ENABLE_ROLE_CRUD;
 
 /*
  * SECTION: Vector Search flags
@@ -79,6 +81,21 @@ bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 /* Remove after v106 */
 #define DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM true
 bool IndexTermUseUnsafeTransform = DEFAULT_USE_UNSAFE_INDEX_TERM_TRANSFORM;
+
+#define DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS true
+bool EnableNewCompositeIndexOpclass = DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS;
+
+#define DEFAULT_USE_NEW_COMPOSITE_INDEX_OPCLASS false
+bool DefaultUseCompositeOpClass = DEFAULT_USE_NEW_COMPOSITE_INDEX_OPCLASS;
+
+#define DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN false
+bool EnableIndexOrderbyPushdown = DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN;
+
+#define DEFAULT_ENABLE_DESCENDING_COMPOSITE_INDEX true
+bool EnableDescendingCompositeIndex = DEFAULT_ENABLE_DESCENDING_COMPOSITE_INDEX;
+
+#define DEFAULT_ENABLE_COMPOSITE_UNIQUE_INDEX true
+bool EnableCompositeUniqueIndex = DEFAULT_ENABLE_COMPOSITE_UNIQUE_INDEX;
 
 /*
  * SECTION: Planner feature flags
@@ -136,6 +153,14 @@ bool UseLegacyOrderByBehavior = DEFAULT_USE_LEGACY_ORDERBY_BEHAVIOR;
 
 #define DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR false
 bool UseLegacyNullEqualityBehavior = DEFAULT_USE_LEGACY_NULL_EQUALITY_BEHAVIOR;
+
+/* Remove after v108 */
+#define DEFAULT_ENABLE_INDEX_HINT_SUPPORT true
+bool EnableIndexHintSupport = DEFAULT_ENABLE_INDEX_HINT_SUPPORT;
+
+/* Remove after v109 */
+#define DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR false
+bool UseLegacyForcePushdownBehavior = DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR;
 
 
 /*
@@ -524,5 +549,60 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to use custom insert plan for insert commands."),
 		NULL, &EnableInsertCustomPlan,
 		DEFAULT_ENABLE_INSERT_CUSTOM_PLAN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableNewCompositeIndexOpClass", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the new experimental composite index opclass"),
+		NULL, &EnableNewCompositeIndexOpclass, DEFAULT_ENABLE_NEW_COMPOSITE_INDEX_OPCLASS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.defaultUseCompositeOpClass", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the new experimental composite index opclass for default index creates"),
+		NULL, &DefaultUseCompositeOpClass, DEFAULT_USE_NEW_COMPOSITE_INDEX_OPCLASS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexOrderbyPushdown", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the sort on the new experimental composite index opclass"),
+		NULL, &EnableIndexOrderbyPushdown, DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableDescendingCompositeIndex", newGucPrefix),
+		gettext_noop(
+			"Whether to enable descending composite index support"),
+		NULL, &EnableDescendingCompositeIndex, DEFAULT_ENABLE_DESCENDING_COMPOSITE_INDEX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableCompositeUniqueIndex", newGucPrefix),
+		gettext_noop(
+			"Whether to enable composite unique index support"),
+		NULL, &EnableCompositeUniqueIndex, DEFAULT_ENABLE_COMPOSITE_UNIQUE_INDEX,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexHintSupport", newGucPrefix),
+		gettext_noop(
+			"Whether to enable index hint support for index pushdown."),
+		NULL, &EnableIndexHintSupport, DEFAULT_ENABLE_INDEX_HINT_SUPPORT,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.useLegacyForcePushdownBehavior", newGucPrefix),
+		gettext_noop(
+			"Whether to use legacy force index pushdown behavior."),
+		NULL, &UseLegacyForcePushdownBehavior, DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+	DefineCustomBoolVariable(
+		psprintf("%s.enableRoleCrud", newGucPrefix),
+		gettext_noop(
+			"Enables role crud through the data plane."),
+		NULL, &EnableRoleCrud, DEFAULT_ENABLE_ROLE_CRUD,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

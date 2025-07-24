@@ -12,6 +12,7 @@
 #include "index_am/index_am_utils.h"
 #include "utils/feature_counter.h"
 #include "access/relscan.h"
+#include "index_am/documentdb_rum.h"
 
 #include <miscadmin.h>
 
@@ -21,6 +22,9 @@ static int BsonNumAlternateAmEntries = 0;
 
 extern bool EnableNewCompositeIndexOpclass;
 
+static const char * GetRumCatalogSchema(void);
+static const char * GetRumInternalSchemaV2(void);
+
 /* Left non-static for internal use */
 BsonIndexAmEntry RumIndexAmEntry = {
 	.is_single_path_index_supported = true,
@@ -29,13 +33,18 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.is_composite_index_supported = true,
 	.is_text_index_supported = true,
 	.is_hashed_index_supported = true,
-	.is_order_by_supported = true,
+	.is_order_by_supported = false,
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
 	.get_text_path_op_family_oid = BsonRumTextPathOperatorFamily,
+	.get_unique_path_op_family_oid = BsonRumUniquePathOperatorFamily,
+	.get_hashed_path_op_family_oid = BsonRumHashPathOperatorFamily,
 	.add_explain_output = NULL, /* No explain output for RUM */
-	.am_name = "rum"
+	.am_name = "rum",
+	.get_opclass_catalog_schema = GetRumCatalogSchema,
+	.get_opclass_internal_catalog_schema = GetRumInternalSchemaV2,
+	.get_multikey_status = RumGetMultikeyStatus,
 };
 
 /*
@@ -73,7 +82,7 @@ GetBsonIndexAmEntryByIndexOid(Oid indexAm)
 	{
 		return &RumIndexAmEntry;
 	}
-	else if (IsClusterVersionAtleast(DocDB_V0, 103, 1))
+	else
 	{
 		for (int i = 0; i < BsonNumAlternateAmEntries; i++)
 		{
@@ -181,10 +190,51 @@ IsSinglePathOpFamilyOid(Oid relam, Oid opFamilyOid)
 
 
 bool
-IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+IsUniqueCheckOpFamilyOid(Oid relam, Oid opFamilyOid)
 {
 	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
 	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->is_unique_index_supported &&
+		   opFamilyOid == amEntry->get_unique_path_op_family_oid();
+}
+
+
+bool
+IsHashedPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->is_hashed_index_supported &&
+		   opFamilyOid == amEntry->get_hashed_path_op_family_oid();
+}
+
+
+Oid
+GetTextPathOpFamilyOid(Oid relam)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL || amEntry->get_text_path_op_family_oid == NULL)
+	{
+		return InvalidOid;
+	}
+
+	return amEntry->get_text_path_op_family_oid();
+}
+
+
+bool
+IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL || amEntry->get_text_path_op_family_oid == NULL)
 	{
 		return false;
 	}
@@ -199,8 +249,7 @@ IsTextPathOpFamilyOid(Oid relam, Oid opFamilyOid)
 bool
 IsCompositeOpClass(Relation indexRelation)
 {
-	if (!EnableNewCompositeIndexOpclass || IndexRelationGetNumberOfKeyAttributes(
-			indexRelation) != 1)
+	if (!EnableNewCompositeIndexOpclass)
 	{
 		return false;
 	}
@@ -212,7 +261,20 @@ IsCompositeOpClass(Relation indexRelation)
 		return false;
 	}
 
-	return indexRelation->rd_opfamily[0] == amEntry->get_composite_path_op_family_oid();
+	/* Non unique indexes will have 1 attribute that has the entire composite key
+	 * Unique indexes will have the first attribute matching non-unique indexes, and the
+	 * second attribute matching the unique constraint key.
+	 * We put the composite column first just for convenience, so we can keep the order by
+	 * and query paths the same between the two.
+	 */
+	if (IndexRelationGetNumberOfKeyAttributes(indexRelation) == 1 ||
+		IndexRelationGetNumberOfKeyAttributes(indexRelation) == 2)
+	{
+		return indexRelation->rd_opfamily[0] ==
+			   amEntry->get_composite_path_op_family_oid();
+	}
+
+	return false;
 }
 
 
@@ -250,4 +312,31 @@ IsOrderBySupportedOnOpClass(Oid indexAm, Oid columnOpFamilyAm)
 
 	return amEntry->is_order_by_supported &&
 		   amEntry->get_composite_path_op_family_oid() == columnOpFamilyAm;
+}
+
+
+GetMultikeyStatusFunc
+GetMultiKeyStatusByRelAm(Oid relam)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return NULL;
+	}
+
+	return amEntry->get_multikey_status;
+}
+
+
+static const char *
+GetRumCatalogSchema(void)
+{
+	return ApiCatalogSchemaName;
+}
+
+
+static const char *
+GetRumInternalSchemaV2(void)
+{
+	return ApiInternalSchemaNameV2;
 }

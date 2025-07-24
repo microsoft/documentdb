@@ -17,11 +17,12 @@ use crate::{
     context::{ConnectionContext, Cursor},
     error::{DocumentDBError, ErrorCode, Result},
     postgres::PgDocument,
+    responses::constant::{duplicate_key_violation_message, pg_returned_invalid_response_message},
 };
 
 use super::{raw::RawResponse, Response};
 
-/// A server response from PG - holds ownership of the whole response from the backend
+/// Response from PG. This holds ownership of the response from the backend
 #[derive(Debug)]
 pub struct PgResponse {
     rows: Vec<Row>,
@@ -76,13 +77,13 @@ impl PgResponse {
         }
     }
 
-    /// In certain cases, write errors need to be walked through to convert PG error codes to Gatway ones.
+    /// If 'writeErrors' is present, it transforms each error by potentially mapping them to the known DocumentDB error codes.
     pub async fn transform_write_errors(self, context: &ConnectionContext) -> Result<Response> {
         if let Ok(Some(_)) = self.as_raw_document()?.get("writeErrors") {
             // TODO: Conceivably faster without conversion to document
             let mut response = Document::try_from(self.as_raw_document()?)?;
             let write_errors = response.get_array_mut("writeErrors").map_err(|e| {
-                DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+                DocumentDBError::internal_error(pg_returned_invalid_response_message(e))
             })?;
 
             for value in write_errors {
@@ -98,11 +99,11 @@ impl PgResponse {
         let doc = bson
             .as_document_mut()
             .ok_or(DocumentDBError::internal_error(
-                "Write error was not a document".to_string(),
+                "Failed to convert BSON write error into BSON document.".to_string(),
             ))?;
         let msg = doc.get_str("errmsg").unwrap_or("").to_owned();
         let code = doc.get_i32_mut("code").map_err(|e| {
-            DocumentDBError::internal_error(format!("PG returned invalid response: {}", e))
+            DocumentDBError::internal_error(pg_returned_invalid_response_message(e))
         })?;
 
         if let Some((known, opt, error_code)) =
@@ -138,9 +139,10 @@ impl PgResponse {
 
         Ok(SqlState::from_code(str::from_utf8(&chars).map_err(
             |_| {
-                DocumentDBError::internal_error(
-                    "Failed to convert error code to state string".to_string(),
-                )
+                DocumentDBError::internal_error(format!(
+                    "Failed to map command error code '{:?}' to SQL state.",
+                    chars
+                ))
             },
         )?))
     }
@@ -185,12 +187,12 @@ impl PgResponse {
             | SqlState::EXCLUSION_VIOLATION
                 if connection_context.transaction.is_some() =>
             {
-                Some((ErrorCode::WriteConflict as i32, Some(format!("{:?}", SqlState::UNIQUE_VIOLATION)), "Duplicate key violation on the requested collection"))
+                Some((ErrorCode::WriteConflict as i32, Some(format!("{:?}", SqlState::UNIQUE_VIOLATION)), duplicate_key_violation_message()))
             }
             SqlState::UNIQUE_VIOLATION
             | SqlState::EXCLUSION_VIOLATION => Some((
                 ErrorCode::DuplicateKey as i32,
-                Some(format!("{:?}", SqlState::UNIQUE_VIOLATION)), "Duplicate key violation on the requested collection"
+                Some(format!("{:?}", SqlState::UNIQUE_VIOLATION)), duplicate_key_violation_message()
             )),
             SqlState::DISK_FULL => Some((ErrorCode::OutOfDiskSpace as i32, Some(format!("{:?}", SqlState::DISK_FULL)), "The database disk is full")),
             SqlState::UNDEFINED_TABLE => Some((ErrorCode::NamespaceNotFound as i32, Some(format!("{:?}", SqlState::UNDEFINED_TABLE)), msg)),
@@ -219,8 +221,7 @@ impl PgResponse {
                 Some(format!("{:?}", SqlState::DATA_EXCEPTION)),
                 "An unexpected internal error has occurred"
             )),
-            SqlState::PROGRAM_LIMIT_EXCEEDED =>
-            {
+            SqlState::PROGRAM_LIMIT_EXCEEDED => {
                 if msg.contains("MB, maintenance_work_mem is")
                 {
                     Some((
@@ -275,7 +276,7 @@ impl PgResponse {
                 Some((ErrorCode::IllegalOperation as i32, Some("IllegalOperation".to_string()), "Cannot execute the operation on this replica cluster"))
             },
             SqlState::READ_ONLY_SQL_TRANSACTION => {
-                Some((ErrorCode::ExceededTimeLimit as i32, Some("ExceededTimeLimit".to_string()), "Timed out while waiting for new primary to be elected"))
+                Some((ErrorCode::ExceededTimeLimit as i32, Some("ExceededTimeLimit".to_string()), "Exceeded time limit while waiting for a new primary to be elected"))
             },
             SqlState::INSUFFICIENT_PRIVILEGE => {
                 Some((ErrorCode::Unauthorized as i32, Some("Unauthorized".to_string()), "Unauthorized"))
@@ -288,7 +289,7 @@ impl PgResponse {
     }
 
     /// Corresponds to the PG ErrorCode 0000Y.
-    /// Smallest value of the documentdb backend error (DocumentDBError.ok).
+    /// Smallest value of the documentdb backend error.
     pub const API_ERROR_CODE_MIN: i32 = 687865856;
 
     /// Corresponds to the PG ErrorCode 000PY.

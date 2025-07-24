@@ -190,6 +190,15 @@ typedef struct RumItem
 		(item)->addInfo = (Datum) 0; \
 	} while (0)
 
+
+#define RumItemSetInvalid(item) \
+	do { \
+		ItemPointerSetInvalid(&((item)->iptr)); \
+		(item)->addInfoIsNull = true; \
+		(item)->addInfo = (Datum) 0; \
+	} while (0)
+
+
 /*
  * Posting item in a non-leaf posting-tree page
  */
@@ -689,10 +698,6 @@ typedef struct RumScanKeyData
 	/* array of keys, used to scan using additional information as keys */
 	RumScanKey *addInfoKeys;
 	uint32 addInfoNKeys;
-
-	/* documentdb: New for rechecking order by */
-	bool recheckCurItemOrderBy;
-	int32_t keyIndex;
 }   RumScanKeyData;
 
 typedef struct RumScanEntryData
@@ -748,9 +753,6 @@ typedef struct RumScanEntryData
 	/* Find by AddInfo */
 	bool useMarkAddInfo;
 	RumItem markAddInfo;
-
-	/* for ordered scan in documentdb */
-	RumBtreeStack *orderStack;
 
 	/* Compare partial addition new for documentdb */
 	bool isMatchMinimalTuple;
@@ -810,6 +812,10 @@ typedef struct RumScanOpaqueData
 	/* In an ordered scan, the key pointing to the order by key */
 	int32_t orderByKeyIndex;
 	bool orderByHasRecheck;
+	RumBtreeStack *orderStack;
+	RumScanEntry orderByEntry;
+	bool recheckCurrentItem;
+	bool recheckCurrentItemOrderBy;
 
 	/* documentdb: whether or not to use a simple scanGetNextItem in rumgettuple */
 	bool useSimpleScan;
@@ -911,7 +917,11 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS true
 #define RUM_DEFAULT_ENABLE_REFIND_LEAF_ON_ENTRY_NEXT_ITEM true
 #define RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE false
-
+#define RUM_DEFAULT_DISABLE_FAST_SCAN false
+#define RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN true
+#define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
+#define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
+#define RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN true
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
@@ -920,6 +930,11 @@ extern int RumDataPageIntermediateSplitSize;
 extern bool RumAllowOrderByRawKeys;
 extern bool RumEnableRefindLeafOnEntryNextItem;
 extern bool RumThrowErrorOnInvalidDataPage;
+extern bool RumDisableFastScan;
+extern bool RumEnableEntryFindItemOnScan;
+extern bool RumSkipRetryOnDeletePage;
+extern bool RumForceOrderedIndexScan;
+extern bool RumPreferOrderedIndexScan;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in
@@ -1178,5 +1193,12 @@ extern Datum FunctionCall10Coll(FmgrInfo *flinfo, Oid collation,
 						  ALLOCSET_DEFAULT_INITSIZE, \
 						  ALLOCSET_DEFAULT_MAXSIZE)
 #endif
+
+void InitializeDocumentDBRum(void);
+
+struct ExplainState;
+extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
+											  struct ExplainState *es);
+extern PGDLLEXPORT bool can_rum_index_scan_ordered(IndexScanDesc scan);
 
 #endif   /* __RUM_H__ */

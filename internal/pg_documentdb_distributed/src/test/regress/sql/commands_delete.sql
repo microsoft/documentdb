@@ -3,6 +3,8 @@ SET citus.next_shard_id TO 639000;
 SET documentdb.next_collection_id TO 6390;
 SET documentdb.next_collection_index_id TO 6390;
 
+SET documentdb.EnableVariablesSupportForWriteCommands TO on;
+
 -- Call delete for a non existent collection.
 -- Note that this should not report any logs related to collection catalog lookup.
 SET citus.log_remote_commands TO ON;

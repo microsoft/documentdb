@@ -58,6 +58,21 @@ static IndexOptionsEquivalency GetOptionsEquivalencyFromIndexOptions(
 	pgbson *
 	rightIndexSpec);
 
+
+/* Different types of indexes supported
+ */
+static const MongoIndexSupport MongoIndexSupportedList[] =
+{
+	{ "2d", true, MongoIndexKind_2d },
+	{ "hashed", true, MongoIndexKind_Hashed },
+	{ "text", true, MongoIndexKind_Text },
+	{ "2dsphere", true, MongoIndexKind_2dsphere },
+	{ "cosmosSearch", true, MongoIndexingKind_CosmosSearch },
+};
+
+static const int NumberOfMongoIndexTypes = sizeof(MongoIndexSupportedList) /
+										   sizeof(MongoIndexSupport);
+
 /* --------------------------------------------------------- */
 /* Top level exports */
 /* --------------------------------------------------------- */
@@ -884,21 +899,10 @@ DeleteCollectionIndexRecordCore(uint64 collectionId, int *indexId)
 }
 
 
-/*
- * IndexNameGetIndexDetails returns IndexDetails for the index with given
- * "name" using SPI. Returns NULL If no such index exists.
- */
-IndexDetails *
-IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
+static IndexDetails *
+IndexNameGetIndexDetailsCore(const char *cmdStr, uint64 collectionId, const
+							 char *indexName)
 {
-	const char *cmdStr = FormatSqlQuery(
-		"SELECT index_id, index_spec, %s.index_build_is_in_progress(index_id) "
-		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
-		" (index_spec).index_name = $2 AND"
-		" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
-		ApiInternalSchemaName, ApiCatalogSchemaName,
-		ApiInternalSchemaName);
-
 	int argCount = 2;
 	Oid argTypes[2];
 	Datum argValues[2];
@@ -937,24 +941,44 @@ IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
 
 
 /*
- * IndexKeyGetMatchingIndexes returns a list of IndexDetails objects for the
- * valid indexes with given "key" using SPI.
- *
- * Returns indexes in the order of their ids.
+ * Given a collection and index name, returns the index details for the index
+ * if it is ready to be used. If the index is not ready, returns NULL.
  */
-List *
-IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+IndexDetails *
+IndexNameGetReadyIndexDetails(uint64 collectionId, const char *indexName)
 {
-	const char *cmdStr =
-		FormatSqlQuery(
-			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
-			" array_agg(%s.index_build_is_in_progress(index_id) ORDER BY index_id) "
-			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
-			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND"
-			" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
-			ApiInternalSchemaName, ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
-			FullBsonTypeName, ApiInternalSchemaName);
+	const char *cmdStr = FormatSqlQuery(
+		"SELECT index_id, index_spec, FALSE AS index_build_in_progress "
+		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+		" (index_spec).index_name = $2 AND"
+		" index_is_valid",
+		ApiCatalogSchemaName);
+	return IndexNameGetIndexDetailsCore(cmdStr, collectionId, indexName);
+}
 
+
+/*
+ * IndexNameGetIndexDetails returns IndexDetails for the index with given
+ * "name" using SPI. Returns NULL If no such index exists.
+ */
+IndexDetails *
+IndexNameGetIndexDetails(uint64 collectionId, const char *indexName)
+{
+	const char *cmdStr = FormatSqlQuery(
+		"SELECT index_id, index_spec, %s.index_build_is_in_progress(index_id) "
+		"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+		" (index_spec).index_name = $2 AND"
+		" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
+		ApiInternalSchemaName, ApiCatalogSchemaName,
+		ApiInternalSchemaName);
+	return IndexNameGetIndexDetailsCore(cmdStr, collectionId, indexName);
+}
+
+
+static List *
+IndexKeyGetMatchingIndexesCore(const char *cmdStr, uint64 collectionId, const
+							   pgbson *indexKeyDocument)
+{
 	int argCount = 2;
 	Oid argTypes[2];
 	Datum argValues[2];
@@ -1022,6 +1046,48 @@ IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
 	}
 
 	return keyMatchedIndexDetailsList;
+}
+
+
+/*
+ * Given a collection and index key, returns the index details for the index
+ * if it is ready to be used. If the index is not ready, returns NULL.
+ */
+List *
+IndexKeyGetReadyMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+{
+	const char *cmdStr =
+		FormatSqlQuery(
+			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
+			" array_agg(NOT(index_is_valid) ORDER BY index_id) "
+			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND index_is_valid",
+			ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
+			FullBsonTypeName);
+	return IndexKeyGetMatchingIndexesCore(cmdStr, collectionId, indexKeyDocument);
+}
+
+
+/*
+ * IndexKeyGetMatchingIndexes returns a list of IndexDetails objects for the
+ * valid indexes with given "key" using SPI.
+ *
+ * Returns indexes in the order of their ids.
+ */
+List *
+IndexKeyGetMatchingIndexes(uint64 collectionId, const pgbson *indexKeyDocument)
+{
+	const char *cmdStr =
+		FormatSqlQuery(
+			"SELECT array_agg(index_id ORDER BY index_id), array_agg(index_spec ORDER BY index_id), "
+			" array_agg(%s.index_build_is_in_progress(index_id) ORDER BY index_id) "
+			"FROM %s.collection_indexes WHERE collection_id = $1 AND"
+			" (index_spec).index_key::%s OPERATOR(%s.=) $2::%s AND"
+			" (index_is_valid OR %s.index_build_is_in_progress(index_id))",
+			ApiInternalSchemaName, ApiCatalogSchemaName, FullBsonTypeName, CoreSchemaName,
+			FullBsonTypeName, ApiInternalSchemaName);
+
+	return IndexKeyGetMatchingIndexesCore(cmdStr, collectionId, indexKeyDocument);
 }
 
 
@@ -1960,13 +2026,84 @@ GetIndexQueueName(void)
 
 
 /*
+ * Returns true if the index plugin vector for the key document is of the given type.
+ */
+inline static bool
+IsIndexOfType(const bson_value_t *value, const char *indexType)
+{
+	return value->value_type == BSON_TYPE_UTF8 &&
+		   strcmp(value->value.v_utf8.str, indexType) == 0;
+}
+
+
+/*
  * Returns true if the index plugin vector for the key document is a text index.
  */
 inline static bool
 IsTextIndex(const bson_value_t *value)
 {
-	return value->value_type == BSON_TYPE_UTF8 &&
-		   strcmp(value->value.v_utf8.str, "text") == 0;
+	char *indexTextType = "text";
+	return IsIndexOfType(value, indexTextType);
+}
+
+
+/*
+ * Utility function that iterates on the index keyDocument pgbson and returns the index plugin
+ * name upon finding the first match. If no match is found, return "regular".
+ */
+const char *
+GetIndexTypeFromKeyDocument(pgbson *keyDocument)
+{
+	const char *regularIndexType = "regular";
+
+	/* Assume document is of regular type if pgbson is NULL.*/
+	if (keyDocument == NULL)
+	{
+		return regularIndexType;
+	}
+
+	bson_iter_t iter;
+	PgbsonInitIterator(keyDocument, &iter);
+	while (bson_iter_next(&iter))
+	{
+		const bson_value_t *value = bson_iter_value(&iter);
+		for (int i = 0; i < NumberOfMongoIndexTypes; i++)
+		{
+			MongoIndexSupport idxSupport = MongoIndexSupportedList[i];
+			if (IsIndexOfType(value, idxSupport.mongoIndexName))
+			{
+				return idxSupport.mongoIndexName;
+			}
+		}
+	}
+
+	return regularIndexType;
+}
+
+
+/*
+ * Traverses mongo index supported list and returns MongoIndexKind that matches
+ * supplied index kind name.
+ */
+MongoIndexKind
+GetMongoIndexKind(char *indexKindName, bool *isSupported)
+{
+	/* We assume the indexKind is Unknown before traversing the supported array */
+	MongoIndexKind indexKind = MongoIndexKind_Unknown;
+	*isSupported = false;
+
+	for (int i = 0; i < NumberOfMongoIndexTypes; i++)
+	{
+		MongoIndexSupport idxSupport = MongoIndexSupportedList[i];
+		if (strcmp(indexKindName, idxSupport.mongoIndexName) == 0)
+		{
+			indexKind = idxSupport.indexKind;
+			*isSupported = idxSupport.isSupported;
+			break;
+		}
+	}
+
+	return indexKind;
 }
 
 

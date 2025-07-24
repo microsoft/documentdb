@@ -108,10 +108,6 @@ static CacheValidityValue CacheValidity = CACHE_INVALID;
 MemoryContext DocumentDBApiMetadataCacheContext = NULL;
 
 PGDLLEXPORT char *ApiDataSchemaName = "documentdb_data";
-PGDLLEXPORT char *ApiAdminRole = "documentdb_admin_role";
-PGDLLEXPORT char *ApiAdminRoleV2 = "documentdb_admin_role";
-PGDLLEXPORT char *ApiReadOnlyRole = "documentdb_readonly_role";
-PGDLLEXPORT char *ApiBgWorkerRole = "documentdb_bg_worker_role";
 PGDLLEXPORT char *ApiSchemaName = "documentdb_api";
 PGDLLEXPORT char *ApiSchemaNameV2 = "documentdb_api";
 PGDLLEXPORT char *ApiInternalSchemaName = "documentdb_api_internal";
@@ -125,6 +121,15 @@ PGDLLEXPORT char *ApiCatalogSchemaNameV2 = "documentdb_api_catalog";
 PGDLLEXPORT char *ApiGucPrefix = "documentdb";
 PGDLLEXPORT char *ApiGucPrefixV2 = "documentdb";
 PGDLLEXPORT char *PostgisSchemaName = "public";
+
+/* Role names */
+PGDLLEXPORT char *ApiAdminRole = "documentdb_admin_role";
+PGDLLEXPORT char *ApiAdminRoleV2 = "documentdb_admin_role";
+PGDLLEXPORT char *ApiBgWorkerRole = "documentdb_bg_worker_role";
+PGDLLEXPORT char *ApiReadOnlyRole = "documentdb_readonly_role";
+PGDLLEXPORT char *ApiReadWriteRole = "documentdb_readwrite_role";
+PGDLLEXPORT char *ApiRootRole = "documentdb_root_role";
+PGDLLEXPORT char *ApiUserAdminRole = "documentdb_user_admin_role";
 
 /* Schema functions migrated from a public API to an internal API schema
  * (e.g. from documentdb_api -> documentdb_api_internal)
@@ -407,6 +412,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* Oid of the bson_full_scan function */
 	Oid BsonFullScanFunctionId;
 
+	/* Oid of the index hint function */
+	Oid BsonIndexHintFunctionId;
+
 	/* Oid of the $range runtime operator #<> */
 	Oid BsonRangeMatchOperatorOid;
 
@@ -659,6 +667,12 @@ typedef struct DocumentDBApiOidCacheData
 
 	/* OID of the operator class for BSON Text operations with {ExtensionObjectPrefix}_rum */
 	Oid BsonRumTextPathOperatorFamily;
+
+	/* OID of the operator class for BSON Unique Path operations with {ExtensionObjectPrefix}_rum */
+	Oid BsonRumUniquePathOperatorFamily;
+
+	/* OID of the operator class for BSON Path operations with {ExtensionObjectPrefix}_rum */
+	Oid BsonRumHashPathOperatorFamily;
 
 	/* OID of the operator class for BSON GIST geography */
 	Oid BsonGistGeographyOperatorFamily;
@@ -1847,6 +1861,19 @@ BsonFullScanFunctionOid(void)
 	return GetSchemaFunctionIdWithNargs(&Cache.BsonFullScanFunctionId,
 										ApiInternalSchemaNameV2,
 										"bson_dollar_fullscan", nargs, argTypes,
+										missingOk);
+}
+
+
+Oid
+BsonIndexHintFunctionOid(void)
+{
+	int nargs = 4;
+	Oid argTypes[4] = { BsonTypeId(), TEXTOID, BsonTypeId(), BOOLOID };
+	bool missingOk = true;
+	return GetSchemaFunctionIdWithNargs(&Cache.BsonIndexHintFunctionId,
+										ApiInternalSchemaNameV2,
+										"bson_dollar_index_hint", nargs, argTypes,
 										missingOk);
 }
 
@@ -3087,7 +3114,7 @@ BsonEmptyDataTableFunctionId(void)
 
 	if (Cache.BsonEmptyDataTableFunctionId == InvalidOid)
 	{
-		List *functionNameList = list_make2(makeString(ApiToApiInternalSchemaName),
+		List *functionNameList = list_make2(makeString(ApiInternalSchemaNameV2),
 											makeString("empty_data_table"));
 		Oid paramOids[0] = { };
 		bool missingOK = false;
@@ -6260,6 +6287,46 @@ BsonRumTextPathOperatorFamily(void)
 }
 
 
+Oid
+BsonRumUniquePathOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumUniquePathOperatorFamily == InvalidOid)
+	{
+		/* Handles extension version upgrades */
+		bool missingOk = true;
+		Oid rumAmId = RumIndexAmId();
+		Cache.BsonRumUniquePathOperatorFamily = get_opfamily_oid(
+			rumAmId, list_make2(makeString(ApiInternalSchemaNameV2), makeString(
+									"bson_rum_unique_shard_path_ops")),
+			missingOk);
+	}
+
+	return Cache.BsonRumUniquePathOperatorFamily;
+}
+
+
+Oid
+BsonRumHashPathOperatorFamily(void)
+{
+	InitializeDocumentDBApiExtensionCache();
+
+	if (Cache.BsonRumHashPathOperatorFamily == InvalidOid)
+	{
+		bool missingOk = false;
+		Oid rumAmId = RumIndexAmId();
+		Cache.BsonRumHashPathOperatorFamily = get_opfamily_oid(
+			rumAmId, list_make2(makeString(ApiCatalogSchemaName), makeString(
+									psprintf("%s_rum_hashed_ops",
+											 ExtensionObjectPrefix))),
+			missingOk);
+	}
+
+	return Cache.BsonRumHashPathOperatorFamily;
+}
+
+
 /*
  * OID of the operator class for BSON GIST spherical geometries
  */
@@ -6835,7 +6902,8 @@ BsonRumCompositeIndexOperatorFamily(void)
 
 	if (Cache.BsonRumCompositeIndexOperatorFamily == InvalidOid)
 	{
-		bool missingOk = false;
+		/* To handle older versions pre-upgrade, we allow missing ok */
+		bool missingOk = true;
 		Cache.BsonRumCompositeIndexOperatorFamily = get_opfamily_oid(
 			RumIndexAmId(), list_make2(makeString(ApiInternalSchemaNameV2), makeString(
 										   "bson_rum_composite_path_ops")),

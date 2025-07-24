@@ -31,6 +31,8 @@ typedef struct ReplaceFunctionContextInput
 
 	/* CollectionId of the base collection if it's known */
 	uint64 collectionId;
+
+	Index rteIndex;
 } ReplaceFunctionContextInput;
 
 
@@ -38,16 +40,24 @@ typedef struct ReplaceFunctionContextInput
 typedef enum ForceIndexOpType
 {
 	/* No index pushdown required */
-	ForceIndexOpType_None,
+	ForceIndexOpType_None = 0,
 
 	/* Index pushdown required due to $text */
-	ForceIndexOpType_Text,
+	ForceIndexOpType_Text = 1,
 
 	/* Index pushdown required due to $geoNear */
-	ForceIndexOpType_GeoNear,
+	ForceIndexOpType_GeoNear = 2,
 
 	/* Index pushdown required for a vectorSearch */
-	ForceIndexOpType_VectorSearch
+	ForceIndexOpType_VectorSearch = 3,
+
+	/* Index pushdown required for a index hint */
+	ForceIndexOpType_IndexHint = 4,
+
+	/* Index pushdown required for a primary key lookup */
+	ForceIndexOpType_PrimaryKeyLookup = 5,
+
+	ForceIndexOpType_Max,
 } ForceIndexOpType;
 
 /*
@@ -83,6 +93,9 @@ typedef struct ReplaceExtensionFunctionContext
 
 	/* Whether or not the index paths/restriction paths have vector search query */
 	bool hasVectorSearchQuery;
+
+	/* Whether or not the rel pathlist has streaming cursor scan filters */
+	bool hasStreamingContinuationScan;
 
 	/* Whether or not the index paths already has a primary key lookup */
 	IndexPath *primaryKeyLookupPath;
@@ -120,5 +133,11 @@ void ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 void ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
 								  Index rti, ReplaceExtensionFunctionContext *context);
 
+void WalkPathsForIndexOperations(List *pathsList,
+								 ReplaceExtensionFunctionContext *context);
+void WalkRestrictionPathsForIndexOperations(List *restrictInfo,
+											ReplaceExtensionFunctionContext *context);
+
 bool IsBtreePrimaryKeyIndex(struct IndexOptInfo *indexInfo);
+bool InMatchIsEquvalentTo(ScalarArrayOpExpr *opExpr, const bson_value_t *arrayValue);
 #endif

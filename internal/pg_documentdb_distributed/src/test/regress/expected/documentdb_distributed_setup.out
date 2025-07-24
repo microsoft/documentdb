@@ -83,6 +83,7 @@ SELECT extversion FROM pg_extension WHERE extname = 'documentdb_distributed' \gs
 -- Check if recreating the extension works
 DROP EXTENSION IF EXISTS documentdb_distributed CASCADE;
 DROP EXTENSION IF EXISTS documentdb CASCADE;
+NOTICE:  drop cascades to extension documentdb_extended_rum
 DROP EXTENSION IF EXISTS documentdb_core CASCADE;
 -- Install the latest available documentdb_distributed version
 SELECT documentdb_distributed_test_helpers.create_latest_extension(p_cascade => TRUE);
@@ -126,3 +127,6 @@ NOTICE:  Initialize: version is up-to-date. Skipping initialize_cluster
 (1 row)
 
 GRANT documentdb_admin_role TO current_user;
+-- install documentdb_extended_rum
+CREATE EXTENSION documentdb_extended_rum;
+GRANT USAGE ON SCHEMA documentdb_extended_rum_catalog TO documentdb_admin_role;

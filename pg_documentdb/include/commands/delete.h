@@ -12,6 +12,7 @@
 
 #include <postgres.h>
 
+#include "collation/collation.h"
 #include "metadata/collection.h"
 
 
@@ -34,6 +35,9 @@ typedef struct
 
 	/* parsed variable spec*/
 	const bson_value_t *variableSpec;
+
+	/* collation string */
+	const char collationString[MAX_ICU_COLLATION_LENGTH];
 } DeleteOneParams;
 
 

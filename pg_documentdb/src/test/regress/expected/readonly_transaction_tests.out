@@ -58,9 +58,9 @@ SELECT documentdb_api.insert('db', '{ "insert": "collection", "documents": [ { "
 (1 row)
 
 SELECT documentdb_api.update('db', '{ "update": "collection", "updates": [ { "q": { "a": 1 }, "u": { "$set": { "b": 1 }} }] }');
-                                                                update                                                                
---------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""1"" }, ""n"" : { ""$numberLong"" : ""1"" } }",t)
+                                                               update                                                               
+------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
 (1 row)
 
 SELECT documentdb_api.delete('db', '{ "delete": "collection", "deletes": [ { "q": { "a": 1 }, "limit": 1 }] }');

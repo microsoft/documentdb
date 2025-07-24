@@ -35,6 +35,10 @@ pub trait DynamicConfiguration: Send + Sync + Debug {
         self.get_bool("enableChangeStreams", false).await
     }
 
+    async fn enable_connection_status(&self) -> bool {
+        self.get_bool("enableConnectionStatus", false).await
+    }
+
     async fn enable_verbose_logging_gateway(&self) -> bool {
         self.get_bool("enableVerboseLoggingGateway", false).await
     }

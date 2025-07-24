@@ -23,7 +23,10 @@ pub fn documentdb_int_error_mapping(_item: TokenStream) -> TokenStream {
     for line in std::io::BufRead::lines(reader).skip(1) {
         let line = line.unwrap();
         let parts: Vec<&str> = line.split(',').collect();
-        result += &format!("\"{}\" => Some(({}, \"{}\")),", parts[1], parts[2], parts[0]);
+        result += &format!(
+            "\"{}\" => Some(({}, \"{}\")),",
+            parts[1], parts[2], parts[0]
+        );
     }
     result += "_ => None
     }
@@ -40,11 +43,12 @@ pub fn documentdb_error_code_enum(_item: TokenStream) -> TokenStream {
     let external_error_mapping_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../pg_documentdb_core/include/utils/external_error_mapping.csv");
 
-    let csv = std::fs::read_to_string(&external_error_mapping_path).expect("Could not read external_error_mapping.csv");
+    let csv = std::fs::read_to_string(&external_error_mapping_path)
+        .expect("Could not read external_error_mapping.csv");
     let mut error_code_enum_entries = String::new();
     error_code_enum_entries += "#[derive(Debug, Clone, Copy)]
         pub enum ErrorCode {";
-    
+
     let mut from_primitive = String::new();
     from_primitive += "impl ErrorCode {
              pub fn from_i32(n: i32) -> Option<Self> {
@@ -60,7 +64,8 @@ pub fn documentdb_error_code_enum(_item: TokenStream) -> TokenStream {
 
     let gateway_error_mapping = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../pg_documentdb_gw/include/gateway_errors.txt");
-    let csv = std::fs::read_to_string(&gateway_error_mapping).expect("Could not read gateway_errors.txt");
+    let csv =
+        std::fs::read_to_string(&gateway_error_mapping).expect("Could not read gateway_errors.txt");
 
     for gateway_error in csv.lines().skip(1) {
         let parts: Vec<&str> = gateway_error.split(',').collect();

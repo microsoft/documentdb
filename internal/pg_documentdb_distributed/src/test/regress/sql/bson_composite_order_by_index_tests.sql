@@ -7,24 +7,16 @@ SET documentdb.next_collection_index_id TO 68000;
 set documentdb.enableExtendedExplainPlans to on;
 SET documentdb.enableNewCompositeIndexOpClass to on;
 
--- TODO: move this to documentdb schema
-
-DO $$
-BEGIN
-    IF (SELECT 1 FROM pg_amproc JOIN pg_opfamily on pg_amproc.amprocfamily = pg_opfamily.oid WHERE opfname = 'bson_rum_composite_path_ops' AND amproc::text LIKE '%bson_rum_composite_ordering') THEN
-    ELSE
-        -- add the operators
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD FUNCTION 8 (bson)documentdb_api_internal.bson_rum_composite_ordering(bytea, bson, int2, internal);
-        ALTER OPERATOR FAMILY documentdb_api_internal.bson_rum_composite_path_ops USING documentdb_rum ADD OPERATOR 21 documentdb_api_catalog.|-<>(bson, bson) FOR ORDER BY documentdb_core.bson_btree_ops;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
+-- if documentdb_extended_rum exists, set alternate index handler
+SELECT pg_catalog.set_config('documentdb.alternate_index_handler_name', 'extended_rum', false), extname FROM pg_extension WHERE extname = 'documentdb_extended_rum';
 
 
 SELECT documentdb_api.drop_collection('comp_db', 'query_orderby') IS NOT NULL;
 SELECT documentdb_api.create_collection('comp_db', 'query_orderby');
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "enableCompositeTerm": true, "name": "a_c" }] }', true);
+
+\d documentdb_data.documents_68001
 
 -- now insert some sample docs
 SELECT documentdb_api.insert_one('comp_db', 'query_orderby', '{ "_id": 1, "a": 1, "c": 1 }');
@@ -160,6 +152,17 @@ EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bs
 
 -- scans only > 96 and stops.
 EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_find('comp_db', '{ "find": "query_orderby_perf", "filter": { "a": { "$lt": 3, "$gt": 96 }}, "sort": { "a": 1 } }');
+
+
+-- groupby pushdown works for non-multi-key indexes
+EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "query_orderby_perf", "pipeline": [ { "$match": { "a": { "$exists": true } } }, { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
+
+set enable_bitmapscan to off;
+EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "query_orderby_perf", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
+
+-- the same does not work on multi-key indexes
+EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "query_orderby_perf_arr", "pipeline": [ { "$match": { "a": { "$exists": true } } }, { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
+EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "query_orderby_perf_arr", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
 
 set documentdb.enableSortbyIdPushDownToPrimaryKey to off;
 set enable_bitmapscan to off;
@@ -308,7 +311,7 @@ set enable_sort to off;
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$eq": 1 } } }, { "$sort": { "_id": 1, "c": 1 } } ] }');
 
 -- forced order by pushdown respects ordering when there is none.
-set documentdb.forceRumOrderedIndexScan to on;
+set documentdb_rum.forceRumOrderedIndexScan to on;
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$exists": true } } } ] }');
 SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "sortcoll", "pipeline": [ { "$match": { "a.b": { "$exists": true } } } ] }');
 
@@ -398,3 +401,17 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggr
 
 SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "sortcoll3", "filter": {}, "sort": { "a.b.c": 1, "_id": -1 } }');
 SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "sortcoll", "filter": {}, "sort": { "a.b": -1, "_id": 1 } }');
+
+
+-- test order by functionality with group
+reset documentdb.forceDisableSeqScan;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "ordering_groups", "indexes": [ { "key": { "a": 1 }, "enableOrderedIndex": true, "name": "a_1" }] }', true);
+
+-- a is either 0 or 1 or 2
+select COUNT(documentdb_api.insert_one('comp_db', 'ordering_groups', FORMAT('{ "_id": %s, "a": %s }', i , i % 3)::bson)) FROM generate_series(1, 100) AS i;
+ANALYZE documentdb_data.documents_68009;
+
+set documentdb.forceDisableSeqScan to on;
+set documentdb.enableIndexOrderbyPushdown to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "ordering_groups", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
+SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "ordering_groups", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');

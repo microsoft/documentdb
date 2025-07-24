@@ -995,10 +995,12 @@ CreateProjectionTreeStateForPartitionByFields(
 
 	bool forceProjectId = false;
 	bool allowInclusionExclusion = true;
+	pgbson *variableSpec = NULL;
 	state->projectionTreeState =
 		(BsonProjectionQueryState *) GetProjectionStateForBsonProject(&iter,
 																	  forceProjectId,
-																	  allowInclusionExclusion);
+																	  allowInclusionExclusion,
+																	  variableSpec);
 }
 
 
@@ -2944,7 +2946,7 @@ DisallowExpressionsForTopLevelLet(AggregationExpressionData *parsedExpression)
 
 /* Stores the value of $$NOW from the variableSpec in timeSystemVariables. */
 void
-GetTimeSystemVariablesFromVariableSpec(pgbson *variableSpec,
+GetTimeSystemVariablesFromVariableSpec(const pgbson *variableSpec,
 									   TimeSystemVariables *timeSystemVariables)
 {
 	if (!EnableNowSystemVariable || variableSpec == NULL)

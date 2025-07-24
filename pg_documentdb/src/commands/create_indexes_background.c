@@ -135,7 +135,7 @@ PG_FUNCTION_INFO_V1(command_create_indexes_background_internal);
 PG_FUNCTION_INFO_V1(command_check_build_index_status);
 PG_FUNCTION_INFO_V1(command_check_build_index_status_internal);
 PG_FUNCTION_INFO_V1(schedule_background_index_build_jobs);
-PG_FUNCTION_INFO_V1(build_index_background);
+PG_FUNCTION_INFO_V1(command_build_index_background);
 
 static pgbson * RunIndexCommandOnMetadataCoordinator(const char *query, int
 													 expectedSpiOk);
@@ -220,7 +220,7 @@ command_build_index_concurrently(PG_FUNCTION_ARGS)
  * stability.
  */
 Datum
-build_index_background(PG_FUNCTION_ARGS)
+command_build_index_background(PG_FUNCTION_ARGS)
 {
 	PG_RETURN_VOID();
 }

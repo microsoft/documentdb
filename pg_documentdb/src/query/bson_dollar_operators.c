@@ -562,6 +562,7 @@ PG_FUNCTION_INFO_V1(bson_dollar_not_gte);
 PG_FUNCTION_INFO_V1(bson_dollar_not_lt);
 PG_FUNCTION_INFO_V1(bson_dollar_not_lte);
 PG_FUNCTION_INFO_V1(bson_dollar_fullscan);
+PG_FUNCTION_INFO_V1(bson_dollar_index_hint);
 
 PG_FUNCTION_INFO_V1(bson_value_dollar_eq);
 PG_FUNCTION_INFO_V1(bson_value_dollar_gt);
@@ -1160,6 +1161,18 @@ bson_dollar_fullscan(PG_FUNCTION_ARGS)
 	 * The actual logic for full scan is handled in the query planner.
 	 */
 	ereport(ERROR, (errmsg("This function should be replaced by the planner")));
+}
+
+
+Datum
+bson_dollar_index_hint(PG_FUNCTION_ARGS)
+{
+	/*
+	 * This function is a no-op. It is used to indicate that the query
+	 * should use a specific index hint, which is handled in the query planner.
+	 * The actual logic for index hint is handled in the query planner.
+	 */
+	ereport(ERROR, (errmsg("The index hint function should be replaced by the planner")));
 }
 
 
@@ -2581,14 +2594,10 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	{
 		/* here we write an empty path and minKey so it's sorted first. */
 		state.orderByValue.value_type = BSON_TYPE_UNDEFINED;
-		PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
-								&state.orderByValue);
 	}
-	else
-	{
-		PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
-								&state.orderByValue);
-	}
+
+	PgbsonWriterAppendValue(&writer, filterElement.path, filterPathLength,
+							&state.orderByValue);
 
 	/* append the collation for use in bson_orderby_compare */
 	if (IsCollationApplicable(collationString))

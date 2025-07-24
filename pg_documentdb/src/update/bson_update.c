@@ -24,6 +24,7 @@
 #include "update/bson_update_common.h"
 #include "update/bson_update.h"
 #include "utils/fmgr_utils.h"
+#include "utils/version_utils.h"
 #include "aggregation/bson_query.h"
 #include "commands/commands_common.h"
 
@@ -73,6 +74,8 @@ typedef struct
 	UpdateType updateType;
 } QueryProjectionContext;
 
+extern bool EnableVariablesSupportForWriteCommands;
+
 
 /* --------------------------------------------------------- */
 /* Forward declaration */
@@ -82,6 +85,7 @@ static void BuildBsonUpdateMetadata(BsonUpdateMetadata *metadata,
 									const bson_value_t *updateSpec,
 									const bson_value_t *querySpec, const
 									bson_value_t *arrayFilters,
+									const bson_value_t *variableSpec,
 									bool buildSourceDocOnUpsert);
 
 static pgbson * BsonUpdateDocumentCore(pgbson *sourceDocument, const
@@ -178,6 +182,14 @@ bson_update_document(PG_FUNCTION_ARGS)
 	pgbson *querySpecDoc = PG_GETARG_PGBSON(2);
 	pgbson *arrayFiltersDoc = PG_GETARG_MAYBE_NULL_PGBSON(3);
 
+	bson_value_t variableSpec = { 0 };
+	if (EnableVariablesSupportForWriteCommands && PG_NARGS() > 5 &&
+		!PG_ARGISNULL(5))
+	{
+		pgbson *variableSpecDoc = PG_GETARG_PGBSON(5);
+		variableSpec = ConvertPgbsonToBsonValue(variableSpecDoc);
+	}
+
 	pgbsonelement updateSpecElement;
 	PgbsonToSinglePgbsonElement(updateSpecDoc, &updateSpecElement);
 	bson_value_t querySpec = ConvertPgbsonToBsonValue(querySpecDoc);
@@ -194,7 +206,7 @@ bson_update_document(PG_FUNCTION_ARGS)
 	bool buildSourceDocOnUpsert = IsPgbsonEmptyDocument(sourceDocument);
 
 	/* Build any cacheable state for processing updates */
-	int stateArgPositions[3] = { 1, 2, 3 };
+	int stateArgPositions[4] = { 1, 2, 3, 4 };
 	BsonUpdateMetadata *metadata;
 
 	SetCachedFunctionStateMultiArgs(
@@ -204,7 +216,7 @@ bson_update_document(PG_FUNCTION_ARGS)
 		3,
 		BuildBsonUpdateMetadata,
 		&updateSpecElement.bsonValue, &querySpec, arrayFilters,
-		buildSourceDocOnUpsert);
+		&variableSpec, buildSourceDocOnUpsert);
 
 	if (metadata == NULL)
 	{
@@ -271,12 +283,12 @@ bson_update_returned_value(PG_FUNCTION_ARGS)
  */
 void
 ValidateUpdateDocument(const bson_value_t *updateSpec, const bson_value_t *querySpec,
-					   const bson_value_t *arrayFilters)
+					   const bson_value_t *arrayFilters, const bson_value_t *variableSpec)
 {
 	BsonUpdateMetadata metadata = { 0 };
 	bool buildSourceDocOnUpsert = false;
 	BuildBsonUpdateMetadata(&metadata, updateSpec, querySpec, arrayFilters,
-							buildSourceDocOnUpsert);
+							variableSpec, buildSourceDocOnUpsert);
 }
 
 
@@ -286,7 +298,8 @@ ValidateUpdateDocument(const bson_value_t *updateSpec, const bson_value_t *query
  */
 pgbson *
 BsonUpdateDocument(pgbson *sourceDocument, const bson_value_t *updateSpec,
-				   const bson_value_t *querySpec, const bson_value_t *arrayFilters)
+				   const bson_value_t *querySpec, const bson_value_t *arrayFilters,
+				   const bson_value_t *variableSpec)
 {
 	BsonUpdateMetadata metadata = { 0 };
 
@@ -294,7 +307,7 @@ BsonUpdateDocument(pgbson *sourceDocument, const bson_value_t *updateSpec,
 	bool buildSourceDocOnUpsert = IsPgbsonEmptyDocument(sourceDocument);
 
 	BuildBsonUpdateMetadata(&metadata, updateSpec, querySpec, arrayFilters,
-							buildSourceDocOnUpsert);
+							variableSpec, buildSourceDocOnUpsert);
 	return BsonUpdateDocumentCore(sourceDocument, updateSpec, &metadata);
 }
 
@@ -414,7 +427,7 @@ BsonUpdateDocumentCore(pgbson *sourceDocument, const bson_value_t *updateSpec,
 static void
 BuildBsonUpdateMetadata(BsonUpdateMetadata *metadata, const bson_value_t *updateSpec,
 						const bson_value_t *querySpec, const bson_value_t *arrayFilters,
-						bool buildSourceDocOnUpsert)
+						const bson_value_t *variableSpec, bool buildSourceDocOnUpsert)
 {
 	metadata->updateType = DetermineUpdateType(updateSpec);
 
@@ -441,7 +454,8 @@ BuildBsonUpdateMetadata(BsonUpdateMetadata *metadata, const bson_value_t *update
 				}
 			}
 
-			metadata->aggregationState = GetAggregationPipelineUpdateState(updateSpec);
+			metadata->aggregationState = GetAggregationPipelineUpdateState(updateSpec,
+																		   variableSpec);
 			break;
 		}
 

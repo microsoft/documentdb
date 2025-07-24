@@ -69,10 +69,10 @@ typedef struct
 	const char *query;
 
 	/* the seconds since Epoch */
-	int64 query_start;
+	int64 queryStart;
 
 	/* Seconds that the command is running */
-	int secs_running;
+	int secsRunning;
 
 	/* The operationId for the operation */
 	const char *operationId;
@@ -81,16 +81,19 @@ typedef struct
 	char *rawMongoTable;
 
 	/* The wait_event_type in the pg_stat_activity */
-	const char *wait_event_type;
+	const char *waitEventType;
 
 	/* The postgres PID for the operation */
-	int64 stat_pid;
+	int64 statPid;
 
 	/* The global pid for the operation */
-	int64 global_pid;
+	int64 globalPid;
 
 	/* The seconds since the backend last state change */
 	int64 state_change_since;
+
+	/* The shard_id of the entity running this activity */
+	int32 shardId;
 
 	/* collection name determined from the table name */
 	const char *processedMongoCollection;
@@ -139,11 +142,15 @@ extern bool CurrentOpAddSqlCommand;
 
 /* Single node scenario - the global_pid can be assumed to be just the one for the coordinator */
 char *DistributedOperationsQuery =
-	"SELECT *, (10000000000 + pid)::int8 as global_pid FROM pg_stat_activity";
+	"SELECT *, (10000000000 + pid)::int8 as global_pid, FALSE as worker_query, 0 AS groupid FROM pg_stat_activity";
 
 /* Similar in logic to the distributed node-id calculation */
 const char *FirstLockingPidQuery =
 	"SELECT array_agg( (($2 / 10000000000) * 10000000000) + pid::integer) FROM unnest(pg_blocking_pids($1::integer)) pid LIMIT 1";
+
+
+/* Application name of any distributed operation schedulers. */
+char *DistributedApplicationNamePrefix = NULL;
 
 /*
  * Command wrapper for CurrentOp. Tracks feature counter usage
@@ -463,7 +470,8 @@ WorkerGetBaseActivities()
 						   " EXTRACT(epoch FROM now() - pa.query_start)::bigint AS secs_running, "
 						   " pa.wait_event_type AS wait_event_type, "
 						   " pa.global_pid || ':' || (EXTRACT(epoch FROM pa.query_start) * 1000000)::numeric(20,0) AS op_id, "
-						   " EXTRACT(epoch FROM now() - pa.state_change)::bigint AS state_change_since FROM (");
+						   " EXTRACT(epoch FROM now() - pa.state_change)::bigint AS state_change_since, "
+						   " pa.groupid AS shard_id FROM (");
 
 	appendStringInfoString(queryInfo, DistributedOperationsQuery);
 
@@ -487,8 +495,17 @@ WorkerGetBaseActivities()
 		strlen(CurrentOpApplicationName) > 0)
 	{
 		appendStringInfo(queryInfo,
-						 " AND (application_name = '%s' OR application_name LIKE '%%%s')",
+						 " AND (application_name = '%s' OR application_name LIKE '%%%s'",
 						 CurrentOpApplicationName, GetExtensionApplicationName());
+
+		if (DistributedApplicationNamePrefix != NULL)
+		{
+			appendStringInfo(queryInfo,
+							 " OR (application_name LIKE '%s%%' AND worker_query AND state != 'idle')",
+							 DistributedApplicationNamePrefix);
+		}
+
+		appendStringInfo(queryInfo, ") ");
 	}
 
 	List *workerActivities = NIL;
@@ -542,7 +559,7 @@ WorkerGetBaseActivities()
 									&isNull);
 		if (!isNull)
 		{
-			activity->stat_pid = DatumGetInt64(resultDatum);
+			activity->statPid = DatumGetInt64(resultDatum);
 		}
 
 		/* state (Attr 3) */
@@ -566,7 +583,7 @@ WorkerGetBaseActivities()
 									&isNull);
 		if (!isNull)
 		{
-			activity->global_pid = DatumGetInt64(resultDatum);
+			activity->globalPid = DatumGetInt64(resultDatum);
 		}
 
 		/* CollectionNameRaw (attr 5) */
@@ -590,7 +607,7 @@ WorkerGetBaseActivities()
 									&isNull);
 		if (!isNull)
 		{
-			activity->query_start = DatumGetInt64(resultDatum);
+			activity->queryStart = DatumGetInt64(resultDatum);
 		}
 
 		/* secs_running (Attr 7) */
@@ -599,7 +616,7 @@ WorkerGetBaseActivities()
 									&isNull);
 		if (!isNull)
 		{
-			activity->secs_running = DatumGetInt64(resultDatum);
+			activity->secsRunning = DatumGetInt64(resultDatum);
 		}
 
 		/* wait_event_type (Attr 8) */
@@ -609,12 +626,12 @@ WorkerGetBaseActivities()
 		if (!isNull)
 		{
 			spiContext = MemoryContextSwitchTo(priorMemoryContext);
-			activity->wait_event_type = TextDatumGetCString(resultDatum);
+			activity->waitEventType = TextDatumGetCString(resultDatum);
 			MemoryContextSwitchTo(spiContext);
 		}
 		else
 		{
-			activity->wait_event_type = "";
+			activity->waitEventType = "";
 		}
 
 		/* op_id (Attr 9) */
@@ -641,6 +658,15 @@ WorkerGetBaseActivities()
 			activity->state_change_since = DatumGetInt64(resultDatum);
 		}
 
+		/* shard_id (Attr 11) */
+		resultDatum = SPI_getbinval(SPI_tuptable->vals[0],
+									SPI_tuptable->tupdesc, 11,
+									&isNull);
+		if (!isNull)
+		{
+			activity->shardId = DatumGetInt32(resultDatum);
+		}
+
 		spiContext = MemoryContextSwitchTo(priorMemoryContext);
 		workerActivities = lappend(workerActivities, activity);
 		MemoryContextSwitchTo(spiContext);
@@ -664,7 +690,8 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 {
 	DetectMongoCollection(workerActivity);
 
-	PgbsonWriterAppendUtf8(singleActivityWriter, "shard", 5, "defaultShard");
+	char *shardId = psprintf("shard_%d", workerActivity->shardId);
+	PgbsonWriterAppendUtf8(singleActivityWriter, "shard", 5, shardId);
 	bool isActive = false;
 	const char *type = "unknown";
 	if (strcmp(workerActivity->state, "active") == 0)
@@ -694,7 +721,7 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 
 	/* report the globalPid so that we can track locks back to this process */
 	PgbsonWriterAppendInt64(singleActivityWriter, "op_prefix", 9,
-							workerActivity->global_pid);
+							workerActivity->globalPid);
 
 
 	if (isActive)
@@ -719,16 +746,16 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 		}
 
 		bson_value_t stagingValue = { 0 };
-		if (workerActivity->query_start > 0)
+		if (workerActivity->queryStart > 0)
 		{
 			stagingValue.value_type = BSON_TYPE_DATE_TIME;
-			stagingValue.value.v_datetime = workerActivity->query_start * 1000;
+			stagingValue.value.v_datetime = workerActivity->queryStart * 1000;
 			PgbsonWriterAppendValue(singleActivityWriter, "currentOpTime", 13,
 									&stagingValue);
 		}
 
 		PgbsonWriterAppendInt64(singleActivityWriter, "secs_running", 12,
-								workerActivity->secs_running);
+								workerActivity->secsRunning);
 
 		pgbson_writer commandDocumentWriter;
 		PgbsonWriterStartDocument(singleActivityWriter, "command", 7,
@@ -747,9 +774,9 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 	}
 
 	bool waitingForLock = false;
-	if (strcmp(workerActivity->wait_event_type, "Lock") == 0 ||
-		strcmp(workerActivity->wait_event_type, "Extension") == 0 ||
-		strcmp(workerActivity->wait_event_type, "LWLock") == 0)
+	if (strcmp(workerActivity->waitEventType, "Lock") == 0 ||
+		strcmp(workerActivity->waitEventType, "Extension") == 0 ||
+		strcmp(workerActivity->waitEventType, "LWLock") == 0)
 	{
 		waitingForLock = true;
 	}
@@ -769,7 +796,7 @@ WriteOneActivityToDocument(SingleWorkerActivity *workerActivity,
 	}
 
 	/* If the command requested logging index build progress, query and log it */
-	if (workerActivity->processedBuildIndexStatProgress && workerActivity->stat_pid > 0)
+	if (workerActivity->processedBuildIndexStatProgress && workerActivity->statPid > 0)
 	{
 		pgbson_writer progressWriter;
 		PgbsonWriterStartDocument(singleActivityWriter, "progress", 8, &progressWriter);
@@ -1025,7 +1052,7 @@ WriteCommandAndGetQueryType(const char *query, SingleWorkerActivity *activity,
 		}
 	}
 
-	if (strstr(query, "CREATE INDEX") != NULL)
+	if (strstr(query, "CREATE INDEX") != NULL || strstr(query, "CREATE  INDEX") != NULL)
 	{
 		PgbsonWriterAppendUtf8(commandWriter, "createIndexes", 13,
 							   activity->processedMongoCollection);
@@ -1122,7 +1149,7 @@ GetIndexSpecForShardedCreateIndexQuery(SingleWorkerActivity *activity)
 	StringInfo cmdStr = makeStringInfo();
 	appendStringInfo(cmdStr,
 					 "SELECT pc.relname::text AS relation_name FROM pg_stat_activity psa LEFT JOIN pg_locks pl ON psa.pid = pl.pid LEFT JOIN pg_class pc ON pl.relation = pc.oid WHERE psa.application_name = 'citus_internal gpid=%ld' AND pc.relam = ANY($1) LIMIT 1",
-					 activity->global_pid);
+					 activity->globalPid);
 
 	int argCount = 1;
 	Oid argTypes[1] = { OIDARRAYOID };
@@ -1474,7 +1501,7 @@ WriteIndexBuildProgressAndGetMessage(SingleWorkerActivity *activity,
 
 	Oid argTypes[1] = { INT8OID };
 	Datum argValues[1] = {
-		Int64GetDatum(activity->global_pid)
+		Int64GetDatum(activity->globalPid)
 	};
 	char argNulls[1] = { ' ' };
 	bool readOnly = true;
@@ -1550,7 +1577,7 @@ WriteGlobalPidOfLockingProcess(SingleWorkerActivity *activity, pgbson_writer *wr
 {
 	Oid argTypes[2] = { INT8OID, INT8OID };
 	Datum argValues[2] = {
-		Int64GetDatum(activity->stat_pid), Int64GetDatum(activity->global_pid)
+		Int64GetDatum(activity->statPid), Int64GetDatum(activity->globalPid)
 	};
 	char argNulls[2] = { ' ', ' ' };
 	bool readOnly = true;

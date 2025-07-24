@@ -13,9 +13,9 @@ ERROR:  $currentOp must be run against the 'admin' database with {aggregate: 1}
 SELECT document FROM bson_aggregation_pipeline('admin', '{ "aggregate": "coll", "pipeline": [ { "$currentOp": {} }] }');
 ERROR:  $currentOp must be run against the 'admin' database with {aggregate: 1}
 SELECT document FROM bson_aggregation_pipeline('admin', '{ "aggregate": 1, "pipeline": [ { "$currentOp": {} }, { "$project": { "opid": 0, "op_prefix": 0, "currentOpTime": 0, "secs_running": 0 }}] }');
-                                                          document                                                          
-----------------------------------------------------------------------------------------------------------------------------
- { "shard" : "defaultShard", "active" : true, "type" : "op", "command" : {  }, "op" : "command", "waitingForLock" : false }
+                                                       document                                                        
+-----------------------------------------------------------------------------------------------------------------------
+ { "shard" : "shard_0", "active" : true, "type" : "op", "command" : {  }, "op" : "command", "waitingForLock" : false }
 (1 row)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('admin', '{ "aggregate": 1, "pipeline": [ { "$currentOp": {} }] }');

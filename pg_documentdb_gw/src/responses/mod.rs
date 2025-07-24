@@ -11,6 +11,7 @@ use bson::{rawdoc, Document, RawDocument};
 use crate::error::Result;
 use crate::protocol::OK_SUCCEEDED;
 
+pub mod constant;
 mod error;
 mod pg;
 mod raw;

@@ -196,7 +196,9 @@ command_find_and_modify(PG_FUNCTION_ARGS)
 
 			if (!spec.remove)
 			{
-				ValidateUpdateDocument(spec.update, spec.query, spec.arrayFilters);
+				const bson_value_t *variableSpec = NULL;
+				ValidateUpdateDocument(spec.update, spec.query, spec.arrayFilters,
+									   variableSpec);
 			}
 
 			FindAndModifyResult result = {
@@ -339,11 +341,16 @@ ParseFindAndModifyMessage(pgbson *message)
 			/* we keep arrayFilters in projected form to preserve the type */
 			spec.arrayFilters = CreateBsonValueCopy(bson_iter_value(&messageIter));
 		}
-		else if (!SkipFailOnCollation && strcmp(key, "collation") == 0)
+		else if (strcmp(key, "collation") == 0)
 		{
-			/* If Collation is not enabled, it is silently ignored */
-			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("findAndModify.collation is not implemented yet")));
+			ReportFeatureUsage(FEATURE_COLLATION);
+
+			if (!SkipFailOnCollation)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg(
+									"findAndModify.collation is not implemented yet")));
+			}
 		}
 		else if (strcmp(key, "maxTimeMS") == 0)
 		{
@@ -524,7 +531,8 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 							  UPDATE_RETURNS_OLD,
 			.returnFields = spec->returnFields,
 			.sort = spec->sort,
-			.update = spec->update
+			.update = spec->update,
+			.variableSpec = NULL
 		};
 
 		UpdateOneResult updateOneResult = { 0 };

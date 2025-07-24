@@ -1,0 +1,133 @@
+SET search_path TO documentdb_api,documentdb_api_catalog,documentdb_api_internal,documentdb_core;
+SET citus.next_shard_id TO 685000;
+SET documentdb.next_collection_id TO 68500;
+SET documentdb.next_collection_index_id TO 68500;
+set documentdb.enableExtendedExplainPlans to on;
+SET documentdb.enableNewCompositeIndexOpClass to on;
+set documentdb.enableIndexOrderbyPushdown to on;
+-- if documentdb_extended_rum exists, set alternate index handler
+SELECT pg_catalog.set_config('documentdb.alternate_index_handler_name', 'extended_rum', false), extname FROM pg_extension WHERE extname = 'documentdb_extended_rum';
+  set_config  |         extname         
+---------------------------------------------------------------------
+ extended_rum | documentdb_extended_rum
+(1 row)
+
+SELECT documentdb_api.drop_collection('comp_db2', 'query_ordered_pref') IS NOT NULL;
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api.create_collection('comp_db2', 'query_ordered_pref');
+NOTICE:  creating collection
+ create_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "query_ordered_pref", "indexes": [ { "key": { "a": 1 }, "enableCompositeTerm": true, "name": "a_1" }] }', true);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+\d documentdb_data.documents_68501
+          Table "documentdb_data.documents_68501"
+     Column      |  Type  | Collation | Nullable | Default 
+---------------------------------------------------------------------
+ shard_key_value | bigint |           | not null | 
+ object_id       | bson   |           | not null | 
+ document        | bson   |           | not null | 
+Indexes:
+    "collection_pk_68501" PRIMARY KEY, btree (shard_key_value, object_id)
+    "documents_rum_index_68502" documentdb_extended_rum (document documentdb_extended_rum_catalog.bson_extended_rum_composite_path_ops (pathspec='[ "a" ]', tl='2691'))
+Check constraints:
+    "shard_key_value_check" CHECK (shard_key_value = '68501'::bigint)
+
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'query_ordered_pref', FORMAT('{ "_id": %s, "a": %s }', i, i)::bson)) FROM generate_series(1, 10000) AS i;
+ count 
+---------------------------------------------------------------------
+ 10000
+(1 row)
+
+ANALYZE documentdb_data.documents_68501;
+set enable_bitmapscan to off;
+set documentdb.forceDisableSeqScan to on;
+set documentdb_rum.preferOrderedIndexScan to off;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "query_ordered_pref", "filter": { "a": { "$gt": 50 } }, "projection": { "_id": 1 }, "limit": 5 }');
+                                                                                                          QUERY PLAN                                                                                                          
+---------------------------------------------------------------------
+ Limit (actual rows=5 loops=1)
+   Output: (bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson))
+   ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=5 loops=1)
+         Output: bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson)
+         indexName: a_1
+         isMultiKey: false
+         indexBounds: ["a": (50, Infinity]]
+         innerScanLoops: 5 loops
+         scanType: regular
+         scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 9950)]
+         ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
+               Output: document
+               Index Cond: (collection.document @> '{ "a" : { "$numberInt" : "50" } }'::bson)
+(13 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "query_ordered_pref", "filter": { "a": { "$gt": 50, "$lt": 900 } }, "projection": { "_id": 1 }, "limit": 5 }');
+                                                                                                                           QUERY PLAN                                                                                                                           
+---------------------------------------------------------------------
+ Limit (actual rows=5 loops=1)
+   Output: (bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" }, "$lt" : { "$numberInt" : "900" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson))
+   ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=5 loops=1)
+         Output: bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" }, "$lt" : { "$numberInt" : "900" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson)
+         indexName: a_1
+         isMultiKey: false
+         indexBounds: ["a": (50, 900)]
+         innerScanLoops: 5 loops
+         scanType: regular
+         scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 849)]
+         ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
+               Output: document
+               Index Cond: (collection.document @<> '{ "a" : { "min" : { "$numberInt" : "50" }, "max" : { "$numberInt" : "900" }, "minInclusive" : false, "maxInclusive" : false } }'::bson)
+(13 rows)
+
+set documentdb_rum.preferOrderedIndexScan to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "query_ordered_pref", "filter": { "a": { "$gt": 50 } }, "projection": { "_id": 1 }, "limit": 5 }');
+                                                                                                          QUERY PLAN                                                                                                          
+---------------------------------------------------------------------
+ Limit (actual rows=5 loops=1)
+   Output: (bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson))
+   ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=5 loops=1)
+         Output: bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson)
+         indexName: a_1
+         isMultiKey: false
+         indexBounds: ["a": (50, Infinity]]
+         innerScanLoops: 6 loops
+         scanType: ordered
+         scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 5)]
+         ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
+               Output: document
+               Index Cond: (collection.document @> '{ "a" : { "$numberInt" : "50" } }'::bson)
+(13 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "query_ordered_pref", "filter": { "a": { "$gt": 50, "$lt": 900 } }, "projection": { "_id": 1 }, "limit": 5 }');
+                                                                                                                           QUERY PLAN                                                                                                                           
+---------------------------------------------------------------------
+ Limit (actual rows=5 loops=1)
+   Output: (bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" }, "$lt" : { "$numberInt" : "900" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson))
+   ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=5 loops=1)
+         Output: bson_dollar_project_find(document, '{ "_id" : { "$numberInt" : "1" } }'::bson, '{ "a" : { "$gt" : { "$numberInt" : "50" }, "$lt" : { "$numberInt" : "900" } } }'::bson, '{ "now" : NOW_SYS_VARIABLE }'::bson)
+         indexName: a_1
+         isMultiKey: false
+         indexBounds: ["a": (50, 900)]
+         innerScanLoops: 6 loops
+         scanType: ordered
+         scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 5)]
+         ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
+               Output: document
+               Index Cond: (collection.document @<> '{ "a" : { "min" : { "$numberInt" : "50" }, "max" : { "$numberInt" : "900" }, "minInclusive" : false, "maxInclusive" : false } }'::bson)
+(13 rows)
+

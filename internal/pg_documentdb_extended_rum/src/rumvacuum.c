@@ -22,6 +22,7 @@
 #include "pg_documentdb_rum.h"
 
 bool RumUseNewVacuumScan = RUM_USE_NEW_VACUUM_SCAN;
+bool RumSkipRetryOnDeletePage = RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE;
 
 typedef struct
 {
@@ -403,6 +404,11 @@ restart:
 		ReleaseBuffer(dBuffer);
 		ReleaseBuffer(rBuffer);
 		ReleaseBuffer(pBuffer);
+		if (RumSkipRetryOnDeletePage)
+		{
+			return false;
+		}
+
 		goto restart;
 	}
 	LockBuffer(rBuffer, RUM_EXCLUSIVE);
@@ -434,6 +440,11 @@ restart:
 		UnlockReleaseBuffer(rBuffer);
 
 		if (dMaxoff >= FirstOffsetNumber)
+		{
+			return false;
+		}
+
+		if (RumSkipRetryOnDeletePage)
 		{
 			return false;
 		}

@@ -1,5 +1,11 @@
 ### documentdb v1.106-0 (Unreleased) ###
-- Add internal extension that provides extensions to the `rum` index. *[Feature]*
+* Enable let support for update queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
+* Add internal extension that provides extensions to the `rum` index. *[Feature]*
+* Optimized query for `usersInfo` command.
+* Support collation with `delete` *[Feature]*. Requires `EnableCollation` to be `on`.
+* Support for index hints for find/aggregate/count/distinct *[Feature]*
+* Support `createRole` command *[Feature]*
+* Add schema changes for Role CRUD APIs *[Feature]*
 
 ### documentdb v0.105-0 (Unreleased) ###
 * Support `$bucketAuto` aggregation stage, with granularity types: `POWERSOF2`, `1-2-5`, `R5`, `R10`, `R20`, `R40`, `R80`, `E6`, `E12`, `E24`, `E48`, `E96`, `E192` *[Feature]*

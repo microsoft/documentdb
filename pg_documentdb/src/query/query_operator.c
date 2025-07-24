@@ -251,7 +251,8 @@ bson_query_match(PG_FUNCTION_ARGS)
 	memset(&context, 0, sizeof(context));
 
 	Node *quals = NULL;
-	bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+	bool useQueryMatchWithLetAndCollation = EnableCollation ||
+											EnableLetAndCollationForQueryMatch ||
 											EnableVariablesSupportForWriteCommands;
 
 	/* if useQueryMatchWithLetAndCollation is off,  */
@@ -805,7 +806,8 @@ ReplaceBsonQueryOperatorsMutator(Node *node, ReplaceBsonQueryOperatorsContext *c
 	{
 		FuncExpr *funcExpr = (FuncExpr *) node;
 
-		bool useQueryMatchWithLetAndCollation = EnableLetAndCollationForQueryMatch ||
+		bool useQueryMatchWithLetAndCollation = EnableCollation ||
+												EnableLetAndCollationForQueryMatch ||
 												EnableVariablesSupportForWriteCommands;
 		if (useQueryMatchWithLetAndCollation &&
 			funcExpr->funcid == BsonQueryMatchWithLetAndCollationFunctionId())
@@ -4011,7 +4013,17 @@ TryProcessOrIntoDollarIn(BsonQueryOperatorContext *context,
 
 		pgbson *value = DatumGetPgBson(argConst->constvalue);
 		pgbsonelement valueElement;
-		PgbsonToSinglePgbsonElement(value, &valueElement); /* TODO: collation support */
+
+		if (IsCollationApplicable(context->collationString))
+		{
+			/* we can safely ignore any appended collation string here */
+			/* as it will be appended when creating the funcExpr */
+			PgbsonToSinglePgbsonElementWithCollation(value, &valueElement);
+		}
+		else
+		{
+			PgbsonToSinglePgbsonElement(value, &valueElement);
+		}
 
 		StringView currentPath = {
 			.length = valueElement.pathLength, .string = valueElement.path

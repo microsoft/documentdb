@@ -22,9 +22,10 @@ typedef enum
 
 UpdateType DetermineUpdateType(const bson_value_t *updateSpec);
 void ValidateUpdateDocument(const bson_value_t *updateSpec, const bson_value_t *querySpec,
-							const bson_value_t *arrayFilters);
+							const bson_value_t *arrayFilters, const
+							bson_value_t *variableSpec);
 pgbson * BsonUpdateDocument(pgbson *sourceDocument, const bson_value_t *updateSpec,
 							const bson_value_t *querySpec, const
-							bson_value_t *arrayFilters);
+							bson_value_t *arrayFilters, const bson_value_t *variableSpec);
 
 #endif

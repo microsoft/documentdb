@@ -12,7 +12,7 @@ SELECT documentdb_api.drop_collection('array_query_db', 'array_operator_tests') 
  t
 (1 row)
 
-SELECT documentdb_api_internal.create_indexes_non_concurrently('array_query_db', '{ "createIndexes": "array_operator_tests", "indexes": [ { "key": { "value": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value" }] }', true) IS NOT NULL;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('array_query_db', '{ "createIndexes": "array_operator_tests", "indexes": [ { "key": { "value": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value" }, { "key": { "value.subfield": 1 }, "enableCompositeTerm": true, "name": "queryoperator_value_subfield" }] }', true) IS NOT NULL;
 NOTICE:  creating collection
  ?column? 
 ---------------------------------------------------------------------

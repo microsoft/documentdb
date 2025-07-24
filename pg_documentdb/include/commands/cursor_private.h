@@ -23,6 +23,9 @@ bool CreateAndDrainPersistedQuery(const char *cursorName, Query *query,
 								  accumulatedSize,
 								  pgbson_array_writer *arrayWriter, bool isHoldCursor,
 								  bool closeCursor);
+void CreateAndDrainSingleBatchQuery(const char *cursorName, Query *query,
+									int batchSize, int32_t *numIterations, uint32_t
+									accumulatedSize, pgbson_array_writer *arrayWriter);
 bytea * CreateAndDrainPersistedQueryWithFiles(const char *cursorName, Query *query,
 											  int batchSize, int32_t *numIterations,
 											  uint32_t
@@ -37,7 +40,7 @@ bytea * DrainPersistedFileCursor(const char *cursorName, int batchSize,
 								 pgbson_array_writer *arrayWriter,
 								 bytea *cursorFileState);
 
-bool CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
+void CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 								  int32_t *numIterations, uint32_t
 								  accumulatedSize,
 								  pgbson_array_writer *arrayWriter);

@@ -1532,10 +1532,12 @@ CreateProjectionTreeStateForPartitionBy(DensifyWindowState *state, pgbson *parti
 
 	bool forceProjectId = false;
 	bool allowInclusionExclusion = true;
+	pgbson *variableSpec = NULL;
 	state->partitionByTreeState =
 		(BsonProjectionQueryState *) GetProjectionStateForBsonProject(&iter,
 																	  forceProjectId,
-																	  allowInclusionExclusion);
+																	  allowInclusionExclusion,
+																	  variableSpec);
 }
 
 

@@ -798,6 +798,54 @@ FailIfQueryPathHasDigitsForWildcard(Datum query, bytea *options)
 }
 
 
+const char *
+GetFirstPathFromIndexOptionsIfApplicable(bytea *indexOptions, bool *isWildcardIndex)
+{
+	BsonGinIndexOptionsBase *options = (BsonGinIndexOptionsBase *) indexOptions;
+	*isWildcardIndex = false;
+	switch (options->type)
+	{
+		case IndexOptionsType_Text:
+		{
+			/* Text index does not have a path */
+			return NULL;
+		}
+
+		case IndexOptionsType_2d:
+		case IndexOptionsType_2dsphere:
+		{
+			/* TODO: Should we support this? */
+			return NULL;
+		}
+
+		case IndexOptionsType_SinglePath:
+		{
+			BsonGinSinglePathOptions *singlePathOptions =
+				(BsonGinSinglePathOptions *) options;
+			uint32_t indexPathLength;
+			const char *indexPath;
+			Get_Index_Path_Option(singlePathOptions, path, indexPath, indexPathLength);
+
+			*isWildcardIndex = singlePathOptions->isWildcard;
+			return pnstrdup(indexPath, indexPathLength);
+		}
+
+		case IndexOptionsType_Composite:
+		{
+			return GetCompositeFirstIndexPath(options);
+		}
+
+		case IndexOptionsType_Hashed:
+		case IndexOptionsType_Wildcard:
+		case IndexOptionsType_UniqueShardKey:
+		default:
+		{
+			return NULL;
+		}
+	}
+}
+
+
 /*
  * ValidateIndexForQualifierValue checks that a given queryValue can be satisfied
  * by the current index given the indexOptions for that index and an operator strategy.

@@ -50,6 +50,14 @@ typedef struct
 	bool isNull;
 } BackgroundWorkerJobArgument;
 
+
+/*
+ * Define a hook that clients can supply. This can be used to dynamically
+ * change the schedule interval of the job.
+ */
+typedef int (*get_schedule_interval_in_seconds_hook_type)(void);
+
+
 /* Background worker job definition */
 typedef struct
 {
@@ -69,10 +77,10 @@ typedef struct
 	BackgroundWorkerJobArgument argument;
 
 	/*
-	 * Schedule interval in seconds. The job will run after the time elapsed
-	 * since the previous run is longer than this.
+	 * Hook to get the schedule interval in seconds.
+	 * This can be used to dynamically change the schedule interval.
 	 */
-	int scheduleIntervalInSeconds;
+	get_schedule_interval_in_seconds_hook_type get_schedule_interval_in_seconds_hook;
 
 	/*
 	 * Command timeout in seconds. The job will be canceled if it runs for longer than this.

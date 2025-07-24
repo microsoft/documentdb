@@ -55,6 +55,9 @@ typedef struct
 
 	/* whether to bypass document validation */
 	bool bypassDocumentValidation;
+
+	/* parsed variable spec */
+	const bson_value_t *variableSpec;
 } UpdateOneParams;
 
 

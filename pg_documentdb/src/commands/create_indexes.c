@@ -158,27 +158,6 @@ typedef struct
 	List *nonIdFieldPathList;
 } WildcardProjectionPathOps;
 
-typedef struct
-{
-	const char *mongoIndexName;
-	bool isSupported;
-	MongoIndexKind indexKind;
-} MongoIndexSupport;
-
-
-/* Different types of indexes supported
- */
-static const MongoIndexSupport MongoIndexSupportedList[] =
-{
-	{ "2d", true, MongoIndexKind_2d },
-	{ "hashed", true, MongoIndexKind_Hashed },
-	{ "text", true, MongoIndexKind_Text },
-	{ "2dsphere", true, MongoIndexKind_2dsphere },
-	{ "cosmosSearch", true, MongoIndexingKind_CosmosSearch },
-};
-
-static const int NumberOfMongoIndexTypes = sizeof(MongoIndexSupportedList) /
-										   sizeof(MongoIndexSupport);
 
 extern bool ForceIndexTermTruncation;
 extern int IndexTruncationLimitOverride;
@@ -189,8 +168,9 @@ extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceWildcardReducedTerm;
 extern bool DefaultUseCompositeOpClass;
 extern bool EnableDescendingCompositeIndex;
+extern bool EnableCompositeUniqueIndex;
 
-char *AlternateIndexHandler = NULL;
+extern char *AlternateIndexHandler;
 
 #define WILDCARD_INDEX_SUFFIX "$**"
 #define DOT_WILDCARD_INDEX_SUFFIX "." WILDCARD_INDEX_SUFFIX
@@ -313,7 +293,7 @@ static void ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *tre
 											 nonIdFieldInclusion,
 											 WildcardProjFieldInclusionMode *
 											 idFieldInclusion);
-static char * GenerateIndexExprStr(char *indexAmSuffix,
+static char * GenerateIndexExprStr(const char *indexAmSuffix,
 								   bool unique, bool sparse, bool enableCompositeOpClass,
 								   IndexDefKey *indexDefKey,
 								   const BsonIntermediatePathNode *
@@ -321,7 +301,9 @@ static char * GenerateIndexExprStr(char *indexAmSuffix,
 								   const char *indexName, const char *defaultLanguage,
 								   const char *languageOverride,
 								   bool enableLargeIndexKeys,
-								   bool useReducedWildcardTerms);
+								   bool useReducedWildcardTerms,
+								   const char *indexAmOpClassCatalogSchema,
+								   const char *indexAmOpClassInternalCatalogSchema);
 static char * Generate2dsphereIndexExprStr(const IndexDefKey *indexDefKey);
 static char * Generate2dsphereSparseExprStr(const IndexDefKey *indexDefKey);
 static char * GenerateIndexFilterStr(uint64 collectionId, Expr *indexDefPartFilterExpr);
@@ -446,8 +428,8 @@ IsHashIndex(IndexDef *indexDef)
  *
  * Otherwise, we default to "rum" index.
  */
-inline static char *
-GetIndexAmHandlerName(IndexDef *indexDef)
+inline static const BsonIndexAmEntry *
+GetIndexAmHandlerByName(IndexDef *indexDef)
 {
 	if (AlternateIndexHandler != NULL && strlen(AlternateIndexHandler) > 0)
 	{
@@ -462,11 +444,11 @@ GetIndexAmHandlerName(IndexDef *indexDef)
 			(IsHashIndex(indexDef) && indexAm->is_hashed_index_supported))
 		{
 			ReportFeatureUsage(FEATURE_CREATE_INDEX_ALTERNATE_AM);
-			return AlternateIndexHandler;
+			return indexAm;
 		}
 	}
 
-	return "rum";
+	return GetBsonIndexAmByIndexAmName("rum");
 }
 
 
@@ -968,6 +950,12 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 
 		collection = GetMongoCollectionByNameDatum(dbNameDatum, collectionNameDatum,
 												   AccessShareLock);
+	}
+
+	if (collection == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
+						errmsg("collection does not exist.")));
 	}
 
 	uint64 collectionId = collection->collectionId;
@@ -1828,9 +1816,11 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 				indexDef->enableLargeIndexKeys = BoolIndexOption_False;
 			}
 		}
-		else if (EnableNewCompositeIndexOpclass && strcmp(indexDefDocKey,
-														  "enableCompositeTerm") == 0)
+		else if (EnableNewCompositeIndexOpclass &&
+				 (strcmp(indexDefDocKey, "enableCompositeTerm") == 0 || strcmp(
+					  indexDefDocKey, "enableOrderedIndex") == 0))
 		{
+			EnsureTopLevelFieldIsBooleanLike(indexDefDocKey, &indexDefDocIter);
 			const bson_value_t *value = bson_iter_value(&indexDefDocIter);
 			if (BsonValueAsBool(value))
 			{
@@ -1966,6 +1956,18 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
 									"enableCompositeTerm is not supported with wildcard indexes.")));
+			}
+		}
+
+		if (indexDef->unique == BoolIndexOption_True && !EnableCompositeUniqueIndex)
+		{
+			indexDef->key->canSupportCompositeTerm = false;
+
+			if (shouldError)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+								errmsg(
+									"enableCompositeTerm is not supported with unique indexes.")));
 			}
 		}
 
@@ -2570,37 +2572,33 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			}
 			else
 			{
-				bool isValidMongoIndexAndSupported = false;
-				for (int i = 0; i < NumberOfMongoIndexTypes; i++)
+				bool isIndexValidAndSupported = false;
+				char *indexKindName = keyValue->value.v_utf8.str;
+				MongoIndexKind supportedIndexKind = GetMongoIndexKind(indexKindName,
+																	  &
+																	  isIndexValidAndSupported);
+
+				if (isIndexValidAndSupported)
 				{
-					MongoIndexSupport idxSupport = MongoIndexSupportedList[i];
-					if (strcmp(keyValue->value.v_utf8.str, idxSupport.mongoIndexName) ==
-						0)
-					{
-						if (idxSupport.isSupported)
-						{
-							indexKind = idxSupport.indexKind;
-							isValidMongoIndexAndSupported = true;
-							break;
-						}
-						else
-						{
-							ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-											errmsg("%s mongo index is not supported yet",
-												   keyValue->value.v_utf8.str),
-											errdetail_log(
-												"%s mongo index is not supported yet",
-												keyValue->value.v_utf8.str)));
-						}
-					}
+					indexKind = supportedIndexKind;
 				}
-
-
-				if (!isValidMongoIndexAndSupported)
+				else
 				{
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-									errmsg("Unknown index plugin %s",
-										   BsonValueToJsonForLogging(keyValue))));
+					if (supportedIndexKind != MongoIndexKind_Unknown)
+					{
+						ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+										errmsg("%s mongo index is not supported yet",
+											   keyValue->value.v_utf8.str),
+										errdetail_log(
+											"%s mongo index is not supported yet",
+											keyValue->value.v_utf8.str)));
+					}
+					else
+					{
+						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
+										errmsg("Unknown index plugin %s",
+											   BsonValueToJsonForLogging(keyValue))));
+					}
 				}
 			}
 		}
@@ -4675,7 +4673,7 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 	StringInfo cmdStr = makeStringInfo();
 	bool unique = indexDef->unique == BoolIndexOption_True;
 	bool sparse = indexDef->sparse == BoolIndexOption_True;
-	char *indexAmSuffix = GetIndexAmHandlerName(indexDef);
+	const BsonIndexAmEntry *indexAm = GetIndexAmHandlerByName(indexDef);
 
 	if (unique)
 	{
@@ -4708,8 +4706,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		appendStringInfo(cmdStr,
 						 " ADD CONSTRAINT " DOCUMENT_DATA_TABLE_INDEX_NAME_FORMAT
 						 " EXCLUDE USING %s_%s (%s) %s%s%s",
-						 indexId, ExtensionObjectPrefix, indexAmSuffix,
-						 GenerateIndexExprStr(indexAmSuffix, unique,
+						 indexId, ExtensionObjectPrefix, indexAm->am_name,
+						 GenerateIndexExprStr(indexAm->am_name, unique,
 											  sparse, enableNewIndexOpClass,
 											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
@@ -4717,7 +4715,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  useReducedWildcardTermGeneration),
+											  useReducedWildcardTermGeneration,
+											  indexAm->get_opclass_catalog_schema(),
+											  indexAm->get_opclass_internal_catalog_schema()),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -4850,8 +4850,8 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 		appendStringInfo(cmdStr,
 						 " USING %s_%s (%s) %s%s%s",
 						 ExtensionObjectPrefix,
-						 indexAmSuffix,
-						 GenerateIndexExprStr(indexAmSuffix,
+						 indexAm->am_name,
+						 GenerateIndexExprStr(indexAm->am_name,
 											  unique, sparse, enableNewIndexOpClass,
 											  indexDef->key,
 											  indexDef->wildcardProjectionTree,
@@ -4859,7 +4859,9 @@ CreatePostgresIndexCreationCmd(uint64 collectionId, IndexDef *indexDef, int inde
 											  indexDef->defaultLanguage,
 											  indexDef->languageOverride,
 											  enableLargeIndexKeys,
-											  useReducedWildcardTermGeneration),
+											  useReducedWildcardTermGeneration,
+											  indexAm->get_opclass_catalog_schema(),
+											  indexAm->get_opclass_internal_catalog_schema()),
 						 indexDef->partialFilterExpr ? "WHERE (" : "",
 						 indexDef->partialFilterExpr ?
 						 GenerateIndexFilterStr(collectionId,
@@ -5179,6 +5181,25 @@ ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *treeParentNode,
 }
 
 
+inline static void
+AppendUniqueColumnExpr(StringInfo indexExprStr, IndexDefKey *indexDefKey,
+					   bool sparse, const char *indexAmSuffix, const
+					   char *indexAmOpClassInternalCatalogSchema,
+					   bool firstColumnWritten)
+{
+	appendStringInfo(indexExprStr,
+					 "%s%s.generate_unique_shard_document(document, shard_key_value, '%s'::%s.bson, %s) %s.bson_%s_unique_shard_path_ops WITH OPERATOR(%s.=#=)",
+					 !firstColumnWritten ? "" : ",",
+					 DocumentDBApiInternalSchemaName,
+					 GenerateUniqueProjectionSpec(indexDefKey),
+					 CoreSchemaName,
+					 sparse ? "true" : "false",
+					 indexAmOpClassInternalCatalogSchema,
+					 indexAmSuffix,
+					 DocumentDBApiInternalSchemaName);
+}
+
+
 /*
  * GenerateIndexExprStr returns column expression string to be used when
  * creating the index whose "key" and "wildcardProjection" specifications
@@ -5188,13 +5209,15 @@ ResolveWPPathOpsFromTreeInternal(const BsonIntermediatePathNode *treeParentNode,
  * have a "wildcardProjection" specification.
  */
 static char *
-GenerateIndexExprStr(char *indexAmSuffix,
+GenerateIndexExprStr(const char *indexAmSuffix,
 					 bool unique, bool sparse, bool enableCompositeOpClass,
 					 IndexDefKey *indexDefKey,
 					 const BsonIntermediatePathNode *indexDefWildcardProjTree,
 					 const char *indexName, const char *defaultLanguage,
 					 const char *languageOverride, bool enableLargeIndexKeys,
-					 bool useReducedWildcardTerms)
+					 bool useReducedWildcardTerms,
+					 const char *indexAmOpClassCatalogSchema,
+					 const char *indexAmOpClassInternalCatalogSchema)
 {
 	StringInfo indexExprStr = makeStringInfo();
 
@@ -5218,25 +5241,25 @@ GenerateIndexExprStr(char *indexAmSuffix,
 	char indexTermSizeLimitArg[22] = { 0 };
 	bool enableTruncation = enableLargeIndexKeys || ForceIndexTermTruncation;
 
-	bool usingNewUniqueIndexOpClass = unique && enableLargeIndexKeys;
+	bool isUsingCompositeOpClass = EnableNewCompositeIndexOpclass &&
+								   enableCompositeOpClass &&
+								   indexDefKey->canSupportCompositeTerm;
+	bool usingNewUniqueIndexOpClass = unique && (enableLargeIndexKeys ||
+												 isUsingCompositeOpClass);
 
 	/* For unique with truncation, instead of creating a unique hash for every column, we simply create a single
 	 * value with a new operator that handles unique constraints. That way for a composite unique index, we support
 	 * up to 31 columns (instead of 16 without truncation). Here we want to produce a term that incorporates the
 	 * shard key as well as the document term such that we produce something that is relatively collision resistant
 	 * This would avoid runtime rechecks for uniqueness.
+	 * For composite, this is written at the end: This is because the query path and order by is simpler if the composite
+	 * is the first path instead of the second. The unique column is only ever used for deduping unique and doing the runtime
+	 * recheck for it so this should be fine.
 	 */
-	if (usingNewUniqueIndexOpClass)
+	if (usingNewUniqueIndexOpClass && !isUsingCompositeOpClass)
 	{
-		appendStringInfo(indexExprStr,
-						 "%s.generate_unique_shard_document(document, shard_key_value, '%s'::%s.bson, %s) %s.bson_%s_unique_shard_path_ops WITH OPERATOR(%s.=#=)",
-						 DocumentDBApiInternalSchemaName,
-						 GenerateUniqueProjectionSpec(indexDefKey),
-						 CoreSchemaName,
-						 sparse ? "true" : "false",
-						 DocumentDBApiInternalSchemaName,
-						 indexAmSuffix,
-						 DocumentDBApiInternalSchemaName);
+		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
+							   indexAmOpClassInternalCatalogSchema, firstColumnWritten);
 		firstColumnWritten = true;
 	}
 
@@ -5267,7 +5290,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
@@ -5289,7 +5312,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 "%s document %s.bson_%s_single_path_ops"
 							 "(path='', iswildcard=true%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 indexTermSizeLimitArg,
 							 wildcardIndexTruncatedPathLimit,
@@ -5318,7 +5341,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 "%s document %s.bson_%s_wildcard_project_path_ops"
 							 "(includeid=%s%s%s",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 includeId ? "true" : "false",
 							 indexTermSizeLimitArg,
@@ -5358,9 +5381,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 								lengthDelta)));
 		}
 	}
-	else if (EnableNewCompositeIndexOpclass &&
-			 enableCompositeOpClass &&
-			 !unique && indexDefKey->canSupportCompositeTerm)
+	else if (isUsingCompositeOpClass)
 	{
 		if (indexDefWildcardProjTree)
 		{
@@ -5426,10 +5447,24 @@ GenerateIndexExprStr(char *indexAmSuffix,
 		appendStringInfo(indexExprStr,
 						 "%s document %s.bson_%s_composite_path_ops(pathspec=%s%s)",
 						 firstColumnWritten ? "," : "",
-						 ApiInternalSchemaNameV2,
+						 indexAmOpClassInternalCatalogSchema,
 						 indexAmSuffix,
 						 quote_literal_cstr(BsonValueToJsonForLogging(&arrayValue)),
 						 indexTermSizeLimitArg);
+
+		if (unique)
+		{
+			appendStringInfo(indexExprStr, " WITH OPERATOR(%s.=?=)",
+							 ApiCatalogSchemaName);
+			if (!usingNewUniqueIndexOpClass)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+								errmsg("Cannot create unique composite indexes "
+									   "with legacy unique index opclass")));
+			}
+		}
+
+		firstColumnWritten = true;
 	}
 	else
 	{
@@ -5502,7 +5537,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.bson_%s_single_path_ops(path=%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 indexAmSuffix,
 									 quote_literal_cstr(keyPath),
 									 indexKeyPath->isWildcard ? ",iswildcard=true" : "",
@@ -5542,7 +5577,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.%s_%s_hashed_ops(path=%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 ExtensionObjectPrefix,
 									 indexAmSuffix,
 									 quote_literal_cstr(keyPath));
@@ -5561,7 +5596,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 					appendStringInfo(indexExprStr,
 									 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 									 firstColumnWritten ? "," : "",
-									 ApiCatalogSchemaName,
+									 indexAmOpClassCatalogSchema,
 									 indexAmSuffix,
 									 quote_literal_cstr(SerializeWeightedPaths(
 															indexDefKey->textPathList)),
@@ -5611,7 +5646,7 @@ GenerateIndexExprStr(char *indexAmSuffix,
 			appendStringInfo(indexExprStr,
 							 "%s document %s.bson_%s_text_path_ops(weights=%s%s%s%s%s%s)",
 							 firstColumnWritten ? "," : "",
-							 ApiCatalogSchemaName,
+							 indexAmOpClassCatalogSchema,
 							 indexAmSuffix,
 							 quote_literal_cstr(SerializeWeightedPaths(
 													indexDefKey->textPathList)),
@@ -5619,6 +5654,12 @@ GenerateIndexExprStr(char *indexAmSuffix,
 							 languageOptionKey, languageOptionValue,
 							 languageOverrideKey, languageOverrideValue);
 		}
+	}
+
+	if (usingNewUniqueIndexOpClass && isUsingCompositeOpClass)
+	{
+		AppendUniqueColumnExpr(indexExprStr, indexDefKey, sparse, indexAmSuffix,
+							   indexAmOpClassInternalCatalogSchema, firstColumnWritten);
 	}
 
 	return indexExprStr->data;

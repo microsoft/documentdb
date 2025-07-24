@@ -27,6 +27,7 @@
  #include <funcapi.h>
  #include <lib/stringinfo.h>
  #include <nodes/pathnodes.h>
+ #include <access/gin.h>
 
  #include "io/bson_core.h"
  #include "aggregation/bson_query_common.h"
@@ -79,6 +80,13 @@ static void ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElem
 static int32_t RunCompareOnBounds(CompositeIndexBounds *bounds,
 								  const BsonIndexTerm *compareValue,
 								  bool hasEqualityPrefix, bool *priorMatchesEquality);
+static Datum * GenerateCompositeExtractQueryUniqueEqual(pgbson *bson,
+														BsonGinCompositePathOptions *
+														options,
+														int32_t *nentries,
+														bool **partialMatch,
+														Pointer **extra_data,
+														CompositeQueryRunData *runData);
 
 
 inline static IndexTermCreateMetadata
@@ -159,6 +167,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	int32 *nentries = (int32 *) PG_GETARG_POINTER(1);
 	bool **partialmatch = (bool **) PG_GETARG_POINTER(3);
 	Pointer **extra_data = (Pointer **) PG_GETARG_POINTER(4);
+	int32_t *searchMode = (int32_t *) PG_GETARG_POINTER(6);
 
 	if (!PG_HAS_OPCLASS_OPTIONS())
 	{
@@ -201,10 +210,26 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 
 	/* Default to assuming array paths (we can do better if told otherwise) */
 	bool hasArrayPaths = true;
-	bool isOrderedScan = false;
+
+	/* key that we're doing an ordered scan based off of search mode */
+	bool isOrderedScan = (*searchMode != GIN_SEARCH_MODE_DEFAULT);
+	if (isOrderedScan)
+	{
+		*searchMode = GIN_SEARCH_MODE_DEFAULT;
+	}
 
 	/* Round 1, collect fixed index bounds and collect variable index bounds */
-	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
+	if (strategy == BSON_INDEX_STRATEGY_UNIQUE_EQUAL)
+	{
+		/* Extract query for unique equal is basically an equality on term generation
+		 * The input is the original document being inserted.
+		 */
+		Datum *entries = GenerateCompositeExtractQueryUniqueEqual(query, options,
+																  nentries, partialmatch,
+																  extra_data, runData);
+		PG_RETURN_POINTER(entries);
+	}
+	else if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
 	{
 		/* Could be for cost estimate or regular index
 		 * in this path, just treat it as valid. let
@@ -369,19 +394,26 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 	BsonIndexTerm compareTerm[INDEX_MAX_KEYS] = { 0 };
 	int32_t numTerms = InitializeCompositeIndexTerm(compareValue, compareTerm);
 
-	if (numTerms != runData->metaInfo->numIndexPaths)
+	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
 	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Number of terms in the index term (%d) does not match "
-							   "the number of index paths (%d)",
-							   numTerms, runData->metaInfo->numIndexPaths)));
+		if (!compareTerm[0].isIndexTermMetadata)
+		{
+			return 1;
+		}
+
+		if (compareTerm[0].element.bsonValue.value_type == BSON_TYPE_ARRAY)
+		{
+			return 0;
+		}
+
+		return -1;
 	}
 
-	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY)
+	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY ||
+		strategy == BSON_INDEX_STRATEGY_INVALID)
 	{
 		/* use order by key to signal truncation status of ordering */
-		/* TODO(Orderby): Support ordering on subsequent keys */
-		for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
+		for (int i = 0; i < numTerms; i++)
 		{
 			if (compareTerm[i].isIndexTermTruncated)
 			{
@@ -392,7 +424,16 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 		PG_RETURN_INT32(1);
 	}
 
-	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
+	if (numTerms != runData->metaInfo->numIndexPaths)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Number of terms in the index term (%d) does not match "
+							   "the number of index paths (%d)",
+							   numTerms, runData->metaInfo->numIndexPaths)));
+	}
+
+	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY &&
+		strategy != BSON_INDEX_STRATEGY_UNIQUE_EQUAL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 						errmsg("Composite index does not support strategy %d",
@@ -551,7 +592,7 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	bool *check = (bool *) PG_GETARG_POINTER(0);
 	StrategyNumber strategy = PG_GETARG_UINT16(1);
 
-	/* int32_t numKeys = (int32_t) PG_GETARG_INT32(3); */
+	int32_t numKeys = (int32_t) PG_GETARG_INT32(3);
 	Pointer *extra_data = (Pointer *) PG_GETARG_POINTER(4);
 	bool *recheck = (bool *) PG_GETARG_POINTER(5);       /* out param. */
 	/* Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6); */
@@ -560,6 +601,22 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	{
 		*recheck = false;
 		PG_RETURN_BOOL(check[0]);
+	}
+
+	if (strategy == BSON_INDEX_STRATEGY_UNIQUE_EQUAL)
+	{
+		CompositeQueryRunData *runData = (CompositeQueryRunData *) extra_data[0];
+		*recheck = runData->metaInfo->requiresRuntimeRecheck;
+		for (int i = 0; i < numKeys; i++)
+		{
+			if (check[i])
+			{
+				/* If any of the keys match, we can return true */
+				PG_RETURN_BOOL(true);
+			}
+		}
+
+		return false;
 	}
 
 	if (strategy != BSON_INDEX_STRATEGY_COMPOSITE_QUERY)
@@ -882,6 +939,22 @@ IsBsonDollarNinArrayContainsArrays(const bson_value_t *bsonValue)
 }
 
 
+const char *
+GetCompositeFirstIndexPath(void *contextOptions)
+{
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) contextOptions;
+
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
+
+	GetIndexPathsFromOptions(
+		options,
+		indexPaths, sortOrders);
+	return pstrdup(indexPaths[0]);
+}
+
+
 int32_t
 GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 								int8_t *sortDirection)
@@ -963,6 +1036,52 @@ GetCompositePathIndexTraverseOption(BsonIndexStrategy strategy, void *contextOpt
 	}
 
 	return IndexTraverse_Invalid;
+}
+
+
+bool
+CompositePathHasFirstColumnSpecified(IndexPath *indexPath)
+{
+	ListCell *cell;
+	foreach(cell, indexPath->indexclauses)
+	{
+		IndexClause *clause = (IndexClause *) lfirst(cell);
+		ListCell *iclauseCell;
+		foreach(iclauseCell, clause->indexquals)
+		{
+			RestrictInfo *qual = (RestrictInfo *) lfirst(iclauseCell);
+			if (IsA(qual->clause, OpExpr))
+			{
+				OpExpr *expr = (OpExpr *) qual->clause;
+				Expr *queryVal = lsecond(expr->args);
+				if (!IsA(queryVal, Const))
+				{
+					/* If the query value is not a constant, we can't push down */
+					continue;
+				}
+
+				Const *queryConst = (Const *) queryVal;
+				pgbson *queryBson = DatumGetPgBson(queryConst->constvalue);
+
+				pgbsonelement queryElement;
+				PgbsonToSinglePgbsonElement(queryBson, &queryElement);
+
+				int8_t sortDirection;
+				int columnNumber = GetCompositeOpClassColumnNumber(queryElement.path,
+																   indexPath->indexinfo->
+																   opclassoptions[0],
+																   &sortDirection);
+
+				if (columnNumber == 0)
+				{
+					/* There is a filter on the first column. */
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 
@@ -1130,7 +1249,17 @@ SerializeBoundsStringForExplain(bytea *entry, void *extraData, PG_FUNCTION_ARGS)
 }
 
 
-void
+/*
+ * in a given scan, provided some scan keys, walks the scan keys and generates a single
+ * query spec with the strategy BSON_INDEX_STRATEGY_COMPOSITE_QUERY that is an aggregate
+ * of all the scan keys. This spec is then used by the composite query to walk the index.
+ * Notifies the operator whether the index has array keys or order bys which will impact
+ * how the tree is walked.
+ *
+ * If the query has unique equal scan keys or targets the non-composite column in the index,
+ * then it will return false and the caller should not use the composite scan.
+ */
+bool
 ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetScanKey,
 							   bool hasArrayKeys, bool hasOrderBys)
 {
@@ -1142,6 +1271,13 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 
 	for (int i = 0; i < nscankeys; i++)
 	{
+		if (scankey[i].sk_attno != 1 ||
+			scankey[i].sk_strategy == BSON_INDEX_STRATEGY_UNIQUE_EQUAL)
+		{
+			/* This scan is for multiple scan keys or unique equal - bail with the composite scan */
+			return false;
+		}
+
 		Datum scanKeyArg = scankey[i].sk_argument;
 		BsonIndexStrategy strategy = scankey[i].sk_strategy;
 		pgbson *secondBson = DatumGetPgBson(scanKeyArg);
@@ -1174,25 +1310,7 @@ ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey targetSca
 
 	targetScanKey->sk_argument = finalDatum;
 	targetScanKey->sk_strategy = BSON_INDEX_STRATEGY_COMPOSITE_QUERY;
-}
-
-
-Datum
-BuildCompositeOrderByScanKeyArgument(bytea *options)
-{
-	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
-	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
-	GetIndexPathsFromOptions(
-		(BsonGinCompositePathOptions *) options,
-		indexPaths, sortOrders);
-
-	pgbsonelement sortElement = { 0 };
-	sortElement.path = indexPaths[0];
-	sortElement.pathLength = strlen(indexPaths[0]);
-	sortElement.bsonValue.value_type = BSON_TYPE_INT32;
-	sortElement.bsonValue.value.v_int32 = sortOrders[0] < 0 ? -1 : 1;  /* Default value for order by */
-
-	return PointerGetDatum(PgbsonElementToPgbson(&sortElement));
+	return true;
 }
 
 
@@ -1205,7 +1323,6 @@ ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
 
 	/* Default assumption is that it's multi-key unless otherwise specified */
 	*isMultiKey = true;
-	*isOrderBy = false;
 	while (bson_iter_next(&queryIter))
 	{
 		const char *key = bson_iter_key(&queryIter);
@@ -1221,7 +1338,7 @@ ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElement,
 		}
 		else if (strcmp(key, "or") == 0)
 		{
-			*isOrderBy = bson_iter_bool(&queryIter);
+			*isOrderBy = *isOrderBy || bson_iter_bool(&queryIter);
 		}
 		else
 		{
@@ -1378,19 +1495,15 @@ FillCompositePathSpec(const char *prefix, void *buffer)
 }
 
 
-static Datum *
-GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
-						   int32_t *nentries)
+static uint32_t
+BuildSinglePathTermsForCompositeTerms(pgbson *bson, BsonGinCompositePathOptions *options,
+									  Datum **entries, int32_t *entryCounts)
 {
 	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
 	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
 
 	uint32_t pathCount = (uint32_t) GetIndexPathsFromOptions(options,
 															 indexPaths, sortOrders);
-
-	Datum **entries = palloc(sizeof(Datum *) * pathCount);
-	int32_t *entryCounts = palloc0(sizeof(int32_t) * pathCount);
-
 	uint32_t totalTermCount = 1;
 	for (uint32_t i = 0; i < pathCount; i++)
 	{
@@ -1432,6 +1545,25 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		totalTermCount = totalTermCount * context.totalTermCount;
 		pfree(singlePathOptions);
 	}
+
+	return totalTermCount;
+}
+
+
+static Datum *
+GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
+						   int32_t *nentries)
+{
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
+
+	uint32_t pathCount = (uint32_t) GetIndexPathsFromOptions(options,
+															 indexPaths, sortOrders);
+
+	Datum **entries = palloc(sizeof(Datum *) * pathCount);
+	int32_t *entryCounts = palloc0(sizeof(int32_t) * pathCount);
+	uint32_t totalTermCount = BuildSinglePathTermsForCompositeTerms(bson, options,
+																	entries, entryCounts);
 
 	/* Now that we have the per term counts, generate the overall terms */
 	/* Add an additional one in case we need a truncated term */
@@ -1487,6 +1619,120 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		indexEntries[totalTermCount] = GenerateRootTruncatedTerm(&overallMetadata);
 		totalTermCount++;
 	}
+
+	*nentries = totalTermCount;
+	return indexEntries;
+}
+
+
+static Datum *
+GenerateCompositeExtractQueryUniqueEqual(pgbson *bson,
+										 BsonGinCompositePathOptions *options,
+										 int32_t *nentries, bool **partialMatch,
+										 Pointer **extra_data,
+										 CompositeQueryRunData *runData)
+{
+	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
+	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
+
+	uint32_t pathCount = (uint32_t) GetIndexPathsFromOptions(options,
+															 indexPaths, sortOrders);
+
+	Datum **entries = palloc(sizeof(Datum *) * pathCount);
+	int32_t *entryCounts = palloc0(sizeof(int32_t) * pathCount);
+	uint32_t totalTermCount = BuildSinglePathTermsForCompositeTerms(bson, options,
+																	entries, entryCounts);
+
+	/* Now that we have the per term counts, generate the overall terms */
+	/* Add an additional one in case we need a truncated term */
+	Datum *indexEntries = palloc0(sizeof(Datum) * totalTermCount);
+	*partialMatch = palloc0(sizeof(bool) * totalTermCount);
+	*extra_data = palloc0(sizeof(Pointer) * totalTermCount);
+
+	bytea *compositeDatums[INDEX_MAX_KEYS] = { 0 };
+	for (uint32_t i = 0; i < totalTermCount; i++)
+	{
+		int termIndex = i;
+		bool hasTruncationInEntry = false;
+		bool hasNullsInEntry = false;
+		CompositeQueryRunData *runDataForEntry = runData;
+		for (uint32_t j = 0; j < pathCount; j++)
+		{
+			int32_t currentIndex = termIndex % entryCounts[j];
+			termIndex = termIndex / entryCounts[j];
+			Datum term = entries[j][currentIndex];
+
+			BsonIndexTerm indexTerm;
+			InitializeBsonIndexTerm(DatumGetByteaPP(term), &indexTerm);
+
+			if (indexTerm.isIndexTermTruncated)
+			{
+				hasTruncationInEntry = true;
+			}
+
+			if (IsIndexTermValueUndefined(&indexTerm) ||
+				indexTerm.element.bsonValue.value_type == BSON_TYPE_NULL)
+			{
+				/* Set partial match info */
+				(*partialMatch)[i] = true;
+				hasNullsInEntry = true;
+
+				/* Clone runData if not done already */
+				if (runData == runDataForEntry)
+				{
+					runDataForEntry = palloc(GetCompositeQueryRunDataSize(pathCount));
+					memcpy(runDataForEntry, runData, GetCompositeQueryRunDataSize(
+							   pathCount));
+				}
+
+				/* If we're a partial match, then we are matching for nulls */
+				indexTerm.element.bsonValue.value_type = BSON_TYPE_MINKEY;
+				IndexTermCreateMetadata metadata = GetSinglePathTermCreateMetadata(
+					options, (int32_t) pathCount);
+				metadata.isDescending = IsIndexTermValueDescending(&indexTerm);
+				BsonIndexTermSerialized nullSerialized = SerializeBsonIndexTerm(
+					&indexTerm.element, &metadata);
+
+				compositeDatums[j] = nullSerialized.indexTermVal;
+				runDataForEntry->indexBounds[j].lowerBound.bound.value_type =
+					BSON_TYPE_MINKEY;
+				runDataForEntry->indexBounds[j].lowerBound.indexTermValue.element.
+				bsonValue.value_type = BSON_TYPE_MINKEY;
+				runDataForEntry->indexBounds[j].lowerBound.isBoundInclusive = false;
+				runDataForEntry->indexBounds[j].upperBound.indexTermValue.element.
+				bsonValue.value_type = BSON_TYPE_NULL;
+				runDataForEntry->indexBounds[j].upperBound.bound.value_type =
+					BSON_TYPE_NULL;
+				runDataForEntry->indexBounds[j].upperBound.isBoundInclusive = true;
+				runDataForEntry->indexBounds[j].isEqualityBound = false;
+			}
+			else
+			{
+				compositeDatums[j] = DatumGetByteaPP(term);
+				runDataForEntry->indexBounds[j].lowerBound.bound =
+					indexTerm.element.bsonValue;
+				runDataForEntry->indexBounds[j].upperBound.bound =
+					indexTerm.element.bsonValue;
+				runDataForEntry->indexBounds[j].lowerBound.indexTermValue = indexTerm;
+				runDataForEntry->indexBounds[j].upperBound.indexTermValue = indexTerm;
+				runDataForEntry->indexBounds[j].upperBound.isBoundInclusive = true;
+				runDataForEntry->indexBounds[j].lowerBound.isBoundInclusive = true;
+				runDataForEntry->indexBounds[j].isEqualityBound = true;
+			}
+		}
+
+		if (hasTruncationInEntry || hasNullsInEntry)
+		{
+			/* TODO: We can do better here and only do runtime recheck if that term matches */
+			runDataForEntry->metaInfo->requiresRuntimeRecheck = true;
+		}
+
+		BsonIndexTermSerialized serializedTerm = SerializeCompositeBsonIndexTerm(
+			compositeDatums, pathCount);
+		indexEntries[i] = PointerGetDatum(serializedTerm.indexTermVal);
+		(*extra_data)[i] = (Pointer) runDataForEntry;
+	}
+
 
 	*nentries = totalTermCount;
 	return indexEntries;

@@ -5,7 +5,6 @@
  *
  *-------------------------------------------------------------------------
  */
-#![allow(clippy::unnecessary_to_owned)]
 
 use std::{
     sync::Arc,
@@ -66,14 +65,27 @@ pub async fn process_request(
                 )
                 .await
             }
-            RequestType::ConnectionStatus => {
-                users::process_connection_status(
+            RequestType::Compact => {
+                data_management::process_compact(
                     request,
                     request_info,
                     connection_context,
                     &pg_data_client,
                 )
                 .await
+            }
+            RequestType::ConnectionStatus => {
+                if dynamic_config.enable_connection_status().await {
+                    users::process_connection_status(
+                        request,
+                        request_info,
+                        connection_context,
+                        &pg_data_client,
+                    )
+                    .await
+                } else {
+                    constant::process_connection_status()
+                }
             }
             RequestType::Count => {
                 data_management::process_count(

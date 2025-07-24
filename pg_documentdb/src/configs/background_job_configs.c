@@ -175,7 +175,7 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 
 
 void
-InitDocumentDBBackgroundWorkerGucs(const char *prefix)
+InitDocumentDBBackgroundWorkerConfigurations(const char *prefix)
 {
 	DefineCustomStringVariable(
 		psprintf("%s.bg_worker_database_name", prefix),

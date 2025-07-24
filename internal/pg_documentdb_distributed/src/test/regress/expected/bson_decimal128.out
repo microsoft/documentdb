@@ -519,9 +519,9 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'decimal128') WH
 -- Update operations with $mul and $inc
 BEGIN;
 SELECT documentdb_api.update('db', '{"update": "decimal128", "updates":[{"q": {"a": -1},"u":{"$mul":{"a": {"$numberDecimal": "11.1"}}},"multi":true}]}');
-                                                                update                                                                
+                                                               update                                                               
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""4"" }, ""n"" : { ""$numberLong"" : ""4"" } }",t)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""4"" }, ""n"" : { ""$numberInt"" : ""4"" } }",t)
 (1 row)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'decimal128') WHERE document @@ '{ "$and": [{ "a": {"$gte": { "$numberDecimal" : "-11.1"}}}, {"a" : {"$lte" : { "$numberDecimal" : "11.1"}}}] }';
@@ -543,9 +543,9 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'decimal128') WH
 ROLLBACK;
 BEGIN;
 SELECT documentdb_api.update('db', '{"update": "decimal128", "updates":[{"q": {"a": 1},"u":{"$inc":{"a": {"$numberDecimal": "50.012e2"}}},"multi":true}]}');
-                                                                                                                                                                                      update                                                                                                                                                                                      
+                                                                                                                                                                                     update                                                                                                                                                                                     
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberLong"" : ""0"" }, ""n"" : { ""$numberLong"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""67108893"" }, ""errmsg"" : ""Cannot apply $inc to a value of non-numeric type. { _id: 17 } has the field 'a' of non-numeric type array"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""67108893"" }, ""errmsg"" : ""Cannot apply $inc to a value of non-numeric type. { _id: 17 } has the field 'a' of non-numeric type array"" } ] }",f)
 (1 row)
 
 SELECT object_id, document FROM documentdb_api.collection('db', 'decimal128') WHERE document @@ '{ "$and": [{ "a": {"$gte": {"$numberInt": "5000"}}}, {"a" : {"$lte" : {"$numberInt": "5003"}}}] }';

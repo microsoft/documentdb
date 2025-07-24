@@ -680,14 +680,10 @@ HandleFirstPageRequest(pgbson *querySpec, int64_t cursorId,
 		case QueryCursorType_SingleBatch:
 		{
 			ReportFeatureUsage(FEATURE_CURSOR_TYPE_SINGLE_BATCH);
-
-			bool isHoldCursor = false;
-			bool closeCursor = true;
-			CreateAndDrainPersistedQuery("singleBatchCursor", query,
-										 queryData->batchSize,
-										 &numIterations,
-										 accumulatedSize, &arrayWriter,
-										 isHoldCursor, closeCursor);
+			CreateAndDrainSingleBatchQuery("singleBatchCursor", query,
+										   queryData->batchSize,
+										   &numIterations,
+										   accumulatedSize, &arrayWriter);
 			queryFullyDrained = true;
 			continuationDoc = NULL;
 			cursorId = 0;

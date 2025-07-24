@@ -258,6 +258,28 @@ CREATE OR REPLACE FUNCTION documentdb_distributed_test_helpers.evaluate_expressi
  IMMUTABLE STRICT
 AS '$libdir/pg_documentdb.so', $function$command_evaluate_expression_get_first_match$function$;
 
+-- Wait for the background worker to be launched in the `regression` database
+-- When the extension is loaded, this isn't created yet. 
+CREATE OR REPLACE PROCEDURE documentdb_distributed_test_helpers.wait_for_background_worker()
+AS $$
+DECLARE 
+  v_bg_worker_app_name text := NULL;
+BEGIN
+  LOOP
+    SELECT application_name INTO v_bg_worker_app_name FROM pg_stat_activity WHERE application_name = 'documentdb_bg_worker_leader';
+    IF v_bg_worker_app_name IS NOT NULL THEN
+      RETURN;
+    END IF;
+
+    COMMIT; -- This is needed so that we grab a fresh snapshot of pg_stat_activity
+    PERFORM pg_sleep_for('100 ms');
+  END LOOP;
+END
+$$
+LANGUAGE plpgsql;
+
+CALL documentdb_distributed_test_helpers.wait_for_background_worker();
+
 -- validate background worker is launched
 SELECT application_name FROM pg_stat_activity WHERE application_name = 'documentdb_bg_worker_leader';
 
