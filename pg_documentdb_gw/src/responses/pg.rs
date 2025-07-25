@@ -282,7 +282,7 @@ impl PgResponse {
                 Some((ErrorCode::Unauthorized as i32, Some("Unauthorized".to_string()), "Unauthorized"))
             },
             SqlState::T_R_DEADLOCK_DETECTED => {
-                Some((ErrorCode::LockTimeout as i32, Some("Could not acquire lock for operation due to deadlock".to_string()), msg))
+                Some((ErrorCode::WriteConflict as i32, Some("Could not acquire lock for operation due to deadlock".to_string()), msg))
             }
             _ => None,
         }

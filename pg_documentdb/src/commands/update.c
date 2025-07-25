@@ -784,14 +784,23 @@ BuildBatchUpdateSpec(bson_iter_t *updateCommandIter, pgbsonsequence *updateDocs)
 			SetExplicitStatementTimeout(BsonValueAsInt32(bson_iter_value(
 															 updateCommandIter)));
 		}
-		else if (applyVariables && strcmp(field, "let") == 0)
+		else if (strcmp(field, "let") == 0)
 		{
-			bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
-																	 updateCommandIter,
-																	 BSON_TYPE_DOCUMENT);
-			if (hasValue)
+			ReportFeatureUsage(FEATURE_LET_TOP_LEVEL);
+			if (applyVariables)
 			{
-				let = *bson_iter_value(updateCommandIter);
+				bool hasValue = EnsureTopLevelFieldTypeNullOkUndefinedOK("let",
+																		 updateCommandIter,
+																		 BSON_TYPE_DOCUMENT);
+				if (hasValue)
+				{
+					let = *bson_iter_value(updateCommandIter);
+				}
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+								errmsg("update.let is not yet supported")));
 			}
 		}
 		else if (IsCommonSpecIgnoredField(field))

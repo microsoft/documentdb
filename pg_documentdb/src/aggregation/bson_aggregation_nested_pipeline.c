@@ -1046,7 +1046,6 @@ HandleUnionWith(const bson_value_t *existingValue, Query *query,
 {
 	ReportFeatureUsage(FEATURE_STAGE_UNIONWITH);
 
-	/* This is as per the jstest max_subpipeline_depth.*/
 	if (context->nestedPipelineLevel >= MaximumLookupPipelineDepth)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_MAXSUBPIPELINEDEPTHEXCEEDED),
@@ -3892,8 +3891,8 @@ BuildRecursiveGraphLookupQuery(QuerySource parentSource, GraphLookupArgs *args,
 	RangeTblRef *recursiveReference = makeNode(RangeTblRef);
 	recursiveReference->rtindex = 2;
 
-	/* Mongo dedups these by _id so we do a post DISTINCT ON for that.
-	 * This is more efficient for PG scenarios.
+	/* For deduplication of _id, we use DISTINCT ON by _id.
+	 * This is more efficient for PostgreSQL scenarios.
 	 */
 	SetOperationStmt *setOpStatement = makeNode(SetOperationStmt);
 	setOpStatement->all = true;

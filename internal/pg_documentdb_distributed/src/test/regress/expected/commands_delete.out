@@ -676,20 +676,20 @@ ERROR:  Unexpected additional deletes
 rollback;
 -- delete with index hint specified by name and by key object
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "removeme", "indexes": [ { "key" : { "a": 1 }, "name": "validIndex"}] }', true);
-                                                                                                   create_indexes_non_concurrently
+                                                                                                   create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
 begin;
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0,"hint": "validIndex"}]}');
-                                                                delete                                                                
+                                         delete                                          
 ---------------------------------------------------------------------
  ("{ ""n"" : { ""$numberInt"" : ""10"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
 (1 row)
 
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0,"hint": { "a": 1 }}]}');
-                                                                delete                                                                
+                                         delete                                         
 ---------------------------------------------------------------------
  ("{ ""n"" : { ""$numberInt"" : ""0"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
 (1 row)
@@ -1004,11 +1004,7 @@ SELECT documentdb_api.insert_one('db', 'coll_delete', '{"_id": 3, "a":"$$varRef"
 -- enableVariablesSupportForWriteCommands GUC off: ignore variableSpec
 SET documentdb.enableVariablesSupportForWriteCommands TO off;
 SELECT documentdb_api.delete('db', '{ "delete": "coll_delete", "deletes": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "limit": 0}], "let": {"varRef": "cat"} }');
-                                                                                                                           delete                                                                                                                            
----------------------------------------------------------------------
- ("{ ""n"" : { ""$numberInt"" : ""0"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""118226973"" }, ""errmsg"" : ""Use of undefined variable: varRef"" } ] }",f)
-(1 row)
-
+ERROR:  'delete.let' is not yet supported
 -- enableVariablesSupportForWriteCommands GUC on: user variableSpec
 SET documentdb.enableVariablesSupportForWriteCommands TO on;
 -- variables accessed outside $expr will not evaluate to let variable value

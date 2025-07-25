@@ -1042,8 +1042,14 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 		int indexId = RecordCollectionIndex(collectionId, &indexSpec, indexIsValid);
 
 		/* If createIndexes specified blocking, create the command as non-concurrent */
-		bool createIndexesConcurrently = !createIndexesArg.blocking;
+		bool createIndexesConcurrently = true;
 		bool isTempCollection = false;
+
+		if (createIndexesArg.blocking || indexDef->blocking)
+		{
+			createIndexesConcurrently = false;
+		}
+
 		char *cmd = CreatePostgresIndexCreationCmd(collectionId, indexDef, indexId,
 												   createIndexesConcurrently,
 												   isTempCollection);

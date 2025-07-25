@@ -631,15 +631,77 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('
 SET citus.explain_all_tasks to on;
 SET citus.max_adaptive_executor_pool_size to 1;
 SELECT documentdb_api.shard_collection('{ "shardCollection": "db.lookup_left", "key": { "_id": "hashed" }, "numInitialChunks": 2 }');
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline(
+    'db',
+    '{
+      "aggregate": "lookup_left",
+      "pipeline": [
+        {
+          "$lookup": {
+            "from": "lookup_right",
+            "pipeline": [
+              {
+                "$match": {
+                  "$expr": {
+                    "$eq": [ "$name", "$$item_name" ]
+                  }
+                }
+              },
+              {
+                "$project": { "c": 0 }
+              }
+            ],
+            "as": "myMatch",
+            "let": { "item_name": "$item" }
+          }
+        }
+      ],
+      "cursor": {}
+    }'
+  )
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
 
-SELECT document from bson_aggregation_pipeline('db', 
-  '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 
 SELECT documentdb_api.shard_collection('{ "shardCollection": "db.lookup_right", "key": { "_id": "hashed" }, "numInitialChunks": 2 }');
-SELECT document from bson_aggregation_pipeline('db', 
-  '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
+
+WITH c1 AS (
+  SELECT document
+  FROM bson_aggregation_pipeline(
+    'db',
+    '{
+      "aggregate": "lookup_left",
+      "pipeline": [
+        {
+          "$lookup": {
+            "from": "lookup_right",
+            "pipeline": [
+              {
+                "$match": {
+                  "$expr": {
+                    "$eq": [ "$name", "$$item_name" ]
+                  }
+                }
+              },
+              {
+                "$project": { "c": 0 }
+              }
+            ],
+            "as": "myMatch",
+            "let": { "item_name": "$item" }
+          }
+        }
+      ],
+      "cursor": {}
+    }'
+  )
+)
+SELECT * FROM c1 ORDER BY document -> '_id';
+
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document from bson_aggregation_pipeline('db', 
   '{ "aggregate": "lookup_left", "pipeline": [ { "$lookup": { "from": "lookup_right", "pipeline": [ { "$match": { "$expr": { "$eq": [ "$name", "$$item_name" ] }}}, { "$project": { "c": 0 } }], "as": "myMatch", "let": { "item_name": "$item" } }} ], "cursor": {} }');
 

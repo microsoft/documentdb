@@ -673,3 +673,271 @@ SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "large_toasted_c
  ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""1"" }, ""a"" : ""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"", ""b"" : ""bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
 (1 row)
 
+-- let support
+SELECT documentdb_api.insert_one('db', 'find_and_modify_let', '{"_id": 1, "a":"akura"}');
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'find_and_modify_let', '{"_id": 2, "a":"adanko"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'find_and_modify_let', '{"_id": 3, "a":"odwan"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'find_and_modify_let', '{"_id": 4, "a":"okra"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db', 'find_and_modify_let', '{"_id": 5, "a":"$$varRef"}');
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+-- disable let support: turn off GUC
+SET documentdb.enableVariablesSupportForWriteCommands TO OFF;
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "let_support", "query": {"a": 1}, "update": {"$inc": {"b": 1}}, "new": true, "let": {"x": 10}}');
+ERROR:  findAndModify.let is not yet supported
+-- enable let support: turn on GUC
+SET documentdb.enableVariablesSupportForWriteCommands TO ON;
+-- without $expr: variable won't evaluate to value
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": "$$varRef" }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef": "akura"}}');
+                                                                         find_and_modify                                                                         
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+BEGIN;
+-- update
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef": "akura"}}');
+                                                                         find_and_modify                                                                         
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$gt": ["$a", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "camel"}, "let": {"varRef": "odwan"}}');
+                                                                                                   find_and_modify                                                                                                    
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""4"" }, ""a"" : ""okra"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lte": [{ "$toInt": "$$varRef" }, "$_id"] } }, "sort": {"a": 1}, "update": {"c": "camel"}, "let": {"varRef": "4"}}');
+                                                                                                    find_and_modify                                                                                                     
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : { ""_id"" : { ""$numberInt"" : ""4"" }, ""c"" : ""camel"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$and": [{"$eq": ["$_id", "$$varRef1"]}, {"$eq": ["$c", "$$varRef2"]}]}}, "sort": {"a": 1}, "update": {"c": "peacock"}, "let": {"varRef1": 4, "varRef2": "camel"}}');
+                                                                                                    find_and_modify                                                                                                    
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""4"" }, ""c"" : ""camel"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "adanko" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "4" }, "c" : "peacock" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(5 rows)
+
+ROLLBACK;
+BEGIN;
+-- update with aggregation pipeline
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$eq": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": [{"$set": {"c": "$$varRef"}}], "let": {"varRef": 1}}');
+                                                                                                    find_and_modify                                                                                                    
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""1"" }, ""a"" : ""akura"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "sort": {"a": 1}, "update": [{"$addFields": {"c": "$$varRef"}}], "let": {"varRef": "adanko"}}');
+                                                                                                    find_and_modify                                                                                                     
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""2"" }, ""a"" : ""adanko"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                                    document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura", "c" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "adanko", "c" : "adanko" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "4" }, "a" : "okra" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(5 rows)
+
+ROLLBACK;
+BEGIN;
+--- delete
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$eq": ["$a", "$$varRef"]}}, "sort": {"a": 1}, "remove": true, "let": {"varRef": "akura"}}');
+                                                                                      find_and_modify                                                                                      
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""1"" }, ""a"" : ""akura"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef": 3}}');
+                                                                                                    find_and_modify                                                                                                     
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""2"" }, ""a"" : ""adanko"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$and": [{"$eq": ["$_id", "$$varRef1"]}, {"$lte": ["$a", "$$varRef2"]}]}}, "sort": {"a": 1}, "remove": true, "let": {"varRef1": 4, "varRef2": "okra"}}');
+                                                                                     find_and_modify                                                                                      
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""4"" }, ""a"" : ""okra"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "2" }, "c" : "ant" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(3 rows)
+
+ROLLBACK;
+BEGIN;
+--- delete (2)
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$a", "$$varRef"] } }, "sort": {"a": 1}, "remove": true, "let": {"varRef": "okra"}}');
+                                                                                       find_and_modify                                                                                        
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""5"" }, ""a"" : ""$$varRef"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$gte": [{ "$toInt": "$$varRef" }, "$_id"] } }, "sort": {"a": 1}, "remove": true, "let": {"varRef": "4"}}');
+                                                                                      find_and_modify                                                                                       
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""2"" }, ""a"" : ""adanko"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$eq": ["$_id", "$$varRef"] }}, "sort": {"a": 1}, "remove": true, "let": {"varRef": 2}}');;
+                                                          find_and_modify                                                           
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" } }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                     document                      
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "4" }, "a" : "okra" }
+(3 rows)
+
+ROLLBACK;
+-- undefined variables
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "ant"}}');
+ERROR:  Use of undefined variable: varRef
+CONTEXT:  SQL statement "SELECT ctid, object_id, document FROM documentdb_data.documents_5412_540063 WHERE shard_key_value = $1 AND documentdb_api_internal.bson_query_match(document, $2::documentdb_core.bson, $3::documentdb_core.bson, $4::text) ORDER BY documentdb_api_catalog.bson_orderby(document, $5::documentdb_core.bson) ASC LIMIT 1 FOR UPDATE"
+SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_5412 WHERE shard_key_value = 5412"
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$_id", "$$varRef2"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef1": 3}}');
+ERROR:  Use of undefined variable: varRef2
+CONTEXT:  SQL statement "SELECT ctid, object_id, document FROM documentdb_data.documents_5412_540063 WHERE shard_key_value = $1 AND documentdb_api_internal.bson_query_match(document, $2::documentdb_core.bson, $3::documentdb_core.bson, $4::text) ORDER BY documentdb_api_catalog.bson_orderby(document, $5::documentdb_core.bson) ASC LIMIT 1 FOR UPDATE"
+SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_5412 WHERE shard_key_value = 5412"
+--- sharded collection
+SELECT documentdb_api.shard_collection('db', 'find_and_modify_let', '{ "_id": "hashed" }', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+BEGIN;
+-- update
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": "3", "$expr": {"$eq": [{"$toInt": "$$varRef"}, "$_id"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef": "3"}}');
+                                                                         find_and_modify                                                                         
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 4, "$expr": {"$lt": ["$a", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "camel"}, "let": {"varRef": "odwan"}}');
+                                                                         find_and_modify                                                                         
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 1, "$expr": {"$and": [{"$eq": ["$_id", "$$varRef1"]}, {"$eq": ["$c", "$$varRef2"]}]}}, "sort": {"a": 1}, "update": {"c": "peacock"}, "let": {"varRef1": 4, "varRef2": "ant"}}');
+                                                                         find_and_modify                                                                         
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" }, ""updatedExisting"" : false }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura" }
+ { "_id" : { "$numberInt" : "2" }, "a" : "adanko" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "4" }, "a" : "okra" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(5 rows)
+
+ROLLBACK;
+BEGIN;
+-- update with aggregation pipeline
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 1, "$expr": {"$eq": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": [{"$set": {"c": "$$varRef"}}], "let": {"varRef": 1}}');
+                                                                                                    find_and_modify                                                                                                    
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""1"" }, ""a"" : ""akura"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 2, "$expr": {"$eq": ["$a", "$$varRef"] } }, "sort": {"a": 1}, "update": [{"$addFields": {"c": "$$varRef"}}], "let": {"varRef": "adanko"}}');
+                                                                                                    find_and_modify                                                                                                     
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""2"" }, ""a"" : ""adanko"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                                    document                                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura", "c" : { "$numberInt" : "1" } }
+ { "_id" : { "$numberInt" : "2" }, "a" : "adanko", "c" : "adanko" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "4" }, "a" : "okra" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(5 rows)
+
+ROLLBACK;
+BEGIN;
+--- delete
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 2, "$expr": {"$lt": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef": 3}}');
+                                                                                                    find_and_modify                                                                                                     
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" }, ""updatedExisting"" : true }, ""value"" : { ""_id"" : { ""$numberInt"" : ""2"" }, ""a"" : ""adanko"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 1, "$expr": {"$and": [{"$eq": ["$_id", "$$varRef"]}, {"$eq": ["$a", "akura"]}]}}, "sort": {"a": 1}, "remove": true, "let": {"varRef": "akura"}}');
+                                                          find_and_modify                                                           
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""0"" } }, ""value"" : null, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"_id": 4, "$expr": {"$and": [{"$eq": ["$_id", "$$varRef1"]}, {"$lte": ["$a", "$$varRef2"]}]}}, "sort": {"a": 1}, "remove": true, "let": {"varRef1": 4, "varRef2": "okra"}}');
+                                                                                     find_and_modify                                                                                      
+---------------------------------------------------------------------
+ ("{ ""lastErrorObject"" : { ""n"" : { ""$numberInt"" : ""1"" } }, ""value"" : { ""_id"" : { ""$numberInt"" : ""4"" }, ""a"" : ""okra"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDER BY document;
+                       document                       
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "1" }, "a" : "akura" }
+ { "_id" : { "$numberInt" : "2" }, "c" : "ant" }
+ { "_id" : { "$numberInt" : "3" }, "a" : "odwan" }
+ { "_id" : { "$numberInt" : "5" }, "a" : "$$varRef" }
+(4 rows)
+
+ROLLBACK;
+RESET documentdb.enableVariablesSupportForWriteCommands;

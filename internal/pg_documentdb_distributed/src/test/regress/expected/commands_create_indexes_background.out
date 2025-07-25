@@ -550,6 +550,22 @@ INFO:  Index Queue Commands: CREATE INDEX  documents_rum_index_32025 ON document
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "3" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t
 (1 row)
 
+CALL documentdb_distributed_test_helpers.create_indexes_background(
+  'db',
+  '{
+     "createIndexes": "createIndex_background_1",
+     "indexes": [
+       {"key": {"block_c": 1}, "name": "my_idx_blocking_c", "storageEngine": { "blocking": true }}
+     ]
+   }',
+   p_log_index_queue => true
+);
+INFO:  Index Queue Commands: CREATE INDEX  documents_rum_index_32026 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='block_c',tl=2699)) 
+                                                                                                                retval                                                                                                                | ok 
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "3" }, "numIndexesAfter" : { "$numberInt" : "4" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t
+(1 row)
+
 -- Queue should be empty
 SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt, user_oid FROM documentdb_api_catalog.documentdb_index_queue ORDER BY index_id;
  index_cmd | cmd_type | index_id | index_cmd_status | collection_id | attempt | user_oid 
@@ -559,7 +575,7 @@ SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt, 
 SELECT * FROM documentdb_distributed_test_helpers.count_collection_indexes('db', 'createIndex_background_1') ORDER BY 1,2;
  index_type_is_primary | index_type_count 
 ---------------------------------------------------------------------
- f                     |                2
+ f                     |                3
  t                     |                1
 (2 rows)
 
@@ -572,7 +588,8 @@ ORDER BY indexrelid;
  documentdb_data.collection_pk_32001       | t          | t
  documentdb_data.documents_rum_index_32024 | t          | t
  documentdb_data.documents_rum_index_32025 | t          | t
-(3 rows)
+ documentdb_data.documents_rum_index_32026 | t          | t
+(4 rows)
 
 CALL documentdb_distributed_test_helpers.create_indexes_background(
   'db',
@@ -585,10 +602,10 @@ CALL documentdb_distributed_test_helpers.create_indexes_background(
    }',
    p_log_index_queue => true
 );
-INFO:  Index Queue Commands: CREATE INDEX CONCURRENTLY documents_rum_index_32026 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='c',tl=2699)) ,CREATE INDEX CONCURRENTLY documents_rum_index_32027 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='d',tl=2699)) 
+INFO:  Index Queue Commands: CREATE INDEX CONCURRENTLY documents_rum_index_32027 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='c',tl=2699)) ,CREATE INDEX CONCURRENTLY documents_rum_index_32028 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='d',tl=2699)) 
                                                                                                                 retval                                                                                                                | ok 
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "3" }, "numIndexesAfter" : { "$numberInt" : "5" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "4" }, "numIndexesAfter" : { "$numberInt" : "6" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t
 (1 row)
 
 -- Index request submission will fail
@@ -606,10 +623,28 @@ CALL documentdb_distributed_test_helpers.create_indexes_background(
  { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { \"v\" : 2, \"key\" : { \"c\" : 1 }, \"name\" : \"my_idx_c\", \"unique\" : true }, existing index: { \"v\" : 2, \"key\" : { \"c\" : 1 }, \"name\" : \"my_idx_c\" }", "code" : { "$numberInt" : "587202589" } } }, "ok" : { "$numberInt" : "0" } } | f
 (1 row)
 
+-- create one concurrent and one blocking.
+CALL documentdb_distributed_test_helpers.create_indexes_background(
+  'db',
+  '{
+     "createIndexes": "createIndex_background_1",
+     "indexes": [
+       {"key": {"block_e": 1}, "name": "my_idx_block_e"},
+       {"key": {"block_f": 1}, "name": "my_idx_block_f", "storageEngine": { "blocking": true } }
+     ]
+   }',
+   p_log_index_queue => true
+);
+INFO:  Index Queue Commands: CREATE INDEX CONCURRENTLY documents_rum_index_32029 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='block_e',tl=2699)) ,CREATE INDEX  documents_rum_index_32030 ON documentdb_data.documents_32001 USING documentdb_rum ( document documentdb_api_catalog.bson_rum_single_path_ops(path='block_f',tl=2699)) 
+                                                                                                                retval                                                                                                                | ok 
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "6" }, "numIndexesAfter" : { "$numberInt" : "8" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t
+(1 row)
+
 SELECT * FROM documentdb_distributed_test_helpers.count_collection_indexes('db', 'createIndex_background_1') ORDER BY 1,2;
  index_type_is_primary | index_type_count 
 ---------------------------------------------------------------------
- f                     |                4
+ f                     |                7
  t                     |                1
 (2 rows)
 

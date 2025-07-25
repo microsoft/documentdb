@@ -59,16 +59,14 @@ select documentdb_api.delete('db', '{
 	"writeConcern": { "w": "majority", "wtimeout": 5000 },
 	"apiVersion": 1
 	}');
-                                         delete                                         
-----------------------------------------------------------------------------------------
- ("{ ""n"" : { ""$numberInt"" : ""2"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
-(1 row)
-
+ERROR:  'delete.let' is not yet supported
 -- query 
 SELECT documentdb_api_catalog.bson_dollar_project(document, '{ "a" : 1 }') FROM documentdb_api.collection('db', 'ignoreCommonSpec') ORDER BY object_id;
- bson_dollar_project 
----------------------
-(0 rows)
+                        bson_dollar_project                         
+--------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "21" }, "a" : { "$numberInt" : "99" } }
+ { "_id" : { "$numberInt" : "99" }, "a" : { "$numberInt" : "99" } }
+(2 rows)
 
 -- insert again
 select documentdb_api.insert('db', '{
@@ -103,16 +101,14 @@ select documentdb_api.update('db', '{
 	"writeConcern": { "w": "majority", "wtimeout": 5000 },
 	"apiVersion": 1
 	}');
-                                                               update                                                               
-------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" } }",t)
-(1 row)
-
+ERROR:  update.let is not yet supported
 -- quey 
 SELECT documentdb_api_catalog.bson_dollar_project(document, '{ "a" : 1 }') FROM documentdb_api.collection('db', 'ignoreCommonSpec') ORDER BY object_id;
-               bson_dollar_project               
--------------------------------------------------
+                        bson_dollar_project                         
+--------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "a" : "id1" }
  { "_id" : { "$numberInt" : "2" }, "a" : "id2" }
-(2 rows)
+ { "_id" : { "$numberInt" : "21" }, "a" : { "$numberInt" : "99" } }
+ { "_id" : { "$numberInt" : "99" }, "a" : { "$numberInt" : "99" } }
+(4 rows)
 
