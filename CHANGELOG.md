@@ -1,3 +1,5 @@
+### documentdb v1.107-0 (Unreleased) ###
+
 ### documentdb v1.106-0 (Unreleased) ###
 * Add internal extension that provides extensions to the `rum` index. *[Feature]*
 * Enable let support for update queries *[Feature]*. Requires `EnableVariablesSupportForWriteCommands` to be `on`.
