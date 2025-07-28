@@ -1240,7 +1240,7 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 	foreach(sortCell, root->query_pathkeys)
 	{
 		PathKey *pathkey = (PathKey *) lfirst(sortCell);
-		if (pathkey->pk_eclass == NULL &&
+		if (pathkey->pk_eclass == NULL ||
 			list_length(pathkey->pk_eclass->ec_members) != 1)
 		{
 			return;

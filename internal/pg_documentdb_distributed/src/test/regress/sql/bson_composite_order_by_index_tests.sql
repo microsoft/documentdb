@@ -415,3 +415,18 @@ set documentdb.forceDisableSeqScan to on;
 set documentdb.enableIndexOrderbyPushdown to on;
 EXPLAIN (ANALYZE ON, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "ordering_groups", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
 SELECT document FROM bson_aggregation_pipeline('comp_db', '{ "aggregate": "ordering_groups", "pipeline": [ { "$group": { "_id": "$a", "c": { "$count": 1 } } } ] }');
+
+
+-- sorting on prefix with missing path is not allowed unless it's equality.
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "compOrderSkip", "indexes": [ { "key": { "a": 1, "b": 1, "c": 1, "d": 1}, "name": "idx1", "enableOrderedIndex": true } ] }');
+select COUNT(documentdb_api.insert_one('comp_db', 'compOrderSkip', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s, "d": %s }', i , i, i % 5, i % 10, i % 20 )::bson)) FROM generate_series(1, 100) AS i;
+
+-- now given that it's not multi-key, we can push down sorts to the index fully *iff* missing fields are equality.
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "compOrderSkip", "filter": { "a": { "$in": [ 1, 2 ] }, "b": { "$in": [ 2, 3 ] }, "c": 2 }, "sort": { "a": 1, "b": 1, "d": 1 } }');
+
+-- cannot push non equality in the non-sorted prefix
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "compOrderSkip", "filter": { "a": { "$in": [ 1, 2 ] }, "b": { "$in": [ 2, 3 ] }, "c": { "$in": [ 5, 6 ]} }, "sort": { "a": 1, "b": 1, "d": 1 } }');
+
+-- once it's multi-key this isn't allowed.
+SELECT documentdb_api.insert_one('comp_db', 'compOrderSkip', FORMAT('{ "_id": %s, "a": [ %s, 2, 3 ], "b": %s, "c": %s, "d": %s }', 200, 201, 202, 203, 204 )::bson);
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "compOrderSkip", "filter": { "a": { "$in": [ 1, 2 ] }, "b": { "$in": [ 2, 3 ] }, "c": 2 }, "sort": { "a": 1, "b": 1, "d": 1 } }');

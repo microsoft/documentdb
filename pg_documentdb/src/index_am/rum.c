@@ -431,6 +431,7 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 
 	ListCell *sortCell;
 	int32_t maxOrderbyColumn = -1;
+	int32_t lastContiguousOrderbyColumn = -1;
 	int32_t minOrderbyColumn = INT_MAX;
 	int32_t orderByDetailIndex = 0;
 	foreach(sortCell, sortDetails)
@@ -467,10 +468,16 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 			minOrderbyColumn = orderbyColumnNumber;
 			maxOrderbyColumn = orderbyColumnNumber;
 		}
-		else if (orderbyColumnNumber != maxOrderbyColumn + 1)
+		else if (orderbyColumnNumber < maxOrderbyColumn + 1)
+		{
+			/* Can't sort by prior column again*/
+			break;
+		}
+		else if (orderbyColumnNumber != maxOrderbyColumn + 1 &&
+				 lastContiguousOrderbyColumn < 0)
 		{
 			/* order by does not match index ordering */
-			break;
+			lastContiguousOrderbyColumn = maxOrderbyColumn;
 		}
 
 		maxOrderbyColumn = orderbyColumnNumber;
@@ -483,7 +490,9 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 		return false;
 	}
 
-	*maxPathKeySupported = orderByDetailIndex;
+	/* By default use min of lastContiguousOrderbyColumn & maxOrderbyColumn */
+	*maxPathKeySupported = lastContiguousOrderbyColumn >= 0 ?
+						   lastContiguousOrderbyColumn : orderByDetailIndex;
 	bool isMultiKeyIndex = false;
 	Relation indexRel = index_open(indexPath->indexinfo->indexoid, NoLock);
 	isMultiKeyIndex = getMultiKeyStatusFunc(indexRel);
@@ -535,12 +544,29 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 		 * which is incorrect since 3 needs to be ordered first (even though it didn't match the filter).
 		 * Consequently, only support orderby pushdown if the filter doesn't cover the orderby column.
 		 */
-		for (int i = minOrderbyColumn; i <= maxOrderbyColumn; i++)
+		int32_t maxOrderByConsidered = lastContiguousOrderbyColumn >= 0 ?
+									   lastContiguousOrderbyColumn : maxOrderbyColumn;
+		for (int i = minOrderbyColumn; i <= maxOrderByConsidered; i++)
 		{
 			if (hasRangePredicate[i] || equalityPrefixes[i])
 			{
 				return false;
 			}
+		}
+	}
+	else if (lastContiguousOrderbyColumn >= 0)
+	{
+		/* We hit a case where we had a missing set of order by keys - we require that the remaining columns
+		 * are all equality prefixes.
+		 */
+		for (int i = lastContiguousOrderbyColumn + 1; i <= maxOrderbyColumn; i++)
+		{
+			if (!equalityPrefixes[i])
+			{
+				break;
+			}
+
+			*maxPathKeySupported = i;
 		}
 	}
 
