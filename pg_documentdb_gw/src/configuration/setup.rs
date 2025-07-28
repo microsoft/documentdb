@@ -12,10 +12,7 @@ use serde::Deserialize;
 use tokio::fs::File;
 
 use super::SetupConfiguration;
-use crate::{
-    configuration::certs::CertificateOptions,
-    error::{DocumentDBError, Result},
-};
+use crate::error::{DocumentDBError, Result};
 
 // Configurations which are populated statically on process start
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -47,6 +44,15 @@ pub struct DocumentDBSetupConfiguration {
     pub dynamic_configuration_refresh_interval_secs: Option<u32>,
     pub postgres_command_timeout_secs: Option<u64>,
     pub postgres_startup_wait_time_seconds: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct CertificateOptions {
+    pub cert_type: String,
+    pub file_path: String,
+    pub key_file_path: String,
+    pub ca_path: Option<String>,
 }
 
 impl DocumentDBSetupConfiguration {

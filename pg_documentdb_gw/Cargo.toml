@@ -29,7 +29,6 @@ num-traits = "0.2"
 async-trait = "0.1.88"
 dyn-clone = "1.0.19"
 whoami = "1.6.0"
-arc-swap = "1.7.1"
 
 [dependencies.simple_logger]
 version = "4.2.0"

@@ -1,11 +1,3 @@
-/*-------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation.  All rights reserved.
- *
- * tests/text_search_tests.rs
- *
- *-------------------------------------------------------------------------
- */
-
 use bson::doc;
 use documentdb_gateway::error::ErrorCode;
 
@@ -21,6 +13,13 @@ async fn text_query_should_fail_no_index() {
 
     match result {
         Err(e) => {
+            let msg = e.to_string();
+            assert!(
+                msg == "text index required for $text query",
+                "Expected error to be 'text index required for $text query', got: {}",
+                msg
+            );
+
             if let mongodb::error::ErrorKind::Command(ref command_error) = *e.kind {
                 let code_name = &command_error.code_name;
                 assert_eq!(
@@ -28,20 +27,12 @@ async fn text_query_should_fail_no_index() {
                     "Expected codeName to be 'IndexNotFound', got: {}",
                     code_name
                 );
-
                 let code = &command_error.code;
                 let expected_code = ErrorCode::IndexNotFound as i32;
                 assert_eq!(
                     *code, expected_code,
                     "Expected code to be {}, got: {}",
                     expected_code, code
-                );
-
-                let error_message = &command_error.message;
-                assert!(
-                    error_message == "text index required for $text query",
-                    "Expected error to be 'text index required for $text query', got: {}",
-                    error_message
                 );
             } else {
                 panic!("Expected Command error kind");

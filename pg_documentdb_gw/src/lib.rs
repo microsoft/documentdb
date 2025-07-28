@@ -6,10 +6,11 @@
  *-------------------------------------------------------------------------
  */
 
+use configuration::CertificateOptions;
 use either::Either::{Left, Right};
 use error::ErrorCode;
 use log::{error, log_enabled, warn};
-use openssl::ssl::Ssl;
+use openssl::ssl::{Ssl, SslContextBuilder, SslMethod, SslOptions};
 use protocol::header::Header;
 use requests::request_tracker::RequestTracker;
 use requests::{Request, RequestInfo, RequestIntervalKind, RequestMessage};
@@ -46,7 +47,8 @@ pub mod startup;
 pub mod telemetry;
 
 pub async fn run_server<T>(
-    service_context: ServiceContext,
+    sc: ServiceContext,
+    certificate_options: CertificateOptions,
     telemetry: Option<Box<dyn TelemetryProvider>>,
     token: CancellationToken,
     cipher_map: Option<fn(Option<&str>) -> i32>,
@@ -54,12 +56,27 @@ pub async fn run_server<T>(
 where
     T: PgDataClient,
 {
+    let listener = TcpListener::bind(format!(
+        "{}:{}",
+        if sc.setup_configuration().use_local_host() {
+            "127.0.0.1"
+        } else {
+            "[::]"
+        },
+        sc.setup_configuration().gateway_listen_port(),
+    ))
+    .await?;
+
+    let enforce_ssl_tcp = sc.setup_configuration().enforce_ssl_tcp();
     // Listen for new tcp connections until cancelled
     loop {
         match listen_for_connections::<T>(
-            service_context.clone(),
+            sc.clone(),
+            &certificate_options,
             telemetry.clone(),
+            &listener,
             token.clone(),
+            enforce_ssl_tcp,
             cipher_map,
         )
         .await
@@ -72,31 +89,31 @@ where
 }
 
 async fn listen_for_connections<T>(
-    service_context: ServiceContext,
+    sc: ServiceContext,
+    certificate_options: &CertificateOptions,
     telemetry: Option<Box<dyn TelemetryProvider>>,
+    listener: &TcpListener,
     token: CancellationToken,
+    enforce_ssl_tcp: bool,
     cipher_map: Option<fn(Option<&str>) -> i32>,
 ) -> Result<bool>
 where
     T: PgDataClient,
 {
-    let listener = TcpListener::bind(format!(
-        "{}:{}",
-        if service_context.setup_configuration().use_local_host() {
-            "127.0.0.1"
-        } else {
-            "[::]"
-        },
-        service_context.setup_configuration().gateway_listen_port(),
-    ))
-    .await?;
-
-    let tcp_keepalive = TcpKeepalive::new()
-        .with_time(Duration::from_secs(180))
-        .with_interval(Duration::from_secs(60));
-
     let token_clone = token.clone();
 
+    let mut ctx = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    ctx.set_private_key_file(
+        &certificate_options.key_file_path,
+        openssl::ssl::SslFiletype::PEM,
+    )?;
+    ctx.set_certificate_chain_file(&certificate_options.file_path)?;
+    if let Some(ca_path) = certificate_options.ca_path.as_deref() {
+        ctx.set_ca_file(ca_path)?;
+    }
+    ctx.set_options(SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1);
+
+    let ssl = Ssl::new(&ctx.build())?;
     // Wait for either a new connection or cancellation
     tokio::select! {
         res = listener.accept() => {
@@ -105,10 +122,10 @@ where
             log::trace!("New TCP connection established.");
 
             stream.set_nodelay(true)?;
-            socket2::SockRef::from(&stream).set_tcp_keepalive(&tcp_keepalive)?;
+            socket2::SockRef::from(&stream).set_tcp_keepalive(&TcpKeepalive::new().with_interval(Duration::from_secs(60)).with_time(Duration::from_secs(180)))?;
             tokio::spawn(async move {
                 tokio::select! {
-                    _ = handle_connection::<T>(service_context, telemetry, ip, stream, cipher_map) => {}
+                    _ = handle_connection::<T>(ssl, sc, telemetry, ip, stream, enforce_ssl_tcp, cipher_map) => {}
                     _ = token_clone.cancelled() => {}
                 }
             });
@@ -127,26 +144,18 @@ async fn get_stream(ssl: Ssl, stream: TcpStream) -> Result<SslStream<TcpStream>>
 }
 
 async fn handle_connection<T>(
-    service_context: ServiceContext,
+    ssl: Ssl,
+    sc: ServiceContext,
     telemetry: Option<Box<dyn TelemetryProvider>>,
     ip: SocketAddr,
     stream: TcpStream,
+    enforce_ssl_tcp: bool,
     cipher_map: Option<fn(Option<&str>) -> i32>,
-) -> Result<()>
-where
+) where
     T: PgDataClient,
 {
-    let cert_provider = service_context.get_certificate_provider();
-    let ssl = Ssl::new(&cert_provider.get_ssl_context())?;
-    let enforce_ssl_tcp = service_context.setup_configuration().enforce_ssl_tcp();
-
-    let mut connection_context = ConnectionContext::new(
-        service_context,
-        telemetry,
-        ip,
-        ssl.version_str().to_string(),
-    )
-    .await;
+    let mut connection_context =
+        ConnectionContext::new(sc, telemetry, ip, ssl.version_str().to_string()).await;
 
     match enforce_ssl_tcp {
         true => match get_stream(ssl, stream).await {
@@ -155,19 +164,11 @@ where
                     Some(map) => map(stream.ssl().current_cipher().map(|cipher| cipher.name())),
                     None => 0,
                 };
-                handle_stream::<SslStream<TcpStream>, T>(stream, connection_context).await;
-                Ok(())
+                handle_stream::<SslStream<TcpStream>, T>(stream, connection_context).await
             }
-            Err(e) => {
-                let err_msg = format!("Failed to create SslStream: {}", e);
-                log::error!("{}", err_msg);
-                Err(DocumentDBError::internal_error(err_msg))
-            }
+            Err(e) => log::error!("Failed to create SslStream: {}", e),
         },
-        false => {
-            handle_stream::<TcpStream, T>(stream, connection_context).await;
-            Ok(())
-        }
+        false => handle_stream::<TcpStream, T>(stream, connection_context).await,
     }
 }
 

@@ -6,21 +6,18 @@
  *-------------------------------------------------------------------------
  */
 
-use std::fmt::Debug;
-
-mod certs;
 mod dynamic;
 mod pg_configuration;
 mod setup;
 mod version;
 
-pub use certs::{CertificateOptions, CertificateProvider};
 pub use dynamic::DynamicConfiguration;
 pub use pg_configuration::PgConfiguration;
-pub use setup::DocumentDBSetupConfiguration;
+pub use setup::{CertificateOptions, DocumentDBSetupConfiguration};
 pub use version::Version;
 
 use dyn_clone::{clone_trait_object, DynClone};
+use std::fmt::Debug;
 
 // These are the required configuration fields.
 /// A trait that defines the configuration setup for the application.

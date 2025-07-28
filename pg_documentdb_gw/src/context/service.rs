@@ -11,7 +11,7 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
 use crate::{
-    configuration::{CertificateProvider, DynamicConfiguration, SetupConfiguration},
+    configuration::{DynamicConfiguration, SetupConfiguration},
     error::{DocumentDBError, Result},
     postgres::{Connection, ConnectionPool},
     QueryCatalog,
@@ -37,7 +37,6 @@ pub struct ServiceContextInner {
     pub cursor_store: CursorStore,
     pub transaction_store: TransactionStore,
     pub query_catalog: QueryCatalog,
-    pub certificate_provider: CertificateProvider,
 }
 
 #[derive(Clone)]
@@ -50,7 +49,6 @@ impl ServiceContext {
         query_catalog: QueryCatalog,
         system_requests_pool: Arc<ConnectionPool>,
         system_auth_pool: ConnectionPool,
-        certificate_provider: CertificateProvider,
     ) -> Self {
         log::trace!("Initial dynamic configuration: {:?}", dynamic_configuration);
 
@@ -65,7 +63,6 @@ impl ServiceContext {
             cursor_store: CursorStore::new(setup_configuration.as_ref(), true),
             transaction_store: TransactionStore::new(Duration::from_secs(timeout_secs)),
             query_catalog,
-            certificate_provider,
         };
         ServiceContext(Arc::new(inner))
     }
@@ -242,9 +239,5 @@ impl ServiceContext {
                 system_shared_write_lock.remove(&key);
             }
         }
-    }
-
-    pub fn get_certificate_provider(&self) -> &CertificateProvider {
-        &self.0.certificate_provider
     }
 }
