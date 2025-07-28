@@ -558,6 +558,8 @@ SELECT documentdb_api.create_collection('db', 'nonImmutable');
 SELECT documentdb_api.insert_one('db','nonImmutable',' { "_id" :  1, "a" : 1, "b" : 1 }', NULL);
 SELECT * FROM  aggregate_cursor_first_page('db', '{ "aggregate": "nonImmutable", "pipeline": [ {"$lookup": {"from": "bar", "as": "x", "localField": "f_id", "foreignField": "_id"}}, {"$merge" : { "into": "bar" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 
+-- As below query usage system_rows and random function which are non-Immutable functions.
+SELECT * FROM  aggregate_cursor_first_page('db', '{ "aggregate": "nonImmutable", "pipeline": [ { "$sample": { "size": 1000000 } }, {"$merge" : { "into": "bar" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 
 -- Merge inside transaction
 BEGIN;

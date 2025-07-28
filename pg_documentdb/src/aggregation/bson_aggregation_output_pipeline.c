@@ -165,7 +165,7 @@ static inline void AddTargetCollectionRTEDollarMerge(Query *query,
 													 MongoCollection *targetCollection);
 static HTAB * InitHashTableFromStringArray(const bson_value_t *onValues, int
 										   onValuesArraySize);
-static inline bool ValidatePreOutputStages(Query *query);
+static inline void ValidatePreOutputStages(Query *query, char *stageName);
 static bool MergeQueryCTEWalker(Node *node, void *context);
 static inline void ValidateFinalPgbsonBeforeWriting(const pgbson *finalBson, const
 													pgbson *targetDocument,
@@ -632,7 +632,7 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 		return query;
 	}
 
-	ValidatePreOutputStages(query);
+	ValidatePreOutputStages(query, "$merge");
 
 	MergeArgs mergeArgs;
 	memset(&mergeArgs, 0, sizeof(mergeArgs));
@@ -1751,20 +1751,22 @@ InitHashTableFromStringArray(const bson_value_t *inputKeyArray, int arraySize)
 /*
  * ValidatePreOutputStages traverse query tree to fail early if $merge/$out is used with $graphLookup or contains any mutable function.
  */
-static inline bool
-ValidatePreOutputStages(Query *query)
+static inline void
+ValidatePreOutputStages(Query *query, char *stageName)
 {
-	/* An example of this could be when the target collection for the $lookup operation is missing, and the empty_data_table function is invoked. */
+	/* First, walk the query tree to detect any constructs that disqualify merge support */
+	query_tree_walker(query, MergeQueryCTEWalker, stageName, 0);
+
+	/* Already checked for known mutable functions; perform a recheck to ensure none were missed */
 	if (contain_mutable_functions((Node *) query))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg(
-							"The `$merge` stage is not supported with this command. If your query references any non-existent collections, please create them and try again."),
+							"The `%s` stage is not supported with mutable functions yet.",
+							stageName),
 						errdetail_log(
 							"MUTABLE functions are not yet in MERGE command by citus")));
 	}
-
-	return query_tree_walker(query, MergeQueryCTEWalker, NULL, 0);
 }
 
 
@@ -1782,20 +1784,46 @@ MergeQueryCTEWalker(Node *node, void *context)
 	if (IsA(node, Query))
 	{
 		Query *query = (Query *) node;
+		char *stageName = (char *) context;
 
 		if (query->hasRecursive)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 							errmsg(
-								"$graphLookup is not supported with $merge stage yet."),
+								"$graphLookup is not supported with %s stage yet.",
+								stageName),
 							errdetail_log(
-								"$graphLookup is not supported with $merge stage yet.")));
+								"$graphLookup is not supported with $merge/$out stage yet.")));
 		}
 
-		query_tree_walker(query, MergeQueryCTEWalker, NULL, 0);
+		query_tree_walker(query, MergeQueryCTEWalker, context, 0);
 
 		/* we're done, no need to recurse anymore for this query */
 		return false;
+	}
+	else if (IsA(node, FuncExpr))
+	{
+		FuncExpr *fexpr = (FuncExpr *) node;
+		char *stageName = (char *) context;
+
+		if (fexpr->funcid == ExtensionTableSampleSystemRowsFunctionId() ||
+			fexpr->funcid == PgRandomFunctionOid())
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+							errmsg(
+								"The %s stage is not yet supported with the $sample aggregation stage.",
+								stageName),
+							errdetail_log(
+								"MUTABLE functions are not yet in MERGE command by citus")));
+		}
+		else if (fexpr->funcid == BsonEmptyDataTableFunctionId())
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+							errmsg(
+								"The query references collections that do not exist. Create the missing collections and retry."),
+							errdetail_log(
+								"MUTABLE functions are not yet in MERGE command by citus")));
+		}
 	}
 
 	return expression_tree_walker(node, MergeQueryCTEWalker, context);
@@ -1918,7 +1946,7 @@ HandleOut(const bson_value_t *existingValue, Query *query,
 
 	memset(&outArgs, 0, sizeof(outArgs));
 	ParseOutStage(existingValue, context->namespaceName, &outArgs);
-	ValidatePreOutputStages(query);
+	ValidatePreOutputStages(query, "$out");
 
 	MongoCollection *targetCollection =
 		GetMongoCollectionOrViewByNameDatum(StringViewGetTextDatum(&outArgs.targetDB),

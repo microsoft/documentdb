@@ -201,3 +201,7 @@ SELECT documentdb_api.insert('db', '{"insert":"source", "documents":[
 
 --validate empty collection check
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "source", "pipeline": [  {"$out" : ""} ], "cursor": { "batchSize": 1 } }', 4294967294);
+
+-- out should fail when query has mutable function, if query non existent collection or query has $sample stage
+SELECT * FROM  aggregate_cursor_first_page('db', '{ "aggregate": "nonImmutable", "pipeline": [ {"$lookup": {"from": "bar", "as": "x", "localField": "f_id", "foreignField": "_id"}}, {"$out" :  "bar" } ], "cursor": { "batchSize": 1 } }', 4294967294);
+SELECT * FROM  aggregate_cursor_first_page('db', '{ "aggregate": "nonImmutable", "pipeline": [ { "$sample": { "size": 1000000 } }, {"$out" :  "bar" } ], "cursor": { "batchSize": 1 } }', 4294967294);
