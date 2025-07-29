@@ -68,6 +68,9 @@ bool CurrentOpAddSqlCommand = DEFAULT_CURRENTOP_ADD_SQL_COMMAND;
 #define DEFAULT_ALTERNATE_INDEX_HANDLER ""
 char *AlternateIndexHandler = DEFAULT_ALTERNATE_INDEX_HANDLER;
 
+#define DEFAULT_LOG_RELATION_INDEXES_ORDER false
+bool EnableLogRelationIndexesOrder = DEFAULT_LOG_RELATION_INDEXES_ORDER;
+
 void
 InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -230,5 +233,12 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"The name of the index handler to use as opposed to rum (currently for testing only)."),
 		NULL, &AlternateIndexHandler, DEFAULT_ALTERNATE_INDEX_HANDLER,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.logRelationIndexesOrder", newGucPrefix),
+		gettext_noop(
+			"Whether to log the order of indexes in the relation."),
+		NULL, &EnableLogRelationIndexesOrder, DEFAULT_LOG_RELATION_INDEXES_ORDER,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

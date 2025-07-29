@@ -95,6 +95,9 @@ InstallDocumentDBApiPostgresHooks(void)
 	ExtensionPreviousSetRelPathlistHook = set_rel_pathlist_hook;
 	set_rel_pathlist_hook = ExtensionRelPathlistHook;
 
+	ExtensionPreviousGetRelationInfoHook = get_relation_info_hook;
+	get_relation_info_hook = ExtensionGetRelationInfoHook;
+
 	RegisterXactCallback(DocumentDBTransactionCallback, NULL);
 	RegisterSubXactCallback(DocumentDBSubTransactionCallback, NULL);
 
@@ -152,6 +155,9 @@ UninstallDocumentDBApiPostgresHooks(void)
 
 	set_rel_pathlist_hook = ExtensionPreviousSetRelPathlistHook;
 	ExtensionPreviousSetRelPathlistHook = NULL;
+
+	get_relation_info_hook = ExtensionPreviousGetRelationInfoHook;
+	ExtensionPreviousGetRelationInfoHook = NULL;
 
 	UnregisterXactCallback(DocumentDBTransactionCallback, NULL);
 	UnregisterSubXactCallback(DocumentDBSubTransactionCallback, NULL);

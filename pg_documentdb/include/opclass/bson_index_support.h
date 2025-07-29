@@ -127,8 +127,8 @@ List * ReplaceExtensionFunctionOperatorsInRestrictionPaths(List *restrictInfo,
 void ReplaceExtensionFunctionOperatorsInPaths(PlannerInfo *root, RelOptInfo *rel,
 											  List *pathsList, PlanParentType parentType,
 											  ReplaceExtensionFunctionContext *context);
-void ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
-								 ReplaceExtensionFunctionContext *context);
+Path * ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
+								   ReplaceExtensionFunctionContext *context);
 
 void ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
 								  Index rti, ReplaceExtensionFunctionContext *context);

@@ -440,10 +440,10 @@ set documentdb.enableDescendingCompositeIndex to on;
 -- name collision still fails
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1", "key": { "a": 1 } } ] }', TRUE);
-ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1", "enableCompositeTerm" : 1 }, existing index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1" }
+ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1", "enableOrderedIndex" : 1 }, existing index: { "v" : 2, "key" : { "a" : 1 }, "name" : "a_1" }
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1", "key": { "a": -1 } } ] }', TRUE);
-ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1", "enableCompositeTerm" : 1 }, existing index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1" }
+ERROR:  An existing index has the same name as the requested index. When index names are not specified, they are auto generated and can cause conflicts. Please refer to our documentation. Requested index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1", "enableOrderedIndex" : 1 }, existing index: { "v" : 2, "key" : { "a" : -1 }, "name" : "a_-1" }
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_comp", "key": { "a": 1 } } ] }', TRUE);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -467,14 +467,14 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
 
 SELECT collection_id as collid FROM documentdb_api_catalog.collections where database_name = 'comp_db' and collection_name = 'comp_collection' \gset 
 SELECT index_spec FROM documentdb_api_catalog.collection_indexes where collection_id = :'collid'::int4;
-                                                         index_spec                                                         
-----------------------------------------------------------------------------------------------------------------------------
+                                                        index_spec                                                         
+---------------------------------------------------------------------------------------------------------------------------
  (_id_,"{ ""_id"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,)
  (a_1,"{ ""a"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,)
  (a_-1,"{ ""a"" : { ""$numberInt"" : ""-1"" } }",,,,,2,,,)
- (a_1_comp,"{ ""a"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
- (a_-1_comp,"{ ""a"" : { ""$numberInt"" : ""-1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
- (_id_1_comp,"{ ""_id"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableCompositeTerm"" : { ""$numberInt"" : ""1"" } }")
+ (a_1_comp,"{ ""a"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableOrderedIndex"" : { ""$numberInt"" : ""1"" } }")
+ (a_-1_comp,"{ ""a"" : { ""$numberInt"" : ""-1"" } }",,,,,2,,,"{ ""enableOrderedIndex"" : { ""$numberInt"" : ""1"" } }")
+ (_id_1_comp,"{ ""_id"" : { ""$numberInt"" : ""1"" } }",,,,,2,,,"{ ""enableOrderedIndex"" : { ""$numberInt"" : ""1"" } }")
 (6 rows)
 
 -- creating two with composite and different names fails
@@ -484,6 +484,170 @@ ERROR:  Index already exists with a different name: a_1_comp
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_-1_comp_2", "key": { "a": -1 } } ] }', TRUE);
 ERROR:  Index already exists with a different name: a_-1_comp
+-- test that having side by side indexes we prefer composite index
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 1, "a": 1, "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 2, "a": [ 1, 2 ], "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 3, "a": 1, "b": [ true, false ] }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 4, "a": [ 1, 2 ], "b": [ true, false ] }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 5, "a": "string1", "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 6, "a": "string2", "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 7, "a": { "key": "string2" }, "b": true }');
+                              insert_one                              
+----------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', FORMAT('{ "_id": 8, "a": { "key": "%s" }, "b": "%s" }', repeat('a', 10000), repeat('a', 10000))::bson);
+                                                                                                             insert_one                                                                                                             
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "29" }, "errmsg" : "Cannot compare ascending and descending index terms" } ] }
+(1 row)
+
+set documentdb.logRelationIndexesOrder to on;
+set client_min_messages to log;
+EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1 } }');
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+                                            QUERY PLAN                                            
+--------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=4.43..8.45 rows=2 width=32)
+   Output: document
+   Recheck Cond: (collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson)
+   ->  Bitmap Index Scan on "a_-1_comp"  (cost=0.00..0.00 rows=8 width=0)
+         Index Cond: (collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson)
+(5 rows)
+
+EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true} } }');
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+                                            QUERY PLAN                                            
+--------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=4.43..8.45 rows=1 width=32)
+   Output: document
+   Recheck Cond: (collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson)
+   Filter: (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson)
+   ->  Bitmap Index Scan on "a_-1_comp"  (cost=0.00..0.00 rows=8 width=0)
+         Index Cond: (collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson)
+(6 rows)
+
+reset client_min_messages;
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_b_1_c_1", "key": { "a": 1, "b": 1, "c": 1}, "enableOrderedIndex": false } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "6" }, "numIndexesAfter" : { "$numberInt" : "7" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 7, "a": { "key": "string2" }, "b": true, "c": 1 }');
+                                                                                                                       insert_one                                                                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "319029277" }, "errmsg" : "Duplicate key violation on the requested collection: Index '_id_'" } ] }
+(1 row)
+
+set documentdb.forceDisableSeqScan to on;
+set client_min_messages to log;
+EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+                                                                                                         QUERY PLAN                                                                                                          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)
+   Output: document
+   Recheck Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+   ->  Bitmap Index Scan on a_1_b_1_c_1  (cost=0.00..0.00 rows=1 width=0)
+         Index Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+(5 rows)
+
+set documentdb.enableIndexPriorityOrdering to off;
+EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+                                                                                                         QUERY PLAN                                                                                                          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)
+   Output: document
+   Recheck Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+   ->  Bitmap Index Scan on a_1_b_1_c_1  (cost=0.00..0.00 rows=1 width=0)
+         Index Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+(5 rows)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently(
+    'comp_db', '{ "createIndexes": "comp_collection", "indexes": [ { "name": "a_1_b_1_c_1_comp", "key": { "a": 1, "b": 1, "c": 1} } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "7" }, "numIndexesAfter" : { "$numberInt" : "8" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+set documentdb.enableIndexPriorityOrdering to on;
+EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5613, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+                                                                                                         QUERY PLAN                                                                                                          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)
+   Output: document
+   Recheck Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+   ->  Bitmap Index Scan on a_1_b_1_c_1_comp  (cost=0.00..0.00 rows=1 width=0)
+         Index Cond: ((collection.document @= '{ "a" : { "$numberInt" : "1" } }'::bson) AND (collection.document @>= '{ "b" : { "$minKey" : 1 } }'::bson) AND (collection.document @>= '{ "c" : { "$minKey" : 1 } }'::bson))
+(5 rows)
+
+reset client_min_messages;
+reset documentdb.forceDisableSeqScan;
+set documentdb.logRelationIndexesOrder to off;
 set documentdb.defaultUseCompositeOpClass to off;
 set documentdb.enableNewCompositeIndexOpClass to off;
 set documentdb.enableDescendingCompositeIndex to off;

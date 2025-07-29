@@ -127,6 +127,9 @@ bool EnableInsertCustomPlan = DEFAULT_ENABLE_INSERT_CUSTOM_PLAN;
 #define DEFAULT_LOOKUP_ENABLE_INNER_JOIN false
 bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
 
+#define DEFAULT_ENABLE_INDEX_PRIORITY_ORDERING true
+bool EnableIndexPriorityOrdering = DEFAULT_ENABLE_INDEX_PRIORITY_ORDERING;
+
 
 /*
  * SECTION: Aggregation & Query feature flags
@@ -599,10 +602,18 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to use legacy force index pushdown behavior."),
 		NULL, &UseLegacyForcePushdownBehavior, DEFAULT_USE_LEGACY_FORCE_PUSHDOWN_BEHAVIOR,
 		PGC_USERSET, 0, NULL, NULL, NULL);
+
 	DefineCustomBoolVariable(
 		psprintf("%s.enableRoleCrud", newGucPrefix),
 		gettext_noop(
 			"Enables role crud through the data plane."),
 		NULL, &EnableRoleCrud, DEFAULT_ENABLE_ROLE_CRUD,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexPriorityOrdering", newGucPrefix),
+		gettext_noop(
+			"Whether to reorder the indexlist at the planner level based on priority of indexes."),
+		NULL, &EnableIndexPriorityOrdering, DEFAULT_ENABLE_INDEX_PRIORITY_ORDERING,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

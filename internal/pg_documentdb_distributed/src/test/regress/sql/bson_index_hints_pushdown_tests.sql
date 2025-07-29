@@ -97,3 +97,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('hint_db', '{ "cr
 
 EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { "x": 1 }, "hint": "a_3" }');
 EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { "x": 1 }, "hint": "k_1_l_1-2" }');
+
+-- try natural and id hint with no filters on sharded collections.
+SELECT documentdb_api.shard_collection('hint_db', 'query_index_hints', '{"_id": "hashed"}', FALSE);
+
+EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { }, "hint": { "$natural": 1 } }');
+EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { }, "hint": { "_id": 1 } }');

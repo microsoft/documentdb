@@ -4688,7 +4688,7 @@ MakeIndexSpecForIndexDef(IndexDef *indexDef)
 
 	if (indexDef->enableCompositeTerm == BoolIndexOption_True)
 	{
-		PgbsonWriterAppendInt32(&writer, "enableCompositeTerm", 19, 1);
+		PgbsonWriterAppendInt32(&writer, "enableOrderedIndex", 18, 1);
 	}
 
 	if (!IsPgbsonWriterEmptyDocument(&writer))

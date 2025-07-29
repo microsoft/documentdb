@@ -20,10 +20,10 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 (1 row)
 
 SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', 'queryuniquecomposite') ORDER BY collection_id, index_id;
- collection_id | index_id |                                                                            index_spec_as_bson                                                                            | index_is_valid 
+ collection_id | index_id |                                                                           index_spec_as_bson                                                                            | index_is_valid 
 ---------------------------------------------------------------------
-          5620 |     5620 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                            | t
-          5620 |     5621 | { "v" : { "$numberInt" : "2" }, "key" : { "a.b" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "unique" : true, "enableCompositeTerm" : { "$numberInt" : "1" } } | t
+          5620 |     5620 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                           | t
+          5620 |     5621 | { "v" : { "$numberInt" : "2" }, "key" : { "a.b" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "unique" : true, "enableOrderedIndex" : { "$numberInt" : "1" } } | t
 (2 rows)
 
 -- insert a value that doesn't collide with the unique index.
@@ -176,10 +176,10 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 (1 row)
 
 SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', 'queryuniquecomposite') ORDER BY collection_id, index_id;
- collection_id | index_id |                                                                                   index_spec_as_bson                                                                                    | index_is_valid 
+ collection_id | index_id |                                                                                   index_spec_as_bson                                                                                   | index_is_valid 
 ---------------------------------------------------------------------
-          5620 |     5620 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                                           | t
-          5620 |     5623 | { "v" : { "$numberInt" : "2" }, "key" : { "c" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "sparse" : true, "unique" : true, "enableCompositeTerm" : { "$numberInt" : "1" } } | t
+          5620 |     5620 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                                          | t
+          5620 |     5623 | { "v" : { "$numberInt" : "2" }, "key" : { "c" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "sparse" : true, "unique" : true, "enableOrderedIndex" : { "$numberInt" : "1" } } | t
 (2 rows)
 
 -- since this is sparse, we can create several documents without "c" on it.
@@ -250,10 +250,10 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 (1 row)
 
 SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', 'queryuniqueshardedcomposite') ORDER BY collection_id, index_id;
- collection_id | index_id |                                                                            index_spec_as_bson                                                                            | index_is_valid 
+ collection_id | index_id |                                                                           index_spec_as_bson                                                                            | index_is_valid 
 ---------------------------------------------------------------------
-          5621 |     5625 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                            | t
-          5621 |     5626 | { "v" : { "$numberInt" : "2" }, "key" : { "a.b" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "unique" : true, "enableCompositeTerm" : { "$numberInt" : "1" } } | t
+          5621 |     5625 | { "v" : { "$numberInt" : "2" }, "key" : { "_id" : { "$numberInt" : "1" } }, "name" : "_id_" }                                                                           | t
+          5621 |     5626 | { "v" : { "$numberInt" : "2" }, "key" : { "a.b" : { "$numberInt" : "1" } }, "name" : "rumConstraint1", "unique" : true, "enableOrderedIndex" : { "$numberInt" : "1" } } | t
 (2 rows)
 
 -- valid scenarios:

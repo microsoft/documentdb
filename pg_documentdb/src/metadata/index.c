@@ -2413,7 +2413,8 @@ static bool
 AreIndexOptionsStillEquivalent(const char *path, const bson_value_t *left,
 							   const bson_value_t *right)
 {
-	if (strcmp(path, "enableCompositeTerm") == 0)
+	if (strcmp(path, "enableCompositeTerm") == 0 ||
+		strcmp(path, "enableOrderedIndex") == 0)
 	{
 		if (left == NULL && right == NULL)
 		{

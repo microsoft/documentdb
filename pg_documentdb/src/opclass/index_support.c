@@ -1049,6 +1049,11 @@ ReplaceExtensionFunctionOperatorsInRestrictionPaths(List *restrictInfo,
 															  context, trimClauses);
 		if (expr == NULL)
 		{
+			if (list_length(restrictInfo) == 1)
+			{
+				return NIL;
+			}
+
 			restrictInfo = foreach_delete_current(restrictInfo, cell);
 			continue;
 		}
@@ -1114,7 +1119,7 @@ IsBtreePrimaryKeyIndex(IndexOptInfo *indexInfo)
  * Note: This function doesn't do any validation to make sure only one such operator is provided
  * in the query, so this should be done during the query construction.
  */
-void
+Path *
 ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 							ReplaceExtensionFunctionContext *context)
 {
@@ -1122,7 +1127,7 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 		context->forceIndexQueryOpData.type >= ForceIndexOpType_Max)
 	{
 		/* If no special operator requirement */
-		return;
+		return NULL;
 	}
 
 	const ForceIndexSupportFuncs *forceIndexFuncs =
@@ -1130,7 +1135,7 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 	if (!forceIndexFuncs->enableForceIndexPushdown(root, context))
 	{
 		/* No index support functions !!, or force index pushdown not required then can't do anything */
-		return;
+		return NULL;
 	}
 
 	/*
@@ -1142,7 +1147,7 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 		if (list_length(rel->pathlist) == 1)
 		{
 			/* If there is only one index path, then return */
-			return;
+			return NULL;
 		}
 
 		Path *matchingPath = FindIndexPathForQueryOperator(rel, rel->pathlist, context,
@@ -1151,7 +1156,7 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 														   path);
 		rel->partial_pathlist = NIL;
 		rel->pathlist = list_make1(matchingPath);
-		return;
+		return matchingPath;
 	}
 
 	List *oldIndexList = rel->indexlist;
@@ -1197,7 +1202,13 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 		{
 			forceIndexFuncs->noIndexHandler();
 		}
+		else if (list_length(rel->pathlist) > 0)
+		{
+			/* If alternate path is created, then we can use the first path as the matching path */
+			matchingPath = linitial(rel->pathlist);
+		}
 	}
+
 
 	rel->indexlist = oldIndexList;
 	if (rel->pathlist == NIL)
@@ -1216,6 +1227,8 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 			ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
 																context);
 	}
+
+	return matchingPath;
 }
 
 

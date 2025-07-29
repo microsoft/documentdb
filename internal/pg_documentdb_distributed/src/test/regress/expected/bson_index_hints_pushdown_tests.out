@@ -359,3 +359,32 @@ EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregati
                Index Cond: (document @<> '{ "k" : { "fullScan" : true } }'::bson)
 (6 rows)
 
+-- try natural and id hint with no filters on sharded collections.
+SELECT documentdb_api.shard_collection('hint_db', 'query_index_hints', '{"_id": "hashed"}', FALSE);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { }, "hint": { "$natural": 1 } }');
+                               QUERY PLAN                               
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documents_69501_695004 collection
+(6 rows)
+
+EXPLAIN (COSTS OFF, VERBOSE OFF, TIMING OFF) SELECT document from bson_aggregation_find('hint_db', '{ "find": "query_index_hints", "filter": { }, "hint": { "_id": 1 } }');
+                               QUERY PLAN                               
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 8
+   Tasks Shown: One of 8
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Index Scan using _id_ on documents_69501_695004 collection
+(6 rows)
+
