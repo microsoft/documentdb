@@ -96,6 +96,7 @@ void ValidateIdField(const bson_value_t *idValue);
 void SetExplicitStatementTimeout(int timeoutMilliseconds);
 
 void CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
+													Oid shardTableOid,
 													bool setSnapshot);
 
 extern bool SkipEnforceTransactionReadOnly;

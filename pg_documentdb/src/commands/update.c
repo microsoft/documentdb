@@ -1354,7 +1354,9 @@ ProcessBatchUpdateNonTransactionalUnsharded(MongoCollection *collection,
 		{
 			/* For each iteration of the loop, commit prior work */
 			bool setSnapshot = false;
-			CommitWriteProcedureAndReacquireCollectionLock(collection, setSnapshot);
+			CommitWriteProcedureAndReacquireCollectionLock(collection,
+														   spec->shardTableOid,
+														   setSnapshot);
 		}
 
 		DoUnshardedMultiUpdateViaUpdateWorker(collection, updates, subTransactionId,
@@ -1405,7 +1407,9 @@ ProcessBatchUpdateCore(MongoCollection *collection, List *updates, text *transac
 		{
 			/* For each iteration of the loop, commit prior work */
 			bool setSnapshot = false;
-			CommitWriteProcedureAndReacquireCollectionLock(collection, setSnapshot);
+			Oid shardTableOid = InvalidOid;
+			CommitWriteProcedureAndReacquireCollectionLock(collection, shardTableOid,
+														   setSnapshot);
 		}
 
 		bool isSuccess = false;

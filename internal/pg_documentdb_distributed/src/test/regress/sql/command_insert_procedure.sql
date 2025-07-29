@@ -124,6 +124,19 @@ CALL documentdb_api.insert_bulk('db', '{"insert":".randomname", "documents":[{"_
 CALL documentdb_api.insert_bulk('verylongdatabasenameformeasuringthelimitsofdatabasenamesinmongodb', '{"insert":"coll", "documents":[{"_id":1,"a":1}]}');
 CALL documentdb_api.insert_bulk('verylongdatabasenameformeasuringlimitsofdatabasenamesinmongoda', '{"insert":"verylongcollectionnameformeasuringthelimitsofcollectionnamesinmongodb", "documents":[{"_id":1,"a":1}]}');
 
+-- when multiple batches and after multiple intermidate commits also things are fine
+SET documentdb.batchWriteSubTransactionCount TO 2;
+SELECT  documentdb_api.create_collection('commitDb', 'commitColl');
+
+-- insert 10 documents
+CALL documentdb_api.insert_bulk('commitDb', '{"insert":"commitColl", "documents":[{"_id":1}, {"_id":2}, {"_id":3},  {"_id":4},  {"_id":5}, {"_id":6}, {"_id":7}, {"_id":8}, {"_id":9}, {"_id":10}]}');
+
+-- first one is duplicate and rest 9 are inserted
+CALL documentdb_api.insert_bulk('commitDb', '{"insert":"commitColl", "documents":[{"_id":1}, {"_id":12}, {"_id":13},  {"_id":14},  {"_id":15}, {"_id":16}, {"_id":17}, {"_id":18}, {"_id":19}, {"_id":20}], "ordered":false}');
+
+-- total doc count should be 10+9 
+SELECT count(document) FROM documentdb_api.collection('commitDb','commitColl');
+
 
 -- clean the collections
 SELECT documentdb_api.drop_collection('db', 'collection0');

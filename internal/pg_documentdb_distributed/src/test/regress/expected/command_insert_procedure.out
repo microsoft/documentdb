@@ -369,6 +369,36 @@ NOTICE:  creating collection
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } } | t
 (1 row)
 
+-- when multiple batches and after multiple intermidate commits also things are fine
+SET documentdb.batchWriteSubTransactionCount TO 2;
+SELECT  documentdb_api.create_collection('commitDb', 'commitColl');
+NOTICE:  creating collection
+ create_collection 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+-- insert 10 documents
+CALL documentdb_api.insert_bulk('commitDb', '{"insert":"commitColl", "documents":[{"_id":1}, {"_id":2}, {"_id":3},  {"_id":4},  {"_id":5}, {"_id":6}, {"_id":7}, {"_id":8}, {"_id":9}, {"_id":10}]}');
+                               p_result                                | p_success 
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "10" }, "ok" : { "$numberDouble" : "1.0" } } | t
+(1 row)
+
+-- first one is duplicate and rest 9 are inserted
+CALL documentdb_api.insert_bulk('commitDb', '{"insert":"commitColl", "documents":[{"_id":1}, {"_id":12}, {"_id":13},  {"_id":14},  {"_id":15}, {"_id":16}, {"_id":17}, {"_id":18}, {"_id":19}, {"_id":20}], "ordered":false}');
+                                                                                                                        p_result                                                                                                                         | p_success 
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "9" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "319029277" }, "errmsg" : "Duplicate key violation on the requested collection: Index '_id_'" } ] } | f
+(1 row)
+
+-- total doc count should be 10+9 
+SELECT count(document) FROM documentdb_api.collection('commitDb','commitColl');
+ count 
+---------------------------------------------------------------------
+    19
+(1 row)
+
 -- clean the collections
 SELECT documentdb_api.drop_collection('db', 'collection0');
  drop_collection 

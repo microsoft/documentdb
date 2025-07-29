@@ -573,6 +573,7 @@ RewriteDocumentWithCustomObjectId(pgbson *document,
  */
 void
 CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
+											   Oid shardTableOid,
 											   bool setSnapshot)
 {
 	ereport(DEBUG1, (errmsg("Commiting intermediate state and "
@@ -597,6 +598,12 @@ CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
 
 	/* Now acquire the collection lock */
 	LockRelationOid(collection->relationId, RowExclusiveLock);
+
+	/* If the shard table OID is valid, lock it as well */
+	if (shardTableOid != InvalidOid)
+	{
+		LockRelationOid(shardTableOid, RowExclusiveLock);
+	}
 }
 
 

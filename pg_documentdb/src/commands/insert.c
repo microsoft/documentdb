@@ -807,7 +807,9 @@ DoBatchInsertNoTransactionId(MongoCollection *collection, BatchInsertionSpec *ba
 		{
 			/* For each iteration of the loop, commit prior work */
 			bool setSnapshot = true;
-			CommitWriteProcedureAndReacquireCollectionLock(collection, setSnapshot);
+			CommitWriteProcedureAndReacquireCollectionLock(collection,
+														   batchSpec->insertShardOid,
+														   setSnapshot);
 		}
 
 		if (list_length(insertions) > 1 && !hasBatchedInsertFailed)
