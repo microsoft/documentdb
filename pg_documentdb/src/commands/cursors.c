@@ -45,7 +45,6 @@
  */
 extern int32_t MaxWorkerCursorSize;
 extern bool EnablePrimaryKeyCursorScan;
-extern bool UseRawExecutorForQueryPlan;
 extern bool UseFileBasedPersistedCursors;
 
 static char LastOpenPortalName[NAMEDATALEN] = { 0 };
@@ -174,12 +173,6 @@ static pgbson * ProcessCursorResultRowContinuationAttribute(HTAB *cursorMap,
 															bool isTailableCursor);
 static void AppendLastContinuationTokenToCursor(pgbson_writer *writer,
 												pgbson *continuationDoc);
-
-static bool DrainStatementViaPortal(const char *cursorName, int cursorOptions,
-									PlannedStmt *queryPlan, ParamListInfo paramList,
-									uint32_t *accumulatedSize,
-									pgbson_array_writer *arrayWriter,
-									MemoryContext currentContext);
 
 static BsonStoreTupleDestReceiver * CreateBsonStoreTupleDestReceiver(
 	pgbson_array_writer *arrayWriter,
@@ -391,36 +384,25 @@ CreateAndDrainSingleBatchQuery(const char *cursorName, Query *query,
 							   int batchSize, int32_t *numIterations, uint32_t
 							   accumulatedSize, pgbson_array_writer *arrayWriter)
 {
+	/* Set up cursor flags */
 	bool closeCursor = true;
-	if (UseRawExecutorForQueryPlan)
-	{
-		/* Set up cursor flags */
-		int cursorOptions = CURSOR_OPT_BINARY | CURSOR_OPT_HOLD;
+	int cursorOptions = CURSOR_OPT_BINARY | CURSOR_OPT_HOLD;
 
-		/* Save the context before doing SPI */
-		MemoryContext currentContext = CurrentMemoryContext;
+	/* Save the context before doing SPI */
+	MemoryContext currentContext = CurrentMemoryContext;
 
-		/* Plan the query */
-		ParamListInfo paramList = NULL;
-		PlannedStmt *queryPlan = pg_plan_query(query, NULL, cursorOptions, paramList);
-		BsonStoreTupleDestReceiver *receiver = CreateBsonStoreTupleDestReceiver(
-			arrayWriter,
-			CurrentMemoryContext,
-			batchSize,
-			cursorName,
-			accumulatedSize,
-			closeCursor);
-		DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
-								  currentContext);
-	}
-	else
-	{
-		bool isHoldCursor = false;
-		CreateAndDrainPersistedQuery(cursorName, query,
-									 batchSize, numIterations,
-									 accumulatedSize, arrayWriter,
-									 isHoldCursor, closeCursor);
-	}
+	/* Plan the query */
+	ParamListInfo paramList = NULL;
+	PlannedStmt *queryPlan = pg_plan_query(query, NULL, cursorOptions, paramList);
+	BsonStoreTupleDestReceiver *receiver = CreateBsonStoreTupleDestReceiver(
+		arrayWriter,
+		CurrentMemoryContext,
+		batchSize,
+		cursorName,
+		accumulatedSize,
+		closeCursor);
+	DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
+							  currentContext);
 }
 
 
@@ -618,24 +600,16 @@ CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 		queryPlan = pg_plan_query(query, NULL, cursorOptions, paramList);
 	}
 
-	if (UseRawExecutorForQueryPlan)
-	{
-		int32_t batchSize = INT32_MAX;
-		bool closeCursor = true;
-		BsonStoreTupleDestReceiver *receiver = CreateBsonStoreTupleDestReceiver(
-			arrayWriter,
-			CurrentMemoryContext,
-			batchSize, cursorName,
-			accumulatedSize,
-			closeCursor);
-		DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
-								  currentContext);
-		return;
-	}
-
-	DrainStatementViaPortal(cursorName, cursorOptions, queryPlan,
-							paramList, &accumulatedSize, arrayWriter,
-							currentContext);
+	int32_t batchSize = INT32_MAX;
+	bool closeCursor = true;
+	BsonStoreTupleDestReceiver *receiver = CreateBsonStoreTupleDestReceiver(
+		arrayWriter,
+		CurrentMemoryContext,
+		batchSize, cursorName,
+		accumulatedSize,
+		closeCursor);
+	DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
+							  currentContext);
 }
 
 
@@ -821,48 +795,6 @@ DrainStatementViaExecutor(PlannedStmt *queryPlan, ParamListInfo paramList,
 	FreeQueryDesc(queryDesc);
 	MemoryContextSwitchTo(oldContext);
 	MemoryContextDelete(localContext);
-}
-
-
-static bool
-DrainStatementViaPortal(const char *cursorName, int cursorOptions,
-						PlannedStmt *queryPlan, ParamListInfo paramList,
-						uint32_t *accumulatedSize,
-						pgbson_array_writer *arrayWriter,
-						MemoryContext currentContext)
-{
-	/* Create the cursor */
-	Portal queryPortal = CreatePortal(cursorName, false, false);
-	queryPortal->visible = true;
-	queryPortal->cursorOptions = cursorOptions;
-
-	/* Set the plan into the portal  */
-	PortalDefineQuery(queryPortal, NULL, "",
-					  CMDTAG_SELECT,
-					  list_make1(queryPlan),
-					  NULL);
-
-	/* Start execution */
-	PortalStart(queryPortal, paramList, 0, GetActiveSnapshot());
-
-	if (SPI_connect() != SPI_OK_CONNECT)
-	{
-		ereport(ERROR, (errmsg("could not connect to SPI manager")));
-	}
-
-	HTAB *cursorMap = NULL;
-	int32_t numRowsFetched = 0;
-	uint64_t currentAccumulatedSize = 0;
-	TerminationReason reason = FetchCursorAndWriteUntilPageOrSize(queryPortal, INT_MAX,
-																  arrayWriter,
-																  accumulatedSize,
-																  cursorMap,
-																  &numRowsFetched,
-																  &currentAccumulatedSize,
-																  currentContext);
-	SPI_cursor_close(queryPortal);
-	SPI_finish();
-	return reason == TerminationReason_CursorCompletion;
 }
 
 

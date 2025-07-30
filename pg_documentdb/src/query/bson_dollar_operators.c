@@ -260,7 +260,6 @@ typedef struct TraverseElemMatchValidateState
 typedef bool (*IsQueryFilterNullFunc)(const TraverseValidateState *state);
 extern bool EnableCollation;
 extern bool EnableNowSystemVariable;
-extern bool UseLegacyOrderByBehavior;
 extern bool UseLegacyNullEqualityBehavior;
 
 /* --------------------------------------------------------- */
@@ -4089,7 +4088,7 @@ OrderByContinueProcessIntermediateArray(void *state, const
 {
 	/* Orderby needs to continue traversing even after a match to see if there's better options */
 	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
-	if (!UseLegacyOrderByBehavior && validateState->foundAsTopLevelPath &&
+	if (validateState->foundAsTopLevelPath &&
 		isArrayIndexSearch)
 	{
 		/* We found a path and this is via the array index - we don't recurse again as documents */
@@ -4106,11 +4105,6 @@ OrderByHandleIntermediateArrayPathNotFound(void *state,
 										   StringView *remainingPath)
 {
 	/* If an intermediate field is not traversable, it gets marked as null */
-	if (UseLegacyOrderByBehavior)
-	{
-		return;
-	}
-
 	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
 	if (validateState->nestedArrayCount > 0)
 	{
@@ -4124,11 +4118,6 @@ OrderByHandleIntermediateArrayPathNotFound(void *state,
 static void
 OrderBySetIntermediateArrayStartEnd(void *state, bool isStart)
 {
-	if (UseLegacyOrderByBehavior)
-	{
-		return;
-	}
-
 	TraverseOrderByValidateState *validateState = (TraverseOrderByValidateState *) state;
 	if (isStart)
 	{
@@ -4147,8 +4136,7 @@ OrderBySetTraverseResult(void *state, TraverseBsonResult compareResult)
 	TraverseOrderByValidateState *validateState =
 		(TraverseOrderByValidateState *) state;
 	if (compareResult == TraverseBsonResult_PathNotFound &&
-		validateState->nestedArrayCount > 0 &&
-		!UseLegacyOrderByBehavior)
+		validateState->nestedArrayCount > 0)
 	{
 		/* This is the path where we request a.b.c (which means we expect b to be an object or array)
 		 * but b is a primitive type. This gets compared as null.

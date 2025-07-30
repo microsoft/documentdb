@@ -24,7 +24,6 @@
 #include "api_hooks.h"
 
 extern bool EnableNativeColocation;
-extern bool EnableNativeTableColocation;
 extern bool EnableDataTableWithoutCreationTime;
 
 static bool CanColocateAtDatabaseLevel(text *databaseDatum);
@@ -131,14 +130,6 @@ SetUnshardedColocationData(text *databaseDatum, const char **shardingColumn, con
 			 * can be colocated with this table.
 			 */
 			*colocateWith = GetOrCreateDatabaseConfigCollection(databaseDatum);
-
-			/* If table level colocation is desired - ignore the colocate with
-			 * on the sentinel.
-			 */
-			if (EnableNativeTableColocation)
-			{
-				*colocateWith = "none";
-			}
 		}
 	}
 }

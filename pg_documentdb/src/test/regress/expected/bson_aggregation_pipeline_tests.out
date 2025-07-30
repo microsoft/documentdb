@@ -1100,24 +1100,22 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
          Sort Key: (random())
          ->  Subquery Scan on agg_stage_1
                Output: agg_stage_1.document, random()
-               ->  Nested Loop Left Join
+               ->  Nested Loop
                      Output: documentdb_api_internal.bson_dollar_merge_documents(collection.document, (COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)), true)
+                     ->  Aggregate
+                           Output: COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)
+                           ->  Aggregate
+                                 Output: bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
+                                 ->  Bitmap Heap Scan on documentdb_data.documents_3503 collection_0_1
+                                       Recheck Cond: (collection_0_1.shard_key_value = '3503'::bigint)
+                                       ->  Bitmap Index Scan on _id_
+                                             Index Cond: (collection_0_1.shard_key_value = '3503'::bigint)
                      ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection
                            Output: collection.shard_key_value, collection.object_id, collection.document
                            Recheck Cond: (collection.shard_key_value = '3502'::bigint)
                            ->  Bitmap Index Scan on _id_
                                  Index Cond: (collection.shard_key_value = '3502'::bigint)
-                     ->  Materialize
-                           Output: (COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson))
-                           ->  Aggregate
-                                 Output: COALESCE(bson_array_agg((bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))), 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson)
-                                 ->  Aggregate
-                                       Output: bson_repath_and_build('efe'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
-                                       ->  Bitmap Heap Scan on documentdb_data.documents_3503 collection_0_1
-                                             Recheck Cond: (collection_0_1.shard_key_value = '3503'::bigint)
-                                             ->  Bitmap Index Scan on _id_
-                                                   Index Cond: (collection_0_1.shard_key_value = '3503'::bigint)
-(24 rows)
+(22 rows)
 
 EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "agg_pipeline_movie_catalog", "as": "matched_docs", "localField": "title", "foreignField": "title", "pipeline": [ { "$count": "efe" } ] } } ], "cursor": {} }');
@@ -1125,7 +1123,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Subquery Scan on lookup_non_inlined_stage_1
    Output: documentdb_api_internal.bson_dollar_merge_documents(lookup_non_inlined_stage_1."left", (SubPlan 1), true)
-   ->  Nested Loop Left Join
+   ->  Nested Loop
          Output: collection.document, (COALESCE(bson_array_agg(collection_0_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::bson))
          ->  Bitmap Heap Scan on documentdb_data.documents_3502 collection
                Output: collection.shard_key_value, collection.object_id, collection.document

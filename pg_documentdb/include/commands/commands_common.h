@@ -99,7 +99,6 @@ void CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
 													Oid shardTableOid,
 													bool setSnapshot);
 
-extern bool SkipEnforceTransactionReadOnly;
 extern bool SimulateRecoveryState;
 extern bool DocumentDBPGReadOnlyForDiskFull;
 
@@ -107,11 +106,6 @@ inline static void
 ThrowIfServerOrTransactionReadOnly(void)
 {
 	if (!XactReadOnly)
-	{
-		return;
-	}
-
-	if (SkipEnforceTransactionReadOnly)
 	{
 		return;
 	}

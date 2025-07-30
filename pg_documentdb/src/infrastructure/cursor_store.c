@@ -48,7 +48,6 @@
 
 extern char *ApiGucPrefix;
 extern bool UseFileBasedPersistedCursors;
-extern bool EnableFileBasedPersistedCursors;
 extern int MaxAllowedCursorIntermediateFileSizeMB;
 extern int DefaultCursorExpiryTimeLimitSeconds;
 extern int MaxCursorFileCount;
@@ -151,8 +150,7 @@ static const char *cursor_directory = "pg_documentdb_cursor_files";
 Datum
 cursor_directory_cleanup(PG_FUNCTION_ARGS)
 {
-	if (!cursor_set_initialized || !UseFileBasedPersistedCursors ||
-		!EnableFileBasedPersistedCursors)
+	if (!cursor_set_initialized || !UseFileBasedPersistedCursors)
 	{
 		PG_RETURN_VOID();
 	}
@@ -225,11 +223,6 @@ cursor_directory_cleanup(PG_FUNCTION_ARGS)
 void
 SetupCursorStorage(void)
 {
-	if (!EnableFileBasedPersistedCursors)
-	{
-		return;
-	}
-
 	if (!process_shared_preload_libraries_in_progress)
 	{
 		ereport(ERROR, (errmsg(
@@ -268,9 +261,7 @@ CreateCursorFile(const char *cursorName)
 	if (!cursor_set_initialized)
 	{
 		ereport(ERROR, (errmsg(
-							"Cursor storage not initialized. Before using cursors, the server must be started with"
-							" %s.enableFileBasedPersistedCursors set to true",
-							ApiGucPrefix)));
+							"Cursor storage not initialized. Before using cursors, the server must be restarted")));
 	}
 
 	if (!UseFileBasedPersistedCursors)
@@ -382,8 +373,7 @@ void
 GetCurrentCursorCount(int32_t *currentCursorCount, int32_t *measuredCursorCount,
 					  int64_t *lastCursorSize)
 {
-	if (!cursor_set_initialized || !UseFileBasedPersistedCursors ||
-		!EnableFileBasedPersistedCursors)
+	if (!cursor_set_initialized || !UseFileBasedPersistedCursors)
 	{
 		*currentCursorCount = 0;
 		*measuredCursorCount = 0;
@@ -654,11 +644,6 @@ CursorFileStateClose(CursorFileState *cursorFileState)
 Size
 FileCursorShmemSize(void)
 {
-	if (!EnableFileBasedPersistedCursors)
-	{
-		return 0;
-	}
-
 	Size size = 0;
 	size = add_size(size, sizeof(CursorStoreSharedData));
 	return size;
@@ -668,11 +653,6 @@ FileCursorShmemSize(void)
 void
 InitializeFileCursorShmem(void)
 {
-	if (!EnableFileBasedPersistedCursors)
-	{
-		return;
-	}
-
 	bool found = false;
 
 	/*

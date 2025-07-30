@@ -32,7 +32,6 @@
 extern bool EnableNativeColocation;
 extern int ShardingMaxChunks;
 extern bool RecreateRetryTableOnSharding;
-extern bool UseNewShardKeyCalculation;
 extern char *ApiGucPrefixV2;
 
 /* Metadata about shard keys - this is unchanged through
@@ -133,11 +132,6 @@ static void ValidateShardKey(const pgbson *shardKeyDoc);
 static void FindShardKeyFieldValuesForQuery(bson_iter_t *queryDocument,
 											const ShardKeyMetadata *shardKeyMetadata,
 											ShardKeyFieldValues *shardKeyValues);
-static Expr * FindShardKeyValuesExpr(bson_iter_t *queryDocIter, int
-									 collectionVarno,
-									 const ShardKeyMetadata *shardKeyMetadata,
-									 ShardKeyFieldValues *fieldValues,
-									 bool *isShardKeyValueCollationAware);
 static Expr * FindShardKeyValuesExprNew(bson_iter_t *queryDocIter, int
 										collectionVarno,
 										const ShardKeyMetadata *shardKeyMetadata,
@@ -603,17 +597,9 @@ ComputeShardKeyExprForQueryValue(pgbson *shardKey, uint64_t collectionId, const
 	ShardKeyMetadata shardKeyMetadata;
 	InitShardKeyMetadata(shardKey, &shardKeyMetadata);
 
-	if (UseNewShardKeyCalculation)
-	{
-		return FindShardKeyValuesExprNew(&queryDocIter, collectionVarno,
-										 &shardKeyMetadata,
-										 isShardKeyValueCollationAware);
-	}
-
-	ShardKeyFieldValues fieldValues;
-	InitShardKeyFieldValues(&shardKeyMetadata, &fieldValues);
-	return FindShardKeyValuesExpr(&queryDocIter, collectionVarno, &shardKeyMetadata,
-								  &fieldValues, isShardKeyValueCollationAware);
+	return FindShardKeyValuesExprNew(&queryDocIter, collectionVarno,
+									 &shardKeyMetadata,
+									 isShardKeyValueCollationAware);
 }
 
 
@@ -798,180 +784,6 @@ CreateShardKeyFilterCore(const ShardKeyMetadata *shardKeyMetadata,
 
 		/* construct document <operator> <value> expression */
 		return CreateShardKeyValueFilter(collectionVarno, shardKeyValueConst);
-	}
-
-	return NULL;
-}
-
-
-/*
- * This walks the query document like FindShardKeyFieldValuesForQuery but also accounts
- * for multi-value query predicates for the shard key like $or statements.
- * TODO: Handle $in and other scenarios.
- */
-static Expr *
-FindShardKeyValuesExpr(bson_iter_t *queryDocIter, int collectionVarno,
-					   const ShardKeyMetadata *shardKeyMetadata,
-					   ShardKeyFieldValues *fieldValues,
-					   bool *isShardKeyValueCollationAware)
-{
-	List *shardKeyMultiClause = NIL;
-	while (bson_iter_next(queryDocIter))
-	{
-		const char *key = bson_iter_key(queryDocIter);
-
-		if (strcmp(key, "$and") == 0)
-		{
-			bson_iter_t andIterator;
-			if (!BSON_ITER_HOLDS_ARRAY(queryDocIter) ||
-				!bson_iter_recurse(queryDocIter, &andIterator))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Could not iterate through query document "
-									   "$and.")));
-			}
-
-			while (bson_iter_next(&andIterator))
-			{
-				bson_iter_t andElementIterator;
-				if (!BSON_ITER_HOLDS_DOCUMENT(&andIterator) ||
-					!bson_iter_recurse(&andIterator, &andElementIterator))
-				{
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Could not iterate through elements within "
-										   "$and query.")));
-				}
-
-				Expr *innerExpr = FindShardKeyValuesExpr(&andElementIterator,
-														 collectionVarno,
-														 shardKeyMetadata, fieldValues,
-														 isShardKeyValueCollationAware);
-				if (innerExpr != NULL && IsA(innerExpr, BoolExpr))
-				{
-					BoolExpr *innerBoolExpr = (BoolExpr *) innerExpr;
-					if (innerBoolExpr->boolop == OR_EXPR)
-					{
-						shardKeyMultiClause = lappend(shardKeyMultiClause, innerBoolExpr);
-					}
-				}
-			}
-		}
-		else if (strcmp(key, "$or") == 0)
-		{
-			/* ignore or for now */
-			bson_iter_t orIterator;
-			if (!BSON_ITER_HOLDS_ARRAY(queryDocIter) ||
-				!bson_iter_recurse(queryDocIter, &orIterator))
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Could not iterate through query document "
-									   "$or.")));
-			}
-
-			/* If every arm of the $or has a shard key value filter then it's safe to pull up */
-			List *orExprs = NIL;
-			while (bson_iter_next(&orIterator))
-			{
-				bson_iter_t orElementIterator;
-				if (!BSON_ITER_HOLDS_DOCUMENT(&orIterator) ||
-					!bson_iter_recurse(&orIterator, &orElementIterator))
-				{
-					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Could not iterate through elements within "
-										   "$or query.")));
-				}
-
-				ShardKeyFieldValues orValues;
-				InitShardKeyFieldValues(shardKeyMetadata, &orValues);
-				Expr *orExpr = FindShardKeyValuesExpr(&orElementIterator,
-													  collectionVarno, shardKeyMetadata,
-													  &orValues,
-													  isShardKeyValueCollationAware);
-				if (orExpr != NULL)
-				{
-					orExprs = lappend(orExprs, orExpr);
-				}
-				else
-				{
-					list_free_deep(orExprs);
-					orExprs = NIL;
-					break;
-				}
-			}
-
-			if (orExprs != NIL)
-			{
-				BoolExpr *logicalExpr = makeNode(BoolExpr);
-				logicalExpr->boolop = OR_EXPR;
-				logicalExpr->args = orExprs;
-				logicalExpr->location = -1;
-
-				shardKeyMultiClause = lappend(shardKeyMultiClause, logicalExpr);
-			}
-		}
-		else if (key[0] == '$')
-		{
-			/* ignore other operators */
-		}
-		else
-		{
-			/* key is a path rather than an operator */
-			int fieldIndex = ShardKeyFieldIndex(shardKeyMetadata, key);
-			if (fieldIndex < 0)
-			{
-				/* key is not one of the shard key paths */
-				continue;
-			}
-
-			bson_iter_t shardKeyFieldValueIter;
-
-			/* if the value under key is a non-empty document, it may be an operator  */
-			if (BSON_ITER_HOLDS_DOCUMENT(queryDocIter) &&
-				bson_iter_recurse(queryDocIter, &shardKeyFieldValueIter) &&
-				bson_iter_next(&shardKeyFieldValueIter))
-			{
-				const char *firstKey = bson_iter_key(&shardKeyFieldValueIter);
-
-				/* if the first key starts with $, it's an operator document */
-				if (firstKey[0] == '$')
-				{
-					/* check for $eq operator */
-					do {
-						const char *operatorName = bson_iter_key(&shardKeyFieldValueIter);
-						if (strcmp(operatorName, "$eq") == 0)
-						{
-							/* query has the form <field>:{"$eq":<value>} */
-							fieldValues->values[fieldIndex] =
-								*bson_iter_value(&shardKeyFieldValueIter);
-							fieldValues->setCount[fieldIndex] = 1;
-						}
-					} while (bson_iter_next(&shardKeyFieldValueIter));
-
-					continue;
-				}
-
-				/* if the key is not an operator, fall through */
-			}
-
-			/* query has the form <field>:<value> */
-			fieldValues->values[fieldIndex] = *bson_iter_value(queryDocIter);
-			fieldValues->setCount[fieldIndex] = 1;
-		}
-	}
-
-	Expr *singleShardKeyFilter = CreateShardKeyFilterCore(shardKeyMetadata,
-														  fieldValues,
-														  isShardKeyValueCollationAware,
-														  collectionVarno);
-	if (singleShardKeyFilter != NULL)
-	{
-		list_free_deep(shardKeyMultiClause);
-		return singleShardKeyFilter;
-	}
-
-	if (shardKeyMultiClause != NIL)
-	{
-		return make_ands_explicit(shardKeyMultiClause);
 	}
 
 	return NULL;

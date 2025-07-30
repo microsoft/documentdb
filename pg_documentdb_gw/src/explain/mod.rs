@@ -861,7 +861,14 @@ fn get_stage_from_plan(
         "Unique" => ("UNIQUE".to_owned(), None),
         "Nested Loop" => {
             if let Some(join) = plan.join_type.as_ref() {
-                if join == "Left" {
+                if join == "Left"
+                    || (join == "Inner"
+                        && plan
+                            .output
+                            .as_ref()
+                            .map(|o| o.len() == 1 && o[0].contains("bson_dollar_merge_documents"))
+                            .unwrap_or_default())
+                {
                     ("LOOKUP".to_owned(), None)
                 } else {
                     (join.to_uppercase() + "_JOIN", None)

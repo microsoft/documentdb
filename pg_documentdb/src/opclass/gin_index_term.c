@@ -57,7 +57,6 @@ typedef enum IndexTermMetadata
 	IndexTermDescendingPartialUndefinedValue = 0x8C,
 } IndexTermMetadata;
 
-extern bool IndexTermUseUnsafeTransform;
 extern int IndexTermCompressionThreshold;
 extern bool EnableDescendingCompositeIndex;
 
@@ -380,15 +379,7 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	value.value_type = BSON_TYPE_DOCUMENT;
 	value.value.v_doc.data_len = indexTermSize - 1;
 	value.value.v_doc.data = (uint8_t *) &buffer[1];
-
-	if (IndexTermUseUnsafeTransform)
-	{
-		BsonValueToPgbsonElementUnsafe(&value, &indexTerm->element);
-	}
-	else
-	{
-		BsonValueToPgbsonElement(&value, &indexTerm->element);
-	}
+	BsonValueToPgbsonElementUnsafe(&value, &indexTerm->element);
 }
 
 
