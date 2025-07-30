@@ -33,7 +33,7 @@ if [ -f $gitIndexDir ]; then
     else
         # set GIT_VERSION with current branch's name and the short sha of the HEAD
         GIT_VERSION=$(git rev-parse --abbrev-ref HEAD)
-        GIT_SHA=$(git rev-parse --short HEAD)
+        GIT_SHA=$(git rev-parse --short=10 HEAD)
     fi
 
     if [[ "$GIT_VERSION" == "" ]] || [[ "$GIT_SHA" == "" ]]; then
