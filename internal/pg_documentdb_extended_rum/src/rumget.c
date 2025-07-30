@@ -3102,11 +3102,6 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 								   so->orderStack, &needUnlock);
 		if (entry->nlist == 0)
 		{
-			if (needUnlock)
-			{
-				LockBuffer(so->orderStack->buffer, RUM_UNLOCK);
-			}
-
 			/* Dead tuple due to vacuum, move forward */
 			so->orderStack->off++;
 			continue;

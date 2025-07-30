@@ -131,3 +131,59 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF
                Index Cond: (collection.document @<> '{ "a" : { "min" : { "$numberInt" : "50" }, "max" : { "$numberInt" : "900" }, "minInclusive" : false, "maxInclusive" : false } }'::bson)
 (13 rows)
 
+-- test ordered scan in the presence of deletes
+reset documentdb.forceDisableSeqScan;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "ordered_delete", "indexes": [ { "key": { "a": 1 }, "name": "a_1", "enableOrderedIndex": true } ] }');
+NOTICE:  creating collection
+                                                                                                   create_indexes_non_concurrently                                                                                                   
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'ordered_delete', FORMAT('{ "_id": %s, "a": %s }', i, i % 50)::bson)) FROM generate_series(1, 100) i;
+ count 
+---------------------------------------------------------------------
+   100
+(1 row)
+
+ANALYZE documentdb_data.documents_68502;
+set documentdb.forceDisableSeqScan to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=8 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [-Infinity, 4)]
+   innerScanLoops: 6 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 8)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68502_685004 collection (actual rows=8 loops=1)
+         Output: document
+         Index Cond: (collection.document @< '{ "a" : { "$numberInt" : "4" } }'::bson)
+(11 rows)
+
+-- now delete everthing
+reset documentdb.forceDisableSeqScan;
+DELETE FROM documentdb_data.documents_68502;
+-- vacuum the table
+VACUUM documentdb_data.documents_68502;
+-- query the data
+set documentdb.forceDisableSeqScan to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=0 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [-Infinity, 4)]
+   innerScanLoops: 6 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 8)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68502_685004 collection (actual rows=0 loops=1)
+         Output: document
+         Index Cond: (collection.document @< '{ "a" : { "$numberInt" : "4" } }'::bson)
+(11 rows)
+
