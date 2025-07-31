@@ -39,6 +39,7 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF
 
 
 -- test ordered scan in the presence of deletes
+set documentdb.enableExtendedExplainPlans to off;
 reset documentdb.forceDisableSeqScan;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "ordered_delete", "indexes": [ { "key": { "a": 1 }, "name": "a_1", "enableOrderedIndex": true } ] }');
 SELECT COUNT(documentdb_api.insert_one('comp_db2', 'ordered_delete', FORMAT('{ "_id": %s, "a": %s }', i, i % 50)::bson)) FROM generate_series(1, 100) i;
@@ -58,3 +59,26 @@ VACUUM documentdb_data.documents_68502;
 -- query the data
 set documentdb.forceDisableSeqScan to on;
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
+
+-- now try with a posting tree at the end.
+reset documentdb.forceDisableSeqScan;
+CALL documentdb_api.drop_indexes('comp_db2', '{ "dropIndexes": "ordered_delete", "index": "a_1" }');
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "ordered_delete", "indexes": [ { "key": { "a": 1 }, "name": "a_1", "enableOrderedIndex": true } ] }', TRUE);
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'ordered_delete', FORMAT('{ "_id": %s, "a": 1 }', i)::bson)) FROM generate_series(1, 10000) i;
+
+ANALYZE documentdb_data.documents_68502;
+
+set documentdb.forceDisableSeqScan to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
+
+-- now delete everthing
+reset documentdb.forceDisableSeqScan;
+DELETE FROM documentdb_data.documents_68502;
+
+-- vacuum the table
+VACUUM documentdb_data.documents_68502;
+
+-- query the data
+set documentdb.forceDisableSeqScan to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
+
