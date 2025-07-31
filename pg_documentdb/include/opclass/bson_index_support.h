@@ -81,6 +81,14 @@ typedef struct ForceIndexQueryOperatorData
 	void *opExtraState;
 } ForceIndexQueryOperatorData;
 
+/* Context persisted during walking the query for order by scenarios */
+typedef struct
+{
+	/* Equality on shardKey if available */
+	RestrictInfo *shardKeyEqualityExpr;
+} PlannerQueryOrderByData;
+
+
 /*
  * Context object passed between ReplaceExtensionFunctionOperatorsInPaths
  * and ReplaceExtensionFunctionOperatorsInRestrictionPaths. This takes context
@@ -105,6 +113,8 @@ typedef struct ReplaceExtensionFunctionContext
 
 	/* The index data for operators can be put inside this, which are mutually exclusive and should require index */
 	ForceIndexQueryOperatorData forceIndexQueryOpData;
+
+	PlannerQueryOrderByData plannerOrderByData;
 } ReplaceExtensionFunctionContext;
 
 /* Type of the parent node in the query plan of a query for $in optimization. This is not

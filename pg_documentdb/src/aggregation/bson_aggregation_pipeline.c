@@ -76,7 +76,6 @@
 extern bool EnableCursorsOnAggregationQueryRewrite;
 extern bool EnableCollation;
 extern bool DefaultInlineWriteOperations;
-extern bool EnableSortbyIdPushDownToPrimaryKey;
 extern int MaxAggregationStagesAllowed;
 extern bool EnableIndexOrderbyPushdown;
 extern bool EnableIndexHintSupport;
@@ -215,8 +214,6 @@ static bool RequiresPersistentCursorTrue(const bson_value_t *pipelineValue);
 static bool RequiresPersistentCursorLimit(const bson_value_t *pipelineValue);
 static bool RequiresPersistentCursorSkip(const bson_value_t *pipelineValue);
 
-static bool HasShardKeyFilterWalker(Node *node, void *state);
-static bool CanSortByObjectId(Query *query, AggregationPipelineBuildContext *context);
 static bool CanInlineLookupStageProjection(const bson_value_t *stageValue, const
 										   StringView *lookupPath, bool hasLet);
 static bool CanInlineLookupStageUnset(const bson_value_t *stageValue, const
@@ -4755,19 +4752,9 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			bool isAscending = ValidateOrderbyExpressionAndGetIsAscending(sortDoc);
 
 			bool hasSortById = strcmp(element.path, "_id") == 0;
-			bool canPushdownSortById = false;
-
 			if (hasSortById)
 			{
-				if (CanSortByObjectId(query, context))
-				{
-					canPushdownSortById = true;
-					ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID_PUSHDOWNABLE);
-				}
-				else
-				{
-					ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID);
-				}
+				ReportFeatureUsage(FEATURE_STAGE_SORT_BY_ID);
 			}
 
 			SortBy *sortBy = makeNode(SortBy);
@@ -4776,74 +4763,65 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			sortBy->location = -1;
 
 			/* If the sort is on _id and we can push it down to the primary key index, use ORDER BY object_id instead. */
-			if (EnableSortbyIdPushDownToPrimaryKey && canPushdownSortById)
+			/* match protocol defined behavior. */
+			Oid funcOid = BsonOrderByFunctionOid();
+			List *args = NIL;
+
+			/* apply collation to the sort comparison */
+			if (IsCollationApplicable(context->collationString) &&
+				IsClusterVersionAtleast(DocDB_V0, 104, 0))
 			{
-				expr = (Expr *) makeVar(1,
-										DOCUMENT_DATA_TABLE_OBJECT_ID_VAR_ATTR_NUMBER,
-										BsonTypeId(), -1, InvalidOid, 0);
+				funcOid = BsonOrderByWithCollationFunctionOid();
+				Const *collationConst = MakeTextConst(context->collationString,
+													  strlen(
+														  context->collationString));
+
+				args = list_make3(sortInput, sortBson, collationConst);
+
+				/*
+				 * For ascending order: ORDER BY <value> USING ApiInternalSchemaNameV2.<<<
+				 * For descending order: ORDER BY <value> USING ApiInternalSchemaNameV2.>>>
+				 */
+				sortByDirection = SORTBY_USING;
+				sortBy->useOp = isAscending ?
+								list_make2(makeString(ApiInternalSchemaNameV2),
+										   makeString("<<<")) :
+								list_make2(makeString(ApiInternalSchemaNameV2),
+										   makeString(">>>"));
 			}
 			else
 			{
-				/* match protocol defined behavior. */
-				Oid funcOid = BsonOrderByFunctionOid();
-				List *args = NIL;
+				args = list_make2(sortInput, sortBson);
+			}
 
-				/* apply collation to the sort comparison */
-				if (IsCollationApplicable(context->collationString) &&
-					IsClusterVersionAtleast(DocDB_V0, 104, 0))
+			sortByNulls = isAscending ? SORTBY_NULLS_FIRST : SORTBY_NULLS_LAST;
+
+			expr = (Expr *) makeFuncExpr(funcOid,
+										 BsonTypeId(),
+										 args,
+										 InvalidOid, InvalidOid,
+										 COERCE_EXPLICIT_CALL);
+
+			if (EnableIndexOrderbyPushdown && !isSortByMeta)
+			{
+				/*
+				 * If there's an orderby pushdown to the index, add a full scan clause iff
+				 * the query has no filters yet.
+				 */
+				if (CanPushSortFilterToIndex(query) && (
+						IsClusterVersionAtLeastPatch(DocDB_V0, 103, 1) ||
+						IsClusterVersionAtLeastPatch(DocDB_V0, 104, 1) ||
+						IsClusterVersionAtleast(DocDB_V0, 105, 0)))
 				{
-					funcOid = BsonOrderByWithCollationFunctionOid();
-					Const *collationConst = MakeTextConst(context->collationString,
-														  strlen(
-															  context->collationString));
-
-					args = list_make3(sortInput, sortBson, collationConst);
-
-					/*
-					 * For ascending order: ORDER BY <value> USING ApiInternalSchemaNameV2.<<<
-					 * For descending order: ORDER BY <value> USING ApiInternalSchemaNameV2.>>>
-					 */
-					sortByDirection = SORTBY_USING;
-					sortBy->useOp = isAscending ?
-									list_make2(makeString(ApiInternalSchemaNameV2),
-											   makeString("<<<")) :
-									list_make2(makeString(ApiInternalSchemaNameV2),
-											   makeString(">>>"));
-				}
-				else
-				{
-					args = list_make2(sortInput, sortBson);
-				}
-
-				sortByNulls = isAscending ? SORTBY_NULLS_FIRST : SORTBY_NULLS_LAST;
-
-				expr = (Expr *) makeFuncExpr(funcOid,
-											 BsonTypeId(),
-											 args,
-											 InvalidOid, InvalidOid,
-											 COERCE_EXPLICIT_CALL);
-
-				if (EnableIndexOrderbyPushdown && !isSortByMeta)
-				{
-					/*
-					 * If there's an orderby pushdown to the index, add a full scan clause iff
-					 * the query has no filters yet.
-					 */
-					if (CanPushSortFilterToIndex(query) && (
-							IsClusterVersionAtLeastPatch(DocDB_V0, 103, 1) ||
-							IsClusterVersionAtLeastPatch(DocDB_V0, 104, 1) ||
-							IsClusterVersionAtleast(DocDB_V0, 105, 0)))
-					{
-						List *rangeArgs = list_make2(sortInput, sortBson);
-						Expr *fullScanExpr = (Expr *) makeFuncExpr(
-							BsonFullScanFunctionOid(), BOOLOID, rangeArgs,
-							InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
-						List *currentQuals = make_ands_implicit(
-							(Expr *) query->jointree->quals);
-						currentQuals = lappend(currentQuals, fullScanExpr);
-						query->jointree->quals = (Node *) make_ands_explicit(
-							currentQuals);
-					}
+					List *rangeArgs = list_make2(sortInput, sortBson);
+					Expr *fullScanExpr = (Expr *) makeFuncExpr(
+						BsonFullScanFunctionOid(), BOOLOID, rangeArgs,
+						InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+					List *currentQuals = make_ands_implicit(
+						(Expr *) query->jointree->quals);
+					currentQuals = lappend(currentQuals, fullScanExpr);
+					query->jointree->quals = (Node *) make_ands_explicit(
+						currentQuals);
 				}
 			}
 
@@ -4994,64 +4972,6 @@ HandleSortByCount(const bson_value_t *existingValue, Query *query,
 
 	query = HandleSort(&sortValue, query, context);
 	return query;
-}
-
-
-inline static bool
-CanSortByObjectId(Query *query, AggregationPipelineBuildContext *context)
-{
-	/* _id values may be collation-sensitive so do not filter by object_id = */
-	if (IsCollationApplicable(context->collationString))
-	{
-		return false;
-	}
-
-	RangeTblEntry *rte = linitial(query->rtable);
-	if (context->mongoCollection == NULL ||
-		rte->rtekind != RTE_RELATION ||
-		rte->relid != context->mongoCollection->relationId)
-	{
-		/* We're not querying the base table. */
-		return false;
-	}
-
-	void *walkerState = NULL;
-	return context->mongoCollection->shardKey == NULL ||
-		   expression_tree_walker(query->jointree->quals, HasShardKeyFilterWalker,
-								  walkerState);
-}
-
-
-static bool
-HasShardKeyFilterWalker(Node *node, void *state)
-{
-	CHECK_FOR_INTERRUPTS();
-
-	if (node == NULL)
-	{
-		return false;
-	}
-
-	if (IsA(node, OpExpr))
-	{
-		OpExpr *opExpr = (OpExpr *) node;
-		if (opExpr->opno != BigintEqualOperatorId())
-		{
-			return false;
-		}
-
-		/* We always construct filter as shard_key_value = <const> */
-		Expr *leftOperator = linitial(opExpr->args);
-		if (!IsA(leftOperator, Var))
-		{
-			return false;
-		}
-
-		return ((Var *) leftOperator)->varattno ==
-			   DOCUMENT_DATA_TABLE_SHARD_KEY_VALUE_VAR_ATTR_NUMBER;
-	}
-
-	return expression_tree_walker(node, HasShardKeyFilterWalker, state);
 }
 
 

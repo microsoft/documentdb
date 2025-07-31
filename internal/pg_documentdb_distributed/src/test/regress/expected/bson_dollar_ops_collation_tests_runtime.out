@@ -1512,22 +1512,22 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search5", "filte
 (2 rows)
 
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search5", "filter": { "$or" : [{ "a.b": { "$eq": "cat" } }, { "a.b": { "$eq": "DOG" } }] }, "sort": { "_id": 1 }, "skip": 0, "limit": 5 }');
-                                                                                                                                              QUERY PLAN                                                                                                                                              
+                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                     
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT document FROM documentdb_data.documents_7996_7990114 collection WHERE (documentdb_api_catalog.bson_dollar_in(document, '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson) AND (shard_key_value OPERATOR(pg_catalog.=) '7996'::bigint)) ORDER BY object_id LIMIT '5'::bigint
+         Query: SELECT document FROM documentdb_data.documents_7996_7990114 collection WHERE (documentdb_api_catalog.bson_dollar_in(document, '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson) AND (shard_key_value OPERATOR(pg_catalog.=) '7996'::bigint)) ORDER BY (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST LIMIT '5'::bigint
          Node: host=localhost port=58070 dbname=regression
          ->  Limit
-               Output: document, object_id
+               Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
                ->  Sort
-                     Output: document, object_id
-                     Sort Key: collection.object_id
+                     Output: document, (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson))
+                     Sort Key: (documentdb_api_catalog.bson_orderby(collection.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                      ->  Index Scan using my_idx_1 on documentdb_data.documents_7996_7990114 collection
-                           Output: document, object_id
+                           Output: document, documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)
                            Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@*=) '{ "a.b" : [ "cat", "DOG" ] }'::documentdb_core.bson)
 (15 rows)
 

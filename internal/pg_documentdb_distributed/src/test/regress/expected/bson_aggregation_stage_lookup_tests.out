@@ -922,7 +922,7 @@ EXPLAIN(costs off) SELECT document from bson_aggregation_pipeline('db',
                            Index Cond: (shard_key_value = '6013'::bigint)
                ->  Aggregate
                      ->  Sort
-                           Sort Key: collection_0_1.object_id
+                           Sort Key: (documentdb_api_catalog.bson_orderby(collection_0_1.document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                            ->  Seq Scan on documents_6012_60207 collection_0_1
                                  Filter: ((document OPERATOR(documentdb_api_catalog.@>) '{ "order_quantity" : { "$numberInt" : "110" } }'::documentdb_core.bson) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "establishment_name" : "establishment_name" }'::documentdb_core.bson), 'establishment_name'::text))
 (15 rows)

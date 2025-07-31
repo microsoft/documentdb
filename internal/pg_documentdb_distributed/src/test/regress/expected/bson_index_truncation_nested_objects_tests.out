@@ -16209,7 +16209,7 @@ EXPLAIN(ANALYZE ON, COSTS OFF, TIMING OFF, SUMMARY OFF, BUFFERS OFF) SELECT docu
          Node: host=localhost port=58070 dbname=regression
          ->  Limit (actual rows=2 loops=1)
                ->  Sort (actual rows=2 loops=1)
-                     Sort Key: object_id
+                     Sort Key: (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                      Sort Method: quicksort  Memory: 25kB
                      ->  Bitmap Heap Scan on documents_10405_1040081 collection (actual rows=2 loops=1)
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "itemData" : { "attribute" : "1234", "cb" : { "$numberInt" : "12431" }, "dx" : "test", "el" : { "$code" : "eyAiZXhhbXBsZSI6IDEyMywgInZhbHVlIjogImFib2JvcmEiIH0=" }, "first" : null, "greaterThan" : null, "shortPath" : "aas", "i" : null, "largePathWithObject" : { "option1" : null, "option2" : "small-string1", "option3" : null, "option4" : { "$numberInt" : "123" }, "onlyPathWithLargeString" : "aassadasdasdsdasdasdsadsa-test-data-with-large-string", "prior" : { "$numberLong" : "123123213213" } } } }'::documentdb_core.bson)
@@ -16245,7 +16245,7 @@ EXPLAIN(ANALYZE ON, COSTS OFF, TIMING OFF, SUMMARY OFF, BUFFERS OFF) SELECT docu
          Node: host=localhost port=58070 dbname=regression
          ->  Limit (actual rows=2 loops=1)
                ->  Sort (actual rows=2 loops=1)
-                     Sort Key: object_id
+                     Sort Key: (documentdb_api_catalog.bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::documentdb_core.bson)) NULLS FIRST
                      Sort Method: quicksort  Memory: 25kB
                      ->  Bitmap Heap Scan on documents_10405_1040081 collection (actual rows=2 loops=1)
                            Recheck Cond: (document OPERATOR(documentdb_api_catalog.@=) '{ "itemData.largePathWithObject.option2" : "small-string1" }'::documentdb_core.bson)
