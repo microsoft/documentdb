@@ -2050,16 +2050,13 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents_at_path(collection.document, collection_0_1.document, 'matched_docs'::text)
-               ->  Bitmap Heap Scan on documentdb_data.documents_963100_9631001 collection
+               ->  Index Scan using customer_purchases_item_name_1 on documentdb_data.documents_963100_9631001 collection
                      Output: collection.shard_key_value, collection.object_id, collection.document
-                     Recheck Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "item_name" : { "$minKey" : 1 } }'::documentdb_core.bson)
-                     ->  Bitmap Index Scan on customer_purchases_item_name_1
-                           Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "item_name" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Bitmap Heap Scan on documentdb_data.documents_963101_9631022 collection_0_1
+                     Index Cond: (collection.document OPERATOR(documentdb_api_catalog.@>=) '{ "item_name" : { "$minKey" : 1 } }'::documentdb_core.bson)
+               ->  Index Scan using idx_catalog_items_item_code on documentdb_data.documents_963101_9631022 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
-                     Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson), 'item_code'::text)
-                     ->  Bitmap Index Scan on idx_catalog_items_item_code
-                           Index Cond: (collection_0_1.document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson))
-(19 rows)
+                     Index Cond: (collection_0_1.document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson))
+                     Filter: ((collection_0_1.shard_key_value = '963101'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson), 'item_code'::text))
+(16 rows)
 
 ROLLBACK;

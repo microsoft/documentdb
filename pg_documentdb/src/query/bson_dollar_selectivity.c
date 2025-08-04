@@ -18,6 +18,7 @@
 #include "query/bson_dollar_selectivity.h"
 
 extern bool EnableNewOperatorSelectivityMode;
+extern bool LowSelectivityForLookup;
 
 
 static double GetStatisticsNoStatsData(List *args, Oid selectivityOpExpr, double
@@ -26,13 +27,21 @@ static double GetStatisticsNoStatsData(List *args, Oid selectivityOpExpr, double
 static double GetDisableStatisticSelectivity(List *args, double
 											 defaultDisabledSelectivity);
 
-/* The low selectivity - based on prior guess. */
-static const double LowSelectivity = 0.01;
-
-/* Selectivity when most of the table is accessed (Selectivity max is 1) */
-static const double HighSelectivity = 0.9;
-
 PG_FUNCTION_INFO_V1(bson_dollar_selectivity);
+
+
+static inline bool
+IsLookupExtractFuncExpr(Node *expr)
+{
+	if (!IsA(expr, FuncExpr))
+	{
+		return false;
+	}
+
+	FuncExpr *funcExpr = (FuncExpr *) expr;
+	return funcExpr->funcid ==
+		   DocumentDBApiInternalBsonLookupExtractFilterExpressionFunctionOid();
+}
 
 
 /*
@@ -99,6 +108,13 @@ GetStatisticsNoStatsData(List *args, Oid selectivityOpExpr, double defaultExprSe
 	Node *secondNode = lsecond(args);
 	if (!IsA(secondNode, Const))
 	{
+		if (LowSelectivityForLookup &&
+			IsLookupExtractFuncExpr(secondNode))
+		{
+			/* This means a lookup modified index qual, consider low selectivity */
+			return LowSelectivity;
+		}
+
 		/* Can't determine anything here */
 		return defaultExprSelectivity;
 	}
@@ -200,6 +216,13 @@ GetDisableStatisticSelectivity(List *args, double defaultExprSelectivity)
 	Node *secondNode = lsecond(args);
 	if (!IsA(secondNode, Const))
 	{
+		if (LowSelectivityForLookup &&
+			IsLookupExtractFuncExpr(secondNode))
+		{
+			/* This means a lookup modified index qual, consider low selectivity */
+			return LowSelectivity;
+		}
+
 		/* Can't determine anything here */
 		return defaultExprSelectivity;
 	}

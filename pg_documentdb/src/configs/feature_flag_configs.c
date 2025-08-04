@@ -95,6 +95,17 @@ bool EnableNewOperatorSelectivityMode = DEFAULT_ENABLE_NEW_OPERATOR_SELECTIVITY;
 #define DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY false
 bool DisableDollarSupportFuncSelectivity = DEFAULT_DISABLE_DOLLAR_FUNCTION_SELECTIVITY;
 
+/* Remove after v109 */
+
+#define DEFAULT_LOOKUP_ENABLE_INNER_JOIN true
+bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
+
+#define DEFAULT_FORCE_BITMAP_SCAN_FOR_LOOKUP false
+bool ForceBitmapScanForLookup = DEFAULT_FORCE_BITMAP_SCAN_FOR_LOOKUP;
+
+#define DEFAULT_LOW_SELECTIVITY_FOR_LOOKUP true
+bool LowSelectivityForLookup = DEFAULT_LOW_SELECTIVITY_FOR_LOOKUP;
+
 /* Remove after v110 */
 #define DEFAULT_ENABLE_RUM_INDEX_SCAN true
 bool EnableRumIndexScan = DEFAULT_ENABLE_RUM_INDEX_SCAN;
@@ -105,9 +116,6 @@ bool UseNewElemMatchIndexPushdown = DEFAULT_USE_NEW_ELEMMATCH_INDEX_PUSHDOWN;
 /* Can be removed after v110 (keep for a few releases for stability) */
 #define DEFAULT_ENABLE_INSERT_CUSTOM_PLAN true
 bool EnableInsertCustomPlan = DEFAULT_ENABLE_INSERT_CUSTOM_PLAN;
-
-#define DEFAULT_LOOKUP_ENABLE_INNER_JOIN true
-bool EnableLookupInnerJoin = DEFAULT_LOOKUP_ENABLE_INNER_JOIN;
 
 #define DEFAULT_ENABLE_INDEX_PRIORITY_ORDERING true
 bool EnableIndexPriorityOrdering = DEFAULT_ENABLE_INDEX_PRIORITY_ORDERING;
@@ -418,6 +426,22 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether or not to enable lookup inner join."),
 		NULL, &EnableLookupInnerJoin,
 		DEFAULT_LOOKUP_ENABLE_INNER_JOIN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceBitmapScanForLookup", newGucPrefix),
+		gettext_noop(
+			"Whether or not to force bitmap scan for lookup."),
+		NULL, &ForceBitmapScanForLookup,
+		DEFAULT_FORCE_BITMAP_SCAN_FOR_LOOKUP,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.lowSelectivityForLookup", newGucPrefix),
+		gettext_noop(
+			"Whether or not to use low selectivity for lookup."),
+		NULL, &LowSelectivityForLookup,
+		DEFAULT_LOW_SELECTIVITY_FOR_LOOKUP,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

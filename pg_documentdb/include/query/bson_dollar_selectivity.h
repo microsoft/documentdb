@@ -14,6 +14,12 @@
 #include <postgres.h>
 #include <optimizer/optimizer.h>
 
+/* The low selectivity - based on prior guess. */
+static const double LowSelectivity = 0.01;
+
+/* Selectivity when most of the table is accessed (Selectivity max is 1) */
+static const double HighSelectivity = 0.9;
+
 double GetDollarOperatorSelectivity(PlannerInfo *planner, Oid selectivityOpExpr,
 									List *args, Oid collation, int varRelId, double
 									defaultExprSelectivity);

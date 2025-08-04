@@ -113,7 +113,6 @@ static bool IsRTEShardForDocumentDbCollection(RangeTblEntry *rte,
 											  uint64 *collectionId);
 static bool ProcessWorkerWriteQueryPath(PlannerInfo *root, RelOptInfo *rel, Index rti,
 										RangeTblEntry *rte);
-static inline bool IsAMergeOuterQuery(PlannerInfo *root, RelOptInfo *rel);
 static Query * ExpandAggregationFunction(Query *node, ParamListInfo boundParams,
 										 PlannedStmt **plan);
 static Query * ExpandNestedAggregationFunction(Query *node, ParamListInfo boundParams);
@@ -138,11 +137,51 @@ extern bool EnableExtendedExplainPlans;
 extern bool UseLegacyForcePushdownBehavior;
 extern bool EnableIndexPriorityOrdering;
 extern bool EnableLogRelationIndexesOrder;
+extern bool ForceBitmapScanForLookup;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
 explain_get_index_name_hook_type ExtensionPreviousIndexNameHook = NULL;
 get_relation_info_hook_type ExtensionPreviousGetRelationInfoHook = NULL;
+
+
+/*
+ * Checks if for the given query we need to consider bitmap heap conversion.
+ * Few places where we do not consider bitmap heap conversion:
+ * - If the query is a $merge outer query.
+ * - If the query is a $lookup query and has join RTEs.
+ */
+static inline bool
+IsBitmapHeapConversionSupported(PlannerInfo *root, RelOptInfo *rel)
+{
+	if (!ForceRUMIndexScanToBitmapHeapScan)
+	{
+		return false;
+	}
+
+	if (EnableIndexOrderbyPushdown)
+	{
+		return false;
+	}
+
+	/*
+	 * Determine if the current relation is the outer query of a $merge stage.
+	 * We do not push this relation to the bitmap index.
+	 * For the outer relation, the relid will always be 1 since $merge is the last stage of the pipeline.
+	 */
+	if (root->parse->commandType == CMD_MERGE && rel->relid == 1)
+	{
+		return false;
+	}
+
+	/* Not supported for lookup, check if no JOIN RTEs */
+	if (!ForceBitmapScanForLookup && root->hasJoinRTEs)
+	{
+		return false;
+	}
+
+	return true;
+}
 
 
 /*
@@ -774,9 +813,7 @@ ExtensionRelPathlistHookCoreLegacy(PlannerInfo *root, RelOptInfo *rel, Index rti
 		 * Streaming cursors auto convert into Bitmap Paths.
 		 * Handle force conversion of bitmap paths.
 		 */
-		if (ForceRUMIndexScanToBitmapHeapScan &&
-			!EnableIndexOrderbyPushdown &&
-			!IsAMergeOuterQuery(root, rel))
+		if (IsBitmapHeapConversionSupported(root, rel))
 		{
 			UpdatePathsToForceRumIndexScanToBitmapHeapScan(root, rel);
 		}
@@ -894,9 +931,7 @@ ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	 * Handle force conversion of bitmap paths.
 	 */
 	if (!updatedPaths &&
-		ForceRUMIndexScanToBitmapHeapScan &&
-		!EnableIndexOrderbyPushdown &&
-		!IsAMergeOuterQuery(root, rel))
+		IsBitmapHeapConversionSupported(root, rel))
 	{
 		UpdatePathsToForceRumIndexScanToBitmapHeapScan(root, rel);
 	}
@@ -1883,18 +1918,6 @@ ProcessWorkerWriteQueryPath(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	rte->perminfoindex = 0;
 #endif
 	return true;
-}
-
-
-/*
- * Determine if the current relation is the outer query of a $merge stage.
- * We do not push this relation to the bitmap index.
- * For the outer relation, the relid will always be 1 since $merge is the last stage of the pipeline.
- */
-static inline bool
-IsAMergeOuterQuery(PlannerInfo *root, RelOptInfo *rel)
-{
-	return root->parse->commandType == CMD_MERGE && rel->relid == 1;
 }
 
 

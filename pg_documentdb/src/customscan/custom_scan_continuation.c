@@ -393,8 +393,18 @@ UpdatePathsToForceRumIndexScanToBitmapHeapScan(PlannerInfo *root, RelOptInfo *re
 														 rel->lateral_relids, 1.0,
 														 0);
 
-			/* Copy any param path info (lookup scenarios) */
-			inputPath->param_info = origPath->param_info;
+			if (origPath->param_info)
+			{
+				/* The original path had parameterization info which gets lost here,
+				 * if its lookup scenario (its estimate sensitive) and above overrides the
+				 * expected rows of the index path which was already calculated and set based
+				 * on the index qual selectivity.
+				 */
+				inputPath->param_info = origPath->param_info;
+
+				/* Set the expected rows from parametrized plans again */
+				inputPath->rows = origPath->param_info->ppi_rows;
+			}
 			cell->ptr_value = inputPath;
 		}
 	}

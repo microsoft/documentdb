@@ -294,6 +294,7 @@ extern bool DisableDollarSupportFuncSelectivity;
 extern bool EnableNewOperatorSelectivityMode;
 extern bool EnableIndexHintSupport;
 extern bool UseLegacyForcePushdownBehavior;
+extern bool LowSelectivityForLookup;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -381,6 +382,19 @@ Datum
 bson_dollar_lookup_filter_support(PG_FUNCTION_ARGS)
 {
 	Node *supportRequest = (Node *) PG_GETARG_POINTER(0);
+
+	if (LowSelectivityForLookup &&
+		IsA(supportRequest, SupportRequestSelectivity))
+	{
+		SupportRequestSelectivity *req = (SupportRequestSelectivity *) supportRequest;
+
+		/*
+		 * Consider low selectivity of lookup filter for better index estimates.
+		 */
+		req->selectivity = LowSelectivity;
+		PG_RETURN_POINTER(req);
+	}
+
 	Expr *finalOpExpr = OpExprForAggregationStageSupportFunction(supportRequest);
 
 	if (finalOpExpr)

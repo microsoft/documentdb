@@ -1,6 +1,6 @@
-SET citus.next_shard_id TO 731000;
-SET documentdb.next_collection_id TO 7310;
-SET documentdb.next_collection_index_id TO 7310;
+SET citus.next_shard_id TO 9437000;
+SET documentdb.next_collection_id TO 94370;
+SET documentdb.next_collection_index_id TO 94370;
 \i sql/bson_aggregation_tests_lookup_inner_join_core.sql
 SET search_path TO documentdb_core,documentdb_api,documentdb_api_catalog,documentdb_api_internal;
 -- Insert data
@@ -75,9 +75,13 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('lookupdb', '{ "c
 
 -- Remove primary key
 ALTER TABLE documentdb_data.documents_7311 DROP CONSTRAINT collection_pk_7311;
+psql:sql/bson_aggregation_tests_lookup_inner_join_core.sql:21: ERROR:  relation "documentdb_data.documents_7311" does not exist
 ALTER TABLE documentdb_data.documents_7312 DROP CONSTRAINT collection_pk_7312;
+psql:sql/bson_aggregation_tests_lookup_inner_join_core.sql:22: ERROR:  relation "documentdb_data.documents_7312" does not exist
 ANALYZE documentdb_data.documents_7311;
+psql:sql/bson_aggregation_tests_lookup_inner_join_core.sql:24: ERROR:  relation "documentdb_data.documents_7311" does not exist
 ANALYZE documentdb_data.documents_7312;
+psql:sql/bson_aggregation_tests_lookup_inner_join_core.sql:25: ERROR:  relation "documentdb_data.documents_7312" does not exist
 BEGIN;
 set local documentdb.forceBitmapScanForLookup to off;
 set local documentdb.enableLookupInnerJoin to off;
@@ -85,9 +89,9 @@ SELECT document FROM bson_aggregation_pipeline('lookupdb',
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                     document                                                                                                                    
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
- { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
  { "_id" : { "$numberInt" : "1" }, "model" : "A380", "price" : { "$numberInt" : "280" }, "quantity" : { "$numberInt" : "20" }, "matched_docs" : { "_id" : { "$numberInt" : "2" }, "plane_model" : "A380", "gates" : { "$numberInt" : "5" } } }
+ { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
+ { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
  { "_id" : { "$numberInt" : "4" }, "model" : "737", "price" : { "$numberInt" : "50" }, "quantity" : { "$numberInt" : "30" }, "matched_docs" : { "_id" : { "$numberInt" : "4" }, "plane_model" : "737", "gates" : { "$numberInt" : "110" } } }
 (4 rows)
 
@@ -96,9 +100,9 @@ SELECT document FROM bson_aggregation_pipeline('lookupdb',
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                     document                                                                                                                    
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
- { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
  { "_id" : { "$numberInt" : "1" }, "model" : "A380", "price" : { "$numberInt" : "280" }, "quantity" : { "$numberInt" : "20" }, "matched_docs" : { "_id" : { "$numberInt" : "2" }, "plane_model" : "A380", "gates" : { "$numberInt" : "5" } } }
+ { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
+ { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
  { "_id" : { "$numberInt" : "4" }, "model" : "737", "price" : { "$numberInt" : "50" }, "quantity" : { "$numberInt" : "30" }, "matched_docs" : { "_id" : { "$numberInt" : "4" }, "plane_model" : "737", "gates" : { "$numberInt" : "110" } } }
 (4 rows)
 
@@ -108,9 +112,9 @@ SELECT document FROM bson_aggregation_pipeline('lookupdb',
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                     document                                                                                                                    
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
- { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
  { "_id" : { "$numberInt" : "1" }, "model" : "A380", "price" : { "$numberInt" : "280" }, "quantity" : { "$numberInt" : "20" }, "matched_docs" : { "_id" : { "$numberInt" : "2" }, "plane_model" : "A380", "gates" : { "$numberInt" : "5" } } }
+ { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
+ { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
  { "_id" : { "$numberInt" : "4" }, "model" : "737", "price" : { "$numberInt" : "50" }, "quantity" : { "$numberInt" : "30" }, "matched_docs" : { "_id" : { "$numberInt" : "4" }, "plane_model" : "737", "gates" : { "$numberInt" : "110" } } }
 (4 rows)
 
@@ -119,9 +123,9 @@ SELECT document FROM bson_aggregation_pipeline('lookupdb',
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                     document                                                                                                                    
 ---------------------------------------------------------------------
- { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
- { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
  { "_id" : { "$numberInt" : "1" }, "model" : "A380", "price" : { "$numberInt" : "280" }, "quantity" : { "$numberInt" : "20" }, "matched_docs" : { "_id" : { "$numberInt" : "2" }, "plane_model" : "A380", "gates" : { "$numberInt" : "5" } } }
+ { "_id" : { "$numberInt" : "2" }, "model" : "A340", "price" : { "$numberInt" : "140" }, "quantity" : { "$numberInt" : "1" }, "matched_docs" : { "_id" : { "$numberInt" : "11" }, "plane_model" : "A340", "gates" : { "$numberInt" : "10" } } }
+ { "_id" : { "$numberInt" : "3" }, "model" : "A330", "price" : { "$numberInt" : "10" }, "quantity" : { "$numberInt" : "5" }, "matched_docs" : { "_id" : { "$numberInt" : "1" }, "plane_model" : "A330", "gates" : { "$numberInt" : "30" } } }
  { "_id" : { "$numberInt" : "4" }, "model" : "737", "price" : { "$numberInt" : "50" }, "quantity" : { "$numberInt" : "30" }, "matched_docs" : { "_id" : { "$numberInt" : "4" }, "plane_model" : "737", "gates" : { "$numberInt" : "110" } } }
 (4 rows)
 
@@ -157,7 +161,7 @@ set local documentdb.enableLookupInnerJoin to off;
 -- LEFT JOIN with force bitmap scan, should use materialize seq scan
 EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                   QUERY PLAN                                                                                                                                    
+                                                                                                                            QUERY PLAN                                                                                                                             
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -165,40 +169,18 @@ EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline(
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
-               Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text)
-               ->  Bitmap Heap Scan on documents_7311_731002 collection
+               ->  Bitmap Heap Scan on documents_94371_9437002 collection
                      Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
                      ->  Bitmap Index Scan on planes_model_1
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Materialize
-                     ->  Seq Scan on documents_7312_731004 collection_0_1
-                           Filter: (document IS NOT NULL)
+               ->  Bitmap Heap Scan on documents_94372_9437004 collection_0_1
+                     Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text)
+                     ->  Bitmap Index Scan on plane_model_1
+                           Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
 (14 rows)
 
 set local documentdb.enableLookupInnerJoin to on;
 -- RIGHT JOIN with force bitmap scan, should use materialize seq scan
-EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
-    '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                   QUERY PLAN                                                                                                                                    
----------------------------------------------------------------------
- Custom Scan (Citus Adaptive)
-   Task Count: 1
-   Tasks Shown: All
-   ->  Task
-         Node: host=localhost port=58070 dbname=regression
-         ->  Nested Loop
-               Join Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text)
-               ->  Bitmap Heap Scan on documents_7311_731002 collection
-                     Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
-                     ->  Bitmap Index Scan on planes_model_1
-                           Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Materialize
-                     ->  Seq Scan on documents_7312_731004 collection_0_1
-(13 rows)
-
-set local documentdb.forceBitmapScanForLookup to off;
-set local documentdb.enableLookupInnerJoin to off;
--- LEFT JOIN without force bitmap scan, should use index scan
 EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
                                                                                                                             QUERY PLAN                                                                                                                             
@@ -209,20 +191,22 @@ EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline(
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
-               ->  Bitmap Heap Scan on documents_7311_731002 collection
+               ->  Bitmap Heap Scan on documents_94371_9437002 collection
                      Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
                      ->  Bitmap Index Scan on planes_model_1
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Index Scan using plane_model_1 on documents_7312_731004 collection_0_1
-                     Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
+               ->  Bitmap Heap Scan on documents_94372_9437004 collection_0_1
                      Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text)
-(13 rows)
+                     ->  Bitmap Index Scan on plane_model_1
+                           Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
+(14 rows)
 
-set local documentdb.enableLookupInnerJoin to on;
--- RIGHT JOIN without force bitmap scan, should use index scan
+set local documentdb.forceBitmapScanForLookup to off;
+set local documentdb.enableLookupInnerJoin to off;
+-- LEFT JOIN without force bitmap scan, should use index scan
 EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                 QUERY PLAN                                                                                                                                                 
+                                                                                                                                                 QUERY PLAN                                                                                                                                                  
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -230,13 +214,34 @@ EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline(
    ->  Task
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
-               ->  Bitmap Heap Scan on documents_7311_731002 collection
+               ->  Bitmap Heap Scan on documents_94371_9437002 collection
                      Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
                      ->  Bitmap Index Scan on planes_model_1
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
-               ->  Index Scan using plane_model_1 on documents_7312_731004 collection_0_1
+               ->  Index Scan using plane_model_1 on documents_94372_9437004 collection_0_1
                      Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
-                     Filter: ((shard_key_value = '7312'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text))
+                     Filter: ((shard_key_value = '94372'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text))
+(13 rows)
+
+set local documentdb.enableLookupInnerJoin to on;
+-- RIGHT JOIN without force bitmap scan, should use index scan
+EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
+    '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
+                                                                                                                                                 QUERY PLAN                                                                                                                                                  
+---------------------------------------------------------------------
+ Custom Scan (Citus Adaptive)
+   Task Count: 1
+   Tasks Shown: All
+   ->  Task
+         Node: host=localhost port=58070 dbname=regression
+         ->  Nested Loop
+               ->  Bitmap Heap Scan on documents_94371_9437002 collection
+                     Recheck Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
+                     ->  Bitmap Index Scan on planes_model_1
+                           Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
+               ->  Index Scan using plane_model_1 on documents_94372_9437004 collection_0_1
+                     Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
+                     Filter: ((shard_key_value = '94372'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text))
 (13 rows)
 
 ROLLBACK;
