@@ -538,9 +538,11 @@ PG_FUNCTION_INFO_V1(bson_dollar_ne);
 PG_FUNCTION_INFO_V1(bson_dollar_nin);
 PG_FUNCTION_INFO_V1(bson_dollar_exists);
 PG_FUNCTION_INFO_V1(command_bson_orderby);
+PG_FUNCTION_INFO_V1(command_bson_orderby_reverse);
 PG_FUNCTION_INFO_V1(bson_orderby_partition);
 PG_FUNCTION_INFO_V1(bson_vector_orderby);
 PG_FUNCTION_INFO_V1(bson_orderby_compare);
+PG_FUNCTION_INFO_V1(bson_orderby_compare_sort_support);
 PG_FUNCTION_INFO_V1(bson_orderby_lt);
 PG_FUNCTION_INFO_V1(bson_orderby_eq);
 PG_FUNCTION_INFO_V1(bson_orderby_gt);
@@ -1733,6 +1735,29 @@ command_bson_orderby(PG_FUNCTION_ARGS)
 }
 
 
+Datum
+command_bson_orderby_reverse(PG_FUNCTION_ARGS)
+{
+	pgbson *document = PG_GETARG_PGBSON_PACKED(0);
+	pgbson *filter = PG_GETARG_PGBSON_PACKED(1);
+	char *collationString = NULL;
+
+	if (EnableCollation && PG_NARGS() > 2 && !PG_ARGISNULL(2))
+	{
+		collationString = text_to_cstring(PG_GETARG_TEXT_P(2));
+	}
+
+	bool validateSort = true;
+	CustomOrderByOptions options = CustomOrderByOptions_Default;
+	Datum returnedBson = BsonOrderbyCore(document, filter, collationString, validateSort,
+										 options);
+
+	PG_FREE_IF_COPY(document, 0);
+	PG_FREE_IF_COPY(filter, 1);
+	PG_RETURN_DATUM(returnedBson);
+}
+
+
 /*
  * bson_orderby_partition traverses a document for a range based window
  * and ensures every value is either number (regular range) or date time value
@@ -1859,6 +1884,15 @@ bson_orderby_compare(PG_FUNCTION_ARGS)
 	}
 
 	PG_RETURN_INT32(cmp);
+}
+
+
+/* Support function for order by op-class that can provide a custom comparator function */
+Datum
+bson_orderby_compare_sort_support(PG_FUNCTION_ARGS)
+{
+	/* SortSupport sortSupport = (SortSupport) PG_GETARG_POINTER(0); */
+	PG_RETURN_VOID();
 }
 
 
