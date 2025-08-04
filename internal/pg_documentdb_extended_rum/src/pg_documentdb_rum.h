@@ -921,6 +921,8 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE false
 #define RUM_DEFAULT_DISABLE_FAST_SCAN false
 #define RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN true
+#define RUM_DEFAULT_ENABLE_PARALLEL_INDEX_BUILD false
+#define RUM_DEFAULT_PARALLEL_INDEX_WORKERS_OVERRIDE -1
 #define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
 #define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
 #define RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN true
@@ -934,6 +936,8 @@ extern bool RumEnableRefindLeafOnEntryNextItem;
 extern bool RumThrowErrorOnInvalidDataPage;
 extern bool RumDisableFastScan;
 extern bool RumEnableEntryFindItemOnScan;
+extern bool RumEnableParallelIndexBuild;
+extern int RumParallelIndexWorkersOverride;
 extern bool RumSkipRetryOnDeletePage;
 extern bool RumForceOrderedIndexScan;
 extern bool RumPreferOrderedIndexScan;

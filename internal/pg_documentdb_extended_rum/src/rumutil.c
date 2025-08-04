@@ -133,6 +133,24 @@ _PG_init(void)
 		NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".enable_parallel_index_build",
+		"Sets whether or not to enable parallel index build",
+		NULL,
+		&RumEnableParallelIndexBuild,
+		RUM_DEFAULT_ENABLE_PARALLEL_INDEX_BUILD,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".parallel_index_workers_override",
+		"Sets the number of parallel index workers to use (default: -1, meaning no override)",
+		NULL,
+		&RumParallelIndexWorkersOverride,
+		RUM_DEFAULT_PARALLEL_INDEX_WORKERS_OVERRIDE, -1, INT_MAX,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
 		DOCUMENTDB_RUM_GUC_PREFIX ".forceRumOrderedIndexScan",
 		"Sets whether or not to force a run ordered index scan",
 		NULL,
