@@ -40,6 +40,13 @@ int TTLPurgerLockTimeout = DEFAULT_TTL_PURGER_LOCK_TIMEOUT;
 #define DEFAULT_SINGLE_TTL_TASK_TIME_BUDGET 20000
 int SingleTTLTaskTimeBudget = DEFAULT_SINGLE_TTL_TASK_TIME_BUDGET;
 
+#define DEFAULT_TTL_TASK_MAX_RUNTIME_IN_MS 60000
+int TTLTaskMaxRunTimeInMS = DEFAULT_TTL_TASK_MAX_RUNTIME_IN_MS;
+
+/*TODO: Set this to true by default post 1.107 */
+#define DEFAULT_REPEAT_PURGE_INDEXES_FOR_TTL_TASK false
+bool RepeatPurgeIndexesForTTLTask = DEFAULT_REPEAT_PURGE_INDEXES_FOR_TTL_TASK;
+
 #define DEFAULT_ENABLE_BG_WORKER false
 bool EnableBackgroundWorker = DEFAULT_ENABLE_BG_WORKER;
 
@@ -101,9 +108,32 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 		NULL, NULL, NULL);
 
 	DefineCustomIntVariable(
-		psprintf("%s.SingleTTLTaskTimeBudget", prefix),
+		psprintf("%s.TTLTaskMaxRunTimeInMS", prefix),
 		gettext_noop(
 			"Time budget assigned in milliseconds for single invocation of ttl task."),
+		NULL,
+		&TTLTaskMaxRunTimeInMS,
+		DEFAULT_TTL_TASK_MAX_RUNTIME_IN_MS, 1, INT_MAX,
+		PGC_USERSET,
+		0,
+		NULL, NULL, NULL);
+
+
+	DefineCustomBoolVariable(
+		psprintf("%s.repeatPurgeIndexesForTTLTask", newGucPrefix),
+		gettext_noop(
+			"Wether to keep deleting documents in batches until `TTLTaskMaxRunTimeInMS` is reach per TTL task invocation."),
+		NULL,
+		&RepeatPurgeIndexesForTTLTask,
+		DEFAULT_REPEAT_PURGE_INDEXES_FOR_TTL_TASK,
+		PGC_SUSET,
+		0,
+		NULL, NULL, NULL);
+
+	DefineCustomIntVariable(
+		psprintf("%s.SingleTTLTaskTimeBudget", prefix),
+		gettext_noop(
+			"Time budget assigned in milliseconds for TTL task to purge one batch of documents from each eligible TTL indexes once."),
 		NULL,
 		&SingleTTLTaskTimeBudget,
 		DEFAULT_SINGLE_TTL_TASK_TIME_BUDGET, 1, INT_MAX,

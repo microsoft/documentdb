@@ -650,3 +650,159 @@ SELECT bson_dollar_unwind(cursorpage, '$cursor.firstBatch') FROM documentdb_api.
  { "cursor" : { "id" : { "$numberLong" : "0" }, "ns" : "db.ttlcoll1", "firstBatch" : { "v" : { "$numberInt" : "2" }, "key" : { "ttlnew" : { "$numberInt" : "1" } }, "name" : "ttl_new_index6", "sparse" : false, "expireAfterSeconds" : { "$numberInt" : "12345" } } }, "ok" : { "$numberDouble" : "1.0" } }
 (3 rows)
 
+-- 20 Repeated TTL deletes
+-- 1. Populate collection with a set of documents with different combination of $date fields --
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 0, "ttl" : { "$date": { "$numberLong": "-1000" } } }', NULL);
+NOTICE:  creating collection
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 1, "ttl" : { "$date": { "$numberLong": "0" } } }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 2, "ttl" : { "$date": { "$numberLong": "100" } } }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with date older than when the test was written
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 3, "ttl" : { "$date": { "$numberLong": "1657900030774" } } }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with date way in future
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 4, "ttl" : { "$date": { "$numberLong": "2657899731608" } } }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with date array
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 5, "ttl" : [{ "$date": { "$numberLong": "100" }}] }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with date array, should be deleted based on min timestamp
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 6, "ttl" : [{ "$date": { "$numberLong": "100" }}, { "$date": { "$numberLong": "2657899731608" }}] }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 7, "ttl" : [true, { "$date": { "$numberLong": "100" }}, { "$date": { "$numberLong": "2657899731608" }}] }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with non-date ttl field
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 8, "ttl" : true }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+    -- Documents with non-date ttl field
+SELECT documentdb_api.insert_one('db','ttlRepeatedDeletes', '{ "_id" : 9, "ttl" : "would not expire" }', NULL);
+                              insert_one                              
+---------------------------------------------------------------------
+ { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
+(1 row)
+
+SELECT COUNT(documentdb_api.insert_one('db', 'ttlRepeatedDeletes', FORMAT('{ "_id": %s, "ttl": { "$date": { "$numberLong": "1657900030774" } } }', i, i)::documentdb_core.bson)) FROM generate_series(10, 10000) AS i;
+ count 
+---------------------------------------------------------------------
+  9991
+(1 row)
+
+SELECT COUNT(documentdb_api.insert_one('db', 'ttlRepeatedDeletes2', FORMAT('{ "_id": %s, "ttl": { "$date": { "$numberLong": "1657900030774" } } }', i, i)::documentdb_core.bson)) FROM generate_series(10, 10000) AS i;
+NOTICE:  creating collection
+ count 
+---------------------------------------------------------------------
+  9991
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlRepeatedDeletes", "indexes": [{"key": {"ttl": 1}, "name": "ttl_repeat_1", "sparse" : true, "expireAfterSeconds" : 5}]}', true);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlRepeatedDeletes2", "indexes": [{"key": {"ttl": 1}, "name": "ttl_repeat_2", "sparse" : false, "expireAfterSeconds" : 5}]}', true);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT count(*)  from documentdb_api.collection('db', 'ttlRepeatedDeletes');
+ count 
+---------------------------------------------------------------------
+ 10001
+(1 row)
+
+SELECT count(*)  from documentdb_api.collection('db', 'ttlRepeatedDeletes2');
+ count 
+---------------------------------------------------------------------
+  9991
+(1 row)
+
+BEGIN;
+SET LOCAL documentdb.TTLTaskMaxRunTimeInMS to 3000;
+SET LOCAL documentdb.SingleTTLTaskTimeBudget to 2000;
+CALL documentdb_api_internal.delete_expired_rows(11);
+  -- With repeat mode off (by default), we should delete exactly 11 documents per collections (currently has 10001 and 9991 documents)
+SELECT count(*) = 9990  from documentdb_api.collection('db', 'ttlRepeatedDeletes');
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT count(*) = 9980 from documentdb_api.collection('db', 'ttlRepeatedDeletes2');
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+END;
+BEGIN;
+SET LOCAL documentdb.TTLTaskMaxRunTimeInMS to 3000;
+SET LOCAL documentdb.SingleTTLTaskTimeBudget to 2000;
+SET LOCAL documentdb.RepeatPurgeIndexesForTTLTask to true;
+SELECT count(*)  from documentdb_api.collection('db', 'ttlRepeatedDeletes');
+ count 
+---------------------------------------------------------------------
+  9990
+(1 row)
+
+SELECT count(*)  from documentdb_api.collection('db', 'ttlRepeatedDeletes2');
+ count 
+---------------------------------------------------------------------
+  9980
+(1 row)
+
+  -- With repeat mode on, we should delete more than 10 documents per collections (currently has 9990 and 9980 documents)
+CALL documentdb_api_internal.delete_expired_rows(10);
+  -- 3000 ms does 70 iterations locally. So document count should be well below 9900.
+SELECT count(*) < 9900 from documentdb_api.collection('db', 'ttlRepeatedDeletes');
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT count(*) < 9900 from documentdb_api.collection('db', 'ttlRepeatedDeletes2');
+ ?column? 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+END;

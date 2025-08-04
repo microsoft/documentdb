@@ -8,6 +8,7 @@
  *-------------------------------------------------------------------------
  */
 #include <postgres.h>
+#include <stdlib.h>
 
 #include <catalog/namespace.h>
 #include <commands/sequence.h>
@@ -27,11 +28,13 @@
 #include "utils/index_utils.h"
 
 extern bool LogTTLProgressActivity;
+extern bool RepeatPurgeIndexesForTTLTask;
 extern int TTLPurgerStatementTimeout;
 extern int MaxTTLDeleteBatchSize;
 extern int TTLPurgerLockTimeout;
 extern char *ApiGucPrefix;
 extern int SingleTTLTaskTimeBudget;
+extern int TTLTaskMaxRunTimeInMS;
 extern bool EnableTtlJobsOnReadOnly;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceIndexScanForTTLTask;
@@ -70,7 +73,8 @@ typedef struct TtlIndexEntry
 
 static uint64 DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry,
 											int64 currentTime, int32 batchSize);
-static bool IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime);
+static bool IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime, int
+									 budget);
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -143,6 +147,21 @@ delete_expired_rows_for_index(PG_FUNCTION_ARGS)
 													 ttlDeleteBatchSize);
 
 	PG_RETURN_INT64((int64) rowsCount);
+}
+
+
+/* Function to randomize the list of ttl indexes in order to avoid starvation.
+ * Another option was to use ORDER BY RANDOM() while getting the list of ttl index. */
+static void
+shuffle_list(List *list)
+{
+	for (int i = list_length(list) - 1; i > 0; i--)
+	{
+		int j = rand() % (i + 1);
+		ListCell temp = list->elements[i];
+		list->elements[i] = list->elements[j];
+		list->elements[j] = temp;
+	}
 }
 
 
@@ -307,167 +326,185 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 	ArrayType *shardNamesArray = NULL;
 	ListCell *ttlEntryCell = NULL;
 	bool shouldCleanupCollection = false;
-	foreach(ttlEntryCell, ttlIndexEntries)
+	uint64 rowsDeletedInCurrentLoop = 0;
+
+	while (!IsTaskTimeBudgetExceeded(startTime, NULL, TTLTaskMaxRunTimeInMS))
 	{
-		TtlIndexEntry *ttlIndexEntry = (TtlIndexEntry *) lfirst(ttlEntryCell);
-		uint64 collectionId = ttlIndexEntry->collectionId;
-
-		/* We're cleaning up a new collection, let's get the shards and relation information. */
-		if (currentCollection.collectionId != collectionId)
+		rowsDeletedInCurrentLoop = 0;
+		shuffle_list(ttlIndexEntries);
+		foreach(ttlEntryCell, ttlIndexEntries)
 		{
-			oldContext = MemoryContextSwitchTo(priorMemoryContext);
-			currentCollection.collectionId = collectionId;
-			memset(currentCollection.tableName, 0, NAMEDATALEN);
-			sprintf(currentCollection.tableName, DOCUMENT_DATA_TABLE_NAME_FORMAT,
-					collectionId);
-			currentCollection.relationId = GetRelationIdForCollectionId(
-				collectionId, NoLock);
+			TtlIndexEntry *ttlIndexEntry = (TtlIndexEntry *) lfirst(ttlEntryCell);
+			uint64 collectionId = ttlIndexEntry->collectionId;
 
-			if (shardIdsArray != NULL)
+			/* We're cleaning up a new collection, let's get the shards and relation information. */
+			if (currentCollection.collectionId != collectionId)
 			{
-				pfree(shardIdsArray);
-				shardIdsArray = NULL;
+				oldContext = MemoryContextSwitchTo(priorMemoryContext);
+				currentCollection.collectionId = collectionId;
+				memset(currentCollection.tableName, 0, NAMEDATALEN);
+				sprintf(currentCollection.tableName, DOCUMENT_DATA_TABLE_NAME_FORMAT,
+						collectionId);
+				currentCollection.relationId = GetRelationIdForCollectionId(
+					collectionId, NoLock);
+
+				if (shardIdsArray != NULL)
+				{
+					pfree(shardIdsArray);
+					shardIdsArray = NULL;
+				}
+
+				if (shardNamesArray != NULL)
+				{
+					pfree(shardNamesArray);
+					shardNamesArray = NULL;
+				}
+
+				/* Check if delete will be able to lock the table, if not skip this collection. */
+				if (ConditionalLockRelationOid(currentCollection.relationId,
+											   RowShareLock))
+				{
+					UnlockRelationOid(currentCollection.relationId, RowShareLock);
+
+					shouldCleanupCollection =
+						GetMongoCollectionShardOidsAndNames(&currentCollection,
+															&shardIdsArray,
+															&shardNamesArray);
+				}
+				else
+				{
+					shouldCleanupCollection = false;
+					ereport(LOG, errmsg(
+								"TTL job skipping collection_id=%lu because is locked.",
+								collectionId));
+				}
+
+				if (itemDatums != NULL)
+				{
+					pfree(itemDatums);
+					itemDatums = NULL;
+				}
+
+				if (shouldCleanupCollection)
+				{
+					deconstruct_array(shardNamesArray, TEXTOID, -1, false,
+									  TYPALIGN_INT, &itemDatums, NULL, &numItems);
+				}
+
+				MemoryContextSwitchTo(oldContext);
 			}
 
-			if (shardNamesArray != NULL)
+			/* No tables to cleanup on this node. */
+			if (!shouldCleanupCollection)
 			{
-				pfree(shardNamesArray);
-				shardNamesArray = NULL;
-			}
-
-			/* Check if delete will be able to lock the table, if not skip this collection. */
-			if (ConditionalLockRelationOid(currentCollection.relationId, RowShareLock))
-			{
-				UnlockRelationOid(currentCollection.relationId, RowShareLock);
-
-				shouldCleanupCollection =
-					GetMongoCollectionShardOidsAndNames(&currentCollection,
-														&shardIdsArray,
-														&shardNamesArray);
-			}
-			else
-			{
-				shouldCleanupCollection = false;
-				ereport(LOG, errmsg(
-							"TTL job skipping collection_id=%lu because is locked.",
-							collectionId));
-			}
-
-			if (itemDatums != NULL)
-			{
-				pfree(itemDatums);
-				itemDatums = NULL;
-			}
-
-			if (shouldCleanupCollection)
-			{
-				deconstruct_array(shardNamesArray, TEXTOID, -1, false,
-								  TYPALIGN_INT, &itemDatums, NULL, &numItems);
-			}
-
-			MemoryContextSwitchTo(oldContext);
-		}
-
-		/* No tables to cleanup on this node. */
-		if (!shouldCleanupCollection)
-		{
-			continue;
-		}
-
-		/*
-		 * Before we begin the actual deletions, check if we need
-		 * to handle if the transaction is read-only.
-		 */
-		if (XactReadOnly)
-		{
-			if (EnableTtlJobsOnReadOnly)
-			{
-				/* To enable read-write we need to be the first query
-				 * in the transaction. Process_utility will have already
-				 * set a snapshot on this transaction so we can't reset
-				 * the transaction read-only flag.
-				 * Consequently, commit this transaction that's read-only
-				 * and start a new one so we can mark the read-only flag
-				 * as false.
-				 */
-				PopAllActiveSnapshots();
-				CommitTransactionCommand();
-				StartTransactionCommand();
-				SetGUCLocally("transaction_read_only", "false");
-			}
-			else
-			{
-				ereport(INFO, errmsg(
-							"TTL job skipping because transaction is read-only."));
 				continue;
 			}
-		}
 
-		volatile bool shouldStop = false;
-
-		/* Delete records on all tables for this collection */
-		for (volatile int i = 0; i < numItems; i++)
-		{
-			char *tableName = text_to_cstring(DatumGetTextP(itemDatums[i]));
-
-			clock_gettime(CLOCK_REALTIME, &timeSpec);
-
-			time_t epochSeconds = timeSpec.tv_sec;
-			uint32_t millisecondsInSecond = timeSpec.tv_nsec / 1000000;
-			uint64_t epochMilliseconds = (epochSeconds * 1000UL) + millisecondsInSecond;
-
-			PG_TRY();
+			/*
+			 * Before we begin the actual deletions, check if we need
+			 * to handle if the transaction is read-only.
+			 */
+			if (XactReadOnly)
 			{
-				DeleteExpiredRowsForIndexCore(tableName, ttlIndexEntry, epochMilliseconds,
-											  batchSize);
-
-				double elapsedTime = 0.0;
-				if (IsTaskTimeBudgetExceeded(startTime, &elapsedTime))
+				if (EnableTtlJobsOnReadOnly)
 				{
-					/* If exceeded time, mark as should stop but still commit this deletion. */
+					/* To enable read-write we need to be the first query
+					 * in the transaction. Process_utility will have already
+					 * set a snapshot on this transaction so we can't reset
+					 * the transaction read-only flag.
+					 * Consequently, commit this transaction that's read-only
+					 * and start a new one so we can mark the read-only flag
+					 * as false.
+					 */
+					PopAllActiveSnapshots();
+					CommitTransactionCommand();
+					StartTransactionCommand();
+					SetGUCLocally("transaction_read_only", "false");
+				}
+				else
+				{
+					ereport(INFO, errmsg(
+								"TTL job skipping because transaction is read-only."));
+					continue;
+				}
+			}
+
+			volatile bool shouldStop = false;
+
+			/* Delete records on all tables for this collection */
+			for (volatile int i = 0; i < numItems; i++)
+			{
+				char *tableName = text_to_cstring(DatumGetTextP(itemDatums[i]));
+
+				clock_gettime(CLOCK_REALTIME, &timeSpec);
+
+				time_t epochSeconds = timeSpec.tv_sec;
+				uint32_t millisecondsInSecond = timeSpec.tv_nsec / 1000000;
+				uint64_t epochMilliseconds = (epochSeconds * 1000UL) +
+											 millisecondsInSecond;
+
+				PG_TRY();
+				{
+					uint64 deletedRows = DeleteExpiredRowsForIndexCore(tableName,
+																	   ttlIndexEntry,
+																	   epochMilliseconds,
+																	   batchSize);
+					double elapsedTime = 0.0;
+					if (IsTaskTimeBudgetExceeded(startTime, &elapsedTime,
+												 SingleTTLTaskTimeBudget))
+					{
+						/* If exceeded time, mark as should stop but still commit this deletion. */
+						shouldStop = true;
+					}
+
+					if (LogTTLProgressActivity)
+					{
+						ereport(LOG, errmsg("TTL job elapsed time: %fms, limit: %dms",
+											elapsedTime, SingleTTLTaskTimeBudget));
+					}
+
+					/* Commit the deletion. */
+					PopAllActiveSnapshots();
+					CommitTransactionCommand();
+					StartTransactionCommand();
+
+					rowsDeletedInCurrentLoop += deletedRows;
+				}
+				PG_CATCH();
+				{
+					ErrorData *edata = CopyErrorDataAndFlush();
+					ereport(WARNING, errmsg(
+								"TTL job failed when processing collection_id=%lu and index_id=%lu with error: %s",
+								collectionId, ttlIndexEntry->indexId, edata->message));
+
 					shouldStop = true;
-				}
 
-				if (LogTTLProgressActivity)
+					/* Abort the transaction and continue with the next TTL indexes */
+					PopAllActiveSnapshots();
+					AbortCurrentTransaction();
+					StartTransactionCommand();
+				}
+				PG_END_TRY();
+
+				if (shouldStop)
 				{
-					ereport(LOG, errmsg("TTL job elapsed time: %fms, limit: %dms",
-										elapsedTime, SingleTTLTaskTimeBudget));
+					goto end;
 				}
 
-				/* Commit the deletion. */
-				PopAllActiveSnapshots();
-				CommitTransactionCommand();
-				StartTransactionCommand();
+				/* Before starting the next loop, set the transaction characteristics */
+				if (XactReadOnly && EnableTtlJobsOnReadOnly)
+				{
+					SetGUCLocally("transaction_read_only", "false");
+				}
 			}
-			PG_CATCH();
-			{
-				ErrorData *edata = CopyErrorDataAndFlush();
-				ereport(WARNING, errmsg(
-							"TTL job failed when processing collection_id=%lu and index_id=%lu with error: %s",
-							collectionId, ttlIndexEntry->indexId, edata->message));
 
-				shouldStop = true;
-
-				/* Abort the transaction and continue with the next TTL indexes */
-				PopAllActiveSnapshots();
-				AbortCurrentTransaction();
-				StartTransactionCommand();
-			}
-			PG_END_TRY();
-
-			if (shouldStop)
+			if (IsTaskTimeBudgetExceeded(startTime, NULL, SingleTTLTaskTimeBudget))
 			{
 				goto end;
 			}
-
-			/* Before starting the next loop, set the transaction characteristics */
-			if (XactReadOnly && EnableTtlJobsOnReadOnly)
-			{
-				SetGUCLocally("transaction_read_only", "false");
-			}
 		}
 
-		if (IsTaskTimeBudgetExceeded(startTime, NULL))
+		if (rowsDeletedInCurrentLoop == 0 || !RepeatPurgeIndexesForTTLTask)
 		{
 			goto end;
 		}
@@ -512,7 +549,7 @@ delete_expired_rows_background(PG_FUNCTION_ARGS)
 /* Based on the task start time it checks if we have exceeded the ttl task budget defined in
  * the SingleTTLTaskTimeBudget GUC. */
 static bool
-IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime)
+IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime, int budget)
 {
 	instr_time current;
 	INSTR_TIME_SET_CURRENT(current);
@@ -524,10 +561,10 @@ IsTaskTimeBudgetExceeded(instr_time startTime, double *elapsedTime)
 		*elapsedTime = elapsed;
 	}
 
-	if (elapsed > (double) SingleTTLTaskTimeBudget)
+	if (elapsed > (double) budget)
 	{
 		ereport(LOG, errmsg("TTL Index delete rows exceeded time budget: %dms.",
-							SingleTTLTaskTimeBudget));
+							budget));
 		return true;
 	}
 
