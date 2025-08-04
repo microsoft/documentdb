@@ -137,7 +137,7 @@ PG_FUNCTION_INFO_V1(extensionrumhandler);
 Datum
 extensionrumhandler(PG_FUNCTION_ARGS)
 {
-	IndexAmRoutine *indexRoutine = GetDocumentDBIndexAmRoutine(fcinfo);
+	IndexAmRoutine *indexRoutine = GetRumIndexHandler(fcinfo);
 	PG_RETURN_POINTER(indexRoutine);
 }
 

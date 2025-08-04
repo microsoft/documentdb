@@ -356,6 +356,8 @@ rumDeletePage(RumVacuumState *gvs, BlockNumber deleteBlkno,
 {
 	BlockNumber leftBlkno,
 				rightBlkno;
+	const int32_t maxRetryCount = 10;
+	int32_t retryCount = 0;
 	Buffer dBuffer;
 	Buffer lBuffer,
 		   rBuffer;
@@ -404,11 +406,17 @@ restart:
 		ReleaseBuffer(dBuffer);
 		ReleaseBuffer(rBuffer);
 		ReleaseBuffer(pBuffer);
-		if (RumSkipRetryOnDeletePage)
+
+		/* Even when bailing, retry a few times before
+		 * moving on and trying again next time.
+		 */
+		if (RumSkipRetryOnDeletePage &&
+			retryCount >= maxRetryCount)
 		{
 			return false;
 		}
 
+		retryCount++;
 		goto restart;
 	}
 	LockBuffer(rBuffer, RUM_EXCLUSIVE);
@@ -444,11 +452,16 @@ restart:
 			return false;
 		}
 
-		if (RumSkipRetryOnDeletePage)
+		/* Even when bailing, retry a few times before
+		 * moving on and trying again next time.
+		 */
+		if (RumSkipRetryOnDeletePage &&
+			retryCount >= maxRetryCount)
 		{
 			return false;
 		}
 
+		retryCount++;
 		goto restart;
 	}
 
@@ -484,7 +497,7 @@ restart:
 	 * we shouldn't change left/right link field to save workability of running
 	 * search scan
 	 */
-	RumPageGetOpaque(dPage)->flags = RUM_DELETED;
+	RumPageForceSetDeleted(dPage);
 
 	GenericXLogFinish(state);
 

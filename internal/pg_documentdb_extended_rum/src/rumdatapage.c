@@ -1529,68 +1529,6 @@ updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate)
 }
 
 
-#if 0
-void
-checkLeafDataPage(RumState *rumstate, AttrNumber attnum, Page page)
-{
-	Offset maxoff,
-		   i;
-	char *ptr;
-	RumItem item;
-	RumDataLeafItemIndex *index,
-						 *previndex = NULL;
-
-	if (!(RumPageGetOpaque(page)->flags & RUM_DATA))
-	{
-		return;
-	}
-
-	maxoff = RumPageGetOpaque(page)->maxoff;
-	ptr = RumDataPageGetData(page);
-	ItemPointerSetMin(&item.iptr);
-
-	Assert(RumPageGetOpaque(page)->flags & RUM_LEAF);
-
-	Assert((char *) RumPageGetIndexes(page) == page + ((PageHeader) page)->pd_upper);
-
-	for (i = FirstOffsetNumber; i <= maxoff; i++)
-	{
-		ptr = rumDataPageLeafReadPointer(ptr, attnum, &item, rumstate);
-	}
-
-	for (i = 0; i < RumDataLeafIndexCount; i++)
-	{
-		index = RumPageGetIndexes(page) + i;
-
-		if (index->offsetNumer == InvalidOffsetNumber)
-		{
-			break;
-		}
-
-		Assert(index->pageOffset < ((PageHeader) page)->pd_lower);
-
-		if (previndex)
-		{
-			Assert(previndex->offsetNumer < index->offsetNumer);
-			Assert(previndex->pageOffset < index->pageOffset);
-			if (rumstate->useAlternativeOrder)
-			{
-				Assert(rumCompareItemPointers(&index->iptr, &previndex->iptr) > 0);
-			}
-		}
-
-		if (i != RumDataLeafIndexCount - 1)
-		{
-			item.iptr = index->iptr;
-			rumDataPageLeafReadPointer(RumDataPageGetData(page) + index->pageOffset,
-									   attnum, &item, rumstate);
-		}
-	}
-}
-
-
-#endif
-
 /*
  * Fills new root by right bound values from child.
  * Also called from rumxlog, should not use btree

@@ -46,11 +46,8 @@ IsChangeStreamEnabledAndCompatible is_changestream_enabled_and_compatible_hook =
 IsNtoReturnSupported_HookType is_n_to_return_supported_hook = NULL;
 EnsureMetadataTableReplicated_HookType ensure_metadata_table_replicated_hook = NULL;
 PostSetupCluster_HookType post_setup_cluster_hook = NULL;
-GetIndexAmRoutine_HookType get_index_amroutine_hook = NULL;
-GetMultiAndBitmapIndexFunc_HookType get_multi_and_bitmap_func_hook = NULL;
 TryCustomParseAndValidateVectorQuerySpec_HookType
 	try_custom_parse_and_validate_vector_query_spec_hook = NULL;
-TryOptimizePathForBitmapAndHookType try_optimize_path_for_bitmap_and_hook = NULL;
 TryGetExtendedVersionRefreshQuery_HookType try_get_extended_version_refresh_query_hook =
 	NULL;
 GetShardIdsAndNamesForCollection_HookType get_shard_ids_and_names_for_collection_hook =
@@ -472,36 +469,6 @@ PostSetupClusterHook(bool isInitialize, bool (shouldUpgradeFunc(void *, int, int
 }
 
 
-/* This function returns the rum handler index routine, if the hook to get it is implemented it just calls into it. */
-IndexAmRoutine *
-GetDocumentDBIndexAmRoutine(PG_FUNCTION_ARGS)
-{
-	if (get_index_amroutine_hook != NULL)
-	{
-		return get_index_amroutine_hook(fcinfo);
-	}
-
-	return GetRumIndexHandler(fcinfo);
-}
-
-
-/* This function loads and returns the multiandgetbitmap function implementation from the default index handler.
- * If the hook is implemented to return it, it just calls into it.
- */
-void *
-GetMultiAndBitmapIndexFunc(bool missingOk)
-{
-	if (get_multi_and_bitmap_func_hook != NULL)
-	{
-		return get_multi_and_bitmap_func_hook();
-	}
-
-	void **ignoreLibFileHandle = NULL;
-	return load_external_function("$libdir/rum", "multiandgetbitmap", !missingOk,
-								  ignoreLibFileHandle);
-}
-
-
 /*
  * Try to validate vector query spec by customized logic.
  */
@@ -516,19 +483,6 @@ TryCustomParseAndValidateVectorQuerySpec(const char *key,
 															 value,
 															 vectorSearchOptions);
 	}
-}
-
-
-Path *
-TryOptimizePathForBitmapAnd(PlannerInfo *root, RelOptInfo *rel,
-							RangeTblEntry *rte, BitmapHeapPath *heapPath)
-{
-	if (try_optimize_path_for_bitmap_and_hook != NULL)
-	{
-		return try_optimize_path_for_bitmap_and_hook(root, rel, rte, heapPath);
-	}
-
-	return NULL;
 }
 
 

@@ -209,12 +209,6 @@ typedef void (*PostSetupCluster_HookType)(bool, bool (shouldUpgradeFunc(void *, 
 																		int)), void *);
 extern PostSetupCluster_HookType post_setup_cluster_hook;
 
-typedef IndexAmRoutine *(*GetIndexAmRoutine_HookType)(PG_FUNCTION_ARGS);
-extern GetIndexAmRoutine_HookType get_index_amroutine_hook;
-
-typedef void *(*GetMultiAndBitmapIndexFunc_HookType)(void);
-extern GetMultiAndBitmapIndexFunc_HookType get_multi_and_bitmap_func_hook;
-
 /*
  * Hook for customizing the validation of vector query spec.
  */
@@ -226,12 +220,6 @@ typedef void
 													 vectorSearchOptions);
 extern TryCustomParseAndValidateVectorQuerySpec_HookType
 	try_custom_parse_and_validate_vector_query_spec_hook;
-
-
-typedef Path *(*TryOptimizePathForBitmapAndHookType)(PlannerInfo *root, RelOptInfo *rel,
-													 RangeTblEntry *rte,
-													 BitmapHeapPath *heapPath);
-extern TryOptimizePathForBitmapAndHookType try_optimize_path_for_bitmap_and_hook;
 
 extern bool DefaultInlineWriteOperations;
 extern bool ShouldUpgradeDataTables;

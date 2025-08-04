@@ -190,17 +190,6 @@ void PostSetupClusterHook(bool isInitialize, bool (shouldUpgradeFunc(void *, int
 
 
 /*
- * Get current IndexAmRoutine for the index handler.
- */
-IndexAmRoutine *GetDocumentDBIndexAmRoutine(PG_FUNCTION_ARGS);
-
-/*
- * Gets the multi and bitmap function for multi index join implemented on a specific index handler.
- */
-void * GetMultiAndBitmapIndexFunc(bool missingOk);
-
-
-/*
  * Hook for customizing the validation of vector query spec.
  */
 typedef struct VectorSearchOptions VectorSearchOptions;
@@ -208,13 +197,6 @@ void TryCustomParseAndValidateVectorQuerySpec(const char *key,
 											  const bson_value_t *value,
 											  VectorSearchOptions *vectorSearchOptions);
 
-struct RelOptInfo;
-struct PlannerInfo;
-struct BitmapHeapPath;
-struct Path * TryOptimizePathForBitmapAnd(struct PlannerInfo *root, struct
-										  RelOptInfo *rel,
-										  RangeTblEntry *rte, struct
-										  BitmapHeapPath *heapPath);
 
 char * TryGetExtendedVersionRefreshQuery(void);
 

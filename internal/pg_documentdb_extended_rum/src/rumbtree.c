@@ -242,6 +242,11 @@ rumStep(Buffer buffer, Relation index, int lockmode,
 		return InvalidBuffer;
 	}
 
+	/* TODO(ReverseWalk): This doesn't handle the case where the left buffer
+	 * has *just* split and we're doing a reverse walk. In that case, we still
+	 * need to assert that the right buffer is where we started off from and use
+	 * the starting buffer.
+	 */
 	nextbuffer = ReadBuffer(index, blkno);
 	UnlockReleaseBuffer(buffer);
 	LockBuffer(nextbuffer, lockmode);
@@ -621,7 +626,7 @@ rumInsertValue(Relation index, RumBtree btree, RumBtreeStack *stack,
 
 				/*
 				 * it's safe because we don't have right-to-left walking
-				 * with locking bth pages except vacuum. But vacuum will
+				 * with locking both pages except vacuum. But vacuum will
 				 * try to lock all pages with conditional lock
 				 */
 				if (rightrightBlkno != InvalidBlockNumber)

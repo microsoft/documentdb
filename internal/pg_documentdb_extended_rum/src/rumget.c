@@ -308,8 +308,7 @@ scanPostingTree(Relation index, RumScanEntry scanEntry,
 		page = BufferGetPage(buffer);
 		maxoff = RumPageGetOpaque(page)->maxoff;
 
-		if ((RumPageGetOpaque(page)->flags & RUM_DELETED) == 0 &&
-			maxoff >= FirstOffsetNumber)
+		if (RumPageIsNotDeleted(page) && maxoff >= FirstOffsetNumber)
 		{
 			RumScanItem item;
 			Pointer ptr;
@@ -1299,6 +1298,7 @@ getMinScanEntry(RumScanOpaque so)
 static void
 startOrderedScanEntries(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so)
 {
+	/* Now adjust the bounds based on the minimum value of the other scan keys */
 	RumScanEntry minEntry = getMinScanEntry(so);
 	if (minEntry == NULL)
 	{

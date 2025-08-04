@@ -134,8 +134,10 @@ typedef struct RumMetaPageData
 #define RumPageSetFullRow(page) (RumPageGetOpaque(page)->flags |= RUM_LIST_FULLROW)
 
 #define RumPageIsDeleted(page) ((RumPageGetOpaque(page)->flags & RUM_DELETED) != 0)
+#define RumPageIsNotDeleted(page) ((RumPageGetOpaque(page)->flags & RUM_DELETED) == 0)
 #define RumPageSetDeleted(page) (RumPageGetOpaque(page)->flags |= RUM_DELETED)
 #define RumPageSetNonDeleted(page) (RumPageGetOpaque(page)->flags &= ~RUM_DELETED)
+#define RumPageForceSetDeleted(page) (RumPageGetOpaque(page)->flags = RUM_DELETED)
 
 #define RumPageRightMost(page) (RumPageGetOpaque(page)->rightlink == InvalidBlockNumber)
 #define RumPageLeftMost(page) (RumPageGetOpaque(page)->leftlink == InvalidBlockNumber)
@@ -1194,11 +1196,23 @@ extern Datum FunctionCall10Coll(FmgrInfo *flinfo, Oid collation,
 						  ALLOCSET_DEFAULT_MAXSIZE)
 #endif
 
-void InitializeDocumentDBRum(void);
+/*
+ * Constant definition for progress reporting.  Phase numbers must match
+ * rumbuildphasename.
+ */
+
+/* PROGRESS_CREATEIDX_SUBPHASE_INITIALIZE is 1 (see progress.h) */
+#define PROGRESS_RUM_PHASE_INDEXBUILD_TABLESCAN 2
+#define PROGRESS_RUM_PHASE_PERFORMSORT_1 3
+#define PROGRESS_RUM_PHASE_MERGE_1 4
+#define PROGRESS_RUM_PHASE_PERFORMSORT_2 5
+#define PROGRESS_RUM_PHASE_MERGE_2 6
 
 struct ExplainState;
 extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
 											  struct ExplainState *es);
 extern PGDLLEXPORT bool can_rum_index_scan_ordered(IndexScanDesc scan);
+
+void InitializeDocumentDBRum(void);
 
 #endif   /* __RUM_H__ */
