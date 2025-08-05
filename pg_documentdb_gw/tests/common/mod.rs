@@ -1,8 +1,16 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * tests/common/mod.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use std::sync::Arc;
 use std::{backtrace::Backtrace, env, sync::Once, thread, time::Duration};
 
 use documentdb_gateway::configuration::{
-    DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration,
+    CertificateProvider, DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration,
 };
 use documentdb_gateway::error::Result;
 use documentdb_gateway::postgres::{create_query_catalog, ConnectionPool, DocumentDBDataClient};
@@ -68,6 +76,10 @@ async fn run(config: DocumentDBSetupConfiguration) {
         populate_ssl_certificates().await.unwrap()
     };
 
+    let certificate_provider = CertificateProvider::new(&certificate_options)
+        .await
+        .expect("Failed to create certificate provider");
+
     let dynamic_configuration = PgConfiguration::new(
         &query_catalog,
         &config,
@@ -93,17 +105,12 @@ async fn run(config: DocumentDBSetupConfiguration) {
         query_catalog,
         system_pool,
         authentication_pool,
+        certificate_provider,
     );
 
-    run_server::<DocumentDBDataClient>(
-        service_context,
-        certificate_options,
-        None,
-        CancellationToken::new(),
-        None,
-    )
-    .await
-    .unwrap()
+    run_server::<DocumentDBDataClient>(service_context, None, CancellationToken::new(), None)
+        .await
+        .unwrap()
 }
 
 pub fn configuration() -> DocumentDBSetupConfiguration {

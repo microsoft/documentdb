@@ -2141,11 +2141,7 @@ SELECT documentdb_api.insert_one('db', 'coll_update', '{"_id": 3, "a":"$$varRef"
 -- EnableVariablesSupportForWriteCommands GUC off: ignore variableSpec
 SET documentdb.EnableVariablesSupportForWriteCommands TO off;
 SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q": {"$expr": {"$eq": ["$a", "$$varRef"] } }, "u": {"$set": {"b": "zebra"}}, "multi": true}], "let": {"varRef": "ama"} }');
-                                                                                                                                                 update                                                                                                                                                  
----------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""118226973"" }, ""errmsg"" : ""Use of undefined variable: varRef"" } ] }",f)
-(1 row)
-
+ERROR:  update.let is not yet supported
 -- EnableVariablesSupportForWriteCommands GUC on: user variableSpec
 SET documentdb.EnableVariablesSupportForWriteCommands TO on;
 -- variables accessed outside $expr will not evaluate to let variable value in 'q'

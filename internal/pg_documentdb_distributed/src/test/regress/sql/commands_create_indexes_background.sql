@@ -175,6 +175,17 @@ CALL documentdb_distributed_test_helpers.create_indexes_background(
    p_log_index_queue => true
 );
 
+CALL documentdb_distributed_test_helpers.create_indexes_background(
+  'db',
+  '{
+     "createIndexes": "createIndex_background_1",
+     "indexes": [
+       {"key": {"block_c": 1}, "name": "my_idx_blocking_c", "storageEngine": { "blocking": true }}
+     ]
+   }',
+   p_log_index_queue => true
+);
+
 -- Queue should be empty
 SELECT index_cmd, cmd_type, index_id, index_cmd_status, collection_id, attempt, user_oid FROM documentdb_api_catalog.documentdb_index_queue ORDER BY index_id;
 
@@ -206,6 +217,20 @@ CALL documentdb_distributed_test_helpers.create_indexes_background(
      ]
    }'
 );
+
+-- create one concurrent and one blocking.
+CALL documentdb_distributed_test_helpers.create_indexes_background(
+  'db',
+  '{
+     "createIndexes": "createIndex_background_1",
+     "indexes": [
+       {"key": {"block_e": 1}, "name": "my_idx_block_e"},
+       {"key": {"block_f": 1}, "name": "my_idx_block_f", "storageEngine": { "blocking": true } }
+     ]
+   }',
+   p_log_index_queue => true
+);
+
 SELECT * FROM documentdb_distributed_test_helpers.count_collection_indexes('db', 'createIndex_background_1') ORDER BY 1,2;
 
 -- Test unique and non-unique index creation in same request

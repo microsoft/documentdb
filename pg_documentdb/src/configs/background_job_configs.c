@@ -58,6 +58,9 @@ int LatchTimeOutSec = DEFAULT_BG_LATCH_TIMEOUT_SEC;
 #define DEFAULT_LOG_TTL_PROGRESS_ACTIVITY false
 bool LogTTLProgressActivity = DEFAULT_LOG_TTL_PROGRESS_ACTIVITY;
 
+#define DEFAULT_FORCE_INDEX_SCAN_TTL_TASK true
+bool ForceIndexScanForTTLTask = DEFAULT_FORCE_INDEX_SCAN_TTL_TASK;
+
 void
 InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -77,6 +80,13 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 		gettext_noop(
 			"Whether to log activity done by a ttl purger. It's turned off by default to reduce noise."),
 		NULL, &LogTTLProgressActivity, DEFAULT_LOG_TTL_PROGRESS_ACTIVITY,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceIndexScanForTTLTask", prefix),
+		gettext_noop(
+			"Whether to force Index Scan for TTL task by locally disabling Sequential Scan and Bitmap Index Scan"),
+		NULL, &ForceIndexScanForTTLTask, DEFAULT_FORCE_INDEX_SCAN_TTL_TASK,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomIntVariable(

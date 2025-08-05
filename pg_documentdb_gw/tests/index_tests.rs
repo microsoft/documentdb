@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * tests/index_tests.rs
+ *
+ *-------------------------------------------------------------------------
+ */
+
 use bson::{doc, Document};
 use mongodb::IndexModel;
 

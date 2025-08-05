@@ -33,6 +33,8 @@ extern int TTLPurgerLockTimeout;
 extern char *ApiGucPrefix;
 extern int SingleTTLTaskTimeBudget;
 extern bool EnableTtlJobsOnReadOnly;
+extern bool EnableNewCompositeIndexOpclass;
+extern bool ForceIndexScanForTTLTask;
 
 bool UseV2TTLIndexPurger = true;
 
@@ -609,6 +611,29 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 	}
 
 	SetGUCLocally(psprintf("%s.forceUseIndexIfAvailable", ApiGucPrefix), "true");
+
+	/*
+	 *  Currently, we force an IndexScan for queries that select and delete TTL-eligible documents by locally disabling
+	 *  sequential scans and bitmap index scans. The GUC documentdb_rum.preferOrderedIndexScan is set to true by default,
+	 *  which causes the IndexScan to be planned as an ordered index scan. Ordered index scans are significantly more
+	 *  efficient than bitmap index scans or sequential scans when there are many documents to delete. Moreover,
+	 *  repeated bitmap index scans—which may need to traverse all index pages to create a bitmap—can put pressure on disk I/O usage.
+	 *
+	 *  TODO: In the future, when we support index hints, we will no longer need this indirect method. Instead, we will provide the
+	 *  corresponding TTL index scan as a hint for the TTL task query. Even though it's called a hint, by design it forces the use
+	 *  of the specified index. We intend to roll back these GUC overrides after the 1.106 schema release, which is expected to
+	 *  include support for index hints.
+	 *
+	 *  TODO: Finally, when we have support for IndexOnly scan in RUM index, we would move from IndexScan to IndexOnlyScan, since,
+	 *  for TTL deletes, we just fetch the ctids of the eligible rows and delete them. We don't need to fetch the corresponding tuples
+	 *  from the Index pages.
+	 */
+	if (ForceIndexScanForTTLTask && EnableNewCompositeIndexOpclass)
+	{
+		SetGUCLocally("enable_seqscan", "false");
+		SetGUCLocally("enable_bitmapscan", "false");
+	}
+
 	uint64 rowsCount = ExtensionExecuteCappedStatementWithArgsViaSPI(
 		cmdStrDeleteRows->data,
 		argCount,

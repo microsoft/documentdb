@@ -24,7 +24,7 @@ NOTICE:  creating collection
  t
 (1 row)
 
-SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "enableCompositeTerm": true, "name": "a_c" }] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "storageEngine": { "enableCompositeTerm": true }, "name": "a_c" }] }', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
  { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
@@ -847,7 +847,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF)
 ---------------------------------------------------------------------
  Sort (actual rows=100 loops=1)
    Sort Key: (bson_orderby(document, '{ "a" : { "$numberInt" : "1" } }'::bson)) NULLS FIRST, (bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::bson)) NULLS FIRST
-   Sort Method: quicksort  Memory: 35kB
+   Sort Method: quicksort  Memory: 33kB
    ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=100 loops=1)
          indexName: a_1_id_1
          isMultiKey: true
@@ -1602,7 +1602,7 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggr
  Incremental Sort (actual rows=21 loops=1)
    Sort Key: (bson_orderby(document, '{ "a.b" : { "$numberInt" : "-1" } }'::bson)) DESC NULLS LAST, (bson_orderby(document, '{ "_id" : { "$numberInt" : "1" } }'::bson)) NULLS FIRST
    Presorted Key: (bson_orderby(document, '{ "a.b" : { "$numberInt" : "-1" } }'::bson))
-   Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+   Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
    ->  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=21 loops=1)
          indexName: a.b_-1
          isMultiKey: true

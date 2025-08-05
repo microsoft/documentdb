@@ -11,7 +11,9 @@ use simple_logger::SimpleLogger;
 use std::{env, path::PathBuf, sync::Arc};
 
 use documentdb_gateway::{
-    configuration::{DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration},
+    configuration::{
+        CertificateProvider, DocumentDBSetupConfiguration, PgConfiguration, SetupConfiguration,
+    },
     postgres::{create_query_catalog, DocumentDBDataClient},
     run_server,
     shutdown_controller::SHUTDOWN_CONTROLLER,
@@ -50,6 +52,16 @@ async fn main() {
         setup_configuration
     );
 
+    let certificate_options = if let Some(co) = setup_configuration.certificate_options() {
+        co
+    } else {
+        populate_ssl_certificates().await.unwrap()
+    };
+
+    let certificate_provider = CertificateProvider::new(&certificate_options)
+        .await
+        .expect("Failed to create certificate provider");
+
     SimpleLogger::new()
         .with_level(log::LevelFilter::Info)
         .with_module_level("tokio_postgres", log::LevelFilter::Info)
@@ -83,12 +95,6 @@ async fn main() {
     )
     .await;
 
-    let certificate_options = if let Some(co) = setup_configuration.certificate_options() {
-        co
-    } else {
-        populate_ssl_certificates().await.unwrap()
-    };
-
     let authentication_pool = get_system_connection_pool(
         &setup_configuration,
         &query_catalog,
@@ -104,15 +110,10 @@ async fn main() {
         query_catalog,
         system_requests_pool,
         authentication_pool,
+        certificate_provider,
     );
 
-    run_server::<DocumentDBDataClient>(
-        service_context,
-        certificate_options,
-        None,
-        shutdown_token,
-        None,
-    )
-    .await
-    .unwrap();
+    run_server::<DocumentDBDataClient>(service_context, None, shutdown_token, None)
+        .await
+        .unwrap();
 }

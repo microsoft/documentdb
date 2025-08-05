@@ -14,7 +14,7 @@ SELECT pg_catalog.set_config('documentdb.alternate_index_handler_name', 'extende
 SELECT documentdb_api.drop_collection('comp_db', 'query_orderby') IS NOT NULL;
 SELECT documentdb_api.create_collection('comp_db', 'query_orderby');
 
-SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "enableCompositeTerm": true, "name": "a_c" }] }', true);
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "query_orderby", "indexes": [ { "key": { "a": 1, "c": 1 }, "storageEngine": { "enableCompositeTerm": true }, "name": "a_c" }] }', true);
 
 \d documentdb_data.documents_68001
 
