@@ -28,10 +28,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [rhel8, rhel9]
-        arch: [amd64]
+        arch: [amd64, arm64]
         include:
           - arch: amd64
             runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
         pg_version:
           - 16
           - 17
