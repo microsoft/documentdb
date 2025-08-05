@@ -13,7 +13,7 @@
 * Add schema changes for Role CRUD APIs *[Feature]*
 * Add support for using EntraId tokens via Plain Auth
 
-### documentdb v0.105-0 (Unreleased) ###
+### documentdb v0.105-0 (July 28, 2025) ###
 * Support `$bucketAuto` aggregation stage, with granularity types: `POWERSOF2`, `1-2-5`, `R5`, `R10`, `R20`, `R40`, `R80`, `E6`, `E12`, `E24`, `E48`, `E96`, `E192` *[Feature]*
 * Support `conectionStatus` command *[Feature]*.
 
