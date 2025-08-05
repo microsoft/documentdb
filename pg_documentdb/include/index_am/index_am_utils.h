@@ -58,6 +58,7 @@ bool IsHashedPathOpFamilyOid(Oid relam, Oid opFamilyOid);
 bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 
 GetMultikeyStatusFunc GetMultiKeyStatusByRelAm(Oid relam);
+bool GetIndexSupportsBackwardsScan(Oid relam);
 
 void TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es);
 

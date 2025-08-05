@@ -187,6 +187,7 @@ Oid BsonOrderyByLtOperatorId(void);
 Oid BsonOrderyByEqOperatorId(void);
 Oid BsonOrderyByGtOperatorId(void);
 Oid BsonOrderByIndexOperatorId(void);
+Oid BsonOrderByReverseIndexOperatorId(void);
 
 /* Postgres internal functions */
 Oid PostgresDrandomFunctionId(void);

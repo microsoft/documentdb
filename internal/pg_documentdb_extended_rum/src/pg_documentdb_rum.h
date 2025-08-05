@@ -816,6 +816,7 @@ typedef struct RumScanOpaqueData
 	bool orderByHasRecheck;
 	RumBtreeStack *orderStack;
 	RumScanEntry orderByEntry;
+	ScanDirection orderScanDirection;
 	bool recheckCurrentItem;
 	bool recheckCurrentItemOrderBy;
 

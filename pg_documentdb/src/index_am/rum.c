@@ -31,6 +31,7 @@
 #include "index_am/index_am_utils.h"
 #include "opclass/bson_gin_index_term.h"
 #include "opclass/bson_gin_private.h"
+#include "utils/documentdb_errors.h"
 
 extern bool ForceUseIndexIfAvailable;
 extern bool EnableNewCompositeIndexOpclass;
@@ -69,6 +70,8 @@ typedef struct DocumentDBRumIndexState
 	void *indexArrayState;
 
 	int32_t numDuplicates;
+
+	ScanDirection scanDirection;
 } DocumentDBRumIndexState;
 
 
@@ -406,7 +409,8 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
  */
 bool
 CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
-									  int32_t *maxPathKeySupported, bool isGroupBy)
+									  int32_t *maxPathKeySupported,
+									  bool *isReverseOrder, bool isGroupBy)
 {
 	GetMultikeyStatusFunc getMultiKeyStatusFunc = GetMultiKeyStatusByRelAm(
 		indexPath->indexinfo->relam);
@@ -421,6 +425,9 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 		return false;
 	}
 
+	bool indexSupportsOrderByDesc = GetIndexSupportsBackwardsScan(
+		indexPath->indexinfo->relam);
+
 	BsonGinIndexOptionsBase *options =
 		(BsonGinIndexOptionsBase *) indexPath->indexinfo->opclassoptions[0];
 
@@ -434,6 +441,8 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 	int32_t lastContiguousOrderbyColumn = -1;
 	int32_t minOrderbyColumn = INT_MAX;
 	int32_t orderByDetailIndex = 0;
+	bool hasReverseOrder = false;
+	bool hasForwardSortOrder = false;
 	foreach(sortCell, sortDetails)
 	{
 		SortIndexInputDetails *sortDetailsInput = (SortIndexInputDetails *) lfirst(
@@ -452,9 +461,34 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 		/* If the sort doesn't match the index, then break */
 		int32_t sortBtreeStrategy = sortDirection < 0 ? BTGreaterStrategyNumber :
 									BTLessStrategyNumber;
-		if (sortDetailsInput->sortPathKey->pk_strategy != sortBtreeStrategy)
+
+		bool currentPathKeyIsReverseSort = sortDetailsInput->sortPathKey->pk_strategy !=
+										   sortBtreeStrategy;
+		if (currentPathKeyIsReverseSort)
 		{
-			break;
+			if (!indexSupportsOrderByDesc)
+			{
+				/* We can't continue pushdown any further */
+				break;
+			}
+
+			if (hasForwardSortOrder)
+			{
+				/* Prior keys were in forward order - we can't match this key */
+				break;
+			}
+
+			hasReverseOrder = true;
+		}
+		else
+		{
+			if (hasReverseOrder)
+			{
+				/* Prior keys were in reverse order - we can't match this key */
+				break;
+			}
+
+			hasForwardSortOrder = true;
 		}
 
 		if (sortBtreeStrategy == BTGreaterStrategyNumber &&
@@ -489,6 +523,15 @@ CompositeIndexSupportsOrderByPushdown(IndexPath *indexPath, List *sortDetails,
 		/* No order by columns found, nothing to push down */
 		return false;
 	}
+
+	if (hasReverseOrder && hasForwardSortOrder)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg(
+							"Unexpected - found push down order by with both forward and reverse order in the same index path")));
+	}
+
+	*isReverseOrder = hasReverseOrder;
 
 	/* By default use min of lastContiguousOrderbyColumn & maxOrderbyColumn */
 	*maxPathKeySupported = lastContiguousOrderbyColumn >= 0 ?
@@ -801,6 +844,7 @@ extension_rumbeginscan_core(Relation rel, int nkeys, int norderbys,
 		DocumentDBRumIndexState *outerScanState = palloc0(
 			sizeof(DocumentDBRumIndexState));
 		scan->opaque = outerScanState;
+		outerScanState->scanDirection = ForwardScanDirection;
 
 		/* Don't yet start inner scan here - instead wait until rescan to begin */
 		return scan;
@@ -901,6 +945,11 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		{
 			innerOrderBy = orderbys;
 			nInnerorderbys = norderbys;
+
+			outerScanState->scanDirection =
+				DetermineCompositeScanDirection(
+					scan->indexRelation->rd_opcoptions[0],
+					orderbys, norderbys);
 		}
 
 		ScanKey innerScanKey = scankey;
@@ -914,7 +963,8 @@ extension_rumrescan_core(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 										   &outerScanState->compositeKey,
 										   outerScanState->multiKeyStatus ==
 										   IndexMultiKeyStatus_HasArrays,
-										   nInnerorderbys > 0))
+										   nInnerorderbys > 0,
+										   outerScanState->scanDirection))
 		{
 			innerScanKey = &outerScanState->compositeKey;
 			nInnerScanKeys = 1;
@@ -1032,14 +1082,26 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 		DocumentDBRumIndexState *outerScanState =
 			(DocumentDBRumIndexState *) scan->opaque;
 
+		/* The caller will always pass ForwardScanDirection
+		 * since PG always uses ForwardScanDirection in cases where we do
+		 * amcanorderbyop. For the inner scan, we would need to pass the
+		 * scanDirection as determined in amrescan from the index state.
+		 */
+		if (unlikely(direction != ForwardScanDirection))
+		{
+			ereport(ERROR, (errmsg("rumgettuple only supports forward scans")));
+		}
+
 		if (outerScanState->indexArrayState == NULL)
 		{
 			/* No arrays, or we don't support dedup - just return the basics */
-			return GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+			return GetOneTupleCore(outerScanState, scan, outerScanState->scanDirection,
+								   coreRoutine);
 		}
 		else
 		{
-			bool result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+			bool result = GetOneTupleCore(outerScanState, scan,
+										  outerScanState->scanDirection, coreRoutine);
 			while (result)
 			{
 				/* if we could add it to the bitmap, return */
@@ -1054,7 +1116,8 @@ extension_rumgettuple_core(IndexScanDesc scan, ScanDirection direction,
 				}
 
 				/* else, get the next tuple */
-				result = GetOneTupleCore(outerScanState, scan, direction, coreRoutine);
+				result = GetOneTupleCore(outerScanState, scan,
+										 outerScanState->scanDirection, coreRoutine);
 			}
 
 			return result;
@@ -1250,6 +1313,11 @@ ExplainCompositeScan(IndexScanDesc scan, ExplainState *es)
 			/* If we have duplicates, explain the number of duplicates */
 			ExplainPropertyInteger("numDuplicates", "entries",
 								   outerScanState->numDuplicates, es);
+		}
+
+		if (ScanDirectionIsBackward(outerScanState->scanDirection))
+		{
+			ExplainPropertyBool("isBackwardScan", true, es);
 		}
 
 		/* Explain the inner scan using underlying am */

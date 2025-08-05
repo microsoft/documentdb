@@ -41,6 +41,7 @@ rumbeginscan(Relation rel, int nkeys, int norderbys)
 	so->orderStack = NULL;
 	so->scanLoops = 0;
 	so->orderByKeyIndex = -1;
+	so->orderScanDirection = ForwardScanDirection;
 	so->tempCtx = RumContextCreate(CurrentMemoryContext,
 								   "Rum scan temporary context");
 	so->keyCtx = RumContextCreate(CurrentMemoryContext,

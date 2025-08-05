@@ -1,0 +1,2 @@
+
+ALTER OPERATOR FAMILY documentdb_extended_rum_catalog.bson_extended_rum_composite_path_ops USING documentdb_extended_rum ADD OPERATOR 34 documentdb_api_internal.<>-|(documentdb_core.bson, documentdb_core.bson) FOR ORDER BY documentdb_core.bson_btree_ops;

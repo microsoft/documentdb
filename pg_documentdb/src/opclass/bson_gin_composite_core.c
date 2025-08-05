@@ -179,11 +179,12 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 		IndexTermCreateMetadata termMetadata = *baseMetadata;
 
 		/* In this path, we use upper bound for descending and lower bound for ascending */
-		if (sortOrders[i] < 0)
+		termMetadata.isDescending = sortOrders[i] < 0;
+		if ((sortOrders[i] < 0 && !runData->metaInfo->isBackwardScan) ||
+			(sortOrders[i] > 0 && runData->metaInfo->isBackwardScan))
 		{
 			boundToUse = runData->indexBounds[i].upperBound;
 			termElement.bsonValue.value_type = BSON_TYPE_MAXKEY;
-			termMetadata.isDescending = true;
 		}
 
 		if (boundToUse.bound.value_type != BSON_TYPE_EOD)
@@ -706,6 +707,7 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		}
 
 		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
+		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY_REVERSE:
 		{
 			/* It's a full scan */
 			break;
@@ -864,6 +866,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LT:
 		case BSON_INDEX_STRATEGY_DOLLAR_NOT_LTE:
 		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY:
+		case BSON_INDEX_STRATEGY_DOLLAR_ORDERBY_REVERSE:
 		{
 			/* No recheck */
 			ereport(ERROR, (errmsg(

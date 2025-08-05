@@ -1492,8 +1492,15 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 			 *    (We can currently only support that for exists)
 			 */
 			int32_t maxPathKeySupported = -1;
+			bool isReverseOrder = false;
 			if (!CompositeIndexSupportsOrderByPushdown(indexPath, sortDetails,
-													   &maxPathKeySupported, hasGroupby))
+													   &maxPathKeySupported,
+													   &isReverseOrder, hasGroupby))
+			{
+				continue;
+			}
+
+			if (isReverseOrder && !IsClusterVersionAtleast(DocDB_V0, 107, 0))
 			{
 				continue;
 			}
@@ -1509,8 +1516,11 @@ ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *
 				SortIndexInputDetails *sortDetailsInput =
 					(SortIndexInputDetails *) list_nth(sortDetails, i);
 
+				Oid indexOperator = isReverseOrder ?
+									BsonOrderByReverseIndexOperatorId() :
+									BsonOrderByIndexOperatorId();
 				Expr *orderElement = make_opclause(
-					BsonOrderByIndexOperatorId(), BsonTypeId(), false,
+					indexOperator, BsonTypeId(), false,
 					(Expr *) sortDetailsInput->sortVar,
 					(Expr *) sortDetailsInput->sortDatum,
 					InvalidOid, InvalidOid);
@@ -3332,7 +3342,8 @@ ProcessFullScanForOrderBy(SupportRequestIndexCondition *req, List *args)
 	}
 
 	int32_t querySortDirection = BsonValueAsInt32(&sortElement.bsonValue);
-	if (querySortDirection != sortDirection)
+	bool indexSupportsReverseSort = GetIndexSupportsBackwardsScan(req->index->relam);
+	if (querySortDirection != sortDirection && !indexSupportsReverseSort)
 	{
 		return NULL;
 	}

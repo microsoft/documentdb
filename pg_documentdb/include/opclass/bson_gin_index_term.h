@@ -137,4 +137,14 @@ Datum GenerateValueMaybeUndefinedTerm(const IndexTermCreateMetadata *termData);
 int32_t CompareBsonIndexTerm(const BsonIndexTerm *left, const BsonIndexTerm *right,
 							 bool *isComparisonValid);
 
+/* Check if the term is a root truncation term */
+inline static bool
+IsRootTruncationTerm(BsonIndexTerm *term)
+{
+	return term->isIndexTermTruncated &&
+		   term->element.pathLength == 0 &&
+		   term->element.bsonValue.value_type == BSON_TYPE_MAXKEY;
+}
+
+
 #endif

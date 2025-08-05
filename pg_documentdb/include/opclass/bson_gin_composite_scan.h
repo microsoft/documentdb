@@ -20,5 +20,8 @@ bool GetEqualityRangePredicatesForIndexPath(struct IndexPath *indexPath, void *o
 bool CompositePathHasFirstColumnSpecified(IndexPath *indexPath);
 char *SerializeBoundsStringForExplain(bytea * entry, void *extraData, PG_FUNCTION_ARGS);
 bool ModifyScanKeysForCompositeScan(ScanKey scankey, int nscankeys, ScanKey
-									targetScanKey, bool hasArrayKeys, bool hasOrderBys);
+									targetScanKey, bool hasArrayKeys, bool hasOrderBys,
+									ScanDirection scanDirection);
+ScanDirection DetermineCompositeScanDirection(bytea *compositeScanOptions,
+											  ScanKey orderbys, int norderbys);
  #endif

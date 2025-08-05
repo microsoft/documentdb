@@ -35,6 +35,7 @@ typedef struct
 	bool is_text_index_supported;
 	bool is_hashed_index_supported;
 	bool is_order_by_supported;
+	bool is_backwards_scan_supported;
 	Oid (*get_am_oid)(void);
 	Oid (*get_single_path_op_family_oid)(void);
 	Oid (*get_composite_path_op_family_oid)(void);

@@ -48,6 +48,7 @@ static BsonIndexAmEntry DocumentDBIndexAmEntry = {
 	.is_text_index_supported = false,
 	.is_hashed_index_supported = false,
 	.is_order_by_supported = true,
+	.is_backwards_scan_supported = true,
 	.get_am_oid = DocumentDBExtendedRumIndexAmId,
 	.get_single_path_op_family_oid = DocumentDBExtendedRumSinglePathOpFamilyOid,
 	.get_composite_path_op_family_oid = DocumentDBExtendedRumCompositePathOpFamilyOid,

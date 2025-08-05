@@ -274,6 +274,9 @@ typedef struct DocumentDBApiOidCacheData
 	/* OID of hte bson order by index operator */
 	Oid BsonOrderByIndexOperatorId;
 
+	/* OID of the reverse sort order by index operator */
+	Oid BsonOrderByReverseIndexOperatorId;
+
 	/* OID of the bson_orderby_partition function */
 	Oid BsonOrderByPartitionFunctionOid;
 
@@ -4874,6 +4877,14 @@ BsonOrderByIndexOperatorId(void)
 {
 	return GetBinaryOperatorId(&Cache.BsonOrderByIndexOperatorId,
 							   BsonTypeId(), "|-<>", BsonTypeId());
+}
+
+
+Oid
+BsonOrderByReverseIndexOperatorId(void)
+{
+	return GetInternalBinaryOperatorId(&Cache.BsonOrderByReverseIndexOperatorId,
+									   BsonTypeId(), "<>-|", BsonTypeId());
 }
 
 

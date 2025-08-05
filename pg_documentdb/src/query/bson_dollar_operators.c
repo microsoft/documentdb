@@ -43,6 +43,9 @@ typedef enum CustomOrderByOptions
 
 	/* Allow only numbers, required for ORDER BY in $setWindowFields */
 	CustomOrderByOptions_AllowOnlyNumbers = 0x2,
+
+	/* Set the reverse order flag on the order output */
+	CustomOrderByOptions_SetReverseFlag = 0x4,
 } CustomOrderByOptions;
 
 /* --------------------------------------------------------- */
@@ -256,6 +259,27 @@ typedef struct TraverseElemMatchValidateState
 	/* ICU standard colation string. See AggregationPipelineBuildContext for more details. */
 	const char *collationString;
 } TraverseElemMatchValidateState;
+
+/*
+ * Sort comparison input.
+ * This is data used in the orderby function and operator
+ * to populate data used in tracking sort metadata.
+ */
+typedef struct
+{
+	/* The raw element being compared for sort */
+	pgbsonelement element;
+
+	/* The collation used for sorting */
+	const char *collationString;
+
+	/* Whether or not the sort input is truncated */
+	bool isTruncated;
+
+	/* Whether or not the sort is on a reverse sort */
+	bool isReverse;
+} BsonSortInput;
+
 
 typedef bool (*IsQueryFilterNullFunc)(const TraverseValidateState *state);
 extern bool EnableCollation;
@@ -1748,7 +1772,7 @@ command_bson_orderby_reverse(PG_FUNCTION_ARGS)
 	}
 
 	bool validateSort = true;
-	CustomOrderByOptions options = CustomOrderByOptions_Default;
+	CustomOrderByOptions options = CustomOrderByOptions_SetReverseFlag;
 	Datum returnedBson = BsonOrderbyCore(document, filter, collationString, validateSort,
 										 options);
 
@@ -1810,6 +1834,134 @@ bson_vector_orderby(PG_FUNCTION_ARGS)
 }
 
 
+static void
+PgbsonToBsonSortInput(pgbson *bson, BsonSortInput *sortInput)
+{
+	bson_iter_t iter;
+	PgbsonInitIterator(bson, &iter);
+	sortInput->collationString = NULL;
+	sortInput->isTruncated = false;
+	sortInput->isReverse = false;
+
+	if (!bson_iter_next(&iter))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("invalid input BSON: Should not have empty document")));
+	}
+
+	BsonIterToPgbsonElement(&iter, &sortInput->element);
+	while (bson_iter_next(&iter))
+	{
+		if (strcmp(bson_iter_key(&iter), "collation") == 0)
+		{
+			sortInput->collationString = bson_iter_utf8(&iter, NULL);
+		}
+		else if (strcmp(bson_iter_key(&iter), "t") == 0)
+		{
+			sortInput->isTruncated = bson_iter_bool(&iter);
+		}
+		else if (strcmp(bson_iter_key(&iter), "r") == 0)
+		{
+			sortInput->isReverse = bson_iter_bool(&iter);
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg(
+								"invalid input BSON: entry in the bson document must have key \"collation\" or \"t\" or \"r\"")));
+		}
+	}
+}
+
+
+inline static int32_t
+CompareBsonSortInputForOrderingCore(BsonSortInput *left, BsonSortInput *right)
+{
+	left->collationString = IsCollationApplicable(left->collationString) ?
+							left->collationString : NULL;
+
+	right->collationString = IsCollationApplicable(right->collationString) ?
+							 right->collationString : NULL;
+
+	/* compare the collation strings. */
+	const char *collationString = NULL;
+	if (left->collationString != NULL && right->collationString != NULL)
+	{
+		int collationCmp = strcmp(left->collationString, right->collationString);
+
+		if (collationCmp != 0)
+		{
+			return collationCmp;
+		}
+
+		collationString = left->collationString;
+	}
+	else if (left->collationString != NULL && right->collationString == NULL)
+	{
+		return 1;
+	}
+	else if (right->collationString != NULL && left->collationString == NULL)
+	{
+		return -1;
+	}
+
+	/* compare the left and right values */
+	int cmp = 0;
+	bool isComparisonValid = true;
+	if (collationString != NULL)
+	{
+		cmp = CompareBsonValueAndTypeWithCollation(&left->element.bsonValue,
+												   &right->element.bsonValue,
+												   &isComparisonValid, collationString);
+	}
+	else
+	{
+		cmp = CompareBsonValueAndType(&left->element.bsonValue, &right->element.bsonValue,
+									  &isComparisonValid);
+	}
+
+	return cmp;
+}
+
+
+static int32_t
+CompareDatumsForOrdering(Datum left, Datum right, SortSupport sortSupport)
+{
+	pgbson *leftBson = DatumGetPgBsonPacked(left);
+	pgbson *rightBson = DatumGetPgBsonPacked(right);
+
+	BsonSortInput leftInput, rightInput;
+	PgbsonToBsonSortInput(leftBson, &leftInput);
+	PgbsonToBsonSortInput(rightBson, &rightInput);
+	int cmp = CompareBsonSortInputForOrderingCore(&leftInput, &rightInput);
+
+	if ((Pointer) (left) != DatumGetPointer(left))
+	{
+		pfree(leftBson);
+	}
+
+	if ((Pointer) (right) != DatumGetPointer(right))
+	{
+		pfree(rightBson);
+	}
+
+	if (leftInput.isReverse ^ rightInput.isReverse)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("cannot compare documents with different reverse flags")));
+	}
+
+	/* On truncation, order by is comparing a runtime term with an index term.
+	 * In this path, if one term is truncated and the other isn't, ensure that we're
+	 * only tracking the order as "ascending". If both are truncated, or not we apply
+	 * the order as requested. This is to match the behavior in IndexOrderWithRecheck
+	 * in nodeIndexScan.c
+	 */
+	bool isTruncationSame = leftInput.isTruncated == rightInput.isTruncated;
+	return (leftInput.isReverse && isTruncationSame) ? -cmp : cmp;
+}
+
+
 /*
  * bson_orderby_compare compares two bson documents.
  * It returns:
@@ -1828,61 +1980,15 @@ bson_vector_orderby(PG_FUNCTION_ARGS)
 Datum
 bson_orderby_compare(PG_FUNCTION_ARGS)
 {
-	pgbson *left = PG_GETARG_PGBSON(0);
-	pgbson *right = PG_GETARG_PGBSON(1);
+	pgbson *leftBson = PG_GETARG_PGBSON_PACKED(0);
+	pgbson *rightBson = PG_GETARG_PGBSON_PACKED(1);
 
-	pgbsonelement leftElement = { 0 };
-	pgbsonelement rightElement = { 0 };
-
-	char *collationStringLeft =
-		(char *) PgbsonToSinglePgbsonElementWithCollation(left,
-														  &leftElement);
-	collationStringLeft = IsCollationApplicable(collationStringLeft) ?
-						  collationStringLeft : NULL;
-
-	char *collationStringRight =
-		(char *) PgbsonToSinglePgbsonElementWithCollation(right,
-														  &rightElement);
-	collationStringRight = IsCollationApplicable(collationStringRight) ?
-						   collationStringRight : NULL;
-
-	/* compare the collation strings. */
-	char *collationString = NULL;
-	if (collationStringLeft != NULL && collationStringRight != NULL)
-	{
-		int collationCmp = strcmp(collationStringLeft, collationStringRight);
-
-		if (collationCmp != 0)
-		{
-			PG_RETURN_INT32(collationCmp);
-		}
-
-		collationString = collationStringLeft;
-	}
-	else if (collationStringLeft != NULL && collationStringRight == NULL)
-	{
-		PG_RETURN_INT32(1);
-	}
-	else if (collationStringRight != NULL && collationStringLeft == NULL)
-	{
-		PG_RETURN_INT32(-1);
-	}
-
-	/* compare the left and right values */
-	int cmp = 0;
-	bool isComparisonValid = true;
-	if (collationString != NULL)
-	{
-		cmp = CompareBsonValueAndTypeWithCollation(&leftElement.bsonValue,
-												   &rightElement.bsonValue,
-												   &isComparisonValid, collationString);
-	}
-	else
-	{
-		cmp = CompareBsonValueAndType(&leftElement.bsonValue, &rightElement.bsonValue,
-									  &isComparisonValid);
-	}
-
+	BsonSortInput leftInput, rightInput;
+	PgbsonToBsonSortInput(leftBson, &leftInput);
+	PgbsonToBsonSortInput(rightBson, &rightInput);
+	int cmp = CompareBsonSortInputForOrderingCore(&leftInput, &rightInput);
+	PG_FREE_IF_COPY(leftBson, 0);
+	PG_FREE_IF_COPY(rightBson, 1);
 	PG_RETURN_INT32(cmp);
 }
 
@@ -1891,7 +1997,12 @@ bson_orderby_compare(PG_FUNCTION_ARGS)
 Datum
 bson_orderby_compare_sort_support(PG_FUNCTION_ARGS)
 {
-	/* SortSupport sortSupport = (SortSupport) PG_GETARG_POINTER(0); */
+	SortSupport sortSupport = (SortSupport) PG_GETARG_POINTER(0);
+	if (sortSupport->ssup_reverse)
+	{
+		sortSupport->comparator = CompareDatumsForOrdering;
+	}
+
 	PG_RETURN_VOID();
 }
 
@@ -2636,6 +2747,12 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	if (IsCollationApplicable(collationString))
 	{
 		PgbsonWriterAppendUtf8(&writer, "collation", 9, collationString);
+	}
+
+	if (options == CustomOrderByOptions_SetReverseFlag)
+	{
+		/* if the order by is min, we set the reverse flag to true */
+		PgbsonWriterAppendBool(&writer, "r", 1, true);
 	}
 
 	return PointerGetDatum(PgbsonWriterGetPgbson(&writer));

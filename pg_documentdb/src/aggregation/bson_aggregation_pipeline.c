@@ -4823,6 +4823,17 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 					query->jointree->quals = (Node *) make_ands_explicit(
 						currentQuals);
 				}
+
+
+				/* If sort by is descending use the new operators: this allows for
+				 * customization of reverse scan.
+				 */
+				if (IsClusterVersionAtleast(DocDB_V0, 104, 0) && !isAscending)
+				{
+					sortByDirection = SORTBY_USING;
+					sortBy->useOp = list_make2(makeString(ApiInternalSchemaNameV2),
+											   makeString(">>>"));
+				}
 			}
 
 			sortBy->sortby_dir = sortByDirection;

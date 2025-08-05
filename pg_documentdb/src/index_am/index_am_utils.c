@@ -34,6 +34,7 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.is_text_index_supported = true,
 	.is_hashed_index_supported = true,
 	.is_order_by_supported = false,
+	.is_backwards_scan_supported = false,
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
@@ -325,6 +326,19 @@ GetMultiKeyStatusByRelAm(Oid relam)
 	}
 
 	return amEntry->get_multikey_status;
+}
+
+
+bool
+GetIndexSupportsBackwardsScan(Oid relam)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(relam);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	return amEntry->is_backwards_scan_supported;
 }
 
 

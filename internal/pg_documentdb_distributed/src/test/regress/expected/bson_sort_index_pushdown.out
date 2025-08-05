@@ -183,7 +183,7 @@ EXPLAIN (COSTS OFF, TIMING OFF, ANALYZE ON, SUMMARY OFF) SELECT document FROM bs
                                                          QUERY PLAN                                                         
 ---------------------------------------------------------------------
  Sort (actual rows=9995 loops=1)
-   Sort Key: (bson_orderby(document, '{ "_id" : { "$numberInt" : "-1" } }'::bson)) DESC NULLS LAST
+   Sort Key: (bson_orderby(document, '{ "_id" : { "$numberInt" : "-1" } }'::bson)) USING >>> NULLS LAST
    Sort Method: quicksort  Memory: 1243kB
    ->  Bitmap Heap Scan on documents_964001_9640002 collection (actual rows=9995 loops=1)
          Recheck Cond: ((shard_key_value = '964001'::bigint) AND (object_id > '{ "" : { "$numberInt" : "5" } }'::bson))

@@ -64,6 +64,7 @@ typedef struct CompositeQueryMetaInfo
 	bool requiresRuntimeRecheck;
 	int32_t numScanKeys;
 	bool hasMultipleScanKeysPerPath;
+	bool isBackwardScan;
 	PathScanKeyMap *scanKeyMap;
 } CompositeQueryMetaInfo;
 
