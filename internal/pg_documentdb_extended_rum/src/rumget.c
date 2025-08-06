@@ -1174,6 +1174,12 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 			entry->curItem = entry->list[entry->offset];
 		}
 	}
+	else
+	{
+		/* No postings, so mark entry as finished */
+		entry->nlist = 0;
+		entry->isFinished = true;
+	}
 }
 
 
@@ -1686,18 +1692,9 @@ entryGetNextItem(RumState *rumstate, RumScanEntry entry, Snapshot snapshot,
 }
 
 
-static bool
-entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
+inline static void
+ResetEntryItem(RumScanEntry entry)
 {
-	Page page;
-	IndexTuple itup;
-	RumBtreeData btree;
-	bool needUnlock;
-
-	Assert(!entry->isFinished);
-	Assert(entry->stack);
-	Assert(ScanDirectionIsForward(entry->scanDirection));
-
 	entry->buffer = InvalidBuffer;
 	RumItemSetMin(&entry->curItem);
 	entry->offset = InvalidOffsetNumber;
@@ -1715,6 +1712,23 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 	}
 	entry->matchSortstate = NULL;
 	entry->reduceResult = false;
+	entry->isFinished = false;
+}
+
+
+static bool
+entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
+{
+	Page page;
+	IndexTuple itup;
+	RumBtreeData btree;
+	bool needUnlock;
+
+	Assert(!entry->isFinished);
+	Assert(entry->stack);
+	Assert(ScanDirectionIsForward(entry->scanDirection));
+
+	ResetEntryItem(entry);
 	entry->predictNumberResult = 0;
 
 	rumPrepareEntryScan(&btree, entry->attnum,
@@ -3031,25 +3045,7 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 	Assert(so->orderStack);
 	Assert(ScanDirectionIsForward(entry->scanDirection));
 
-	entry->buffer = InvalidBuffer;
-	RumItemSetMin(&entry->curItem);
-	entry->offset = InvalidOffsetNumber;
-	entry->isFinished = false;
-
-	if (entry->list)
-	{
-		pfree(entry->list);
-		entry->list = NULL;
-		entry->nlist = 0;
-	}
-	if (entry->gdi)
-	{
-		freeRumBtreeStack(entry->gdi->stack);
-		pfree(entry->gdi);
-	}
-	entry->gdi = NULL;
-	entry->matchSortstate = NULL;
-	entry->reduceResult = false;
+	ResetEntryItem(entry);
 
 	rumPrepareEntryScan(&btree, entry->attnum,
 						entry->queryKey, entry->queryCategory,
@@ -3158,24 +3154,38 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 								   so->orderStack, &needUnlock);
 		if (entry->nlist == 0)
 		{
-			if (!needUnlock)
+			while (!entry->isFinished && entry->nlist == 0)
 			{
-				/* If PrepareOrderedMatchedEntry unlocked the buffer,
-				 * we need to re-lock it before moving forward on the same buffer
-				 */
-				LockBuffer(so->orderStack->buffer, RUM_SHARE);
-				needUnlock = true;
+				/* Rev the entry until we have an nlist that is > 0 or the item is finished */
+				entryGetItem(&so->rumstate, entry, NULL, snapshot, NULL);
 			}
 
-			/* Dead tuple due to vacuum, move forward */
-			so->orderStack->off += so->orderScanDirection;
-			continue;
+			if (entry->isFinished)
+			{
+				/* No more items in this entry, move to next */
+				if (!needUnlock)
+				{
+					/* If PrepareOrderedMatchedEntry unlocked the buffer,
+					 * we need to re-lock it before moving forward on the same buffer
+					 */
+					LockBuffer(so->orderStack->buffer, RUM_SHARE);
+					needUnlock = true;
+				}
+
+				ResetEntryItem(entry);
+
+				/* Dead tuple due to vacuum, move forward */
+				so->orderStack->off += so->orderScanDirection;
+				continue;
+			}
 		}
+		else
+		{
+			Assert(entry->nlist > 0 && entry->list);
 
-		Assert(entry->nlist > 0 && entry->list);
-
-		entry->curItem = entry->list[entry->offset];
-		entry->offset += entry->scanDirection;
+			entry->curItem = entry->list[entry->offset];
+			entry->offset += entry->scanDirection;
+		}
 
 		/*
 		 * Done with this entry, go to the next for the future.
