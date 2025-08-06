@@ -452,7 +452,7 @@ Release 3:
 
 Release 4:
 
-- If things look good post Release 2, we run the following to cut of all access to the old schemas
+- If things look good post Release 3, we run the following to cut of all access to the old schemas
 
 ``` sql
 REVOKE ALL ON SCHEMA documentdb_api FROM PUBLIC;
