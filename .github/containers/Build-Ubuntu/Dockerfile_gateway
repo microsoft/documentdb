@@ -44,8 +44,16 @@ RUN sudo groupmod -g 103 postgres && sudo usermod -u 105 -g 103 postgres
 
 RUN sudo apt-get update && \
     sudo apt-get install -y --no-install-recommends \
-    jq openssl lsof && \
+    jq openssl lsof wget gnupg netcat-openbsd && \
     sudo apt-get upgrade -y && \
+    sudo rm -rf /var/lib/apt/lists/*
+
+# Install MongoDB Shell (mongosh) for data initialization
+RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add - && \
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list && \
+    sudo apt-get update && \
+    sudo apt-get install -y mongodb-mongosh && \
+    sudo apt-get clean && \
     sudo rm -rf /var/lib/apt/lists/*
 
 ENV LANGUAGE=en_US.UTF-8 \
@@ -64,6 +72,8 @@ ENV ENFORCE_SSL="true" \
     POSTGRESQL_PORT="9712" \
     OWNER="documentdb" \
     ALLOW_EXTERNAL_CONNECTIONS="false" \
+    INIT_DATA="false" \
+    INIT_DATA_PATH="/init_doc_db.d" \
     PATH=/usr/lib/postgresql/16/bin:$PATH
 
 RUN sudo mkdir /home/documentdb/gateway
@@ -76,7 +86,19 @@ COPY --from=stage /home/documentdb/code/scripts/emulator_entrypoint.sh /home/doc
 COPY --from=stage /home/documentdb/code/scripts/utils.sh /home/documentdb/gateway/scripts/utils.sh
 COPY --from=stage /home/documentdb/code/scripts/setup_psqlrc.sh /home/documentdb/gateway/scripts/setup_psqlrc.sh
 
+# Copy initialization scripts
+COPY --from=stage /home/documentdb/code/scripts/init_documentdb_data.sh /home/documentdb/gateway/scripts/init_documentdb_data.sh
+
+# Copy sample data for built-in initialization
+COPY --from=stage /home/documentdb/code/sample-data /home/documentdb/gateway/sample-data
+
+# Create default initialization directory for user-provided scripts
+RUN sudo mkdir -p /init_doc_db.d
+
 RUN sudo chown -R documentdb:documentdb /home/documentdb/gateway
+
+# Make initialization script executable
+RUN sudo chmod +x /home/documentdb/gateway/scripts/init_documentdb_data.sh
 
 WORKDIR /home/documentdb/gateway/scripts
 ENTRYPOINT ["/bin/bash", "-c", "/home/documentdb/gateway/scripts/emulator_entrypoint.sh \"$@\"", "--"]
