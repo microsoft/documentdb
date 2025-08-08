@@ -158,8 +158,8 @@ FindShardKeyValueForDocumentId(MongoCollection *collection, const bson_value_t *
 	{
 		idArgIndex = argCount;
 		appendStringInfo(&selectQuery,
-						 " AND object_id = $%d::%s",
-						 idArgIndex + 1, FullBsonTypeName);
+						 " AND object_id OPERATOR(%s.=) $%d::%s",
+						 CoreSchemaName, idArgIndex + 1, FullBsonTypeName);
 
 		argCount++;
 	}
