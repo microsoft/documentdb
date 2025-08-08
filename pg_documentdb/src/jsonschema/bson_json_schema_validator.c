@@ -46,6 +46,8 @@ static bool ValidateBsonValueNumeric(const bson_value_t *value,
 									 const SchemaNode *node);
 static bool ValidateBsonValueArray(const bson_value_t *value,
 								   const SchemaNode *node);
+static bool ValidateBsonValueBinary(const bson_value_t *value,
+									const SchemaNode *node);
 
 static BsonTypeFlags GetBsonValueTypeFlag(bson_type_t type);
 static void FreeListOfDocKvLists(List *list);
@@ -59,6 +61,8 @@ static int CompareBsonKvPairs(BsonKeyValuePair *pairA, BsonKeyValuePair *pairB,
 static List * GetSortedListOfKeyValuePairs(const bson_value_t *value);
 
 static bool IsBsonArrayUnique(const bson_value_t *value, bool ignoreKeyOrderInObject);
+
+extern bool EnableSchemaEnforcementForCSFLE;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -145,6 +149,11 @@ ValidateBsonValueAgainstSchemaTree(const bson_value_t *value, const
 		return false;
 	}
 	if (node->validationFlags.array && !ValidateBsonValueArray(value, node))
+	{
+		return false;
+	}
+	if (node->validationFlags.binary && EnableSchemaEnforcementForCSFLE &&
+		!ValidateBsonValueBinary(value, node))
 	{
 		return false;
 	}
@@ -455,6 +464,39 @@ ValidateBsonValueArray(const bson_value_t *value, const SchemaNode *node)
 					}
 				} while (bson_iter_next(&arrayIter));
 			}
+		}
+	}
+
+	return true;
+}
+
+
+/*
+ * Validate given bson value against given Json Schema tree / sub-tree for
+ * Binary validations set:
+ * encrypt
+ * it's for CSFLE only, the field must be encrypted and subtype must be BSON_SUBTYPE_ENCRYPTED
+ */
+static bool
+ValidateBsonValueBinary(const bson_value_t *value, const SchemaNode *node)
+{
+	if (!EnableSchemaEnforcementForCSFLE)
+	{
+		return true;
+	}
+
+	if (value->value_type != BSON_TYPE_BINARY)
+	{
+		return false;
+	}
+
+	uint16_t flags = node->validationFlags.binary;
+	if (flags & BinaryValidationTypes_Encrypt)
+	{
+		/* encrypt - need to check if the value is encrypted bson */
+		if (value->value.v_binary.subtype != BSON_SUBTYPE_ENCRYPTED)
+		{
+			return false;
 		}
 	}
 

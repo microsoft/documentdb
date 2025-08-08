@@ -1318,6 +1318,84 @@ SELECT bson_dollar_json_schema('{"data" : 1 }','{ "$jsonSchema": { "properties":
  t
 (1 row)
 
+---------------------------------------------------------------------
+--                         Binary Validations                                --
+---------------------------------------------------------------------
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : 1}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ f
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ f
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"keyId": ["9e4cfa3e-2b56-4e20-9fd3-3c3708056a18"], "algorithm":"AEAD_AES_256_CBC_HMAC_SHA_512-Random", "bsonType":"string"} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId": ["9e4cfa3e-2b56-4e20-9fd3-3c3708056a18"], "algorithm":"AEAD_AES_256_CBC_HMAC_SHA_512-Random"} } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+-- negative test cases
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": "test"} }');
+ERROR:  $jsonSchema keyword 'encryptMetadata' must be a document
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {}} }');
+ERROR:  $jsonSchema keyword 'encryptMetadata' cannot be an empty object
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"unknown":"hello"}} }');
+ERROR:  BSON field 'encryptMetadata.unknown' is an unknown field
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId":1}} }');
+ERROR:  BSON field 'encryptMetadata.keyId' is the wrong type 'int', expected type 'array'
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"algorithm":[]}} }');
+ERROR:  BSON field 'encryptMetadata.algorithm' is the wrong type 'array', expected type 'string'
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"a":1} } } } }');
+ERROR:  BSON field 'encrypt.a' is an unknown field
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"keyId":1} } } } }');
+ERROR:  BSON field 'encrypt.keyId' is the wrong type 'int', expected type 'array'
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"algorithm":[]} } } } }');
+ERROR:  BSON field 'encrypt.algorithm' is the wrong type 'array', expected type 'string'
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"bsonType": 123} } } } }');
+ERROR:  $jsonSchema keyword 'bsonType' must be either a string or an array of strings
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : "" } } } }'); 
+ERROR:  $jsonSchema keyword 'encrypt' must be a document
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {}, "type":"string" } } } }'); 
+ERROR:  'encrypt' implies 'bsonType: BinData' and cannot be combined with 'type' in $jsonSchema
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {}, "bsonType":"string" } } } }'); 
+ERROR:  'encrypt' implies 'bsonType: BinData' and cannot be combined with 'type' in $jsonSchema
+-- guc test cases
+set documentdb.enableSchemaEnforcementForCSFLE = false;
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : 1}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+ bson_dollar_json_schema 
+---------------------------------------------------------------------
+ t
+(1 row)
+
 -- $jsonSchema will be supported in query condition later
 ---------------------------------------------------------------------
 --                         $jsonSchema in query condition                    --
