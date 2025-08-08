@@ -2653,3 +2653,23 @@ SELECT document FROM documentdb_api.collection('db', 'coll_update');
 (3 rows)
 
 ROLLBACK;
+-- sharded collection shard on some other field and query on object_id
+SELECT 1 FROM documentdb_api.insert_one('db', 'upShardTest', '{"_id":1,"b":1}');
+NOTICE:  creating collection
+ ?column? 
+---------------------------------------------------------------------
+        1
+(1 row)
+
+SELECT documentdb_api.shard_collection('db', 'upShardTest', '{"b": "hashed"}', false);
+ shard_collection 
+---------------------------------------------------------------------
+ 
+(1 row)
+
+select documentdb_api.update('db', '{"update":"upShardTest", "updates":[{"q":{"_id":1},"u":{"b":1},"multi":false}]}');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
