@@ -13,6 +13,7 @@
 #include "types/decimal128.h"
 #include "jsonschema/bson_json_schema_tree.h"
 #include "utils/documentdb_errors.h"
+#include "commands/parse_error.h"
 
 /* --------------------------------------------------------- */
 /*              Forward Declerations                         */
@@ -31,6 +32,9 @@ static void ParseProperties(const bson_value_t *value, SchemaNode *node);
 
 static void ParseJsonType(const bson_value_t *value, SchemaNode *node);
 static void ParseBsonType(const bson_value_t *value, SchemaNode *node);
+
+static void ParseEncryptMetadata(const bson_value_t *value, SchemaNode *node);
+static void ParseEncrypt(const bson_value_t *value, SchemaNode *node);
 
 static void ParseItems(const bson_value_t *value, SchemaNode *node);
 static void ParseAdditionalItems(const bson_value_t *value, SchemaNode *node);
@@ -53,6 +57,7 @@ static SchemaNode * BuildSchemaTreeCore(bson_iter_t *schemaIter,
 										SchemaNodeType nodeType);
 static void BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node);
 
+extern bool EnableSchemaEnforcementForCSFLE;
 
 /* -------------------------------------------------------- */
 /*              Exported Functions                          */
@@ -143,25 +148,32 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 		/*              Object Validators                           */
 		/* -------------------------------------------------------- */
 
-		if (!strcmp(key, "properties"))
+		if (strcmp(key, "properties") == 0)
 		{
 			ParseProperties(value, node);
 		}
 
 		/* TODO: Add other Object Validators here */
 
-
 		/* -------------------------------------------------------- */
 		/*              Common Validators                           */
 		/* -------------------------------------------------------- */
 
-		else if (!strcmp(key, "type"))
+		else if (strcmp(key, "type") == 0)
 		{
 			ParseJsonType(value, node);
 		}
-		else if (!strcmp(key, "bsonType"))
+		else if (strcmp(key, "bsonType") == 0)
 		{
 			ParseBsonType(value, node);
+		}
+		else if (strcmp(key, "encrypt") == 0)
+		{
+			ParseEncrypt(value, node);
+		}
+		else if (strcmp(key, "encryptMetadata") == 0)
+		{
+			ParseEncryptMetadata(value, node);
 		}
 
 		/* TODO: Add other Common Validators here */
@@ -170,7 +182,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 		/*              Numeric Validators                          */
 		/* -------------------------------------------------------- */
 
-		else if (!strcmp(key, "multipleOf"))
+		else if (strcmp(key, "multipleOf") == 0)
 		{
 			if (!BsonTypeIsNumber(value->value_type))
 			{
@@ -200,7 +212,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			bson_value_copy(value, node->validations.numeric->multipleOf);
 			node->validationFlags.numeric |= NumericValidationTypes_MultipleOf;
 		}
-		else if (!strcmp(key, "maximum"))
+		else if (strcmp(key, "maximum") == 0)
 		{
 			if (!BsonTypeIsNumber(value->value_type))
 			{
@@ -213,7 +225,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			bson_value_copy(value, node->validations.numeric->maximum);
 			node->validationFlags.numeric |= NumericValidationTypes_Maximum;
 		}
-		else if (!strcmp(key, "exclusiveMaximum"))
+		else if (strcmp(key, "exclusiveMaximum") == 0)
 		{
 			if (!BSON_ITER_HOLDS_BOOL(schemaIter))
 			{
@@ -224,7 +236,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			node->validations.numeric->exclusiveMaximum = bson_iter_bool(schemaIter);
 			node->validationFlags.numeric |= NumericValidationTypes_ExclusiveMaximum;
 		}
-		else if (!strcmp(key, "minimum"))
+		else if (strcmp(key, "minimum") == 0)
 		{
 			if (!BsonTypeIsNumber(value->value_type))
 			{
@@ -237,7 +249,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			bson_value_copy(value, node->validations.numeric->minimum);
 			node->validationFlags.numeric |= NumericValidationTypes_Minimum;
 		}
-		else if (!strcmp(key, "exclusiveMinimum"))
+		else if (strcmp(key, "exclusiveMinimum") == 0)
 		{
 			if (!BSON_ITER_HOLDS_BOOL(schemaIter))
 			{
@@ -253,19 +265,19 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 		/*              String Validators                           */
 		/* -------------------------------------------------------- */
 
-		else if (!strcmp(key, "maxLength"))
+		else if (strcmp(key, "maxLength") == 0)
 		{
 			node->validations.string->maxLength = GetValidatedBsonIntValue(value,
 																		   "maxLength");
 			node->validationFlags.string |= StringValidationTypes_MaxLength;
 		}
-		else if (!strcmp(key, "minLength"))
+		else if (strcmp(key, "minLength") == 0)
 		{
 			node->validations.string->minLength = GetValidatedBsonIntValue(value,
 																		   "minLength");
 			node->validationFlags.string |= StringValidationTypes_MinLength;
 		}
-		else if (!strcmp(key, "pattern"))
+		else if (strcmp(key, "pattern") == 0)
 		{
 			if (!BSON_ITER_HOLDS_UTF8(schemaIter))
 			{
@@ -285,27 +297,27 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 		/*              Array Validators                            */
 		/* -------------------------------------------------------- */
 
-		else if (!strcmp(key, "items"))
+		else if (strcmp(key, "items") == 0)
 		{
 			ParseItems(value, node);
 		}
-		else if (!strcmp(key, "additionalItems"))
+		else if (strcmp(key, "additionalItems") == 0)
 		{
 			ParseAdditionalItems(value, node);
 		}
-		else if (!strcmp(key, "maxItems"))
+		else if (strcmp(key, "maxItems") == 0)
 		{
 			node->validations.array->maxItems = GetValidatedBsonIntValue(value,
 																		 "maxItems");
 			node->validationFlags.array |= ArrayValidationTypes_MaxItems;
 		}
-		else if (!strcmp(key, "minItems"))
+		else if (strcmp(key, "minItems") == 0)
 		{
 			node->validations.array->minItems = GetValidatedBsonIntValue(value,
 																		 "minItems");
 			node->validationFlags.array |= ArrayValidationTypes_MinItems;
 		}
-		else if (!strcmp(key, "uniqueItems"))
+		else if (strcmp(key, "uniqueItems") == 0)
 		{
 			if (!BSON_ITER_HOLDS_BOOL(schemaIter))
 			{
@@ -321,9 +333,9 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 		/*              Unsupported Keywords                        */
 		/* -------------------------------------------------------- */
 
-		else if (!strcmp(key, "$ref") || !strcmp(key, "$schema") ||
-				 !strcmp(key, "default") || !strcmp(key, "definitions") ||
-				 !strcmp(key, "format") || !strcmp(key, "id"))
+		else if (strcmp(key, "$ref") == 0 || strcmp(key, "$schema") == 0 ||
+				 strcmp(key, "default") == 0 || strcmp(key, "definitions") == 0 ||
+				 strcmp(key, "format") == 0 || strcmp(key, "id") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg("$jsonSchema keyword '%s' is not currently supported",
@@ -357,6 +369,15 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 							"$jsonSchema keyword 'minimum' must be a present if exclusiveMinimum is present")));
 	}
 
+	/*Encrypt alongside type/bsontype should fail to parse. */
+	if (node->validationFlags.binary & BinaryValidationTypes_Encrypt &&
+		(node->validationFlags.common & (CommonValidationTypes_JsonType |
+										 CommonValidationTypes_BsonType)))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
+						errmsg(
+							"'encrypt' implies 'bsonType: BinData' and cannot be combined with 'type' in $jsonSchema")));
+	}
 	FreeUnusedValidators(node);
 }
 
@@ -536,6 +557,108 @@ ParseBsonType(const bson_value_t *value, SchemaNode *node)
 
 
 /*
+ * ParseEncryptMetadata function reads the schema value for "encrypt" keyword.
+ * And stores it in the Node's common validations section.
+ */
+static void
+ParseEncrypt(const bson_value_t *value, SchemaNode *node)
+{
+	if (!EnableSchemaEnforcementForCSFLE)
+	{
+		return;
+	}
+
+	if (value->value_type != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
+						errmsg(
+							"$jsonSchema keyword 'encrypt' must be a document")));
+	}
+	bson_iter_t encryptIter;
+	BsonValueInitIterator(value, &encryptIter);
+	while (bson_iter_next(&encryptIter))
+	{
+		const char *key = bson_iter_key(&encryptIter);
+		if (strcmp(key, "keyId") == 0)
+		{
+			EnsureTopLevelFieldType("encrypt.keyId", &encryptIter,
+									BSON_TYPE_ARRAY);
+		}
+		else if (strcmp(key, "algorithm") == 0)
+		{
+			EnsureTopLevelFieldType("encrypt.algorithm", &encryptIter,
+									BSON_TYPE_UTF8);
+		}
+		else if (strcmp(key, "bsonType") == 0)
+		{
+			if (bson_iter_type(&encryptIter) != BSON_TYPE_ARRAY && bson_iter_type(
+					&encryptIter) != BSON_TYPE_UTF8)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
+								errmsg(
+									"$jsonSchema keyword 'bsonType' must be either a string or an array of strings")));
+			}
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
+							errmsg("BSON field 'encrypt.%s' is an unknown field", key)));
+		}
+	}
+	node->validationFlags.binary |= BinaryValidationTypes_Encrypt;
+}
+
+
+/*
+ * ParseEncryptMetadata function reads the schema value for "encryptMetadata" keyword.
+ * And stores it in the Node's common validations section.
+ */
+static void
+ParseEncryptMetadata(const bson_value_t *value, SchemaNode *node)
+{
+	if (!EnableSchemaEnforcementForCSFLE)
+	{
+		return;
+	}
+	if (value->value_type != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
+						errmsg(
+							"$jsonSchema keyword 'encryptMetadata' must be a document")));
+	}
+
+	if (IsBsonValueEmptyDocument(value))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
+						errmsg(
+							"$jsonSchema keyword 'encryptMetadata' cannot be an empty object")));
+	}
+	bson_iter_t encryptMetadataIter;
+	BsonValueInitIterator(value, &encryptMetadataIter);
+	while (bson_iter_next(&encryptMetadataIter))
+	{
+		const char *key = bson_iter_key(&encryptMetadataIter);
+		if (strcmp(key, "keyId") == 0)
+		{
+			EnsureTopLevelFieldType("encryptMetadata.keyId", &encryptMetadataIter,
+									BSON_TYPE_ARRAY);
+		}
+		else if (strcmp(key, "algorithm") == 0)
+		{
+			EnsureTopLevelFieldType("encryptMetadata.algorithm",
+									&encryptMetadataIter, BSON_TYPE_UTF8);
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
+							errmsg("BSON field 'encryptMetadata.%s' is an unknown field",
+								   key)));
+		}
+	}
+}
+
+
+/*
  * This function reads the schema value for "items" keyword.
  * And stores it in the Node's Array validations section.
  */
@@ -629,34 +752,34 @@ ParseAdditionalItems(const bson_value_t *value, SchemaNode *node)
 static BsonTypeFlags
 GetJsonTypeEnumFromJsonTypeString(const char *jsonTypeStr)
 {
-	if (!strcmp(jsonTypeStr, "array"))
+	if (strcmp(jsonTypeStr, "array") == 0)
 	{
 		return BsonTypeFlag_ARRAY;
 	}
-	else if (!strcmp(jsonTypeStr, "boolean"))
+	else if (strcmp(jsonTypeStr, "boolean") == 0)
 	{
 		return BsonTypeFlag_BOOL;
 	}
-	else if (!strcmp(jsonTypeStr, "integer"))
+	else if (strcmp(jsonTypeStr, "integer") == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
 							"$jsonSchema type 'integer' is not currently supported.")));
 	}
-	else if (!strcmp(jsonTypeStr, "number"))
+	else if (strcmp(jsonTypeStr, "number") == 0)
 	{
 		return BsonTypeFlag_INT32 | BsonTypeFlag_INT64 | BsonTypeFlag_DECIMAL128 |
 			   BsonTypeFlag_DOUBLE;
 	}
-	else if (!strcmp(jsonTypeStr, "null"))
+	else if (strcmp(jsonTypeStr, "null") == 0)
 	{
 		return BsonTypeFlag_NULL;
 	}
-	else if (!strcmp(jsonTypeStr, "object"))
+	else if (strcmp(jsonTypeStr, "object") == 0)
 	{
 		return BsonTypeFlag_DOCUMENT;
 	}
-	else if (!strcmp(jsonTypeStr, "string"))
+	else if (strcmp(jsonTypeStr, "string") == 0)
 	{
 		return BsonTypeFlag_UTF8;
 	}
@@ -672,97 +795,97 @@ GetJsonTypeEnumFromJsonTypeString(const char *jsonTypeStr)
 static BsonTypeFlags
 GetBsonTypeEnumFromBsonTypeString(const char *bsonTypeStr)
 {
-	if (!strcmp(bsonTypeStr, "double"))
+	if (strcmp(bsonTypeStr, "double") == 0)
 	{
 		return BsonTypeFlag_DOUBLE;
 	}
-	else if (!strcmp(bsonTypeStr, "string"))
+	else if (strcmp(bsonTypeStr, "string") == 0)
 	{
 		return BsonTypeFlag_UTF8;
 	}
-	else if (!strcmp(bsonTypeStr, "object"))
+	else if (strcmp(bsonTypeStr, "object") == 0)
 	{
 		return BsonTypeFlag_DOCUMENT;
 	}
-	else if (!strcmp(bsonTypeStr, "array"))
+	else if (strcmp(bsonTypeStr, "array") == 0)
 	{
 		return BsonTypeFlag_ARRAY;
 	}
-	else if (!strcmp(bsonTypeStr, "binData"))
+	else if (strcmp(bsonTypeStr, "binData") == 0)
 	{
 		return BsonTypeFlag_BINARY;
 	}
-	else if (!strcmp(bsonTypeStr, "undefined"))
+	else if (strcmp(bsonTypeStr, "undefined") == 0)
 	{
 		/* Deprecated */
 		return BsonTypeFlag_UNDEFINED;
 	}
-	else if (!strcmp(bsonTypeStr, "objectId"))
+	else if (strcmp(bsonTypeStr, "objectId") == 0)
 	{
 		return BsonTypeFlag_OID;
 	}
-	else if (!strcmp(bsonTypeStr, "bool"))
+	else if (strcmp(bsonTypeStr, "bool") == 0)
 	{
 		return BsonTypeFlag_BOOL;
 	}
-	else if (!strcmp(bsonTypeStr, "date"))
+	else if (strcmp(bsonTypeStr, "date") == 0)
 	{
 		return BsonTypeFlag_DATE_TIME;
 	}
-	else if (!strcmp(bsonTypeStr, "null"))
+	else if (strcmp(bsonTypeStr, "null") == 0)
 	{
 		return BsonTypeFlag_NULL;
 	}
-	else if (!strcmp(bsonTypeStr, "regex"))
+	else if (strcmp(bsonTypeStr, "regex") == 0)
 	{
 		return BsonTypeFlag_REGEX;
 	}
-	else if (!strcmp(bsonTypeStr, "dbPointer"))
+	else if (strcmp(bsonTypeStr, "dbPointer") == 0)
 	{
 		/* Deprecated */
 		return BsonTypeFlag_DBPOINTER;
 	}
-	else if (!strcmp(bsonTypeStr, "javascript"))
+	else if (strcmp(bsonTypeStr, "javascript") == 0)
 	{
 		return BsonTypeFlag_CODE;
 	}
-	else if (!strcmp(bsonTypeStr, "symbol"))
+	else if (strcmp(bsonTypeStr, "symbol") == 0)
 	{
 		/* Deprecated */
 		return BsonTypeFlag_SYMBOL;
 	}
-	else if (!strcmp(bsonTypeStr, "javascriptWithScope"))
+	else if (strcmp(bsonTypeStr, "javascriptWithScope") == 0)
 	{
 		/* Deprecated */
 		return BsonTypeFlag_CODEWSCOPE;
 	}
-	else if (!strcmp(bsonTypeStr, "int"))
+	else if (strcmp(bsonTypeStr, "int") == 0)
 	{
 		return BsonTypeFlag_INT32;
 	}
-	else if (!strcmp(bsonTypeStr, "integer"))
+	else if (strcmp(bsonTypeStr, "integer") == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
 							"$jsonSchema type 'integer' is not currently supported.")));
 	}
-	else if (!strcmp(bsonTypeStr, "timestamp"))
+	else if (strcmp(bsonTypeStr, "timestamp") == 0)
 	{
 		return BsonTypeFlag_TIMESTAMP;
 	}
-	else if (!strcmp(bsonTypeStr, "long"))
+	else if (strcmp(bsonTypeStr, "long") == 0)
 	{
 		return BsonTypeFlag_INT64;
 	}
-	else if (!strcmp(bsonTypeStr, "decimal"))
+	else if (strcmp(bsonTypeStr, "decimal") == 0)
 	{
 		return BsonTypeFlag_DECIMAL128;
 	}
-	else if (!strcmp(bsonTypeStr, "minKey"))
+	else if (strcmp(bsonTypeStr, "minKey") == 0)
 	{
 		return BsonTypeFlag_MAXKEY;
 	}
-	else if (!strcmp(bsonTypeStr, "maxKey"))
+	else if (strcmp(bsonTypeStr, "maxKey") == 0)
 	{
 		return BsonTypeFlag_MINKEY;
 	}
@@ -845,6 +968,7 @@ InitSchemaNode(SchemaNode *node, SchemaNodeType nodeType)
 	node->validationFlags.string = 0;
 	node->validationFlags.numeric = 0;
 	node->validationFlags.array = 0;
+	node->validationFlags.binary = 0;
 
 	node->next = NULL;
 }

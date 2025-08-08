@@ -411,6 +411,34 @@ SELECT bson_dollar_json_schema('{"data" : [ 1, {"a": {"x":5, "y": 6}, "b":2}, {"
 -- Doc is valid when "uniqueItems" is given for Non-Array fields
 SELECT bson_dollar_json_schema('{"data" : 1 }','{ "$jsonSchema": { "properties": { "data" : { "uniqueItems" : true } } } }');
 
+-------------------------------------------------------------------------------
+--                         Binary Validations                                --
+-------------------------------------------------------------------------------
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+SELECT bson_dollar_json_schema('{"data" : 1}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"keyId": ["9e4cfa3e-2b56-4e20-9fd3-3c3708056a18"], "algorithm":"AEAD_AES_256_CBC_HMAC_SHA_512-Random", "bsonType":"string"} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId": ["9e4cfa3e-2b56-4e20-9fd3-3c3708056a18"], "algorithm":"AEAD_AES_256_CBC_HMAC_SHA_512-Random"} } }');
+-- negative test cases
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": "test"} }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {}} }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"unknown":"hello"}} }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId":1}} }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"algorithm":[]}} }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"a":1} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"keyId":1} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"algorithm":[]} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"bsonType": 123} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : "" } } } }'); 
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {}, "type":"string" } } } }'); 
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {}, "bsonType":"string" } } } }'); 
+
+-- guc test cases
+set documentdb.enableSchemaEnforcementForCSFLE = false;
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+SELECT bson_dollar_json_schema('{"data" : 1}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {} } } } }');
+
 -- $jsonSchema will be supported in query condition later
 -------------------------------------------------------------------------------
 --                         $jsonSchema in query condition                    --

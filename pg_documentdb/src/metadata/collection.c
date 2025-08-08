@@ -40,6 +40,7 @@
 #include "api_hooks.h"
 #include "commands/parse_error.h"
 #include "utils/feature_counter.h"
+#include "jsonschema/bson_json_schema_tree.h"
 
 #define CREATE_COLLECTION_FUNC_NARGS 2
 
@@ -1752,6 +1753,68 @@ UpsertSchemaValidation(Datum databaseDatum,
 }
 
 
+static void
+CheckSyntaxForValidator(const bson_iter_t *validator)
+{
+	if (bson_iter_type(validator) != BSON_TYPE_DOCUMENT)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
+						errmsg("$jsonSchema must be an object")));
+	}
+
+	bson_iter_t schemaIter;
+	if (bson_iter_recurse(validator, &schemaIter))
+	{
+		SchemaTreeState localTreeState = { };
+		BuildSchemaTree(&localTreeState, &schemaIter);
+	}
+}
+
+
+/*
+ * This function processes the $jsonSchema in the bson iter.
+ * It checks if the $jsonSchema is present and calls CheckSyntaxForValidator
+ * to validate the syntax of the validator.
+ */
+static void
+ProcessJsonschemaInIter(bson_iter_t *iter)
+{
+	CHECK_FOR_INTERRUPTS();
+	check_stack_depth();
+
+	bson_iter_t childIter, arrayIter;
+
+	if (bson_iter_recurse(iter, &childIter))
+	{
+		while (bson_iter_next(&childIter))
+		{
+			if (strcmp(bson_iter_key(&childIter), "$jsonSchema") == 0)
+			{
+				CheckSyntaxForValidator(&childIter);
+				return;
+			}
+			else if (BSON_ITER_HOLDS_ARRAY(&childIter) && bson_iter_recurse(&childIter,
+																			&arrayIter))
+			{
+				while (bson_iter_next(&arrayIter))
+				{
+					if (BSON_ITER_HOLDS_DOCUMENT(&arrayIter))
+					{
+						bson_iter_t subIter;
+						if (bson_iter_recurse(&arrayIter, &subIter) &&
+							bson_iter_find(&subIter, "$jsonSchema"))
+						{
+							CheckSyntaxForValidator(&subIter);
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 /*
  * This function parses and checks the bson value for "validator" option
  * given in "create"/"collMod" command
@@ -1790,7 +1853,7 @@ ParseAndGetValidatorSpec(bson_iter_t *iter, const char *validatorName, bool *has
 							MaxSchemaValidatorSize / 1024)));
 	}
 
-	/* Todo - Add more validation checks(operator syntax) for the validator, work item 3466925*/
+	ProcessJsonschemaInIter(iter);
 
 	*hasValue = true;
 	return validator;
