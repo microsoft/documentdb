@@ -972,3 +972,7 @@ SELECT documentdb_api.update('db', '{ "update": "coll_update", "updates": [ { "q
 SELECT document FROM documentdb_api.collection('db', 'coll_update');
 ROLLBACK;
 
+-- sharded collection shard on some other field and query on object_id
+SELECT 1 FROM documentdb_api.insert_one('db', 'upShardTest', '{"_id":1,"b":1}');
+SELECT documentdb_api.shard_collection('db', 'upShardTest', '{"b": "hashed"}', false);
+select documentdb_api.update('db', '{"update":"upShardTest", "updates":[{"q":{"_id":1},"u":{"b":1},"multi":false}]}');
