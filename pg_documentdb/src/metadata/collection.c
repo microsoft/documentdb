@@ -102,6 +102,7 @@ static const uint32_t MaxDatabaseCollectionLength = 235;
 static const StringView SystemPrefix = { .length = 7, .string = "system." };
 
 extern bool UseLocalExecutionShardQueries;
+extern bool ForceLocalExecutionShardQueries;
 extern bool EnableSchemaValidation;
 extern int MaxSchemaValidatorSize;
 
@@ -554,7 +555,7 @@ TryGetCollectionShardTable(MongoCollection *collection, LOCKMODE lockMode)
 	 * This is because switching states between remote execution and local execution can produce
 	 * isolation issues. So only support this if we're a single command.
 	 */
-	if (IsTransactionBlock())
+	if (IsTransactionBlock() && !ForceLocalExecutionShardQueries)
 	{
 		return InvalidOid;
 	}

@@ -42,6 +42,9 @@ int DefaultUniqueIndexKeyhashOverride = DEFAULT_UNIQUE_INDEX_KEYHASH_OVERIDE;
 #define DEFAULT_USE_LOCAL_EXECUTION_SHARD_QUERIES true
 bool UseLocalExecutionShardQueries = DEFAULT_USE_LOCAL_EXECUTION_SHARD_QUERIES;
 
+#define DEFAULT_FORCE_LOCAL_EXECUTION_SHARD_QUERIES false
+bool ForceLocalExecutionShardQueries = DEFAULT_FORCE_LOCAL_EXECUTION_SHARD_QUERIES;
+
 #define DEFAULT_FORCE_INDEX_TERM_TRUNCATION false
 bool ForceIndexTermTruncation = DEFAULT_FORCE_INDEX_TERM_TRUNCATION;
 
@@ -177,6 +180,14 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		gettext_noop(
 			"Determines whether or not to push local shard queries to the shard directly."),
 		NULL, &UseLocalExecutionShardQueries, DEFAULT_USE_LOCAL_EXECUTION_SHARD_QUERIES,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.forceLocalExecutionShardQueries", newGucPrefix),
+		gettext_noop(
+			"Determines whether or not to force all shard queries to be executed locally on the shard."),
+		NULL, &ForceLocalExecutionShardQueries,
+		DEFAULT_FORCE_LOCAL_EXECUTION_SHARD_QUERIES,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomIntVariable(

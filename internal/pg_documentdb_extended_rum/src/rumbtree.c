@@ -242,11 +242,6 @@ rumStep(Buffer buffer, Relation index, int lockmode,
 		return InvalidBuffer;
 	}
 
-	/* TODO(ReverseWalk): This doesn't handle the case where the left buffer
-	 * has *just* split and we're doing a reverse walk. In that case, we still
-	 * need to assert that the right buffer is where we started off from and use
-	 * the starting buffer.
-	 */
 	nextbuffer = ReadBuffer(index, blkno);
 	UnlockReleaseBuffer(buffer);
 	LockBuffer(nextbuffer, lockmode);
