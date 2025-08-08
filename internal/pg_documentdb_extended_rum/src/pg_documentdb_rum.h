@@ -775,6 +775,14 @@ typedef enum
 	RumOrderedScan, /* documentdb: This is new */
 }   RumScanType;
 
+typedef struct RumOrderByScanData
+{
+	RumBtreeStack *orderStack;
+	Page orderByEntryPageCopy;
+	RumScanEntry orderByEntry;
+	IndexTuple boundEntryTuple;
+} RumOrderByScanData;
+
 typedef struct RumScanOpaqueData
 {
 	/* tempCtx is used to hold consistent and ordering functions data */
@@ -814,8 +822,8 @@ typedef struct RumScanOpaqueData
 	/* In an ordered scan, the key pointing to the order by key */
 	int32_t orderByKeyIndex;
 	bool orderByHasRecheck;
-	RumBtreeStack *orderStack;
-	RumScanEntry orderByEntry;
+
+	RumOrderByScanData *orderByScanData;
 	ScanDirection orderScanDirection;
 	bool recheckCurrentItem;
 	bool recheckCurrentItemOrderBy;

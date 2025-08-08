@@ -38,7 +38,7 @@ rumbeginscan(Relation rel, int nkeys, int norderbys)
 	so->firstCall = true;
 	so->totalentries = 0;
 	so->sortedEntries = NULL;
-	so->orderStack = NULL;
+	so->orderByScanData = NULL;
 	so->scanLoops = 0;
 	so->orderByKeyIndex = -1;
 	so->orderScanDirection = ForwardScanDirection;
@@ -427,9 +427,19 @@ freeScanKeys(RumScanOpaque so)
 {
 	freeScanEntries(so->entries, so->totalentries);
 
-	if (so->orderStack)
+	if (so->orderByScanData)
 	{
-		freeRumBtreeStack(so->orderStack);
+		if (so->orderByScanData->orderStack)
+		{
+			freeRumBtreeStack(so->orderByScanData->orderStack);
+		}
+
+		if (so->orderByScanData->orderByEntryPageCopy)
+		{
+			pfree(so->orderByScanData->orderByEntryPageCopy);
+		}
+
+		pfree(so->orderByScanData);
 	}
 
 	MemoryContextReset(so->keyCtx);
@@ -713,8 +723,7 @@ rumNewScanKey(IndexScanDesc scan)
 	so->entriesIncrIndex = -1;
 	so->norderbys = scan->numberOfOrderBys;
 	so->willSort = false;
-	so->orderStack = NULL;
-	so->orderByEntry = NULL;
+	so->orderByScanData = NULL;
 
 	/*
 	 * Allocate all the scan key information in the key context. (If
