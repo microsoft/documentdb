@@ -123,7 +123,7 @@ getRightMostTuple(Page page)
 }
 
 
-static bool
+bool
 entryIsMoveRight(RumBtree btree, Page page)
 {
 	IndexTuple itup;
@@ -255,9 +255,21 @@ entryLocateLeafEntry(RumBtree btree, RumBtreeStack *stack)
 	low = FirstOffsetNumber;
 	high = PageGetMaxOffsetNumber(page);
 
+	return entryLocateLeafEntryBounds(btree, page, low, high, &stack->off);
+}
+
+
+bool
+entryLocateLeafEntryBounds(RumBtree btree, Page page,
+						   OffsetNumber low, OffsetNumber high,
+						   OffsetNumber *targetOffset)
+{
+	Assert(RumPageIsLeaf(page));
+	Assert(!RumPageIsData(page));
+
 	if (high < low)
 	{
-		stack->off = FirstOffsetNumber;
+		*targetOffset = low;
 		return false;
 	}
 
@@ -282,7 +294,7 @@ entryLocateLeafEntry(RumBtree btree, RumBtreeStack *stack)
 									  attnum, key, category);
 		if (result == 0)
 		{
-			stack->off = mid;
+			*targetOffset = mid;
 			return true;
 		}
 		else if (result > 0)
@@ -295,7 +307,7 @@ entryLocateLeafEntry(RumBtree btree, RumBtreeStack *stack)
 		}
 	}
 
-	stack->off = high;
+	*targetOffset = high;
 	return false;
 }
 
