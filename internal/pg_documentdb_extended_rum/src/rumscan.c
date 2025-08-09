@@ -113,6 +113,7 @@ rumFillScanEntry(RumScanOpaque so, OffsetNumber attnum,
 
 	/* Nope, create a new entry */
 	scanEntry = (RumScanEntry) palloc(sizeof(RumScanEntryData));
+	scanEntry->queryKeyOverride = (Datum) 0;
 	scanEntry->queryKey = queryKey;
 	scanEntry->queryCategory = queryCategory;
 	scanEntry->isPartialMatch = isPartialMatch;

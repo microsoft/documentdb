@@ -103,3 +103,33 @@ VACUUM documentdb_data.documents_68502;
 set documentdb.forceDisableSeqScan to on;
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2', '{ "find": "ordered_delete", "filter": { "a": { "$lt": 4 } } }');
 
+
+-- test scan skipping behavior.
+reset documentdb.forceDisableSeqScan;
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'skip_entry_asc', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s }', ((i * 100) + (j * 10) + k), i, j, k)::bson)) FROM generate_series(1, 5) i, generate_series(1, 10) j, generate_series(1, 100) k;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "skip_entry_asc", "indexes": [ { "key": { "a": 1, "b": 1, "c": 1 }, "name": "a_1", "enableOrderedIndex": true } ] }', TRUE);
+
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'skip_entry_desc', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s }', ((i * 100) + (j * 10) + k), i, j, k)::bson)) FROM generate_series(1, 5) i, generate_series(1, 10) j, generate_series(1, 100) k;
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "skip_entry_desc", "indexes": [ { "key": { "a": -1, "b": -1, "c": -1 }, "name": "a_1", "enableOrderedIndex": true } ] }', TRUE);
+
+ANALYZE documentdb_data.documents_68503;
+
+-- now test the behavior of partial skipping
+set documentdb.forceDisableSeqScan to on;
+set documentdb.enableExtendedExplainPlans to on;
+set documentdb_rum.enableSkipIntermediateEntry to off;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_desc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$in": [ 2, 3 ] }, "c": { "$gte": 3, "$lte": 5 } } }');
+
+-- with skip entries on we skip relevant portions of the tree
+set documentdb_rum.enableSkipIntermediateEntry to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_desc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$in": [ 2, 3 ] }, "c": { "$gte": 3, "$lte": 5 } } }');

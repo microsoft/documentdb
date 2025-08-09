@@ -4,3 +4,5 @@
 
 #include "udfs/query/bson_orderby_reverse--0.107-0.sql"
 #include "operators/bson_dollar_operators--0.107-0.sql"
+
+#include "udfs/index_mgmt/bson_rum_index_transform_functions--0.107-0.sql"

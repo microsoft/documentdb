@@ -277,6 +277,14 @@ rumvalidate(Oid opclassoid)
 											3, 3,
 											opcintype_overload, opcintype_overload,
 											INT2OID);
+
+				if (!ok && RumAllowOrderByRawKeys)
+				{
+					ok = check_amproc_signature(procform->amproc, opckeytype, false,
+												4, 4,
+												opckeytype, opckeytype, INT2OID,
+												INTERNALOID);
+				}
 				break;
 			}
 

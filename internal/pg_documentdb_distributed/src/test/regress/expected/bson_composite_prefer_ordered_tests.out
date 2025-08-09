@@ -286,3 +286,140 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF
    Index Cond: (collection.document @< '{ "a" : { "$numberInt" : "4" } }'::bson)
 (3 rows)
 
+-- test scan skipping behavior.
+reset documentdb.forceDisableSeqScan;
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'skip_entry_asc', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s }', ((i * 100) + (j * 10) + k), i, j, k)::bson)) FROM generate_series(1, 5) i, generate_series(1, 10) j, generate_series(1, 100) k;
+NOTICE:  creating collection
+ count 
+---------------------------------------------------------------------
+  5000
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "skip_entry_asc", "indexes": [ { "key": { "a": 1, "b": 1, "c": 1 }, "name": "a_1", "enableOrderedIndex": true } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+SELECT COUNT(documentdb_api.insert_one('comp_db2', 'skip_entry_desc', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s }', ((i * 100) + (j * 10) + k), i, j, k)::bson)) FROM generate_series(1, 5) i, generate_series(1, 10) j, generate_series(1, 100) k;
+NOTICE:  creating collection
+ count 
+---------------------------------------------------------------------
+  5000
+(1 row)
+
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db2', '{ "createIndexes": "skip_entry_desc", "indexes": [ { "key": { "a": -1, "b": -1, "c": -1 }, "name": "a_1", "enableOrderedIndex": true } ] }', TRUE);
+                                                                                                   create_indexes_non_concurrently                                                                                                    
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+ANALYZE documentdb_data.documents_68503;
+-- now test the behavior of partial skipping
+set documentdb.forceDisableSeqScan to on;
+set documentdb.enableExtendedExplainPlans to on;
+set documentdb_rum.enableSkipIntermediateEntry to off;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=90 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [2, 4], "b": (MinKey, MaxKey), "c": [3, 5]]
+   innerScanLoops: 301 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 90)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68503_685006 collection (actual rows=90 loops=1)
+         Output: document
+         Index Cond: ((collection.document @>= '{ "a" : { "$numberInt" : "2" } }'::bson) AND (collection.document @<= '{ "a" : { "$numberInt" : "4" } }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_desc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=90 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": DESC[2, 4], "b": DESC(MinKey, MaxKey), "c": DESC[3, 5]]
+   innerScanLoops: 301 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 90)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68504_685008 collection (actual rows=90 loops=1)
+         Output: document
+         Index Cond: ((collection.document @>= '{ "a" : { "$numberInt" : "2" } }'::bson) AND (collection.document @<= '{ "a" : { "$numberInt" : "4" } }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$in": [ 2, 3 ] }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                             QUERY PLAN                                                                                                                             
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=60 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [2, 2], "b": (MinKey, MaxKey), "c": [3, 5]], ["a": [3, 3], "b": (MinKey, MaxKey), "c": [3, 5]]
+   innerScanLoops: 60 loops
+   scanType: regular
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 30), (isInequality: true, estimatedEntryCount: 30)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68503_685006 collection (actual rows=60 loops=1)
+         Output: document
+         Index Cond: ((collection.document @*= '{ "a" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
+-- with skip entries on we skip relevant portions of the tree
+set documentdb_rum.enableSkipIntermediateEntry to on;
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=90 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [2, 4], "b": (MinKey, MaxKey), "c": [3, 5]]
+   innerScanLoops: 151 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 21)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68503_685006 collection (actual rows=90 loops=1)
+         Output: document
+         Index Cond: ((collection.document @>= '{ "a" : { "$numberInt" : "2" } }'::bson) AND (collection.document @<= '{ "a" : { "$numberInt" : "4" } }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_desc", "filter": { "a": { "$gte": 2, "$lte": 4 }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                                                  QUERY PLAN                                                                                                                                                   
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=90 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": DESC[2, 4], "b": DESC(MinKey, MaxKey), "c": DESC[3, 5]]
+   innerScanLoops: 151 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 15)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68504_685008 collection (actual rows=90 loops=1)
+         Output: document
+         Index Cond: ((collection.document @>= '{ "a" : { "$numberInt" : "2" } }'::bson) AND (collection.document @<= '{ "a" : { "$numberInt" : "4" } }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
+EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_find('comp_db2',
+    '{ "find": "skip_entry_asc", "filter": { "a": { "$in": [ 2, 3 ] }, "c": { "$gte": 3, "$lte": 5 } } }');
+                                                                                                                             QUERY PLAN                                                                                                                             
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=60 loops=1)
+   Output: document
+   indexName: a_1
+   isMultiKey: false
+   indexBounds: ["a": [2, 2], "b": (MinKey, MaxKey), "c": [3, 5]], ["a": [3, 3], "b": (MinKey, MaxKey), "c": [3, 5]]
+   innerScanLoops: 60 loops
+   scanType: regular
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 30), (isInequality: true, estimatedEntryCount: 30)]
+   ->  Index Scan using a_1 on documentdb_data.documents_68503_685006 collection (actual rows=60 loops=1)
+         Output: document
+         Index Cond: ((collection.document @*= '{ "a" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }'::bson) AND (collection.document @>= '{ "c" : { "$numberInt" : "3" } }'::bson) AND (collection.document @<= '{ "c" : { "$numberInt" : "5" } }'::bson))
+(11 rows)
+
