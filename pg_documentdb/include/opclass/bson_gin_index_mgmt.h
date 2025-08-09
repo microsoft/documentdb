@@ -199,6 +199,7 @@ bool CompositeIndexSupportsOrderByPushdown(struct IndexPath *indexPath,
 										   int32_t *maxPathKeySupported,
 										   bool *isReverseOrder,
 										   bool isGroupBy);
+bool CompositeIndexSupportsIndexOnlyScan(const struct IndexPath *indexPath);
 
 int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 										int8_t *sortDirection);

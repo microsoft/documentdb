@@ -49,6 +49,7 @@ static BsonIndexAmEntry DocumentDBIndexAmEntry = {
 	.is_hashed_index_supported = false,
 	.is_order_by_supported = true,
 	.is_backwards_scan_supported = true,
+	.is_index_only_scan_supported = true,
 	.get_am_oid = DocumentDBExtendedRumIndexAmId,
 	.get_single_path_op_family_oid = DocumentDBExtendedRumSinglePathOpFamilyOid,
 	.get_composite_path_op_family_oid = DocumentDBExtendedRumCompositePathOpFamilyOid,
@@ -60,6 +61,7 @@ static BsonIndexAmEntry DocumentDBIndexAmEntry = {
 	.get_opclass_catalog_schema = GetDocumentDBCatalogSchema,
 	.get_opclass_internal_catalog_schema = GetDocumentDBCatalogSchema,
 	.get_multikey_status = RumGetMultikeyStatus,
+	.get_truncation_status = RumGetTruncationStatus,
 };
 static DocumentDBRumOidCacheData Cache = { 0 };
 static bool has_custom_routine = false;

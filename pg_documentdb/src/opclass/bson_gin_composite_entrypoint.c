@@ -202,6 +202,15 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 		PG_RETURN_POINTER(result);
 	}
 
+	if (strategy == BSON_INDEX_STRATEGY_HAS_TRUNCATED_TERMS)
+	{
+		/* Consider only the root truncated term */
+		*nentries = 1;
+		Datum *result = palloc(sizeof(Datum));
+		result[0] = GenerateRootTruncatedTerm(&compositeMetadata);
+		PG_RETURN_POINTER(result);
+	}
+
 	VariableIndexBounds variableBounds = { 0 };
 
 	CompositeQueryMetaInfo *metaInfo =
@@ -413,6 +422,21 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 		return -1;
 	}
 
+	if (strategy == BSON_INDEX_STRATEGY_HAS_TRUNCATED_TERMS)
+	{
+		if (compareTerm[0].element.pathLength != 0)
+		{
+			return 1;
+		}
+
+		if (IsRootTruncationTerm(&compareTerm[0]))
+		{
+			return 0;
+		}
+
+		return -1;
+	}
+
 	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY ||
 		strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY_REVERSE ||
 		strategy == BSON_INDEX_STRATEGY_INVALID)
@@ -616,7 +640,8 @@ gin_bson_composite_path_consistent(PG_FUNCTION_ARGS)
 	bool *recheck = (bool *) PG_GETARG_POINTER(5);       /* out param. */
 	/* Datum *queryKeys = (Datum *) PG_GETARG_POINTER(6); */
 
-	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
+	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY ||
+		strategy == BSON_INDEX_STRATEGY_HAS_TRUNCATED_TERMS)
 	{
 		*recheck = false;
 		PG_RETURN_BOOL(check[0]);
@@ -821,7 +846,6 @@ Datum
 gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
 {
 	bytea *compareValue = PG_GETARG_BYTEA_PP(0);
-	pgbson *queryValue = PG_GETARG_PGBSON_PACKED(1);
 
 	StrategyNumber strategy = PG_GETARG_UINT16(2);
 	Datum currentKey = PG_GETARG_DATUM(3);
@@ -830,14 +854,6 @@ gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
 	{
 		pgbson *currentOrdering = DatumGetPgBsonPacked(currentKey);
 		pfree(currentOrdering);
-	}
-
-	pgbsonelement sortElement;
-	if (!TryGetSinglePgbsonElementFromPgbson(queryValue, &sortElement))
-	{
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg(
-							"Invalid query value for ordering transform - only 1 path is supported")));
 	}
 
 	BsonGinCompositePathOptions *options =
@@ -853,27 +869,6 @@ gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
 		indexPaths,
 		sortOrders);
 
-	/* Match the order by column to the index path */
-	int orderbyIndexPath = -1;
-	for (int i = 0; i < numPaths; i++)
-	{
-		if (strcmp(sortElement.path, indexPaths[i]) == 0)
-		{
-			orderbyIndexPath = i;
-			break;
-		}
-	}
-
-	if (orderbyIndexPath < 0)
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Order by path '%s' does not match any index path",
-							   sortElement.path)));
-	}
-
-	/* For ordering we only support 1 column
-	 * TODO(Orderby) fix this.
-	 */
 	BsonIndexTerm compareTerm[INDEX_MAX_KEYS] = { 0 };
 	int32_t numPathsInIndex = InitializeCompositeIndexTerm(compareValue, compareTerm);
 	if (numPathsInIndex != numPaths)
@@ -884,27 +879,75 @@ gin_bson_composite_ordering_transform(PG_FUNCTION_ARGS)
 							   numPathsInIndex, numPaths)));
 	}
 
-	/* Match the runtime format of order by */
-	pgbson_writer writer;
-	PgbsonWriterInit(&writer);
-	PgbsonWriterAppendValue(&writer, sortElement.path, sortElement.pathLength,
-							&compareTerm[orderbyIndexPath].element.bsonValue);
+	pgbson *result = NULL;
 
-	/* Check if it's a reverse scan */
-	if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY_REVERSE)
+	/* Index only scan, we need to reconstruct and project the document back. */
+	if (strategy == UINT16_MAX)
 	{
-		/* Reverse sort add truncation status */
-		if (compareTerm[orderbyIndexPath].isIndexTermTruncated)
+		pgbson_writer writer;
+		PgbsonWriterInit(&writer);
+		for (int i = 0; i < numPaths; i++)
 		{
-			PgbsonWriterAppendBool(&writer, "t", 1,
-								   compareTerm[orderbyIndexPath].isIndexTermTruncated);
+			BsonIndexTerm *term = &compareTerm[i];
+			PgbsonWriterAppendValue(&writer, indexPaths[i], strlen(indexPaths[i]),
+									&term->element.bsonValue);
 		}
 
-		PgbsonWriterAppendBool(&writer, "r", 1, true);
+		result = PgbsonWriterGetPgbson(&writer);
+	}
+	else
+	{
+		pgbson *queryValue = PG_GETARG_PGBSON_PACKED(1);
+		pgbsonelement sortElement;
+		if (!TryGetSinglePgbsonElementFromPgbson(queryValue, &sortElement))
+		{
+			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+							errmsg(
+								"Invalid query value for ordering transform - only 1 path is supported")));
+		}
+
+		/* Match the order by column to the index path */
+		int orderbyIndexPath = -1;
+		for (int i = 0; i < numPaths; i++)
+		{
+			if (strcmp(sortElement.path, indexPaths[i]) == 0)
+			{
+				orderbyIndexPath = i;
+				break;
+			}
+		}
+
+		if (orderbyIndexPath < 0)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg("Order by path '%s' does not match any index path",
+								   sortElement.path)));
+		}
+
+		/* Match the runtime format of order by */
+		pgbson_writer writer;
+		PgbsonWriterInit(&writer);
+		PgbsonWriterAppendValue(&writer, sortElement.path, sortElement.pathLength,
+								&compareTerm[orderbyIndexPath].element.bsonValue);
+
+		/* Check if it's a reverse scan */
+		if (strategy == BSON_INDEX_STRATEGY_DOLLAR_ORDERBY_REVERSE)
+		{
+			/* Reverse sort add truncation status */
+			if (compareTerm[orderbyIndexPath].isIndexTermTruncated)
+			{
+				PgbsonWriterAppendBool(&writer, "t", 1,
+									   compareTerm[orderbyIndexPath].isIndexTermTruncated);
+			}
+
+			PgbsonWriterAppendBool(&writer, "r", 1, true);
+		}
+
+		result = PgbsonWriterGetPgbson(&writer);
 	}
 
 	PG_FREE_IF_COPY(compareValue, 0);
-	PG_RETURN_POINTER(PgbsonWriterGetPgbson(&writer));
+	PG_RETURN_POINTER(result);
 }
 
 

@@ -19,6 +19,7 @@
 #include <nodes/pathnodes.h>
 #include <nodes/supportnodes.h>
 #include <nodes/makefuncs.h>
+#include <nodes/nodeFuncs.h>
 #include <catalog/pg_am.h>
 #include <optimizer/paths.h>
 #include <optimizer/pathnode.h>
@@ -26,6 +27,7 @@
 #include <pg_config_manual.h>
 #include <utils/lsyscache.h>
 #include <optimizer/restrictinfo.h>
+#include <optimizer/cost.h>
 
 #include "metadata/index.h"
 #include "query/query_operator.h"
@@ -1248,6 +1250,286 @@ ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 }
 
 
+static bool
+ProjectionReferencesDocumentVar(Expr *node, void *state)
+{
+	CHECK_FOR_INTERRUPTS();
+
+	if (node == NULL)
+	{
+		return false;
+	}
+
+	if (IsA(node, Var))
+	{
+		/* If we have any vars, just return true */
+		bool *isFound = (bool *) state;
+		*isFound = true;
+		return false;
+	}
+	else if (IsA(node, Query))
+	{
+		/* A projection with a subquery - don't apply indexonlyscan optimization */
+		bool *isFound = (bool *) state;
+		*isFound = true;
+		return false;
+	}
+
+	return expression_tree_walker((Node *) node, ProjectionReferencesDocumentVar, state);
+}
+
+
+static inline bool
+IndexStrategySupportsIndexOnlyScan(BsonIndexStrategy indexStrategy)
+{
+	return !IsNegationStrategy(indexStrategy) &&
+		   indexStrategy != BSON_INDEX_STRATEGY_DOLLAR_ELEMMATCH &&
+		   indexStrategy != BSON_INDEX_STRATEGY_DOLLAR_TYPE &&
+		   indexStrategy != BSON_INDEX_STRATEGY_DOLLAR_SIZE &&
+		   indexStrategy != BSON_INDEX_STRATEGY_INVALID;
+}
+
+
+static inline bool
+IsShardKeyFilterBoolExpr(BoolExpr *boolExpr, RestrictInfo *shardKeyExpr)
+{
+	bool isShardKeyFilter = false;
+	ListCell *boolArgs;
+	foreach(boolArgs, boolExpr->args)
+	{
+		RestrictInfo *boolRinfo = lfirst_node(RestrictInfo, boolArgs);
+		if (boolRinfo == shardKeyExpr)
+		{
+			isShardKeyFilter = true;
+			break;
+		}
+	}
+
+	return isShardKeyFilter;
+}
+
+
+static bool
+IndexClausesValidForIndexOnlyScan(IndexPath *indexPath,
+								  RelOptInfo *rel,
+								  ReplaceExtensionFunctionContext *replaceContext)
+{
+	bytea *indexOptions = indexPath->indexinfo->opclassoptions != NULL ?
+						  indexPath->indexinfo->opclassoptions[0] : NULL;
+	if (indexOptions == NULL)
+	{
+		return false;
+	}
+
+	ListCell *clauseCell;
+	foreach(clauseCell, indexPath->indexclauses)
+	{
+		IndexClause *clause = (IndexClause *) lfirst(clauseCell);
+		if (clause->lossy)
+		{
+			return false;
+		}
+
+		if (clause->indexcol != 0 ||
+			list_length(clause->indexquals) != 1)
+		{
+			/* Only support indexonlyscan if the index clause is on the first column */
+			return false;
+		}
+
+		RestrictInfo *rinfo = clause->rinfo;
+		if (!IsA(rinfo->clause, OpExpr))
+		{
+			return false;
+		}
+
+		OpExpr *opExpr = (OpExpr *) rinfo->clause;
+		const MongoIndexOperatorInfo *indexOperator =
+			GetMongoIndexOperatorByPostgresOperatorId(opExpr->opno);
+
+		if (!IndexStrategySupportsIndexOnlyScan(indexOperator->indexStrategy))
+		{
+			return false;
+		}
+
+		/* TODO (IndexOnlyScan): can we support null equality? */
+		Expr *secondArg = lsecond(opExpr->args);
+		if (!IsA(secondArg, Const))
+		{
+			return false;
+		}
+	}
+
+	ListCell *rinfoCell;
+	foreach(rinfoCell, indexPath->indexinfo->indrestrictinfo)
+	{
+		RestrictInfo *baseRestrictInfo = (RestrictInfo *) lfirst(rinfoCell);
+		Expr *clause = baseRestrictInfo->clause;
+
+		if (!IsA(clause, OpExpr))
+		{
+			if (IsA(clause, BoolExpr) &&
+				IsShardKeyFilterBoolExpr((BoolExpr *) clause,
+										 replaceContext->plannerOrderByData.
+										 shardKeyEqualityExpr))
+			{
+				/* If it is a shard key filter, we can safely do an index only scan. */
+				continue;
+			}
+
+			return false;
+		}
+
+		OpExpr *opExpr = (OpExpr *) clause;
+
+		Expr *secondArg = lsecond(opExpr->args);
+		if (!IsA(secondArg, Const))
+		{
+			return false;
+		}
+
+		const MongoIndexOperatorInfo *indexOperator =
+			GetMongoIndexOperatorByPostgresOperatorId(opExpr->opno);
+		BsonIndexStrategy indexStrategy = indexOperator->indexStrategy;
+
+		if (indexStrategy == BSON_INDEX_STRATEGY_INVALID)
+		{
+			/* if it is a shard key filter, we can safely do an index only scan. */
+			if (baseRestrictInfo ==
+				replaceContext->plannerOrderByData.shardKeyEqualityExpr)
+			{
+				continue;
+			}
+
+			return false;
+		}
+
+		Datum queryValue = ((Const *) secondArg)->constvalue;
+		if (!ValidateIndexForQualifierValue(indexOptions, queryValue,
+											indexStrategy))
+		{
+			return false;
+		}
+	}
+
+	/* All indexclauses are covered by the index and are not lossy operators. */
+	return true;
+}
+
+
+/*
+ * Check whether we can handle index scans as index only scans.
+ * This is possible if:
+ * 1) The query is against a base table
+ * 2) There are no joins
+ * 3) Projection is covered (Today this requires projection to be a constant but
+ *    this can be extended in the future)
+ * 4) Filters are covered by the index.
+ * 5) The index filters are are not lossy operators.
+ * 6) The index is a composite index.
+ */
+void
+ConsiderIndexOnlyScan(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
+					  Index rti, ReplaceExtensionFunctionContext *context)
+{
+	if (list_length(root->agginfos) == 0 ||
+		rte->rtekind != RTE_RELATION ||
+		root->hasJoinRTEs)
+	{
+		/* Don't handle simple queries for now - only things with aggregates
+		 * Note: Things like GroupBy with no aggregates will not work here, but
+		 * that's okay. We also only consider base tables for index only scans.
+		 * TODO: This can also be extended to handle covered indexes later.
+		 */
+		return;
+	}
+
+	bool projectionHasVarOrQuery = false;
+	expression_tree_walker((Node *) root->parse->targetList,
+						   ProjectionReferencesDocumentVar,
+						   &projectionHasVarOrQuery);
+	if (projectionHasVarOrQuery)
+	{
+		/* If the projection has a Var or a Query, we can't do index only scan
+		 * because we can't cover the projection.
+		 */
+		return;
+	}
+
+	if (rel->pathlist == NIL)
+	{
+		/* No paths to consider */
+		return;
+	}
+
+	List *addedPaths = NIL;
+	ListCell *cell;
+	foreach(cell, rel->pathlist)
+	{
+		Path *path = (Path *) lfirst(cell);
+		if (IsA(path, BitmapHeapPath))
+		{
+			BitmapHeapPath *bitmapPath = (BitmapHeapPath *) path;
+
+			if (IsA(bitmapPath->bitmapqual, IndexPath))
+			{
+				path = (Path *) bitmapPath->bitmapqual;
+			}
+		}
+
+		if (!IsA(path, IndexPath))
+		{
+			continue;
+		}
+
+		/* TODO: support primary key index (btree). */
+		IndexPath *indexPath = (IndexPath *) path;
+		if (indexPath->indexinfo->nkeycolumns < 1 ||
+			!IsOrderBySupportedOnOpClass(indexPath->indexinfo->relam,
+										 indexPath->indexinfo->opfamily[0]))
+		{
+			continue;
+		}
+
+		if (!CompositeIndexSupportsIndexOnlyScan(indexPath))
+		{
+			continue;
+		}
+
+		if (!IndexClausesValidForIndexOnlyScan(indexPath, rel, context))
+		{
+			continue;
+		}
+
+		/* we need to copy the index path and set it as index only scan. Also we need to set canreturn to true so that postgres allows the index only scan path. */
+		IndexPath *indexPathCopy = makeNode(IndexPath);
+		memcpy(indexPathCopy, indexPath, sizeof(IndexPath));
+
+		indexPathCopy->indexinfo = palloc(sizeof(IndexOptInfo));
+		memcpy(indexPathCopy->indexinfo, indexPath->indexinfo,
+			   sizeof(IndexOptInfo));
+		indexPathCopy->path.pathtype = T_IndexOnlyScan;
+		indexPathCopy->indexinfo->canreturn = palloc0(sizeof(bool) *
+													  indexPathCopy->indexinfo->ncolumns);
+		indexPathCopy->indexinfo->canreturn[0] = true;
+
+		bool partialPath = false;
+		double loopCount = 1.0;
+		cost_index(indexPathCopy, root, loopCount, partialPath);
+
+		addedPaths = lappend(addedPaths, indexPathCopy);
+	}
+
+	ListCell *pathsToAddCell;
+	foreach(pathsToAddCell, addedPaths)
+	{
+		/* now add the new paths */
+		Path *newPath = lfirst(pathsToAddCell);
+		add_path(rel, newPath);
+	}
+}
+
+
 inline static IndexOptInfo *
 GetPrimaryKeyIndexOptInfo(RelOptInfo *rel)
 {
@@ -2053,7 +2335,8 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 					&childContext, trimClauses);
 			}
 
-			if (IsBsonRegularIndexAm(indexPath->indexinfo->relam))
+			if (BsonIndexAmRequiresRangeOptimization(indexPath->indexinfo->relam,
+													 indexPath->indexinfo->opfamily[0]))
 			{
 				indexPath->indexclauses = OptimizeIndexExpressionsForRange(
 					indexPath->indexclauses);

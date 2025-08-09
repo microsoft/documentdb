@@ -27,12 +27,13 @@ int SetDynamicIndexAmOidsAndGetCount(Datum *indexAmArray, int32_t indexAmArraySi
  */
 const BsonIndexAmEntry * GetBsonIndexAmByIndexAmName(const char *index_am_name);
 
-
 /*
  * Is the Index Acess Method used for indexing bson (as opposed to indexing TEXT, Vector, Points etc)
  * as indicated by enum MongoIndexKind_Regular.
  */
 bool IsBsonRegularIndexAm(Oid indexAm);
+
+bool BsonIndexAmRequiresRangeOptimization(Oid indexAm, Oid opFamilyOid);
 
 /*
  * Whether the index relation was created via a composite index opclass
@@ -59,6 +60,10 @@ bool IsOrderBySupportedOnOpClass(Oid indexAm, Oid IndexPathOpFamilyAm);
 
 GetMultikeyStatusFunc GetMultiKeyStatusByRelAm(Oid relam);
 bool GetIndexSupportsBackwardsScan(Oid relam);
+
+bool GetIndexAmSupportsIndexOnlyScan(Oid indexAm, Oid opFamilyOid,
+									 GetMultikeyStatusFunc *getMultiKeyStatus,
+									 GetTruncationStatusFunc *getTruncationStatus);
 
 void TryExplainByIndexAm(struct IndexScanDescData *scan, struct ExplainState *es);
 
