@@ -21,6 +21,7 @@ typedef void (*TryExplainIndexFunc)(struct IndexScanDescData *scan, struct
 									ExplainState *es);
 
 typedef bool (*GetMultikeyStatusFunc)(Relation indexRelation);
+typedef bool (*GetTruncationStatusFunc)(Relation indexRelation);
 
 /*
  * Data structure for an alternative index acess method for indexing bosn.
@@ -36,6 +37,7 @@ typedef struct
 	bool is_hashed_index_supported;
 	bool is_order_by_supported;
 	bool is_backwards_scan_supported;
+	bool is_index_only_scan_supported;
 	Oid (*get_am_oid)(void);
 	Oid (*get_single_path_op_family_oid)(void);
 	Oid (*get_composite_path_op_family_oid)(void);
@@ -57,6 +59,9 @@ typedef struct
 
 	/* Optional function that handles getting multi-key status for an index */
 	GetMultikeyStatusFunc get_multikey_status;
+
+	/* Optional function to that returns the truncation status of an index */
+	GetTruncationStatusFunc get_truncation_status;
 } BsonIndexAmEntry;
 
 /*

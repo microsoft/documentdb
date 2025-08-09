@@ -721,6 +721,7 @@ ParseOperatorStrategy(const char **indexPaths, int32_t numPaths,
 		case BSON_INDEX_STRATEGY_GEONEAR_RANGE:
 		case BSON_INDEX_STRATEGY_COMPOSITE_QUERY:
 		case BSON_INDEX_STRATEGY_UNIQUE_EQUAL:
+		case BSON_INDEX_STRATEGY_HAS_TRUNCATED_TERMS:
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(
@@ -882,6 +883,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_GEONEAR_RANGE:
 		case BSON_INDEX_STRATEGY_COMPOSITE_QUERY:
 		case BSON_INDEX_STRATEGY_UNIQUE_EQUAL:
+		case BSON_INDEX_STRATEGY_HAS_TRUNCATED_TERMS:
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR), errmsg(

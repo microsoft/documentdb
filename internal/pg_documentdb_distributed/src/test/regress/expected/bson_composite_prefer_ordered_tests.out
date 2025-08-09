@@ -89,7 +89,7 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 849)]
          ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
                Output: document
-               Index Cond: (collection.document @<> '{ "a" : { "min" : { "$numberInt" : "50" }, "max" : { "$numberInt" : "900" }, "minInclusive" : false, "maxInclusive" : false } }'::bson)
+               Index Cond: ((collection.document @> '{ "a" : { "$numberInt" : "50" } }'::bson) AND (collection.document @< '{ "a" : { "$numberInt" : "900" } }'::bson))
 (13 rows)
 
 set documentdb_rum.preferOrderedIndexScan to on;
@@ -128,7 +128,7 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, BUFFERS OFF, TIMING OFF, SUMMARY OFF
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 5)]
          ->  Index Scan using a_1 on documentdb_data.documents_68501_685002 collection (actual rows=5 loops=1)
                Output: document
-               Index Cond: (collection.document @<> '{ "a" : { "min" : { "$numberInt" : "50" }, "max" : { "$numberInt" : "900" }, "minInclusive" : false, "maxInclusive" : false } }'::bson)
+               Index Cond: ((collection.document @> '{ "a" : { "$numberInt" : "50" } }'::bson) AND (collection.document @< '{ "a" : { "$numberInt" : "900" } }'::bson))
 (13 rows)
 
 -- test ordered scan in the presence of deletes

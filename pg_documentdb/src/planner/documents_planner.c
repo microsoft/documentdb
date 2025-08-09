@@ -138,6 +138,7 @@ extern bool UseLegacyForcePushdownBehavior;
 extern bool EnableIndexPriorityOrdering;
 extern bool EnableLogRelationIndexesOrder;
 extern bool ForceBitmapScanForLookup;
+extern bool EnableIndexOnlyScan;
 
 planner_hook_type ExtensionPreviousPlannerHook = NULL;
 set_rel_pathlist_hook_type ExtensionPreviousSetRelPathlistHook = NULL;
@@ -915,6 +916,11 @@ ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	if (EnableIndexOrderbyPushdown)
 	{
 		ConsiderIndexOrderByPushdown(root, rel, rte, rti, &indexContext);
+	}
+
+	if (EnableIndexOnlyScan)
+	{
+		ConsiderIndexOnlyScan(root, rel, rte, rti, &indexContext);
 	}
 
 	/*

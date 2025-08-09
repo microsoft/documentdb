@@ -21,6 +21,7 @@ static BsonIndexAmEntry BsonAlternateAmRegistry[5] = { 0 };
 static int BsonNumAlternateAmEntries = 0;
 
 extern bool EnableNewCompositeIndexOpclass;
+extern bool EnableRangeOptimizationForComposite;
 
 static const char * GetRumCatalogSchema(void);
 static const char * GetRumInternalSchemaV2(void);
@@ -35,6 +36,7 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.is_hashed_index_supported = true,
 	.is_order_by_supported = false,
 	.is_backwards_scan_supported = false,
+	.is_index_only_scan_supported = false,
 	.get_am_oid = RumIndexAmId,
 	.get_single_path_op_family_oid = BsonRumSinglePathOperatorFamily,
 	.get_composite_path_op_family_oid = BsonRumCompositeIndexOperatorFamily,
@@ -46,6 +48,7 @@ BsonIndexAmEntry RumIndexAmEntry = {
 	.get_opclass_catalog_schema = GetRumCatalogSchema,
 	.get_opclass_internal_catalog_schema = GetRumInternalSchemaV2,
 	.get_multikey_status = RumGetMultikeyStatus,
+	.get_truncation_status = RumGetTruncationStatus,
 };
 
 /*
@@ -95,6 +98,32 @@ GetBsonIndexAmEntryByIndexOid(Oid indexAm)
 	}
 
 	return NULL;
+}
+
+
+bool
+GetIndexAmSupportsIndexOnlyScan(Oid indexAm, Oid opFamilyOid,
+								GetMultikeyStatusFunc *getMultiKeyStatus,
+								GetTruncationStatusFunc *getTruncationStatus)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(indexAm);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	if (getMultiKeyStatus != NULL)
+	{
+		*getMultiKeyStatus = amEntry->get_multikey_status;
+	}
+
+	if (getTruncationStatus != NULL)
+	{
+		*getTruncationStatus = amEntry->get_truncation_status;
+	}
+
+	return amEntry->is_index_only_scan_supported &&
+		   opFamilyOid == amEntry->get_composite_path_op_family_oid();
 }
 
 
@@ -155,6 +184,25 @@ IsBsonRegularIndexAm(Oid indexAm)
 {
 	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(indexAm);
 	return amEntry != NULL;
+}
+
+
+bool
+BsonIndexAmRequiresRangeOptimization(Oid indexAm, Oid opFamilyOid)
+{
+	const BsonIndexAmEntry *amEntry = GetBsonIndexAmEntryByIndexOid(indexAm);
+	if (amEntry == NULL)
+	{
+		return false;
+	}
+
+	/* If the opFamilyOid is the composite path op family, return whether the GUC wants it enabled or not. */
+	if (opFamilyOid == amEntry->get_composite_path_op_family_oid())
+	{
+		return EnableRangeOptimizationForComposite;
+	}
+
+	return true;
 }
 
 

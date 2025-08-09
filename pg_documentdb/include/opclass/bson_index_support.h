@@ -142,6 +142,8 @@ Path * ForceIndexForQueryOperators(PlannerInfo *root, RelOptInfo *rel,
 
 void ConsiderIndexOrderByPushdown(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
 								  Index rti, ReplaceExtensionFunctionContext *context);
+void ConsiderIndexOnlyScan(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte,
+						   Index rti, ReplaceExtensionFunctionContext *context);
 
 void WalkPathsForIndexOperations(List *pathsList,
 								 ReplaceExtensionFunctionContext *context);
