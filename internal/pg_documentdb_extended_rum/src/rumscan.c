@@ -473,7 +473,7 @@ initScanKey(RumScanOpaque so, ScanKey skey, bool *hasPartialMatch, bool hasOrder
 	int32 searchMode = GIN_SEARCH_MODE_DEFAULT;
 
 	/* Only apply the search mode when it's safe */
-	if ((hasOrdering || RumForceOrderedIndexScan) &&
+	if ((hasOrdering || RumForceOrderedIndexScan || so->projectIndexTupleData) &&
 		so->rumstate.canOrdering[skey->sk_attno - 1] &&
 		so->rumstate.orderingFn[skey->sk_attno - 1].fn_nargs == 4)
 	{
@@ -724,6 +724,7 @@ rumNewScanKey(IndexScanDesc scan)
 	so->norderbys = scan->numberOfOrderBys;
 	so->willSort = false;
 	so->orderByScanData = NULL;
+	so->projectIndexTupleData = NULL;
 
 	/*
 	 * Allocate all the scan key information in the key context. (If
@@ -895,6 +896,32 @@ rumNewScanKey(IndexScanDesc scan)
 		scan->xs_orderbynulls = palloc(sizeof(bool) * scan->numberOfOrderBys);
 		memset(scan->xs_orderbynulls, true, sizeof(bool) *
 			   scan->numberOfOrderBys);
+	}
+
+	if (scan->xs_want_itup)
+	{
+		so->projectIndexTupleData = palloc0(sizeof(RumProjectIndexTupleData));
+		so->projectIndexTupleData->iscan_tuple = NULL;
+		so->projectIndexTupleData->indexTupleDatum = (Datum) 0;
+
+		char *attributeName = NULL;
+		int attributeTypeModifier = -1;
+		int numDimensions = 0;
+
+
+		int natts = RelationGetNumberOfAttributes(scan->indexRelation);
+
+		so->projectIndexTupleData->indexTupleDesc = CreateTemplateTupleDesc(natts);
+		for (i = 0; i < natts; i++)
+		{
+			TupleDescInitEntry(so->projectIndexTupleData->indexTupleDesc, (AttrNumber) i +
+							   1, attributeName,
+							   scan->indexRelation->rd_opcintype[i],
+							   attributeTypeModifier,
+							   numDimensions);
+		}
+
+		scan->xs_itupdesc = so->projectIndexTupleData->indexTupleDesc;
 	}
 
 	MemoryContextSwitchTo(oldCtx);

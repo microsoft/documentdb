@@ -173,7 +173,8 @@ AddExplainCustomPathCore(List *pathList)
 		bool isValidPath = false;
 		Path *inputPath = lfirst(cell);
 
-		if (inputPath->pathtype == T_IndexScan)
+		if (inputPath->pathtype == T_IndexScan ||
+			inputPath->pathtype == T_IndexOnlyScan)
 		{
 			IndexPath *indexPath = (IndexPath *) inputPath;
 			isValidPath = IsBsonRegularIndexAm(indexPath->indexinfo->relam);
@@ -496,6 +497,11 @@ WalkAndExplainScanState(PlanState *scanState, ExplainState *es)
 	{
 		IndexScanState *indexScanState = (IndexScanState *) scanState;
 		ExplainIndexScanState(indexScanState->iss_ScanDesc, es);
+	}
+	else if (IsA(scanState, IndexOnlyScanState))
+	{
+		IndexOnlyScanState *indexOnlyScanState = (IndexOnlyScanState *) scanState;
+		ExplainIndexScanState(indexOnlyScanState->ioss_ScanDesc, es);
 	}
 	else if (IsA(scanState, BitmapIndexScanState))
 	{

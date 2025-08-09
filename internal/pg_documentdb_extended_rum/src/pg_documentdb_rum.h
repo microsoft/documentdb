@@ -775,6 +775,19 @@ typedef enum
 	RumOrderedScan, /* documentdb: This is new */
 }   RumScanType;
 
+/* Struct that holds information for projecting an index tuple. */
+typedef struct RumProjectIndexTupleData
+{
+	/* The tuple descriptor to form the index tuple. */
+	TupleDesc indexTupleDesc;
+
+	/* The datum returned by the extensibility point representing the index tuple to project */
+	Datum indexTupleDatum;
+
+	/* The final index tuple built from the descriptor and the datum. */
+	IndexTuple iscan_tuple;
+} RumProjectIndexTupleData;
+
 typedef struct RumOrderByScanData
 {
 	RumBtreeStack *orderStack;
@@ -833,6 +846,9 @@ typedef struct RumScanOpaqueData
 
 	/* stateContext to hold state from rumstate (documentdb: This is new ) */
 	MemoryContext rumStateCtx;
+
+	/* Index only scan metadata. */
+	RumProjectIndexTupleData *projectIndexTupleData;
 }   RumScanOpaqueData;
 
 typedef RumScanOpaqueData *RumScanOpaque;

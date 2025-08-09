@@ -105,13 +105,12 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     fi;
 
     # check if the base file is in the schedule
-    findResult=$(grep $fileNameBase basic_schedule_core || true)
-    fileNameMod=$(echo $fileNameBase | sed -E 's/_tests/!PG17_OR_HIGHER!_tests/g')
-
-    if [ "$findResult" == "" ]; then
-        # See if it exists with the !PG17_OR_HIGHER! macro
-        findResult=$(grep $fileNameMod basic_schedule_core || true)
-    fi
+    findResult=""
+    for macro in "" "!PG16_OR_HIGHER!" "!PG17_OR_HIGHER!"; do
+        fileNameMod=$(echo "$fileNameBase" | sed -E "s/_tests/${macro}_tests/g")
+        findResult=$(grep "$fileNameMod" basic_schedule_core || true)
+        [ -n "$findResult" ] && break
+    done
 
     if [ "$findResult" == "" ]; then
         if [[ "$fileNameBase" =~ "pg15" ]] || [[ "$fileNameBase" =~ "pg16" ]] || [[ "$fileNameBase" =~ "pg17" ]] || [[ "$fileNameBase" =~ "_explain" ]]; then

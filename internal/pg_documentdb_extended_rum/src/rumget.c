@@ -1099,6 +1099,38 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 		MemoryContextSwitchTo(oldContext);
 	}
 
+	if (so->projectIndexTupleData)
+	{
+		/* This is the case where we want to project a document that maches the index paths */
+		MemoryContext oldContext;
+		RumNullCategory icategory;
+		Datum values[INDEX_MAX_KEYS] = { 0 };
+		bool isnull[INDEX_MAX_KEYS] = { true };
+
+		Datum idatum = rumtuple_get_key(&so->rumstate, itup, &icategory);
+		oldContext = MemoryContextSwitchTo(so->keyCtx);
+
+		so->projectIndexTupleData->indexTupleDatum = FunctionCall4(
+			&so->rumstate.orderingFn[0],
+			idatum,
+			(Datum) 0,
+			UInt16GetDatum(UINT16_MAX),
+			so->projectIndexTupleData->indexTupleDatum);
+
+		/* Now form the index datum (freeing the prior one) */
+		if (so->projectIndexTupleData->iscan_tuple)
+		{
+			pfree(so->projectIndexTupleData->iscan_tuple);
+		}
+
+		values[0] = so->projectIndexTupleData->indexTupleDatum;
+		isnull[0] = false;
+
+		so->projectIndexTupleData->iscan_tuple = index_form_tuple(
+			so->projectIndexTupleData->indexTupleDesc, values, isnull);
+		MemoryContextSwitchTo(oldContext);
+	}
+
 	if (RumIsPostingTree(itup))
 	{
 		BlockNumber rootPostingTree = RumGetPostingTree(itup);
@@ -1431,6 +1463,18 @@ startScan(IndexScanDesc scan)
 	else if (RumAllowOrderByRawKeys && so->norderbys > 0 &&
 			 so->willSort && !rumstate->useAlternativeOrder)
 	{
+		scanType = RumOrderedScan;
+		startOrderedScanEntries(scan, rumstate, so);
+	}
+	else if (scan->xs_want_itup)
+	{
+		if (!isSupportedOrderedScan)
+		{
+			ereport(ERROR, (errmsg(
+								"Unexpected index only scan when ordered scan is not supported.")));
+		}
+
+		/* If we want to return index tuples, we can use ordered scan */
 		scanType = RumOrderedScan;
 		startOrderedScanEntries(scan, rumstate, so);
 	}
@@ -3703,6 +3747,11 @@ rumgettuple(IndexScanDesc scan, ScanDirection direction)
 			SET_SCAN_TID(scan, so->item.iptr);
 			scan->xs_recheck = recheck;
 			scan->xs_recheckorderby = recheckOrderby;
+
+			if (scan->xs_want_itup && so->projectIndexTupleData)
+			{
+				scan->xs_itup = so->projectIndexTupleData->iscan_tuple;
+			}
 
 			return true;
 		}
