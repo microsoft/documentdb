@@ -27,6 +27,13 @@
 #endif
 #include "pg_documentdb_rum.h"
 
+
+typedef enum RumIndexTransformOperation
+{
+	RumIndexTransform_IndexGenerateSkipBound = 1
+} RumIndexTransformOperation;
+
+
 /* GUC parameter */
 int RumFuzzySearchLimit = 0;
 bool RumAllowOrderByRawKeys = RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS;
@@ -36,6 +43,7 @@ bool RumDisableFastScan = RUM_DEFAULT_DISABLE_FAST_SCAN;
 bool RumEnableEntryFindItemOnScan = RUM_DEFAULT_ENABLE_ENTRY_FIND_ITEM_ON_SCAN;
 bool RumForceOrderedIndexScan = DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN;
 bool RumPreferOrderedIndexScan = RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN;
+bool RumEnableSkipIntermediateEntry = RUM_DEFAULT_ENABLE_SKIP_INTERMEDIATE_ENTRY;
 
 static bool scanPage(RumState *rumstate, RumScanEntry entry, RumItem *item,
 					 bool equalOk);
@@ -934,7 +942,7 @@ CompareRumKeyScanDirection(RumScanOpaque so, AttrNumber attnum,
 
 static bool
 ValidateIndexEntry(RumScanOpaque so, Datum idatum,
-				   bool *markedEntryFinished, bool *scanFinished)
+				   bool *markedEntryFinished, bool *scanFinished, bool *canSkipCheck)
 {
 	int idx, jdx;
 	int cmp;
@@ -1006,6 +1014,12 @@ ValidateIndexEntry(RumScanOpaque so, Datum idatum,
 				}
 				else if (cmp < 0)
 				{
+					if (cmp < -1 &&
+						curKey->scanEntry[jdx] == so->orderByScanData->orderByEntry)
+					{
+						*canSkipCheck = true;
+					}
+
 					allEntriesExhausted = false;
 					curKey->entryRes[jdx] = false;
 				}
@@ -1228,6 +1242,7 @@ startScanEntryOrderedCore(RumScanOpaque so, RumScanEntry minScanEntry, Snapshot 
 	ItemId itemid;
 	RumScanEntry entry = minScanEntry;
 	RumState *rumstate = &so->rumstate;
+	Datum entryToUse;
 
 	entry->buffer = InvalidBuffer;
 	RumItemSetMin(&entry->curItem);
@@ -1259,8 +1274,10 @@ startScanEntryOrderedCore(RumScanOpaque so, RumScanEntry minScanEntry, Snapshot 
 	 * we should find entry, and begin scan of posting tree or just store
 	 * posting list in memory
 	 */
+	entryToUse = entry->queryKeyOverride != (Datum) 0 ? entry->queryKeyOverride :
+				 entry->queryKey;
 	rumPrepareEntryScan(&btreeEntry, entry->attnum,
-						entry->queryKey, entry->queryCategory,
+						entryToUse, entry->queryCategory,
 						rumstate);
 	btreeEntry.searchMode = true;
 	stackEntry = rumFindLeafPage(&btreeEntry, NULL);
@@ -3216,7 +3233,7 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 	RumNullCategory icategory;
 	bool isIndexMatch;
 	bool markedEntryFinished = false;
-	bool scanFinished = false;
+	bool scanFinished = false, canSkipCheck = false;
 	RumScanEntry entry = so->orderByScanData->orderByEntry;
 
 	Assert(entry->isFinished);
@@ -3261,8 +3278,9 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 
 		markedEntryFinished = false;
 		scanFinished = false;
+		canSkipCheck = false;
 		isIndexMatch = ValidateIndexEntry(so, idatum, &markedEntryFinished,
-										  &scanFinished);
+										  &scanFinished, &canSkipCheck);
 
 		if (scanFinished)
 		{
@@ -3302,6 +3320,80 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 					}
 
 					/* fall through to increment below as current value is better than the minKey available */
+				}
+			}
+			else if (RumEnableSkipIntermediateEntry && canSkipCheck &&
+					 ScanDirectionIsForward(so->orderScanDirection) &&
+					 so->totalentries == 1 &&
+					 so->rumstate.canOuterOrdering[so->orderByScanData->orderByEntry->
+												   attnum - 1] &&
+					 so->rumstate.outerOrderingFn[so->orderByScanData->orderByEntry->
+												  attnum - 1].fn_nargs == 4)
+			{
+				/* In this path, the orderbyEntry marked itself to push the scan forward due to the tail entry being done
+				 * but the prefix of it being unbounded.
+				 * TODO: Lift the restriction for so->totalentries == 1 by tracking multiple orderby entries here.
+				 * That's because the new value for the sortEntry *could* skip over ranges that are valid for other entries.
+				 */
+				bool resetScan = false;
+				MemoryContext oldCtx = MemoryContextSwitchTo(so->tempCtx);
+				bool attbyval = so->rumstate.origTupdesc[entry->attnum -
+														 1].attrs->attbyval;
+				int attlen = so->rumstate.origTupdesc[entry->attnum - 1].attrs->attlen;
+				Datum entryToUse = entry->queryKeyOverride != (Datum) 0 ?
+								   entry->queryKeyOverride : entry->queryKey;
+				Datum recheckDatum = FunctionCall4Coll(
+					&so->rumstate.outerOrderingFn[so->orderByScanData->orderByEntry->
+												  attnum - 1],
+					so->rumstate.supportCollation[so->orderByScanData->orderByEntry->
+												  attnum - 1],
+					idatum,
+					entryToUse,
+					UInt16GetDatum(RumIndexTransform_IndexGenerateSkipBound),
+					PointerGetDatum(so->orderByScanData->orderByEntry->extra_data));
+				MemoryContextSwitchTo(oldCtx);
+
+				if (recheckDatum != (Datum) 0)
+				{
+					if (!attbyval && entry->queryKeyOverride != (Datum) 0)
+					{
+						pfree(DatumGetPointer(entry->queryKeyOverride));
+					}
+
+					entry->queryKeyOverride = datumTransfer(recheckDatum, attbyval,
+															attlen);
+					resetScan = true;
+				}
+
+				MemoryContextReset(so->tempCtx);
+
+				if (resetScan)
+				{
+					/* Check if it's worth moving to the next page */
+					btree.entryKey = entry->queryKeyOverride;
+					if (entryIsMoveRight(&btree, page))
+					{
+						startScanEntryOrderedCore(so, entry, snapshot);
+						entry->isFinished = false;
+						if (!so->orderByScanData->orderStack)
+						{
+							/* There is no entry left - close scan */
+							return false;
+						}
+						else
+						{
+							/* move right and continue */
+							continue;
+						}
+					}
+					else
+					{
+						entryLocateLeafEntryBounds(&btree, page,
+												   so->orderByScanData->orderStack->off,
+												   PageGetMaxOffsetNumber(page),
+												   &so->orderByScanData->orderStack->off);
+						continue;
+					}
 				}
 			}
 
@@ -3486,6 +3578,12 @@ keyGetOrdering(RumState *rumstate, MemoryContext tempCtx, RumScanKey key,
 		if (key->outerAddInfoIsNull)
 		{
 			return get_float8_infinity();
+		}
+
+		if (rumstate->outerOrderingFn[rumstate->attrnAttachColumn - 1].fn_nargs != 3)
+		{
+			ereport(ERROR, (errmsg(
+								"Cannot order by addToColumn and have order by raw keys")));
 		}
 
 		return DatumGetFloat8(FunctionCall3(

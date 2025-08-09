@@ -572,6 +572,10 @@ extern void rumReadTuplePointers(RumState *rumstate, OffsetNumber attnum,
 								 IndexTuple itup, ItemPointerData *ipd);
 extern void updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate);
 extern void checkLeafDataPage(RumState *rumstate, AttrNumber attrnum, Page page);
+bool entryIsMoveRight(RumBtree btree, Page page);
+bool entryLocateLeafEntryBounds(RumBtree btree, Page page,
+								OffsetNumber low, OffsetNumber high,
+								OffsetNumber *targetOffset);
 
 /* rumdatapage.c */
 extern int rumCompareItemPointers(const ItemPointerData *a, const ItemPointerData *b);
@@ -758,6 +762,9 @@ typedef struct RumScanEntryData
 
 	/* Compare partial addition new for documentdb */
 	bool isMatchMinimalTuple;
+
+	/* Optional used in skipscans */
+	Datum queryKeyOverride;
 }   RumScanEntryData;
 
 typedef struct
@@ -951,6 +958,7 @@ typedef enum SimilarityType
 #define RUM_DEFAULT_SKIP_RETRY_ON_DELETE_PAGE true
 #define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
 #define RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN true
+#define RUM_DEFAULT_ENABLE_SKIP_INTERMEDIATE_ENTRY true
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
@@ -966,6 +974,7 @@ extern int RumParallelIndexWorkersOverride;
 extern bool RumSkipRetryOnDeletePage;
 extern bool RumForceOrderedIndexScan;
 extern bool RumPreferOrderedIndexScan;
+extern bool RumEnableSkipIntermediateEntry;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in

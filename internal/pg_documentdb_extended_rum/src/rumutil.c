@@ -168,6 +168,15 @@ _PG_init(void)
 		PGC_USERSET, 0,
 		NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".enableSkipIntermediateEntry",
+		"Sets whether or not to skip intermediate entries during scan",
+		NULL,
+		&RumEnableSkipIntermediateEntry,
+		RUM_DEFAULT_ENABLE_SKIP_INTERMEDIATE_ENTRY,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
+
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
 
 	rum_relopt_kind = add_reloption_kind();

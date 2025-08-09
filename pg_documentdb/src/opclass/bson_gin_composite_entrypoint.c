@@ -43,6 +43,11 @@
  #include "opclass/bson_gin_composite_scan.h"
  #include "opclass/bson_gin_composite_private.h"
 
+typedef enum RumIndexTransformOperation
+{
+	RumIndexTransform_IndexGenerateSkipBound = 1
+} RumIndexTransformOperation;
+
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -54,10 +59,10 @@ PG_FUNCTION_INFO_V1(gin_bson_composite_path_consistent);
 PG_FUNCTION_INFO_V1(gin_bson_composite_path_options);
 PG_FUNCTION_INFO_V1(gin_bson_get_composite_path_generated_terms);
 PG_FUNCTION_INFO_V1(gin_bson_composite_ordering_transform);
+PG_FUNCTION_INFO_V1(gin_bson_composite_index_term_transform);
 
 extern bool EnableCollation;
 extern bool EnableNewCompositeIndexOpclass;
-
 extern bool RumHasMultiKeyPaths;
 
 static void ValidateCompositePathSpec(const char *prefix);
@@ -81,7 +86,7 @@ static void ParseCompositeQuerySpec(pgbson *querySpec, pgbsonelement *singleElem
 static int32_t RunCompareOnBounds(CompositeIndexBounds *bounds,
 								  const BsonIndexTerm *compareValue,
 								  bool hasEqualityPrefix, bool isBackwardScan,
-								  bool *priorMatchesEquality);
+								  bool *priorMatchesEquality, bool *hasUnspecifiedPrefix);
 static Datum * GenerateCompositeExtractQueryUniqueEqual(pgbson *bson,
 														BsonGinCompositePathOptions *
 														options,
@@ -191,7 +196,6 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 	IndexTermCreateMetadata singlePathMetadata = GetSinglePathTermCreateMetadata(options,
 																				 numPaths);
 	IndexTermCreateMetadata compositeMetadata = GetCompositeIndexTermMetadata(options);
-
 
 	if (strategy == BSON_INDEX_STRATEGY_IS_MULTIKEY)
 	{
@@ -479,6 +483,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 
 	bool priorMatchesEquality = true;
 	bool hasEqualityPrefix = true;
+	bool hasUnspecifiedPrefix = false;
 	for (int32_t compareIndex = 0; compareIndex < runData->metaInfo->numIndexPaths;
 		 compareIndex++)
 	{
@@ -488,7 +493,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 			&compareTerm[compareIndex],
 			hasEqualityPrefix,
 			runData->metaInfo->isBackwardScan,
-			&priorMatchesEquality);
+			&priorMatchesEquality, &hasUnspecifiedPrefix);
 		if (compareInBounds != 0)
 		{
 			PG_RETURN_INT32(compareInBounds);
@@ -514,6 +519,45 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 }
 
 
+inline static int
+SetBoundaryStoppingValueLessThan(bool hasEqualityPrefix, const BsonIndexTerm *compareTerm,
+								 bool isBackwardScan, bool hasUnspecifiedPrefix)
+{
+	int cmp;
+	if (!IsIndexTermValueDescending(compareTerm))
+	{
+		cmp = (hasUnspecifiedPrefix && !isBackwardScan) ? -3 : -1;
+	}
+	else
+	{
+		cmp = hasEqualityPrefix ? 1 : ((hasUnspecifiedPrefix && !isBackwardScan) ? -2 :
+									   -1);
+	}
+
+	return isBackwardScan ? -cmp : cmp;
+}
+
+
+inline static int
+SetBoundaryStoppingValueGreaterThan(bool hasEqualityPrefix, const
+									BsonIndexTerm *compareTerm, bool isBackwardScan, bool
+									hasUnspecifiedPrefix)
+{
+	int cmp;
+	if (IsIndexTermValueDescending(compareTerm))
+	{
+		cmp = (hasUnspecifiedPrefix && !isBackwardScan) ? -3 : -1;
+	}
+	else
+	{
+		cmp = hasEqualityPrefix ? 1 : ((hasUnspecifiedPrefix && !isBackwardScan) ? -2 :
+									   -1);
+	}
+
+	return isBackwardScan ? -cmp : cmp;
+}
+
+
 /*
  * When running compare_partial, we first check if the current term matches
  * based purely on the lower and upper bounds.
@@ -524,7 +568,7 @@ gin_bson_composite_path_compare_partial(PG_FUNCTION_ARGS)
 static int32_t
 RunCompareOnBounds(CompositeIndexBounds *bounds, const BsonIndexTerm *compareTerm,
 				   bool hasEqualityPrefix, bool isBackwardScan,
-				   bool *priorMatchesEquality)
+				   bool *priorMatchesEquality, bool *hasUnspecifiedPrefix)
 {
 	if (bounds->isEqualityBound)
 	{
@@ -540,16 +584,16 @@ RunCompareOnBounds(CompositeIndexBounds *bounds, const BsonIndexTerm *compareTer
 		 */
 		if (compareBounds < 0)
 		{
-			int cmp = (hasEqualityPrefix && IsIndexTermValueDescending(compareTerm)) ? 1 :
-					  -1;
-			return isBackwardScan ? -cmp : cmp;
+			return SetBoundaryStoppingValueLessThan(hasEqualityPrefix, compareTerm,
+													isBackwardScan,
+													*hasUnspecifiedPrefix);
 		}
 		else if (compareBounds > 0)
 		{
 			/* Stop the search if ascending */
-			int cmp = (hasEqualityPrefix && !IsIndexTermValueDescending(compareTerm)) ?
-					  1 : -1;
-			return isBackwardScan ? -cmp : cmp;
+			return SetBoundaryStoppingValueGreaterThan(hasEqualityPrefix, compareTerm,
+													   isBackwardScan,
+													   *hasUnspecifiedPrefix);
 		}
 
 		return 0;
@@ -581,9 +625,9 @@ RunCompareOnBounds(CompositeIndexBounds *bounds, const BsonIndexTerm *compareTer
 			/* compareValue < lowerBound, not a match: if descending
 			 * then less than minimum means we can stop.
 			 */
-			int cmp = (hasEqualityPrefix && IsIndexTermValueDescending(compareTerm))
-					  ? 1 : -1;
-			return isBackwardScan ? -cmp : cmp;
+			return SetBoundaryStoppingValueLessThan(hasEqualityPrefix, compareTerm,
+													isBackwardScan,
+													*hasUnspecifiedPrefix);
 		}
 	}
 
@@ -610,10 +654,16 @@ RunCompareOnBounds(CompositeIndexBounds *bounds, const BsonIndexTerm *compareTer
 		else if (compareBounds > 0)
 		{
 			/* Can stop searching for ascending search */
-			int cmp = (hasEqualityPrefix && !IsIndexTermValueDescending(compareTerm))
-					  ? 1 : -1;
-			return isBackwardScan ? -cmp : cmp;
+			return SetBoundaryStoppingValueGreaterThan(hasEqualityPrefix, compareTerm,
+													   isBackwardScan,
+													   *hasUnspecifiedPrefix);
 		}
+	}
+
+	if (bounds->lowerBound.bound.value_type == BSON_TYPE_EOD &&
+		bounds->upperBound.bound.value_type == BSON_TYPE_EOD)
+	{
+		*hasUnspecifiedPrefix = true;
 	}
 
 	return 0;
@@ -839,6 +889,121 @@ gin_bson_get_composite_path_generated_terms(PG_FUNCTION_ARGS)
 	}
 
 	SRF_RETURN_DONE(functionContext);
+}
+
+
+/*
+ * Applies transforms from the index term to generate a new index term.
+ * Currently, queries the compare values against the index, and if it has a
+ * path that is unspecified, then generates a new lower or upper bound to continue
+ * the search if applicable.
+ */
+Datum
+gin_bson_composite_index_term_transform(PG_FUNCTION_ARGS)
+{
+	bytea *compareKeyValue = PG_GETARG_BYTEA_PP(0);
+
+	/* bytea *queryKeyValue = PG_GETARG_BYTEA_PP(1); */
+
+	int32_t operationType = PG_GETARG_UINT16(2);
+	Pointer extraData = PG_GETARG_POINTER(3);
+
+	if (operationType != RumIndexTransform_IndexGenerateSkipBound)
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg(
+							"Composite index term transform only supports skip operation")));
+	}
+
+	CompositeQueryRunData *runData = (CompositeQueryRunData *) extraData;
+	BsonIndexTerm compareTerm[INDEX_MAX_KEYS] = { 0 };
+	int32_t numTerms = InitializeCompositeIndexTerm(compareKeyValue, compareTerm);
+
+	if (numTerms != runData->metaInfo->numIndexPaths)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+						errmsg("Number of terms in the index term (%d) does not match "
+							   "the number of index paths (%d)",
+							   numTerms, runData->metaInfo->numIndexPaths)));
+	}
+
+	bool priorMatchesEquality = true;
+	bool hasEqualityPrefix = true;
+	bool hasUnspecifiedPrefix = false;
+	bool foundSkipPath = false;
+	bool isMinBound = false;
+	int32_t compareIndex = 0;
+	for (; compareIndex < runData->metaInfo->numIndexPaths;
+		 compareIndex++)
+	{
+		hasEqualityPrefix = hasEqualityPrefix && priorMatchesEquality;
+		int32_t compareInBounds = RunCompareOnBounds(
+			&runData->indexBounds[compareIndex],
+			&compareTerm[compareIndex],
+			hasEqualityPrefix,
+			runData->metaInfo->isBackwardScan,
+			&priorMatchesEquality, &hasUnspecifiedPrefix);
+		if (compareInBounds < -1)
+		{
+			foundSkipPath = true;
+			isMinBound = compareInBounds < -2;
+			break;
+		}
+	}
+
+	if (!foundSkipPath)
+	{
+		/* Keep the current path */
+		PG_RETURN_DATUM(0);
+	}
+
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) PG_GET_OPCLASS_OPTIONS();
+	IndexTermCreateMetadata singlePathMetadata = GetSinglePathTermCreateMetadata(options,
+																				 runData->
+																				 metaInfo
+																				 ->
+																				 numIndexPaths);
+
+	/* Found a skip path, generate a new term
+	 * We know that the term at compareIndex - 1 is unspecified and
+	 * nothing more there needs to be scanned.
+	 */
+	bytea *indexTermDatums[INDEX_MAX_KEYS] = { 0 };
+	for (int i = 0; i < runData->metaInfo->numIndexPaths; i++)
+	{
+		singlePathMetadata.isDescending = IsIndexTermValueDescending(&compareTerm[i]);
+		bytea *serialized;
+		if (i == compareIndex)
+		{
+			if (isMinBound)
+			{
+				serialized = singlePathMetadata.isDescending ?
+							 runData->indexBounds[i].upperBound.serializedTerm :
+							 runData->indexBounds[i].lowerBound.serializedTerm;
+			}
+			else
+			{
+				/* Just skip all remaining values for this */
+				compareTerm[i].element.bsonValue.value_type =
+					singlePathMetadata.isDescending ? BSON_TYPE_MINKEY : BSON_TYPE_MAXKEY;
+				serialized = SerializeBsonIndexTerm(&compareTerm[i].element,
+													&singlePathMetadata).indexTermVal;
+			}
+		}
+		else
+		{
+			serialized = SerializeBsonIndexTerm(&compareTerm[i].element,
+												&singlePathMetadata).indexTermVal;
+		}
+
+		indexTermDatums[i] = serialized;
+	}
+
+	BsonIndexTermSerialized serialized = SerializeCompositeBsonIndexTerm(indexTermDatums,
+																		 runData->metaInfo
+																		 ->numIndexPaths);
+	PG_RETURN_POINTER(serialized.indexTermVal);
 }
 
 
