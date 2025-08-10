@@ -19,6 +19,8 @@
 #include "operators/bson_expression.h"
 #include "vector/vector_spec.h"
 
+#define MAX_INDEX_OPTIONS_LENGTH 1500
+
 /*
  * Used with the ERRCODE_DOCUMENTDB_INDEXBUILDABORTED error code.
  */
