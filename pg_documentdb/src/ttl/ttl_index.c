@@ -26,6 +26,7 @@
 #include "utils/guc_utils.h"
 #include "utils/error_utils.h"
 #include "utils/index_utils.h"
+#include "utils/version_utils.h"
 
 extern bool LogTTLProgressActivity;
 extern bool RepeatPurgeIndexesForTTLTask;
@@ -38,6 +39,7 @@ extern int TTLTaskMaxRunTimeInMS;
 extern bool EnableTtlJobsOnReadOnly;
 extern bool EnableNewCompositeIndexOpclass;
 extern bool ForceIndexScanForTTLTask;
+extern bool UseIndexHintsForTTLTask;
 
 bool UseV2TTLIndexPurger = true;
 
@@ -65,6 +67,15 @@ typedef struct TtlIndexEntry
 
 	/* The expiry time in seconds for the index key. */
 	int32 indexExpireAfterSeconds;
+
+	/* Is the index sparse */
+	bool isSparse;
+
+	/* Is Ordered Index Scan available */
+	bool indexIsOrdered;
+
+	/* Name of the index */
+	char *indexName;
 } TtlIndexEntry;
 
 /* --------------------------------------------------------- */
@@ -186,9 +197,14 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 	/* Get TTL indexes and their collections */
 	appendStringInfo(cmdGetIndexes,
 					 "SELECT index_id, collection_id, (index_spec).index_key, "
-					 "(index_spec).index_pfe, (index_spec).index_expire_after_seconds FROM %s.collection_indexes "
+					 "(index_spec).index_pfe, (index_spec).index_expire_after_seconds,"
+					 "(index_spec).index_is_sparse, "
+					 "COALESCE(%s.bson_get_value_text((index_spec).index_options::%s,'enableCompositeTerm'::text)::bool, %s.bson_get_value_text((index_spec).index_options::%s, 'enableOrderedIndex'::text)::bool, false) as index_is_ordered, "
+					 "(index_spec).index_name FROM %s.collection_indexes "
 					 "WHERE index_is_valid AND (index_spec).index_expire_after_seconds >= 0 "
 					 "ORDER BY collection_id, index_id",
+					 ApiCatalogToCoreSchemaName, FullBsonTypeName,
+					 ApiCatalogToCoreSchemaName, FullBsonTypeName,
 					 ApiCatalogSchemaName);
 
 	List *ttlIndexEntries = NIL;
@@ -295,6 +311,22 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 
 				ttlIndexEntry->indexExpireAfterSeconds = DatumGetInt32(resultDatum);
 
+				resultDatum = SPI_getbinval(SPI_tuptable->vals[tupleNumber],
+											SPI_tuptable->tupdesc, 6,
+											&isNull);
+				ttlIndexEntry->isSparse = DatumGetBool(resultDatum);
+
+				resultDatum = SPI_getbinval(SPI_tuptable->vals[tupleNumber],
+											SPI_tuptable->tupdesc, 7,
+											&isNull);
+				ttlIndexEntry->indexIsOrdered = DatumGetBool(resultDatum);
+
+				resultDatum = SPI_getbinval(SPI_tuptable->vals[tupleNumber],
+											SPI_tuptable->tupdesc, 8,
+											&isNull);
+
+				ttlIndexEntry->indexName = pstrdup(TextDatumGetCString(resultDatum));
+
 				oldContext = MemoryContextSwitchTo(priorMemoryContext);
 				ttlIndexEntries = lappend(ttlIndexEntries, ttlIndexEntry);
 				MemoryContextSwitchTo(oldContext);
@@ -331,7 +363,10 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 	while (!IsTaskTimeBudgetExceeded(startTime, NULL, TTLTaskMaxRunTimeInMS))
 	{
 		rowsDeletedInCurrentLoop = 0;
-		shuffle_list(ttlIndexEntries);
+		if (RepeatPurgeIndexesForTTLTask)
+		{
+			shuffle_list(ttlIndexEntries);
+		}
 		foreach(ttlEntryCell, ttlIndexEntries)
 		{
 			TtlIndexEntry *ttlIndexEntry = (TtlIndexEntry *) lfirst(ttlEntryCell);
@@ -615,10 +650,56 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 					 ApiDataSchemaName, tableName,
 					 ApiCatalogSchemaName, FullBsonTypeName);
 
+	int argCount = 1;
+
+	/*
+	 *  So far, we had force an IndexScan for queries that select and delete TTL-eligible documents by locally disabling
+	 *  sequential scans and bitmap index scans. The GUC documentdb_rum.preferOrderedIndexScan is set to true by default,
+	 *  which causes the IndexScan to be planned as an ordered index scan. Ordered index scans are significantly more
+	 *  efficient than bitmap index scans or sequential scans when there are many documents to delete. Moreover,
+	 *  repeated bitmap index scans—which may need to traverse all index pages to create a bitmap—can put pressure on disk I/O usage.
+	 *
+	 *  We are now transitioning away from the above method, as we currently support index hints. In the SQL query above, we provide the
+	 *  corresponding TTL index as a hint for the TTL task query. Even though it's called a hint, by design it forces the use
+	 *  of the specified index. We intend to roll back these GUC overrides after the 1.106 schema release, which is expected to
+	 *  include support for index hints.
+	 *
+	 *  TODO: Finally, when we have support for IndexOnly scan in RUM index, we would move from IndexScan to IndexOnlyScan, since,
+	 *  for TTL deletes, we just fetch the ctids of the eligible rows and delete them. We don't need to fetch the corresponding tuples
+	 *  from the Index pages.
+	 */
+
+	bool disableSeqAndBitmapScan = !IsClusterVersionAtleast(DocDB_V0, 106, 0) &&
+								   ForceIndexScanForTTLTask &&
+								   EnableNewCompositeIndexOpclass &&
+								   indexEntry->indexIsOrdered;
+
+	bool useIndexHintsForTTLQuery = IsClusterVersionAtleast(DocDB_V0, 106, 0) &&
+									UseIndexHintsForTTLTask &&
+									EnableNewCompositeIndexOpclass &&
+									indexEntry->indexIsOrdered;
+	if (useIndexHintsForTTLQuery)
+	{
+		appendStringInfo(cmdStrDeleteRows,
+						 " AND %s.bson_dollar_index_hint(document, $2::text, $3::%s, $4)",
+						 ApiInternalSchemaNameV2,
+						 FullBsonTypeName);
+		argCount += 3;
+	}
+
 	if (indexPfe != NULL)
 	{
-		appendStringInfo(cmdStrDeleteRows, "AND document OPERATOR(%s.@@) $2::%s",
-						 ApiCatalogSchemaName, FullBsonTypeName);
+		if (useIndexHintsForTTLQuery)
+		{
+			appendStringInfo(cmdStrDeleteRows, "AND document OPERATOR(%s.@@) $5::%s",
+							 ApiCatalogSchemaName, FullBsonTypeName);
+		}
+		else
+		{
+			appendStringInfo(cmdStrDeleteRows, "AND document OPERATOR(%s.@@) $2::%s",
+							 ApiCatalogSchemaName, FullBsonTypeName);
+		}
+		argCount++;
 	}
 
 	appendStringInfo(cmdStrDeleteRows, " LIMIT %d FOR UPDATE SKIP LOCKED) ",
@@ -626,9 +707,8 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 
 	bool readOnly = false;
 	char *argNulls = NULL;
-	int argCount = (indexPfe == NULL) ? 1 : 2;
-	Oid argTypes[2];
-	Datum argValues[2];
+	Oid argTypes[5];
+	Datum argValues[5];
 
 	pgbson_writer writer;
 	PgbsonWriterInit(&writer);
@@ -641,31 +721,35 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 	argTypes[0] = BYTEAOID;
 	argValues[0] = PointerGetDatum(CastPgbsonToBytea(value));
 
-	if (argCount == 2)
+	if (useIndexHintsForTTLQuery)
 	{
-		argTypes[1] = BYTEAOID;
-		argValues[1] = PointerGetDatum(CastPgbsonToBytea(indexPfe));
+		argTypes[1] = TEXTOID;
+		argValues[1] = CStringGetTextDatum(indexEntry->indexName);
+
+		argTypes[2] = BYTEAOID;
+		argValues[2] = PointerGetDatum(CastPgbsonToBytea(indexKeyDocument));
+
+		argTypes[3] = BOOLOID;
+		argValues[3] = BoolGetDatum(indexEntry->isSparse);
+	}
+
+	if (indexPfe != NULL)
+	{
+		if (useIndexHintsForTTLQuery)
+		{
+			argTypes[4] = BYTEAOID;
+			argValues[4] = PointerGetDatum(CastPgbsonToBytea(indexPfe));
+		}
+		else
+		{
+			argTypes[1] = BYTEAOID;
+			argValues[1] = PointerGetDatum(CastPgbsonToBytea(indexPfe));
+		}
 	}
 
 	SetGUCLocally(psprintf("%s.forceUseIndexIfAvailable", ApiGucPrefix), "true");
 
-	/*
-	 *  Currently, we force an IndexScan for queries that select and delete TTL-eligible documents by locally disabling
-	 *  sequential scans and bitmap index scans. The GUC documentdb_rum.preferOrderedIndexScan is set to true by default,
-	 *  which causes the IndexScan to be planned as an ordered index scan. Ordered index scans are significantly more
-	 *  efficient than bitmap index scans or sequential scans when there are many documents to delete. Moreover,
-	 *  repeated bitmap index scans—which may need to traverse all index pages to create a bitmap—can put pressure on disk I/O usage.
-	 *
-	 *  TODO: In the future, when we support index hints, we will no longer need this indirect method. Instead, we will provide the
-	 *  corresponding TTL index scan as a hint for the TTL task query. Even though it's called a hint, by design it forces the use
-	 *  of the specified index. We intend to roll back these GUC overrides after the 1.106 schema release, which is expected to
-	 *  include support for index hints.
-	 *
-	 *  TODO: Finally, when we have support for IndexOnly scan in RUM index, we would move from IndexScan to IndexOnlyScan, since,
-	 *  for TTL deletes, we just fetch the ctids of the eligible rows and delete them. We don't need to fetch the corresponding tuples
-	 *  from the Index pages.
-	 */
-	if (ForceIndexScanForTTLTask && EnableNewCompositeIndexOpclass)
+	if (disableSeqAndBitmapScan)
 	{
 		SetGUCLocally("enable_seqscan", "false");
 		SetGUCLocally("enable_bitmapscan", "false");
@@ -680,16 +764,18 @@ DeleteExpiredRowsForIndexCore(char *tableName, TtlIndexEntry *indexEntry, int64
 		SPI_OK_DELETE,
 		TTLPurgerStatementTimeout, TTLPurgerLockTimeout);
 
-	if (LogTTLProgressActivity)
+	if (true)
 	{
 		ereport(LOG,
 				errmsg(
-					"Number of rows deleted: %ld, table = %s, index_id=%lu, batch_size=%d, expiry_cutoff=%ld, has_pfe=%s, statement_timeout=%d, lock_timeout=%d",
+					"Number of rows deleted: %ld, table = %s, index_id=%lu, batch_size=%d, expiry_cutoff=%ld, has_pfe=%s, statement_timeout=%d, lock_timeout=%d used_hints=%d disabled_seq_scan=%d index_is_ordered=%d",
 					(int64) rowsCount, tableName, indexEntry->indexId,
 					ttlDeleteBatchSize,
 					currentTime - indexExpiryMilliseconds, (argCount == 2) ? "true" :
 					"false",
-					TTLPurgerStatementTimeout, TTLPurgerLockTimeout));
+					TTLPurgerStatementTimeout, TTLPurgerLockTimeout,
+					useIndexHintsForTTLQuery, disableSeqAndBitmapScan,
+					indexEntry->indexIsOrdered));
 	}
 
 	if (rowsCount > 0)

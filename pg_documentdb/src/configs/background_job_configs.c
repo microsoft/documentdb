@@ -68,6 +68,9 @@ bool LogTTLProgressActivity = DEFAULT_LOG_TTL_PROGRESS_ACTIVITY;
 #define DEFAULT_FORCE_INDEX_SCAN_TTL_TASK true
 bool ForceIndexScanForTTLTask = DEFAULT_FORCE_INDEX_SCAN_TTL_TASK;
 
+#define DEFAULT_USE_INDEX_HINTS_TTL_TASK true
+bool UseIndexHintsForTTLTask = DEFAULT_USE_INDEX_HINTS_TTL_TASK;
+
 void
 InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPrefix)
 {
@@ -96,6 +99,13 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 		NULL, &ForceIndexScanForTTLTask, DEFAULT_FORCE_INDEX_SCAN_TTL_TASK,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
+	DefineCustomBoolVariable(
+		psprintf("%s.useIndexHintsForTTLTask", prefix),
+		gettext_noop(
+			"Whether to force ordered Index Scan via Index Hints for TTL task"),
+		NULL, &UseIndexHintsForTTLTask, DEFAULT_USE_INDEX_HINTS_TTL_TASK,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
 	DefineCustomIntVariable(
 		psprintf("%s.TTLPurgerStatementTimeout", prefix),
 		gettext_noop(
@@ -122,7 +132,7 @@ InitializeBackgroundJobConfigurations(const char *prefix, const char *newGucPref
 	DefineCustomBoolVariable(
 		psprintf("%s.repeatPurgeIndexesForTTLTask", newGucPrefix),
 		gettext_noop(
-			"Wether to keep deleting documents in batches until `TTLTaskMaxRunTimeInMS` is reach per TTL task invocation."),
+			"Whether to keep deleting documents in batches until `TTLTaskMaxRunTimeInMS` is reach per TTL task invocation."),
 		NULL,
 		&RepeatPurgeIndexesForTTLTask,
 		DEFAULT_REPEAT_PURGE_INDEXES_FOR_TTL_TASK,
