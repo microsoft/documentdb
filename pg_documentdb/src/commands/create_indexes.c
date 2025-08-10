@@ -65,10 +65,6 @@
 #include "vector/vector_utilities.h"
 #include "index_am/index_am_utils.h"
 
-
-#define MAX_INDEX_OPTIONS_LENGTH 1500
-
-
 /* Return value of TryCreateCollectionIndexes */
 typedef struct
 {
