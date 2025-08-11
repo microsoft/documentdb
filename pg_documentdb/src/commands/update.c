@@ -3249,13 +3249,13 @@ SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 sha
 							   NIL;
 	int argCount = list_length(sortFieldDocuments);
 
-	pgbson *query = PgbsonInitFromDocumentBsonValue(updateOneParams->query);
+
 	bool queryHasNonIdFilters = false;
 	bool isIdFilterCollationAwareIgnore = false;
-	pgbson *objectIdFilter = GetObjectIdFilterFromQueryDocument(query,
-																&queryHasNonIdFilters,
-																&
-																isIdFilterCollationAwareIgnore);
+	pgbson *objectIdFilter =
+		GetObjectIdFilterFromQueryDocumentValue(updateOneParams->query,
+												&queryHasNonIdFilters,
+												&isIdFilterCollationAwareIgnore);
 	*hasOnlyObjectIdFilter = objectIdFilter != NULL && !queryHasNonIdFilters;
 
 	int nextSqlArgIndex = 1;
@@ -3348,6 +3348,7 @@ SelectUpdateCandidate(uint64 collectionId, const char *shardTableName, int64 sha
 	argNulls[0] = ' ';
 
 	Oid bsonTypeId = BsonTypeId();
+	pgbson *query = PgbsonInitFromDocumentBsonValue(updateOneParams->query);
 
 	/* set query value*/
 	argTypes[1] = bsonTypeId;
