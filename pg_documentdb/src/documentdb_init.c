@@ -29,6 +29,7 @@
 #include "index_am/documentdb_rum.h"
 #include "infrastructure/cursor_store.h"
 #include "background_worker/background_worker_job.h"
+#include "index_am/roaring_bitmap_adapter.h"
 
 /* --------------------------------------------------------- */
 /* Data Types & Enum values */

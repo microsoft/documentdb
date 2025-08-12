@@ -38,6 +38,7 @@ extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
 extern bool EnableDescendingCompositeIndex;
 extern bool EnableIndexOnlyScan;
+extern const RumIndexArrayStateFuncs RoaringStateFuncs;
 
 bool RumHasMultiKeyPaths = false;
 
@@ -49,7 +50,7 @@ extern BsonIndexAmEntry RumIndexAmEntry;
 static bool loaded_rum_routine = false;
 static IndexAmRoutine rum_index_routine = { 0 };
 
-const RumIndexArrayStateFuncs *IndexArrayStateFuncs = NULL;
+const RumIndexArrayStateFuncs *IndexArrayStateFuncs = &RoaringStateFuncs;
 
 typedef enum IndexMultiKeyStatus
 {
@@ -150,8 +151,9 @@ extensionrumhandler(PG_FUNCTION_ARGS)
 void
 RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs)
 {
-	if (IndexArrayStateFuncs != NULL)
+	if (IndexArrayStateFuncs != NULL && IndexArrayStateFuncs != &RoaringStateFuncs)
 	{
+		/* This should not happen, as we should only register once */
 		ereport(ERROR, (errmsg("Index array state functions already registered")));
 	}
 

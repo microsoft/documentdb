@@ -31,3 +31,7 @@ This product includes third-party components distributed under various licenses.
 - PostGIS (https://download.osgeo.org/postgis/source/postgis-3.1.9.tar.gz and 3.5.2.tar.gz)
   Licensed under the GNU General Public License, version 2 or later (GPL-2.0+)
   Copyright (c) Refractions Research, Paul Ramsey, and others
+
+- CRoaring (https://github.com/RoaringBitmap/CRoaring)
+  Licensed under the MIT license
+  Copyright 2016-2022 The CRoaring authors
