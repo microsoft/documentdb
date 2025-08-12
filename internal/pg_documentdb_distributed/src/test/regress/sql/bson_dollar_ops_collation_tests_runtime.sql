@@ -3,8 +3,6 @@ SET citus.next_shard_id TO 7990000;
 SET documentdb.next_collection_id TO 7990;
 SET documentdb.next_collection_index_id TO 7990;
 
-SET documentdb_core.enableCollation TO on;
-
 -- (1) insert some docs
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 1, "a": "Cat" }');
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 2, "a": "dog" }');
@@ -33,6 +31,13 @@ SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 24, "a": ["cAt"] }
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 25, "a": { "b" : "cAt"} }');
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 26, "a": [{ "b": "CAT"}] }');
 
+SET documentdb_core.enableCollation TO off;
+
+-- With collation off and colation string in find and aggregate commands should not throw an error
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "ci_search", "pipeline": [ { "$sort": { "_id": 1 } }, { "$match": { "a": { "$eq": "cat" } } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1}  }');
+SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "b": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+
+SET documentdb_core.enableCollation TO on;
 
 -- (2) Find query unsharded collection
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');

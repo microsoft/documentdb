@@ -2,7 +2,6 @@ SET search_path to documentdb_core,documentdb_api,documentdb_api_catalog,pg_cata
 SET citus.next_shard_id TO 7990000;
 SET documentdb.next_collection_id TO 7990;
 SET documentdb.next_collection_index_id TO 7990;
-SET documentdb_core.enableCollation TO on;
 -- (1) insert some docs
 SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 1, "a": "Cat" }');
 NOTICE:  creating collection
@@ -161,6 +160,24 @@ SELECT documentdb_api.insert_one('db', 'ci_search', '{ "_id": 26, "a": [{ "b": "
  { "n" : { "$numberInt" : "1" }, "ok" : { "$numberDouble" : "1.0" } }
 (1 row)
 
+SET documentdb_core.enableCollation TO off;
+-- With collation off and colation string in find and aggregate commands should not throw an error
+SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "ci_search", "pipeline": [ { "$sort": { "_id": 1 } }, { "$match": { "a": { "$eq": "cat" } } } ], "cursor": {}, "collation": { "locale": "en", "strength" : 1}  }');
+                               document                                
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "3" }, "a" : "cat" }
+ { "_id" : { "$numberInt" : "18" }, "a" : [ "dog", "cat", "CAT" ] }
+ { "_id" : { "$numberInt" : "19" }, "a" : [ "cat", "rabbit", "bAt" ] }
+ { "_id" : { "$numberInt" : "22" }, "a" : [ "cat" ] }
+(4 rows)
+
+SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "b": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
+                     document                     
+---------------------------------------------------------------------
+ { "_id" : { "$numberInt" : "11" }, "b" : "cat" }
+(1 row)
+
+SET documentdb_core.enableCollation TO on;
 -- (2) Find query unsharded collection
 SELECT document FROM bson_aggregation_find('db', '{ "find": "ci_search", "filter": { "a": { "$eq": "cat" } }, "sort": { "_id": 1 }, "skip": 0, "limit": 5, "collation": { "locale": "en", "strength" : 1} }');
                               document                              
@@ -2041,7 +2058,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 376_1
+   ->  Distributed Subplan 378_1
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document, remote_scan.lookup_filter
                Task Count: 8
@@ -2051,7 +2068,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
                      Node: host=localhost port=58070 dbname=regression
                      ->  Seq Scan on documentdb_data.documents_7997_7990200 collection
                            Output: document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(document, '{ "_id" : "_id", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
-   ->  Distributed Subplan 376_2
+   ->  Distributed Subplan 378_2
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 8
@@ -2065,18 +2082,18 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT intermediate_result.document, intermediate_result.lookup_filter FROM read_intermediate_result('376_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, lookup_filter documentdb_core.bson)) lookup_stage_1 JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('376_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, '_id'::text)) "lookupRight_stage_1" ON (true))
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT intermediate_result.document, intermediate_result.lookup_filter FROM read_intermediate_result('378_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, lookup_filter documentdb_core.bson)) lookup_stage_1 JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('378_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, '_id'::text)) "lookupRight_stage_1" ON (true))
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents(intermediate_result.document, (COALESCE(documentdb_api_catalog.bson_array_agg(intermediate_result_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)), true)
                ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                      Output: intermediate_result.document, intermediate_result.lookup_filter
-                     Function Call: read_intermediate_result('376_1'::text, 'binary'::citus_copy_format)
+                     Function Call: read_intermediate_result('378_1'::text, 'binary'::citus_copy_format)
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg(intermediate_result_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
                      ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result_1
                            Output: intermediate_result_1.document
-                           Function Call: read_intermediate_result('376_2'::text, 'binary'::citus_copy_format)
+                           Function Call: read_intermediate_result('378_2'::text, 'binary'::citus_copy_format)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(intermediate_result_1.document, intermediate_result.lookup_filter, '_id'::text)
 (39 rows)
 
@@ -2103,7 +2120,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Output: remote_scan.document
-   ->  Distributed Subplan 384_1
+   ->  Distributed Subplan 386_1
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document, remote_scan.lookup_filter
                Task Count: 8
@@ -2113,7 +2130,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
                      Node: host=localhost port=58070 dbname=regression
                      ->  Seq Scan on documentdb_data.documents_7997_7990200 collection
                            Output: document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(document, '{ "a.b" : "a.b", "collation" : "en-u-ks-level1" }'::documentdb_core.bson)
-   ->  Distributed Subplan 384_2
+   ->  Distributed Subplan 386_2
          ->  Custom Scan (Citus Adaptive)
                Output: remote_scan.document
                Task Count: 8
@@ -2127,18 +2144,18 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
    Task Count: 1
    Tasks Shown: All
    ->  Task
-         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT intermediate_result.document, intermediate_result.lookup_filter FROM read_intermediate_result('384_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, lookup_filter documentdb_core.bson)) lookup_stage_1 JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('384_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'a.b'::text)) "lookupRight_stage_1" ON (true))
+         Query: SELECT documentdb_api_internal.bson_dollar_merge_documents(lookup_stage_1.document, "lookupRight_stage_1".document, true) AS document FROM ((SELECT intermediate_result.document, intermediate_result.lookup_filter FROM read_intermediate_result('386_1'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson, lookup_filter documentdb_core.bson)) lookup_stage_1 JOIN LATERAL (SELECT COALESCE(documentdb_api_catalog.bson_array_agg(lookup_right_query_stage_0.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson) AS document FROM (SELECT intermediate_result.document FROM read_intermediate_result('386_2'::text, 'binary'::citus_copy_format) intermediate_result(document documentdb_core.bson)) lookup_right_query_stage_0 WHERE documentdb_api_internal.bson_dollar_lookup_join_filter(lookup_right_query_stage_0.document, lookup_stage_1.lookup_filter, 'a.b'::text)) "lookupRight_stage_1" ON (true))
          Node: host=localhost port=58070 dbname=regression
          ->  Nested Loop
                Output: documentdb_api_internal.bson_dollar_merge_documents(intermediate_result.document, (COALESCE(documentdb_api_catalog.bson_array_agg(intermediate_result_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)), true)
                ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result
                      Output: intermediate_result.document, intermediate_result.lookup_filter
-                     Function Call: read_intermediate_result('384_1'::text, 'binary'::citus_copy_format)
+                     Function Call: read_intermediate_result('386_1'::text, 'binary'::citus_copy_format)
                ->  Aggregate
                      Output: COALESCE(documentdb_api_catalog.bson_array_agg(intermediate_result_1.document, 'matched_docs'::text), '{ "matched_docs" : [  ] }'::documentdb_core.bson)
                      ->  Function Scan on pg_catalog.read_intermediate_result intermediate_result_1
                            Output: intermediate_result_1.document
-                           Function Call: read_intermediate_result('384_2'::text, 'binary'::citus_copy_format)
+                           Function Call: read_intermediate_result('386_2'::text, 'binary'::citus_copy_format)
                            Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(intermediate_result_1.document, intermediate_result.lookup_filter, 'a.b'::text)
 (39 rows)
 

@@ -1266,18 +1266,12 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 		else if (StringViewEqualsCString(&keyView, "collation"))
 		{
 			ReportFeatureUsage(FEATURE_COLLATION);
-
 			if (EnableCollation)
 			{
+				/* Ignore collation until enabled for aggregate */
 				EnsureTopLevelFieldType("collation", &aggregationIterator,
 										BSON_TYPE_DOCUMENT);
 				ParseAndGetCollationString(value, context.collationString);
-			}
-			else
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-								errmsg(
-									"aggregation with collation is not currently supported.")));
 			}
 		}
 		else if (setStatementTimeout &&
@@ -1539,20 +1533,13 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 				if (StringViewEqualsCString(&keyView, "collation"))
 				{
 					ReportFeatureUsage(FEATURE_COLLATION);
-
 					if (EnableCollation)
 					{
+						/* Ignore collation until enabled for find */
 						EnsureTopLevelFieldType("collation", &findIterator,
 												BSON_TYPE_DOCUMENT);
 						ParseAndGetCollationString(value, context.collationString);
 					}
-					else
-					{
-						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-										errmsg(
-											"Find with collation is not currently supported.")));
-					}
-
 					continue;
 				}
 
