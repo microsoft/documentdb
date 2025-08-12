@@ -697,7 +697,7 @@ DropPostgresIndexWithSuffix(uint64 collectionId, IndexDetails *index, bool concu
 	Assert(suffix != NULL);
 
 	StringInfo cmdStr = makeStringInfo();
-	bool isUnique = GetBoolFromBoolIndexOption(index->indexSpec.indexUnique);
+	bool isUnique = GetBoolFromBoolIndexOptionDefaultFalse(index->indexSpec.indexUnique);
 	if (isUnique || (strncmp(index->indexSpec.indexName,
 							 ID_INDEX_NAME, strlen(ID_INDEX_NAME)) == 0))
 	{

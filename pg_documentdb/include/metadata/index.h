@@ -240,6 +240,8 @@ List * CollectionIdGetIndexNames(uint64 collectionId, bool excludeIdIndex, bool
 								 inProgressOnly);
 int CollectionIdGetIndexCount(uint64 collectionId);
 int CollectionIdsGetIndexCount(ArrayType *collectionIdsArray);
+bool IndexSpecIsWildcardIndex(const IndexSpec *indexSpec);
+bool IndexSpecIsOrderedIndex(const IndexSpec *indexSpec);
 
 
 /* modify/write index metadata */
@@ -320,10 +322,17 @@ const char * GetIndexTypeFromKeyDocument(pgbson *keyDocument);
 /* Static utilities */
 
 static inline bool
-GetBoolFromBoolIndexOption(BoolIndexOption option)
+GetBoolFromBoolIndexOptionDefaultTrue(BoolIndexOption option)
 {
 	return option == BoolIndexOption_Undefined ||
 		   option == BoolIndexOption_False ? false : true;
+}
+
+
+static inline bool
+GetBoolFromBoolIndexOptionDefaultFalse(BoolIndexOption option)
+{
+	return option == BoolIndexOption_True;
 }
 
 

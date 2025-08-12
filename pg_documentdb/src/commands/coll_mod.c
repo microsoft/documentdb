@@ -574,9 +574,9 @@ ModifyIndexSpecsInCollection(const MongoCollection *collection,
 	if ((*specFlags & HAS_INDEX_OPTION_HIDDEN) == HAS_INDEX_OPTION_HIDDEN)
 	{
 		PgbsonWriterAppendBool(writer, "hidden_old",
-							   10, GetBoolFromBoolIndexOption(oldHidden));
+							   10, GetBoolFromBoolIndexOptionDefaultTrue(oldHidden));
 		PgbsonWriterAppendBool(writer, "hidden_new",
-							   10, GetBoolFromBoolIndexOption(newHidden));
+							   10, GetBoolFromBoolIndexOptionDefaultTrue(newHidden));
 	}
 
 	if ((*specFlags & HAS_INDEX_OPTION_EXPIRE_AFTER_SECONDS) ==

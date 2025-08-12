@@ -2107,6 +2107,65 @@ GetMongoIndexKind(char *indexKindName, bool *isSupported)
 }
 
 
+bool
+IndexSpecIsWildcardIndex(const IndexSpec *indexSpec)
+{
+	if (indexSpec->indexWPDocument != NULL)
+	{
+		return true;
+	}
+
+	if (indexSpec->indexKeyDocument == NULL)
+	{
+		return false;
+	}
+
+	bson_iter_t keyDocument;
+	PgbsonInitIterator(indexSpec->indexKeyDocument, &keyDocument);
+	while (bson_iter_next(&keyDocument))
+	{
+		const StringView keyView = bson_iter_key_string_view(&keyDocument);
+		if (StringViewEndsWithString(&keyView, "$**"))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+inline static bool
+IsOptionsKeyOrderedIndex(const char *key)
+{
+	return strcmp(key, "enableCompositeTerm") == 0 ||
+		   strcmp(key, "enableOrderedIndex") == 0;
+}
+
+
+bool
+IndexSpecIsOrderedIndex(const IndexSpec *indexSpec)
+{
+	if (indexSpec->indexOptions == NULL)
+	{
+		return false;
+	}
+
+	bson_iter_t iter;
+	PgbsonInitIterator(indexSpec->indexOptions, &iter);
+	while (bson_iter_next(&iter))
+	{
+		const char *key = bson_iter_key(&iter);
+		if (IsOptionsKeyOrderedIndex(key))
+		{
+			return BsonValueAsBool(bson_iter_value(&iter));
+		}
+	}
+
+	return false;
+}
+
+
 /*
  * Serializes the IndexKey to a GetIndexes friendly manner.
  * Returns any additional Text indexes that were captured from processing
@@ -2413,8 +2472,7 @@ static bool
 AreIndexOptionsStillEquivalent(const char *path, const bson_value_t *left,
 							   const bson_value_t *right)
 {
-	if (strcmp(path, "enableCompositeTerm") == 0 ||
-		strcmp(path, "enableOrderedIndex") == 0)
+	if (IsOptionsKeyOrderedIndex(path))
 	{
 		if (left == NULL && right == NULL)
 		{
