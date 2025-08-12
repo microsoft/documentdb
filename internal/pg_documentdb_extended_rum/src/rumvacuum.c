@@ -12,6 +12,7 @@
  */
 
 #include "postgres.h"
+#include "miscadmin.h"
 
 #include "commands/vacuum.h"
 #include "postmaster/autovacuum.h"

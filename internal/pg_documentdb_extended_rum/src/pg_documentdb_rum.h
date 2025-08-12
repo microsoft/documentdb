@@ -71,6 +71,7 @@ typedef RumPageOpaqueData *RumPageOpaque;
 #define RUM_META (1 << 3)
 #define RUM_LIST (1 << 4)
 #define RUM_LIST_FULLROW (1 << 5)       /* makes sense only on RUM_LIST page */
+#define RUM_HALF_DEAD (1 << 6)
 
 /* Page numbers of fixed-location pages */
 #define RUM_METAPAGE_BLKNO (0)
@@ -138,6 +139,10 @@ typedef struct RumMetaPageData
 #define RumPageSetDeleted(page) (RumPageGetOpaque(page)->flags |= RUM_DELETED)
 #define RumPageSetNonDeleted(page) (RumPageGetOpaque(page)->flags &= ~RUM_DELETED)
 #define RumPageForceSetDeleted(page) (RumPageGetOpaque(page)->flags = RUM_DELETED)
+
+#define RumPageIsHalfDead(page) ((RumPageGetOpaque(page)->flags & RUM_HALF_DEAD) != 0)
+#define RumPageSetHalfDead(page) (RumPageGetOpaque(page)->flags |= RUM_HALF_DEAD)
+#define RumPageSetNonHalfDead(page) (RumPageGetOpaque(page)->flags &= ~RUM_HALF_DEAD)
 
 #define RumPageRightMost(page) (RumPageGetOpaque(page)->rightlink == InvalidBlockNumber)
 #define RumPageLeftMost(page) (RumPageGetOpaque(page)->leftlink == InvalidBlockNumber)
@@ -570,14 +575,14 @@ extern void rumReadTuple(RumState *rumstate, OffsetNumber attnum,
 						 IndexTuple itup, RumItem *items, bool copyAddInfo);
 extern void rumReadTuplePointers(RumState *rumstate, OffsetNumber attnum,
 								 IndexTuple itup, ItemPointerData *ipd);
-extern void updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate);
-extern void checkLeafDataPage(RumState *rumstate, AttrNumber attrnum, Page page);
 bool entryIsMoveRight(RumBtree btree, Page page);
 bool entryLocateLeafEntryBounds(RumBtree btree, Page page,
 								OffsetNumber low, OffsetNumber high,
 								OffsetNumber *targetOffset);
+IndexTuple rumEntryGetRightMostTuple(Page page);
 
 /* rumdatapage.c */
+extern void updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate);
 extern int rumCompareItemPointers(const ItemPointerData *a, const ItemPointerData *b);
 extern int compareRumItem(RumState *state, const AttrNumber attno,
 						  const RumItem *a, const RumItem *b);

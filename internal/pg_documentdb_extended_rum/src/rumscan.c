@@ -901,16 +901,14 @@ rumNewScanKey(IndexScanDesc scan)
 
 	if (scan->xs_want_itup)
 	{
-		so->projectIndexTupleData = palloc0(sizeof(RumProjectIndexTupleData));
-		so->projectIndexTupleData->iscan_tuple = NULL;
-		so->projectIndexTupleData->indexTupleDatum = (Datum) 0;
-
 		char *attributeName = NULL;
 		int attributeTypeModifier = -1;
 		int numDimensions = 0;
-
-
 		int natts = RelationGetNumberOfAttributes(scan->indexRelation);
+
+		so->projectIndexTupleData = palloc0(sizeof(RumProjectIndexTupleData));
+		so->projectIndexTupleData->iscan_tuple = NULL;
+		so->projectIndexTupleData->indexTupleDatum = (Datum) 0;
 
 		so->projectIndexTupleData->indexTupleDesc = CreateTemplateTupleDesc(natts);
 		for (i = 0; i < natts; i++)
