@@ -78,6 +78,9 @@ typedef struct DocumentDBRumIndexState
 
 
 const char *DocumentdbRumPath = "$libdir/pg_documentdb_extended_rum";
+const char *RumIndexExplainFuncSymbol = "try_explain_rum_index";
+const char *RumIndexOrderedScanInquiryFuncSymbol = "can_rum_index_scan_ordered";
+
 typedef const RumIndexArrayStateFuncs *(*GetIndexArrayStateFuncsFunc)(void);
 
 extern Datum gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS);
@@ -291,7 +294,7 @@ LoadRumRoutine(void)
 	missingOk = true;
 	TryExplainIndexFunc explain_index_func =
 		load_external_function(rumLibPath,
-							   "try_explain_rum_index", !missingOk,
+							   RumIndexExplainFuncSymbol, !missingOk,
 							   ignoreLibFileHandle);
 
 	if (explain_index_func != NULL)
@@ -301,7 +304,7 @@ LoadRumRoutine(void)
 
 	CanOrderInIndexScan scanOrderedFunc =
 		load_external_function(rumLibPath,
-							   "can_rum_index_scan_ordered", !missingOk,
+							   RumIndexOrderedScanInquiryFuncSymbol, !missingOk,
 							   ignoreLibFileHandle);
 	if (scanOrderedFunc != NULL)
 	{
