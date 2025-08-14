@@ -160,7 +160,7 @@ IsBitmapHeapConversionSupported(PlannerInfo *root, RelOptInfo *rel)
 		return false;
 	}
 
-	if (EnableIndexOrderbyPushdown)
+	if (EnableIndexOrderbyPushdown || EnableIndexOnlyScan)
 	{
 		return false;
 	}

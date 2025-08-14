@@ -131,6 +131,7 @@ select documentdb_api.insert_one('idx_only_scan_db', 'idx_only_scan_coll', '{"_i
 SELECT 'ANALYZE documentdb_data.documents_' || :'coll_id' \gexec
 ANALYZE documentdb_data.documents_692001
 set enable_seqscan to off;
+set enable_bitmapscan to off;
 -- test index only scan
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$gte": "Brazil"}} }, { "$group" : { "_id" : "1", "n" : { "$sum" : 1 } } }]}');
                                                             QUERY PLAN                                                             
@@ -422,16 +423,13 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
                innerScanLoops: 5 loops
                scanType: ordered
                scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 9)]
-               ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=9 loops=1)
+               ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=9 loops=1)
                      Output: collection.document
-                     Recheck Cond: (collection.document @>= '{ "country" : "Mexico" }'::bson)
-                     Heap Blocks: exact=1
-                     ->  Bitmap Index Scan on country_provider_1 (actual rows=9 loops=1)
-                           Index Cond: (collection.document @>= '{ "country" : "Mexico" }'::bson)
-(20 rows)
+                     Index Cond: (collection.document @>= '{ "country" : "Mexico" }'::bson)
+(17 rows)
 
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$eq": "Mexico"}} }]}');
-                                              QUERY PLAN                                               
+                                                        QUERY PLAN                                                        
 ---------------------------------------------------------------------
  Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=4 loops=1)
    Output: document
@@ -441,17 +439,14 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
    innerScanLoops: 3 loops
    scanType: ordered
    scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 4)]
-   ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=4 loops=1)
+   ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=4 loops=1)
          Output: document
-         Recheck Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
-         Heap Blocks: exact=1
-         ->  Bitmap Index Scan on country_provider_1 (actual rows=4 loops=1)
-               Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
-(14 rows)
+         Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
+(11 rows)
 
 -- negation, elemMatch, type and size queries should not use index only scan
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$ne": "Mexico"}} }, { "$count": "count" }]}');
-                                                  QUERY PLAN                                                  
+                                                           QUERY PLAN                                                            
 ---------------------------------------------------------------------
  Aggregate (actual rows=1 loops=1)
    Output: bson_repath_and_build('count'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
@@ -462,15 +457,12 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 12 loops
          scanType: ordered
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 12)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=12 loops=1)
-               Recheck Cond: (collection.document @!= '{ "country" : "Mexico" }'::bson)
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_provider_1 (actual rows=12 loops=1)
-                     Index Cond: (collection.document @!= '{ "country" : "Mexico" }'::bson)
-(14 rows)
+         ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=12 loops=1)
+               Index Cond: (collection.document @!= '{ "country" : "Mexico" }'::bson)
+(11 rows)
 
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$type": "string"}} }, { "$count": "count" }]}');
-                                                  QUERY PLAN                                                  
+                                                           QUERY PLAN                                                            
 ---------------------------------------------------------------------
  Aggregate (actual rows=1 loops=1)
    Output: bson_repath_and_build('count'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
@@ -481,15 +473,12 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 12 loops
          scanType: ordered
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 16)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=16 loops=1)
-               Recheck Cond: (collection.document @# '{ "country" : "string" }'::bson)
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_provider_1 (actual rows=16 loops=1)
-                     Index Cond: (collection.document @# '{ "country" : "string" }'::bson)
-(14 rows)
+         ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=16 loops=1)
+               Index Cond: (collection.document @# '{ "country" : "string" }'::bson)
+(11 rows)
 
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$size": 2}} }, { "$count": "count" }]}');
-                                                 QUERY PLAN                                                  
+                                                           QUERY PLAN                                                           
 ---------------------------------------------------------------------
  Aggregate (actual rows=1 loops=1)
    Output: bson_repath_and_build('count'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
@@ -500,16 +489,13 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 12 loops
          scanType: ordered
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 16)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=0 loops=1)
-               Recheck Cond: (collection.document @@# '{ "country" : { "$numberInt" : "2" } }'::bson)
+         ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=0 loops=1)
+               Index Cond: (collection.document @@# '{ "country" : { "$numberInt" : "2" } }'::bson)
                Rows Removed by Index Recheck: 16
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_provider_1 (actual rows=16 loops=1)
-                     Index Cond: (collection.document @@# '{ "country" : { "$numberInt" : "2" } }'::bson)
-(15 rows)
+(12 rows)
 
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$elemMatch": {"$eq": "Mexico"}}} }, { "$count": "count" }]}');
-                                                 QUERY PLAN                                                  
+                                                           QUERY PLAN                                                           
 ---------------------------------------------------------------------
  Aggregate (actual rows=1 loops=1)
    Output: bson_repath_and_build('count'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
@@ -520,13 +506,11 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 3 loops
          scanType: ordered
          scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 4)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=0 loops=1)
+         ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=0 loops=1)
+               Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
                Filter: (collection.document @#? '{ "country" : { "$eq" : "Mexico" } }'::bson)
                Rows Removed by Filter: 4
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_provider_1 (actual rows=4 loops=1)
-                     Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
-(15 rows)
+(13 rows)
 
 -- if we turn the GUC off by it shouldn't use index only scan
 set documentdb.enableIndexOnlyScan to off;
@@ -569,13 +553,10 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 4 loops
          scanType: regular
          scanKeyDetails: key 1: [(isInequality: false, estimatedEntryCount: 0), (isInequality: false, estimatedEntryCount: 4)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=1 loops=1)
-               Recheck Cond: ((collection.document @= '{ "country" : "Mexico" }'::bson) AND (collection.document @= '{ "provider" : [ "AWS", "GCP" ] }'::bson))
+         ->  Index Scan using country_provider_1 on documentdb_data.documents_692001_6920002 collection (actual rows=1 loops=1)
+               Index Cond: ((collection.document @= '{ "country" : "Mexico" }'::bson) AND (collection.document @= '{ "provider" : [ "AWS", "GCP" ] }'::bson))
                Rows Removed by Index Recheck: 3
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_provider_1 (actual rows=4 loops=1)
-                     Index Cond: ((collection.document @= '{ "country" : "Mexico" }'::bson) AND (collection.document @= '{ "provider" : [ "AWS", "GCP" ] }'::bson))
-(15 rows)
+(12 rows)
 
 CALL documentdb_api.drop_indexes('idx_only_scan_db', '{ "dropIndexes": "idx_only_scan_coll", "index": "country_provider_1" }');
                           retval                          
@@ -591,7 +572,7 @@ SELECT documentdb_api.insert_one('idx_only_scan_db', 'idx_only_scan_coll', FORMA
 (1 row)
 
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$eq": "Mexico"}} }, { "$count": "count" }]}');
-                                                 QUERY PLAN                                                  
+                                                      QUERY PLAN                                                       
 ---------------------------------------------------------------------
  Aggregate (actual rows=1 loops=1)
    Output: bson_repath_and_build('count'::text, bsonsum('{ "" : { "$numberInt" : "1" } }'::bson))
@@ -602,12 +583,9 @@ EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT docu
          innerScanLoops: 5 loops
          scanType: regular
          scanKeyDetails: key 1: [(isInequality: false, estimatedEntryCount: 5)]
-         ->  Bitmap Heap Scan on documentdb_data.documents_692001_6920002 collection (actual rows=5 loops=1)
-               Recheck Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
-               Heap Blocks: exact=1
-               ->  Bitmap Index Scan on country_1 (actual rows=5 loops=1)
-                     Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
-(14 rows)
+         ->  Index Scan using country_1 on documentdb_data.documents_692001_6920002 collection (actual rows=5 loops=1)
+               Index Cond: (collection.document @= '{ "country" : "Mexico" }'::bson)
+(11 rows)
 
 -- if we delete it and vacuum it should use index only scan again
 SELECT documentdb_api.delete('idx_only_scan_db', '{ "delete": "idx_only_scan_coll", "deletes": [ {"q": {"_id": {"$eq": 18} }, "limit": 0} ]}');

@@ -30,6 +30,7 @@
 #include "api_hooks.h"
 
 extern int CollStatsCountPolicyThreshold;
+extern bool UsePgStatsLiveTuplesForCount;
 
 PG_FUNCTION_INFO_V1(command_coll_stats);
 PG_FUNCTION_INFO_V1(command_coll_stats_worker);
@@ -53,6 +54,7 @@ typedef struct
 	List *indexBuilds;
 	int64 totalSize;
 	int32 scaleFactor;
+	int64 analyzedCount;
 	int32 ok;
 } CollStatsResult;
 
@@ -68,6 +70,7 @@ typedef enum CollStatsAggMode
 /* Forward Declaration */
 static int64 GetDocumentsCountRunTime(MongoCollection *collection);
 static int32 GetAverageColumnWidthRuntime(MongoCollection *collection);
+static int32 GetAverageColumnWidthSampled(MongoCollection *collection);
 static pgbson * BuildResponseMessage(CollStatsResult *result);
 static void WriteCoreStorageStats(CollStatsResult *result, pgbson_writer *writer);
 static pgbson * BuildEmptyResponseMessage(CollStatsResult *result);
@@ -86,6 +89,7 @@ static void GetPostgresRelationSizes(ArrayType *relationIds, int64 *totalRelatio
 									 int64 *totalTableSize);
 static int64 GetPostgresDocumentCountStats(ArrayType *relationIds,
 										   bool *isSmallCollection);
+static int64 GetPostgresLiveDocumentStats(ArrayType *relationIds);
 static int32 GetAverageDocumentSizeFromStats(ArrayType *relationIds);
 static void WriteIndexSizesScaledWorker(ArrayType *relationIds, pgbson_writer *writer);
 
@@ -318,7 +322,7 @@ CollStatsCoordinator(Datum databaseName, Datum collectionName, int scale)
 					 (int) VARSIZE_ANY_EXHDR(collectionName),
 					 (char *) VARDATA_ANY(collectionName));
 
-	CollStatsResult result;
+	CollStatsResult result = { 0 };
 	result.ns = namespaceString->data;
 	result.scaleFactor = scale;
 	result.ok = 1;
@@ -383,7 +387,9 @@ MergeWorkerResults(CollStatsResult *result, MongoCollection *collection,
 	result->totalSize = 0;
 	result->storageSize = 0;
 	int64 totalDocCount = 0;
+	int64 totalDocCountFromStats = 0;
 	int64 totalDocColumnSize = 0;
+	int64 totalDocColumnSizeFromStats = 0;
 	List *indexDocs = NIL;
 
 	foreach(workerCell, workerResults)
@@ -393,6 +399,7 @@ MergeWorkerResults(CollStatsResult *result, MongoCollection *collection,
 		PgbsonInitIterator(workerBson, &workerIter);
 
 		int64 workerTotalDocCount = 0;
+		int64 workerTotalDocCountFromStats = 0;
 		int32 averageDocSize = 0;
 
 		int errorCode = 0;
@@ -430,6 +437,15 @@ MergeWorkerResults(CollStatsResult *result, MongoCollection *collection,
 				 */
 				workerTotalDocCount = BsonValueAsInt64(bson_iter_value(&workerIter));
 			}
+			else if (strcmp(key, "total_stats_doc_count") == 0)
+			{
+				/*
+				 * Sum up from total docs - note we don't persist this
+				 * since we may need to go to the runtime.
+				 */
+				workerTotalDocCountFromStats = BsonValueAsInt64(bson_iter_value(
+																	&workerIter));
+			}
 			else if (strcmp(key, "avg_doc_size") == 0)
 			{
 				averageDocSize = BsonValueAsInt32(bson_iter_value(&workerIter));
@@ -456,27 +472,52 @@ MergeWorkerResults(CollStatsResult *result, MongoCollection *collection,
 
 		totalDocColumnSize += (averageDocSize * workerTotalDocCount);
 		totalDocCount += workerTotalDocCount;
+		totalDocCountFromStats += workerTotalDocCountFromStats;
+		totalDocColumnSizeFromStats += (averageDocSize * workerTotalDocCountFromStats);
 	}
 
 	bool isSmallCollection = false;
-	if (totalDocCount < CollStatsCountPolicyThreshold)
+	int64 docCountResult;
+	int64 docCountFromAnalyze = 0;
+	int64 docColumnSizeTotalResult = totalDocColumnSize;
+	if (UsePgStatsLiveTuplesForCount && totalDocCountFromStats > 0)
+	{
+		ereport(DEBUG1, (errmsg("[collStats] Taking count from live stats")));
+		docCountResult = totalDocCountFromStats;
+		docCountFromAnalyze = totalDocCount;
+		docColumnSizeTotalResult = totalDocColumnSizeFromStats;
+	}
+	else if (totalDocCount < CollStatsCountPolicyThreshold)
 	{
 		ereport(DEBUG1, (errmsg(
-							 "[collStats] Small collection. count/avgObjSize are evaluate at runtime.")));
-		totalDocCount = GetDocumentsCountRunTime(collection);
+							 "[collStats] Small collection %ld, liveCount %ld. count/avgObjSize are evaluate at runtime.",
+							 totalDocCount, totalDocCountFromStats)));
+		docCountFromAnalyze = totalDocCount;
+		docCountResult = GetDocumentsCountRunTime(collection);
 		isSmallCollection = true;
 	}
 	else
 	{
+		docCountResult = totalDocCount;
 		ereport(DEBUG1, (errmsg(
 							 "[collStats] Big collection. count/avgObjSize are taken from stats")));
 	}
 
 	/* Gather relevant data */
 	int32 avgObjSize = 0;
-	if (totalDocCount == 0)
+	if (docCountResult == 0)
 	{
 		avgObjSize = 0;
+	}
+	else if (UsePgStatsLiveTuplesForCount &&
+			 docCountResult < CollStatsCountPolicyThreshold)
+	{
+		/* In this case, we can use the runtime to fetch the avg column width
+		 * but instead of using the AVG at runtime, we'll use a table sample of a small
+		 * set of rows to make this go quick. This ensures that even when stats lie
+		 * and the table may be much bigger than we expect, we spend minimal time on this.
+		 */
+		avgObjSize = GetAverageColumnWidthSampled(collection);
 	}
 	else if (isSmallCollection)
 	{
@@ -485,18 +526,19 @@ MergeWorkerResults(CollStatsResult *result, MongoCollection *collection,
 	else
 	{
 		/* Avg size cannot be smaller than the storage size - cap it at this value */
-		avgObjSize = (int32) (totalDocColumnSize / totalDocCount);
-		int32 avgSizeFromStorage = (int32_t) (result->storageSize * 1.0 / totalDocCount);
-		if (avgSizeFromStorage > avgObjSize)
+		avgObjSize = (int32) (docColumnSizeTotalResult / docCountResult);
+		int32 avgSizeFromStorage = (int32_t) (result->storageSize * 1.0 / docCountResult);
+		if (avgSizeFromStorage > (avgObjSize * 2))
 		{
 			avgObjSize = avgSizeFromStorage;
 		}
 	}
 
 	/* Build Result Data */
-	result->count = totalDocCount;
+	result->count = docCountResult;
+	result->analyzedCount = docCountFromAnalyze;
 	result->avgObjSize = avgObjSize;
-	result->size = (totalDocCount * avgObjSize) / (int64) scale;
+	result->size = (docCountResult * avgObjSize) / (int64) scale;
 	result->totalIndexSize = (result->totalSize - result->storageSize) / (int64) scale;
 	result->totalSize = result->totalSize / (int64) scale;
 	result->storageSize = result->storageSize / (int64) scale;
@@ -655,6 +697,11 @@ CollStatsWorker(void *fcinfoPointer)
 
 		PgbsonWriterAppendInt64(&writer, "total_doc_count", 15, documentCount);
 
+		int64 documentCountFromStats = GetPostgresLiveDocumentStats(shardOids);
+		PgbsonWriterAppendInt64(&writer, "total_stats_doc_count", 21,
+								documentCountFromStats);
+
+
 		/*
 		 * Look at statistics for document sizes.
 		 */
@@ -740,6 +787,32 @@ GetPostgresDocumentCountStats(ArrayType *relationIds, bool *isSmallCollection)
 
 	int64 countStatistics = DatumGetInt64(result);
 	*isSmallCollection = countStatistics < CollStatsCountPolicyThreshold;
+	return countStatistics;
+}
+
+
+static int64
+GetPostgresLiveDocumentStats(ArrayType *relationIds)
+{
+	const char *query =
+		"SELECT SUM(pg_catalog.pg_stat_get_live_tuples(oid))::int8 FROM unnest($1) oid";
+
+	int nargs = 1;
+	Oid argTypes[1] = { OIDARRAYOID };
+	Datum argValues[1] = { PointerGetDatum(relationIds) };
+	bool readOnly = true;
+
+	bool isNull = false;
+	Datum result = ExtensionExecuteQueryWithArgsViaSPI(query, nargs, argTypes, argValues,
+													   NULL, readOnly, SPI_OK_SELECT,
+													   &isNull);
+
+	if (isNull)
+	{
+		return 0;
+	}
+
+	int64 countStatistics = DatumGetInt64(result);
 	return countStatistics;
 }
 
@@ -967,6 +1040,12 @@ WriteCoreStorageStats(CollStatsResult *result, pgbson_writer *writer)
 	PgbsonWriterAppendInt32OrDouble(writer, "totalIndexSize", 14, result->totalIndexSize);
 	PgbsonWriterAppendInt32OrDouble(writer, "totalSize", 9, result->totalSize);
 	PgbsonWriterAppendDocument(writer, "indexSizes", 10, result->indexSizes);
+	if (result->analyzedCount > 0)
+	{
+		PgbsonWriterAppendInt32OrDouble(writer, "analyzedCount", 13,
+										result->analyzedCount);
+	}
+
 	PgbsonWriterAppendInt32OrDouble(writer, "scaleFactor", 11, result->scaleFactor);
 }
 
@@ -1005,6 +1084,29 @@ GetAverageColumnWidthRuntime(MongoCollection *collection)
 	appendStringInfo(cmdStr,
 					 "SELECT avg(pg_column_size(document))::int4 FROM %s.documents_"
 					 UINT64_FORMAT,
+					 ApiDataSchemaName, collection->collectionId);
+
+	bool isNull = true;
+	bool readOnly = true;
+	Datum resultDatum = ExtensionExecuteQueryViaSPI(cmdStr->data, readOnly, SPI_OK_SELECT,
+													&isNull);
+	if (isNull)
+	{
+		return 0;
+	}
+
+	return DatumGetInt32(resultDatum);
+}
+
+
+static int32
+GetAverageColumnWidthSampled(MongoCollection *collection)
+{
+	StringInfo cmdStr = makeStringInfo();
+	appendStringInfo(cmdStr,
+					 "SELECT avg(pg_column_size(document))::int4 FROM (SELECT document FROM %s.documents_"
+					 UINT64_FORMAT
+					 " TABLESAMPLE public.SYSTEM_ROWS(1000)) AS sample",
 					 ApiDataSchemaName, collection->collectionId);
 
 	bool isNull = true;

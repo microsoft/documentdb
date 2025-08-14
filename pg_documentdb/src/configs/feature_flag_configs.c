@@ -198,6 +198,9 @@ bool EnableIndexOnlyScan = DEFAULT_ENABLE_INDEX_ONLY_SCAN;
 #define DEFAULT_ENABLE_RANGE_OPTIMIZATION_COMPOSITE false
 bool EnableRangeOptimizationForComposite = DEFAULT_ENABLE_RANGE_OPTIMIZATION_COMPOSITE;
 
+#define DEFAULT_USE_PG_STATS_LIVE_TUPLES_FOR_COUNT true
+bool UsePgStatsLiveTuplesForCount = DEFAULT_USE_PG_STATS_LIVE_TUPLES_FOR_COUNT;
+
 /* FEATURE FLAGS END */
 
 void
@@ -553,5 +556,13 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 			"Whether to enable range optimization for composite indexes."),
 		NULL, &EnableRangeOptimizationForComposite,
 		DEFAULT_ENABLE_RANGE_OPTIMIZATION_COMPOSITE,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.usePgStatsLiveTuplesForCount", newGucPrefix),
+		gettext_noop(
+			"Whether to use pg_stat_all_tables live tuples for count in collStats."),
+		NULL, &UsePgStatsLiveTuplesForCount,
+		DEFAULT_USE_PG_STATS_LIVE_TUPLES_FOR_COUNT,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 }

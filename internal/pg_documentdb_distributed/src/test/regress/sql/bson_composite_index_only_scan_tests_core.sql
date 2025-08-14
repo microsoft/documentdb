@@ -33,6 +33,7 @@ select documentdb_api.insert_one('idx_only_scan_db', 'idx_only_scan_coll', '{"_i
 SELECT 'ANALYZE documentdb_data.documents_' || :'coll_id' \gexec
 
 set enable_seqscan to off;
+set enable_bitmapscan to off;
 
 -- test index only scan
 EXPLAIN (ANALYZE ON, COSTS OFF, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('idx_only_scan_db', '{ "aggregate" : "idx_only_scan_coll", "pipeline" : [{ "$match" : {"country": {"$gte": "Brazil"}} }, { "$group" : { "_id" : "1", "n" : { "$sum" : 1 } } }]}');
