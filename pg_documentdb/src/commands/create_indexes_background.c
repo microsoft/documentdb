@@ -307,9 +307,9 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 	if (indexCmdRequest->attemptCount >= MaxIndexBuildAttempts)
 	{
 		/* mark the request as skipped (pruned at a later point) */
-		elog(LOG, "Max attempts reached for index_id: %d and collectionId: "
-			 UINT64_FORMAT,
-			 indexCmdRequest->indexId, collectionId);
+		elog_unredacted("Max attempts reached for index_id: %d and collectionId: "
+						UINT64_FORMAT,
+						indexCmdRequest->indexId, collectionId);
 		MarkIndexRequestStatus(indexCmdRequest->indexId,
 							   CREATE_INDEX_COMMAND_TYPE,
 							   IndexCmdStatus_Skippable, NULL, NULL,
@@ -325,14 +325,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 		if (TimestampDifferenceExceeds(indexCmdRequest->updateTime, nowTime,
 									   (IndexQueueEvictionIntervalInSec) * 1000))
 		{
-			ereport(LOG, (errmsg(
-							  "Removing skippable request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId),
-						  errdetail_log(
-							  "Removing skippable request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId)));
+			elog_unredacted(
+				"Removing skippable request permanently index_id: %d and collectionId: "
+				UINT64_FORMAT,
+				indexCmdRequest->indexId, collectionId);
 
 			/* remove any stale entry from PG */
 			TryDropCollectionIndex(indexCmdRequest->indexId);
@@ -345,14 +341,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 		}
 		return RunStatus_PrunedSkippableIndexes;
 	}
-	ereport(LOG, (errmsg(
-					  "Found one request for CreateIndex with index_id: %d and collectionId: "
-					  UINT64_FORMAT,
-					  indexCmdRequest->indexId, collectionId),
-				  errdetail_log(
-					  "Found one request for CreateIndex with index_id: %d and collectionId: "
-					  UINT64_FORMAT,
-					  indexCmdRequest->indexId, collectionId)));
+	elog_unredacted(
+		"Found one request for CreateIndex with index_id: %d and collectionId: "
+		UINT64_FORMAT,
+		indexCmdRequest->indexId, collectionId);
 
 	/* Mark index inprogress. */
 	indexCmdRequest->attemptCount++;
@@ -372,14 +364,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 	 */
 	if (indexCmdRequest->status == IndexCmdStatus_Inprogress)
 	{
-		ereport(LOG, (errmsg(
-						  "Try dropping old index entry before CreateIndex for index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId),
-					  errdetail_log(
-						  "Try dropping old index entry before CreateIndex for index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId)));
+		elog_unredacted(
+			"Try dropping old index entry before CreateIndex for index_id: %d and collectionId: "
+			UINT64_FORMAT,
+			indexCmdRequest->indexId, collectionId);
 		TryDropCollectionIndex(indexCmdRequest->indexId);
 	}
 
@@ -410,14 +398,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 		 */
 		set_indexsafe_procflags();
 
-		ereport(LOG, (errmsg(
-						  "Trying to create index with serial %d for index_id: %d and collectionId: "
-						  UINT64_FORMAT, useSerialExecution,
-						  indexCmdRequest->indexId, collectionId),
-					  errdetail_log(
-						  "Trying to create index with serial %d for index_id: %d and collectionId: "
-						  UINT64_FORMAT, useSerialExecution,
-						  indexCmdRequest->indexId, collectionId)));
+		elog_unredacted(
+			"Trying to create index with serial %d for index_id: %d and collectionId: "
+			UINT64_FORMAT, useSerialExecution,
+			indexCmdRequest->indexId, collectionId);
 		bool concurrently = true;
 		ExecuteCreatePostgresIndexCmd(cmd, concurrently, indexCmdRequest->userOid,
 									  useSerialExecution);
@@ -482,14 +466,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 
 		PG_TRY();
 		{
-			ereport(LOG, (errmsg(
-							  "Trying to mark invalid index as valid and remove index build request from queue for index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId),
-						  errdetail_log(
-							  "Trying to mark invalid index as valid and remove index build request from queue for index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId)));
+			elog_unredacted(
+				"Trying to mark invalid index as valid and remove index build request from queue for index_id: %d and collectionId: "
+				UINT64_FORMAT,
+				indexCmdRequest->indexId, collectionId);
 			MarkIndexAsValid(indexCmdRequest->indexId);
 			RemoveRequestFromIndexQueue(indexCmdRequest->indexId,
 										CREATE_INDEX_COMMAND_TYPE);
@@ -510,14 +490,10 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 			 * Abort the subtransaction to rollback any changes that
 			 * MarkIndexAsValid might have done.
 			 */
-			ereport(WARNING, (errmsg(
-								  "Failure happened during marking the index metadata valid for index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId),
-							  errdetail_log(
-								  "Failure happened during marking the index metadata valid for index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId)));
+			elog_unredacted(
+				"Failure happened during marking the index metadata valid for index_id: %d and collectionId: "
+				UINT64_FORMAT,
+				indexCmdRequest->indexId, collectionId);
 			RollbackAndReleaseCurrentSubTransaction();
 
 			/* save error info into right context */
@@ -539,26 +515,18 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 		 * TODO : In case, when partial index metadata is not deleted, we might need the cron job to clean such stale indexes.
 		 * Check TryDropCollectionIndexes API doc.
 		 */
-		ereport(LOG, (errmsg(
-						  "Something failed during create-index, drop partial state of index for index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId),
-					  errdetail_log(
-						  "Something failed during create-index, drop partial state of index for index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId)));
+		elog_unredacted(
+			"Something failed during create-index, drop partial state of index for index_id: %d and collectionId: "
+			UINT64_FORMAT,
+			indexCmdRequest->indexId, collectionId);
 
 		TryDropCollectionIndex(indexCmdRequest->indexId);
 
 		/* MarkIndexRequestStatus to failure for the indexId and cmdType = CREATE_INDEX_COMMAND_TYPE */
-		ereport(LOG, (errmsg(
-						  "Marking Index status Failed for index with index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId),
-					  errdetail_log(
-						  "Marking Index status Failed for index with index_id: %d and collectionId: "
-						  UINT64_FORMAT,
-						  indexCmdRequest->indexId, collectionId)));
+		elog_unredacted(
+			"Marking Index status Failed for index with index_id: %d and collectionId: "
+			UINT64_FORMAT,
+			indexCmdRequest->indexId, collectionId);
 
 		/* Create comment bson */
 		pgbson_writer writer;
@@ -570,14 +538,9 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 
 		if (indexCmdRequest->attemptCount > MaxIndexBuildAttempts)
 		{
-			ereport(LOG, (errmsg(
-							  "Removing request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId),
-						  errdetail_log(
-							  "Removing request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  indexCmdRequest->indexId, collectionId)));
+			elog_unredacted("Removing request permanently index_id: %d and collectionId: "
+							UINT64_FORMAT,
+							indexCmdRequest->indexId, collectionId);
 
 			/* mark the request skippable (removed after the TTL window) */
 			MarkIndexRequestStatus(indexCmdRequest->indexId,
@@ -592,14 +555,9 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 		{
 			if (IsSkippableError(errorCode, (char *) errorMessage))
 			{
-				ereport(LOG, (errmsg(
-								  "Saving Skippable comment index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId),
-							  errdetail_log(
-								  "Saving Skippable comment index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId)));
+				elog_unredacted("Saving Skippable comment index_id: %d and collectionId: "
+								UINT64_FORMAT,
+								indexCmdRequest->indexId, collectionId);
 				MarkIndexRequestStatus(indexCmdRequest->indexId,
 									   CREATE_INDEX_COMMAND_TYPE,
 									   IndexCmdStatus_Skippable, newComment, NULL,
@@ -613,14 +571,9 @@ build_index_concurrently_from_indexqueue_core(MemoryContext stableContext)
 			}
 			else
 			{
-				ereport(LOG, (errmsg(
-								  "Saving comment index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId),
-							  errdetail_log(
-								  "Saving comment index_id: %d and collectionId: "
-								  UINT64_FORMAT,
-								  indexCmdRequest->indexId, collectionId)));
+				elog_unredacted("Saving comment index_id: %d and collectionId: "
+								UINT64_FORMAT,
+								indexCmdRequest->indexId, collectionId);
 				MarkIndexRequestStatus(indexCmdRequest->indexId,
 									   CREATE_INDEX_COMMAND_TYPE,
 									   IndexCmdStatus_Failed, newComment, NULL,
@@ -1015,14 +968,9 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 	 */
 	if (result.createdCollectionAutomatically)
 	{
-		ereport(LOG, (errmsg(
-						  "Building indexes inline due to create collection for collection "
-						  UINT64_FORMAT,
-						  collectionId),
-					  errdetail_log(
-						  "Building indexes inline due to create collection for collection "
-						  UINT64_FORMAT,
-						  collectionId)));
+		elog_unredacted("Building indexes inline due to create collection for collection "
+						UINT64_FORMAT,
+						collectionId);
 
 		bool uniqueIndexOnly = false;
 		bool skipCheckCollectionCreate = true;
@@ -1686,14 +1634,10 @@ PruneSkippableIndexes(void)
 				request->collectionId) != LOCKACQUIRE_NOT_AVAIL)
 		{
 			prunedIndexes = true;
-			ereport(LOG, (errmsg(
-							  "Removing skippable request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  request->indexId, request->collectionId),
-						  errdetail_log(
-							  "Removing skippable request permanently index_id: %d and collectionId: "
-							  UINT64_FORMAT,
-							  request->indexId, request->collectionId)));
+			elog_unredacted(
+				"Removing skippable request permanently index_id: %d and collectionId: "
+				UINT64_FORMAT,
+				request->indexId, request->collectionId);
 
 			/* remove any stale entry from PG */
 			TryDropCollectionIndex(request->indexId);

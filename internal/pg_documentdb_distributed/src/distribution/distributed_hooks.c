@@ -497,8 +497,7 @@ TryGetExtendedVersionRefreshQueryCore(void)
 					 CoreSchemaName, ApiDistributedSchemaName, ExtensionObjectPrefix);
 	MemoryContextSwitchTo(currContext);
 
-	elog(LOG, "Version refresh query is %s", s->data);
-
+	ereport(DEBUG1, (errmsg("Version refresh query is %s", s->data)));
 	return s->data;
 }
 

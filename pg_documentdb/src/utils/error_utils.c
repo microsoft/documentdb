@@ -13,7 +13,12 @@
 #include <utils/builtins.h>
 #include "utils/documentdb_errors.h"
 #include "utils/version_utils.h"
+#include "utils/error_utils.h"
 
+typedef int (*format_log_hook)(const char *fmt, ...) __attribute__((format(printf, 1,
+																		   2)));
+
+format_log_hook unredacted_log_emit_hook = NULL;
 
 /* --------------------------------------------------------- */
 /* Top level exports */
@@ -60,4 +65,25 @@ command_convert_mongo_error_to_postgres(PG_FUNCTION_ARGS)
 	ereport(ERROR, (errcode(ERRCODE_WARNING_DEPRECATED_FEATURE),
 					errmsg("command_convert_mongo_error_to_postgres "
 						   "function is deprecated now")));
+}
+
+
+int
+errmsg_unredacted(const char *fmt, ...)
+{
+	va_list args;
+	int res;
+
+	va_start(args, fmt);
+	if (unredacted_log_emit_hook != NULL)
+	{
+		res = unredacted_log_emit_hook(fmt, args);
+	}
+	else
+	{
+		res = errmsg_internal(fmt, args);
+	}
+	va_end(args);
+
+	return res;
 }

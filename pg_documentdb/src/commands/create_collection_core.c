@@ -412,7 +412,8 @@ CanColocateAtDatabaseLevel(text *databaseDatum)
 										false, SPI_OK_SELECT, &isNull);
 	ereport(LOG, (errmsg("database %s has collections: %s", text_to_cstring(
 							 databaseDatum),
-						 isNull ? "false" : "true")));
+						 isNull ? "false" : "true")), errhidestmt(true),
+			errhidecontext(true));
 
 	/* If the query returned no results then we can safely do database colocation */
 	return isNull;
@@ -479,7 +480,8 @@ GetOrCreateDatabaseConfigCollection(text *databaseDatum)
 	const char *tableName = CreatePostgresDataTable(databaseCollectionId, colocateWith,
 													shardingColumn);
 	ereport(LOG, (errmsg("Creating and returning %s for the sentinel database %s",
-						 tableName, text_to_cstring(databaseDatum))));
+						 tableName, text_to_cstring(databaseDatum)), errhidestmt(true),
+				  errhidecontext(true)));
 
 	/* Add a policy to disallow writes on this table (TODO: Investigate why RLS didn't work here) */
 	StringInfo createCheckStringInfo = makeStringInfo();
