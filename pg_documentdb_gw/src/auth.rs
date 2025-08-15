@@ -8,8 +8,10 @@
 
 use std::{str::from_utf8, sync::Arc};
 
+use base64::{engine::general_purpose, Engine as _};
 use bson::{rawdoc, spec::BinarySubtype};
 use rand::Rng;
+use serde_json::Value;
 use tokio_postgres::types::Type;
 
 use crate::{
@@ -149,12 +151,24 @@ async fn handle_sasl_start(
         .get_str("mechanism")
         .map_err(DocumentDBError::parse_failure())?;
 
-    if mechanism != "SCRAM-SHA-256" {
-        return Err(DocumentDBError::unauthorized(
-            "Only SCRAM-SHA-256 is supported".to_string(),
-        ));
+    if mechanism != "SCRAM-SHA-256" && mechanism != "MONGODB-OIDC" {
+        return Err(DocumentDBError::unauthorized(format!(
+            "Only SCRAM-SHA-256 and MONGODB-OIDC are supported, got: {}",
+            mechanism
+        )));
     }
 
+    if mechanism == "MONGODB-OIDC" {
+        return handle_oidc(connection_context, request).await;
+    } else {
+        return handle_scram(connection_context, request).await;
+    }
+}
+
+async fn handle_scram(
+    connection_context: &mut ConnectionContext,
+    request: &Request<'_>,
+) -> Result<Response> {
     let payload = parse_sasl_payload(request, true)?;
 
     let username = payload.username.ok_or(DocumentDBError::unauthorized(
@@ -189,6 +203,135 @@ async fn handle_sasl_start(
         "conversationId": 1,
         "done": false
     })))
+}
+
+async fn handle_oidc(
+    connection_context: &mut ConnectionContext,
+    request: &Request<'_>,
+) -> Result<Response> {
+    let payload = request
+        .document()
+        .get_binary("payload")
+        .map_err(DocumentDBError::parse_failure())?;
+
+    let payload_doc = bson::Document::from_reader(&mut std::io::Cursor::new(payload.bytes))
+        .map_err(|e| {
+            DocumentDBError::bad_value(format!("Failed to parse OIDC payload as BSON: {}", e))
+        })?;
+
+    let jwt_token = payload_doc.get_str("jwt").map_err(|_| {
+        DocumentDBError::unauthorized("JWT token missing from OIDC payload".to_string())
+    })?;
+
+    handle_oidc_token_authentication(connection_context, jwt_token).await
+}
+
+async fn handle_oidc_token_authentication(
+    connection_context: &mut ConnectionContext,
+    token_string: &str,
+) -> Result<Response> {
+    let oid = parse_and_validate_jwt_token(token_string)?;
+
+    let authentication_token_row = connection_context
+        .service_context
+        .authentication_connection()
+        .await?
+        .query(
+            connection_context
+                .service_context
+                .query_catalog()
+                .authenticate_with_token(),
+            &[Type::TEXT, Type::TEXT],
+            &[&oid, &token_string],
+            None,
+            &mut RequestInfo::new(),
+        )
+        .await?;
+
+    let authentication_result: String = authentication_token_row
+        .first()
+        .ok_or(DocumentDBError::pg_response_empty())?
+        .try_get(0)?;
+
+    if authentication_result.trim() != oid {
+        return Err(DocumentDBError::unauthorized(
+            "Token validation failed".to_string(),
+        ));
+    }
+
+    let server_signature = "";
+    let payload = bson::Binary {
+        subtype: BinarySubtype::Generic,
+        bytes: server_signature.as_bytes().to_vec(),
+    };
+
+    connection_context.auth_state.set_username(&oid);
+    connection_context.auth_state.password = Some(token_string.to_string());
+    connection_context.auth_state.user_oid = Some(get_user_oid(connection_context, &oid).await?);
+    connection_context.auth_state.authorized = true;
+
+    Ok(Response::Raw(RawResponse(rawdoc! {
+        "payload": payload,
+        "ok": OK_SUCCEEDED,
+        "conversationId": 1,
+        "done": true
+    })))
+}
+
+fn parse_and_validate_jwt_token(token_string: &str) -> Result<String> {
+    let token_parts: Vec<&str> = token_string.split('.').collect();
+    if token_parts.len() != 3 {
+        return Err(DocumentDBError::unauthorized(
+            "Invalid JWT token format.".to_string(),
+        ));
+    }
+
+    let payload_part = token_parts[1];
+    let payload_bytes = general_purpose::URL_SAFE_NO_PAD
+        .decode(payload_part)
+        .map_err(|_| DocumentDBError::unauthorized("Invalid JWT token encoding.".to_string()))?;
+
+    let payload_json: Value = serde_json::from_slice(&payload_bytes)
+        .map_err(|_| DocumentDBError::unauthorized("Invalid JWT token payload.".to_string()))?;
+
+    let oid = payload_json
+        .get("oid")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| DocumentDBError::unauthorized("Token does not contain OID.".to_string()))?
+        .to_string();
+
+    let aud = payload_json
+        .get("aud")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            DocumentDBError::unauthorized("Token does not contain audience claim.".to_string())
+        })?
+        .to_string();
+
+    let exp = payload_json
+        .get("exp")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| {
+            DocumentDBError::unauthorized("Token does not contain expiry time.".to_string())
+        })?;
+
+    let valid_audiences = ["https://ossrdbms-aad.database.windows.net"];
+    if !valid_audiences.contains(&aud.as_str()) {
+        return Err(DocumentDBError::unauthorized(
+            "Invalid audience claim.".to_string(),
+        ));
+    }
+
+    let exp_datetime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(exp as u64);
+    let now = std::time::SystemTime::now();
+
+    if exp_datetime < now {
+        return Err(DocumentDBError::reauthentication_required(
+            "Token has expired.".to_string(),
+        ));
+    }
+
+    Ok(oid)
 }
 
 async fn handle_sasl_continue(

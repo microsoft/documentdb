@@ -67,6 +67,14 @@ impl DocumentDBError {
         DocumentDBError::DocumentDBError(ErrorCode::TypeMismatch, msg, Backtrace::capture())
     }
 
+    pub fn reauthentication_required(msg: String) -> Self {
+        DocumentDBError::DocumentDBError(
+            ErrorCode::ReauthenticationRequired,
+            msg,
+            Backtrace::capture(),
+        )
+    }
+
     #[allow(clippy::self_named_constructors)]
     pub fn documentdb_error(e: ErrorCode, msg: String) -> Self {
         DocumentDBError::DocumentDBError(e, msg, Backtrace::capture())

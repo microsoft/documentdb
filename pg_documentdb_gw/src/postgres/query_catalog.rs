@@ -13,6 +13,7 @@ pub struct QueryCatalog {
     // auth.rs
     pub authenticate_with_scram_sha256: String,
     pub salt_and_iterations: String,
+    pub authenticate_with_token: String,
 
     // dataapi.rs (Not needed for OSS)
     pub authenticate_with_pwd: String,
@@ -105,6 +106,10 @@ impl QueryCatalog {
 
     pub fn salt_and_iterations(&self) -> &str {
         &self.salt_and_iterations
+    }
+
+    pub fn authenticate_with_token(&self) -> &str {
+        &self.authenticate_with_token
     }
 
     // Dataapi getters
@@ -359,6 +364,7 @@ pub fn create_query_catalog() -> QueryCatalog {
             // auth.rs
             authenticate_with_scram_sha256: "SELECT documentdb_api_internal.authenticate_with_scram_sha256($1, $2, $3)".to_string(),
             salt_and_iterations: "SELECT documentdb_api_internal.scram_sha256_get_salt_and_iterations($1)".to_string(),
+            authenticate_with_token: "SELECT documentdb_api_internal.authenticate_token($1, $2)".to_string(),
 
             // dynamic.rs
             pg_settings: "SELECT name, setting FROM pg_settings WHERE name LIKE 'documentdb.%' OR name IN ('max_connections', 'default_transaction_read_only')".to_string(),
