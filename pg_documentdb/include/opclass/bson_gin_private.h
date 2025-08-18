@@ -183,6 +183,9 @@ typedef struct
 	 * Whether or not to use the reduced wildcard term generation support.
 	 */
 	bool useReducedWildcardTerms;
+
+	/* Whether array values were encountered during term generation */
+	bool hasArrayValues;
 } GenerateTermsContext;
 
 

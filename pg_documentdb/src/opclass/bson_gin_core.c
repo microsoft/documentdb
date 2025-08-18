@@ -1247,6 +1247,8 @@ GenerateArrayPath(bson_iter_t *bsonIter, const char *pathToInsert,
 		}
 	}
 
+	context->hasArrayValues = true;
+
 	/* Track that these arrays have partial term existence */
 	if (someArrayPathsHaveTerms && someArrayPathsHaveNoTerms)
 	{

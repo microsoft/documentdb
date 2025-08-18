@@ -88,7 +88,7 @@ typedef struct RumMetaPageData
  * the multi-key status.
  */
 void
-RumUpdateMultiKeyStatus(bool isBuild, Relation index)
+RumUpdateMultiKeyStatus(Relation index)
 {
 	/* First do a get to see if we even need to update */
 	bool isMultiKey = RumGetMultikeyStatus(index);
@@ -104,36 +104,16 @@ RumUpdateMultiKeyStatus(bool isBuild, Relation index)
 
 	metaBuffer = ReadBuffer(index, RUM_METAPAGE_BLKNO);
 	LockBuffer(metaBuffer, RUM_EXCLUSIVE);
-	if (isBuild)
-	{
-		metapage = BufferGetPage(metaBuffer);
-		START_CRIT_SECTION();
-	}
-	else
-	{
-		state = GenericXLogStart(index);
-		metapage = GenericXLogRegisterBuffer(state, metaBuffer, 0);
-	}
+
+	state = GenericXLogStart(index);
+	metapage = GenericXLogRegisterBuffer(state, metaBuffer, 0);
 	metadata = RumPageGetMeta(metapage);
 
 	/* Set pending heap tuples to 1 to indicate this is a multi-key index */
 	metadata->nPendingHeapTuples = 1;
 
-	if (isBuild)
-	{
-		MarkBufferDirty(metaBuffer);
-	}
-	else
-	{
-		GenericXLogFinish(state);
-	}
-
+	GenericXLogFinish(state);
 	UnlockReleaseBuffer(metaBuffer);
-
-	if (isBuild)
-	{
-		END_CRIT_SECTION();
-	}
 }
 
 

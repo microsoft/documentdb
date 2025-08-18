@@ -19,7 +19,7 @@
 typedef void *(*CreateIndexArrayTrackerState)(void);
 typedef bool (*IndexArrayTrackerAdd)(void *state, ItemPointer item);
 typedef void (*FreeIndexArrayTrackerState)(void *);
-typedef void (*UpdateMultikeyStatusFunc)(bool isBuild, Relation index);
+typedef void (*UpdateMultikeyStatusFunc)(Relation index);
 
 /*
  * Adapter struct that provides function pointers to allow
@@ -100,7 +100,7 @@ bool extension_ruminsert_core(Relation indexRelation,
 							  IndexAmRoutine *coreRoutine,
 							  UpdateMultikeyStatusFunc updateMultikeyStatus);
 
-void RumUpdateMultiKeyStatus(bool isBuild, Relation index);
+void RumUpdateMultiKeyStatus(Relation index);
 bool RumGetMultikeyStatus(Relation indexRelation);
 bool RumGetTruncationStatus(Relation indexRelation);
 

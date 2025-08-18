@@ -769,6 +769,13 @@ fn get_stage_from_plan(
         .index_name
         .as_ref()
         .is_some_and(|name| name.starts_with("collection_pk") || name == "_id_")
+        && plan.index_condition.as_ref().is_some_and(|cond| {
+            !cond.as_str().contains("object_id")
+                && query_diagnostics::is_unsharded_query(
+                    plan.relation_name.as_deref().unwrap_or_default(),
+                    cond.as_str(),
+                )
+        })
     {
         return ("COLLSCAN".to_owned(), None);
     }
@@ -801,7 +808,9 @@ fn get_stage_from_plan(
                     .to_owned(),
                     Some("IXSCAN"),
                 )
-            } else if parent_stage.is_some_and(|s| s == "FETCH") {
+            } else if parent_stage.is_some_and(|s| s == "FETCH")
+                || plan.node_type.as_str() == "Bitmap Index Scan"
+            {
                 ("IXSCAN".to_owned(), None)
             } else {
                 ("FETCH".to_owned(), Some("IXSCAN"))
@@ -1160,7 +1169,7 @@ fn classify_stages(
     let (stage_name, _) = get_stage_from_plan(&plan, prior_stage, query_catalog);
 
     // base case - if we see a table it becomes terminal - everything below gets put in here.
-    if plan.relation_name.is_some() {
+    if plan.relation_name.is_some() || stage_name == "ExplainWrapper" {
         processed_stages.push(("$cursor".to_owned(), plan, stage_name, None));
         return None;
     }
@@ -1303,20 +1312,57 @@ fn query_planner(
             let mut doc = rawdoc! {
                 "stage": stage_name,
             };
-            if let Some(index_name) = plan.index_name.as_deref() {
-                doc.append("indexName", index_name);
+
+            if stage_name != "FETCH" {
+                if let Some(index_name) = plan.index_name.as_deref() {
+                    doc.append("indexName", index_name);
+                }
+
+                if let Some(direction) = plan.scan_direction.as_deref() {
+                    doc.append("direction", direction);
+                }
+
+                if plan.node_type.contains("bitmap") {
+                    doc.append("isBitmap", true);
+                }
+
+                if plan.node_type == "Index Only Scan" {
+                    doc.append("isIndexOnlyScan", true);
+                }
+
+                if plan.index_details.is_some() {
+                    let mut arr = RawArrayBuf::new();
+                    for detail in plan.index_details.as_ref().unwrap() {
+                        if detail.index_name.as_deref() != plan.index_name.as_deref() {
+                            continue;
+                        }
+
+                        let mut index_doc = rawdoc! {};
+                        if let Some(index_name) = detail.index_name.as_deref() {
+                            index_doc.append("indexName", index_name);
+                        }
+
+                        if let Some(multi_key_val) = detail.is_multi_key {
+                            index_doc.append("isMultiKey", multi_key_val);
+                        }
+
+                        if let Some(index_bounds) = detail.index_bounds.as_ref() {
+                            let mut bounds_arr = RawArrayBuf::new();
+                            index_bounds.iter().for_each(|key| {
+                                bounds_arr.push(key.as_str());
+                            });
+                            index_doc.append("bounds", bounds_arr);
+                        }
+
+                        arr.push(index_doc);
+                    }
+
+                    doc.append("indexUsage", arr);
+                }
             }
 
             if let Some(page_size) = plan.page_size {
                 doc.append("page_size", smallest_from_i64(page_size));
-            }
-
-            if let Some(direction) = plan.scan_direction.as_deref() {
-                doc.append("direction", direction);
-            }
-
-            if stage_name == "IXSCAN" && plan.node_type.contains("bitmap") {
-                doc.append("isBitmap", true);
             }
 
             if let Some(sort_keys) = plan.sort_keys.as_ref() {
@@ -1382,32 +1428,6 @@ fn query_planner(
                 }
             }
 
-            if plan.index_details.is_some() {
-                let mut arr = RawArrayBuf::new();
-                for detail in plan.index_details.as_ref().unwrap() {
-                    let mut index_doc = rawdoc! {};
-                    if let Some(index_name) = detail.index_name.as_deref() {
-                        index_doc.append("indexName", index_name);
-                    }
-
-                    if let Some(multi_key_val) = detail.is_multi_key {
-                        index_doc.append("isMultiKey", multi_key_val);
-                    }
-
-                    if let Some(index_bounds) = detail.index_bounds.as_ref() {
-                        let mut bounds_arr = RawArrayBuf::new();
-                        index_bounds.iter().for_each(|key| {
-                            bounds_arr.push(key.as_str());
-                        });
-                        index_doc.append("bounds", bounds_arr);
-                    }
-
-                    arr.push(index_doc);
-                }
-
-                doc.append("indexUsage", arr);
-            }
-
             if stage_name != "EOF" {
                 let rows: i64 = plan
                     .plan_rows
@@ -1471,9 +1491,53 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
                 ),
             )
         }
-        if let Some(index_name) = plan.index_name.as_deref() {
-            doc.append("indexName", index_name)
+
+        if stage_name != "FETCH" {
+            if let Some(index_name) = plan.index_name.as_deref() {
+                doc.append("indexName", index_name)
+            }
+
+            if let Some(heap_fetches) = plan.heap_fetches {
+                doc.append("totalDocsAnalyzed", smallest_from_i64(heap_fetches));
+            }
+
+            if plan.index_details.is_some() {
+                let mut arr = RawArrayBuf::new();
+                for detail in plan.index_details.as_ref().unwrap() {
+                    let mut index_doc = rawdoc! {};
+                    if let Some(index_name) = detail.index_name.as_deref() {
+                        index_doc.append("indexName", index_name);
+                    }
+
+                    if let Some(inner_scan_loops) = detail.inner_scan_loops {
+                        index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
+                    }
+
+                    if let Some(scan_type) = detail.scan_type.as_deref() {
+                        index_doc.append("scanType", scan_type);
+                    }
+
+                    if let Some(num_duplicates) = detail.num_duplicates {
+                        if num_duplicates > 0 {
+                            index_doc.append("numDuplicates", smallest_from_i64(num_duplicates));
+                        }
+                    }
+
+                    if let Some(scan_key_details) = detail.scan_key_details.as_ref() {
+                        let mut scan_key_arr = RawArrayBuf::new();
+                        scan_key_details.iter().for_each(|key| {
+                            scan_key_arr.push(key.as_str());
+                        });
+                        index_doc.append("scanKeys", scan_key_arr);
+                    }
+
+                    arr.push(index_doc);
+                }
+
+                doc.append("indexUsage", arr);
+            }
         }
+
         if stage_name == "TEXT_MATCH" {
             doc.append("textIndexVersion", 3)
         }
@@ -1514,42 +1578,6 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
             doc.append("parallelWorkers", smallest_from_i64(v))
         }
 
-        if plan.index_details.is_some() {
-            let mut arr = RawArrayBuf::new();
-            for detail in plan.index_details.as_ref().unwrap() {
-                let mut index_doc = rawdoc! {};
-                if let Some(index_name) = detail.index_name.as_deref() {
-                    index_doc.append("indexName", index_name);
-                }
-
-                if let Some(inner_scan_loops) = detail.inner_scan_loops {
-                    index_doc.append("scanLoops", smallest_from_i64(inner_scan_loops));
-                }
-
-                if let Some(scan_type) = detail.scan_type.as_deref() {
-                    index_doc.append("scanType", scan_type);
-                }
-
-                if let Some(num_duplicates) = detail.num_duplicates {
-                    if num_duplicates > 0 {
-                        index_doc.append("numDuplicates", smallest_from_i64(num_duplicates));
-                    }
-                }
-
-                if let Some(scan_key_details) = detail.scan_key_details.as_ref() {
-                    let mut scan_key_arr = RawArrayBuf::new();
-                    scan_key_details.iter().for_each(|key| {
-                        scan_key_arr.push(key.as_str());
-                    });
-                    index_doc.append("scanKeys", scan_key_arr);
-                }
-
-                arr.push(index_doc);
-            }
-
-            doc.append("indexUsage", arr);
-        }
-
         doc
     });
     rawdoc! {
@@ -1558,6 +1586,16 @@ fn execution_stats(plan: ExplainPlan, query_catalog: &QueryCatalog) -> RawDocume
         "totalDocsExamined": total_rows_examined,
         "totalKeysExamined": total_keys_examined,
         "executionStages": stages
+    }
+}
+
+fn distribute_index_details(plan: &mut ExplainPlan, index_details: Option<Vec<IndexDetails>>) {
+    plan.index_details = index_details;
+
+    if let Some(inner_plans) = plan.inner_plans.as_mut() {
+        for inner_plan in inner_plans {
+            distribute_index_details(inner_plan, plan.index_details.clone());
+        }
     }
 }
 
@@ -1578,7 +1616,8 @@ fn skip_stage(plan: ExplainPlan, query_catalog: &QueryCatalog) -> ExplainPlan {
         && plan.inner_plans.as_ref().is_some_and(|ip| ip.len() == 1)
     {
         let mut new_plan = plan.inner_plans.expect("Checked").remove(0);
-        new_plan.index_details = plan.index_details;
+        new_plan.output = plan.output;
+        distribute_index_details(&mut new_plan, plan.index_details.clone());
         new_plan
     } else {
         plan

@@ -1784,7 +1784,8 @@ FillCompositePathSpec(const char *prefix, void *buffer)
 
 static uint32_t
 BuildSinglePathTermsForCompositeTerms(pgbson *bson, BsonGinCompositePathOptions *options,
-									  Datum **entries, int32_t *entryCounts)
+									  Datum **entries, int32_t *entryCounts,
+									  bool *entryHasMultiKey)
 {
 	const char *indexPaths[INDEX_MAX_KEYS] = { 0 };
 	int8_t sortOrders[INDEX_MAX_KEYS] = { 0 };
@@ -1828,6 +1829,8 @@ BuildSinglePathTermsForCompositeTerms(pgbson *bson, BsonGinCompositePathOptions 
 		entries[i] = context.terms.entries;
 		entryCounts[i] = context.totalTermCount;
 
+		*entryHasMultiKey = *entryHasMultiKey || context.hasArrayValues;
+
 		/* We will have at least 1 term */
 		totalTermCount = totalTermCount * context.totalTermCount;
 		pfree(singlePathOptions);
@@ -1849,8 +1852,10 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 
 	Datum **entries = palloc(sizeof(Datum *) * pathCount);
 	int32_t *entryCounts = palloc0(sizeof(int32_t) * pathCount);
+	bool entryHasMultiKey = false;
 	uint32_t totalTermCount = BuildSinglePathTermsForCompositeTerms(bson, options,
-																	entries, entryCounts);
+																	entries, entryCounts,
+																	&entryHasMultiKey);
 
 	/* Now that we have the per term counts, generate the overall terms */
 	/* Add an additional one in case we need a truncated term */
@@ -1890,7 +1895,7 @@ GenerateCompositeTermsCore(pgbson *bson, BsonGinCompositePathOptions *options,
 		indexEntries[i] = serializedTerm.indexTermDatum;
 	}
 
-	if (totalTermCount > 1)
+	if (totalTermCount > 1 || entryHasMultiKey)
 	{
 		/*
 		 * TODO: This term is only needed in the case of parallel build
@@ -1927,8 +1932,10 @@ GenerateCompositeExtractQueryUniqueEqual(pgbson *bson,
 
 	Datum **entries = palloc(sizeof(Datum *) * pathCount);
 	int32_t *entryCounts = palloc0(sizeof(int32_t) * pathCount);
+	bool hasArrayPaths = false;
 	uint32_t totalTermCount = BuildSinglePathTermsForCompositeTerms(bson, options,
-																	entries, entryCounts);
+																	entries, entryCounts,
+																	&hasArrayPaths);
 
 	/* Now that we have the per term counts, generate the overall terms */
 	/* Add an additional one in case we need a truncated term */

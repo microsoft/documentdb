@@ -24,6 +24,7 @@
 #include <miscadmin.h>
 #include <optimizer/paths.h>
 #include <access/relscan.h>
+#include <optimizer/tlist.h>
 
 #include "io/bson_core.h"
 #include "planner/documentdb_planner.h"
@@ -228,6 +229,11 @@ AddExplainCustomPathCore(List *pathList)
 		else
 		{
 			/* we only wrap IndexScan and BitmapHeapScan */
+			isValidPath = false;
+		}
+
+		if (inputPath->param_info != NULL)
+		{
 			isValidPath = false;
 		}
 
@@ -507,6 +513,14 @@ WalkAndExplainScanState(PlanState *scanState, ExplainState *es)
 	{
 		BitmapIndexScanState *bitmapIndexScanState = (BitmapIndexScanState *) scanState;
 		ExplainIndexScanState(bitmapIndexScanState->biss_ScanDesc, es);
+	}
+	else if (IsA(scanState, BitmapAndState))
+	{
+		BitmapAndState *bitmapAndState = (BitmapAndState *) scanState;
+		for (int i = 0; i < bitmapAndState->nplans; i++)
+		{
+			WalkAndExplainScanState(bitmapAndState->bitmapplans[i], es);
+		}
 	}
 	else if (IsA(scanState, BitmapOrState))
 	{

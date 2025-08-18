@@ -1216,14 +1216,12 @@ extension_rumbuild_core(Relation heapRelation, Relation indexRelation,
 		IndexMultiKeyStatus status = CheckIndexHasArrays(indexRelation, coreRoutine);
 		if (status == IndexMultiKeyStatus_HasArrays)
 		{
-			bool isBuild = true;
-			updateMultikeyStatus(isBuild, indexRelation);
+			updateMultikeyStatus(indexRelation);
 		}
 	}
 	else if (RumHasMultiKeyPaths)
 	{
-		bool isBuild = true;
-		updateMultikeyStatus(isBuild, indexRelation);
+		updateMultikeyStatus(indexRelation);
 	}
 
 	return result;
@@ -1275,8 +1273,7 @@ extension_ruminsert_core(Relation indexRelation,
 
 	if (RumHasMultiKeyPaths)
 	{
-		bool isBuild = false;
-		updateMultikeyStatus(isBuild, indexRelation);
+		updateMultikeyStatus(indexRelation);
 	}
 
 	return result;

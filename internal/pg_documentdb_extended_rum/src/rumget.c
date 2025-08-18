@@ -34,6 +34,13 @@ typedef enum RumIndexTransformOperation
 } RumIndexTransformOperation;
 
 
+/* Scan bounds used in comparePartial initialization */
+typedef struct RumItemScanEntryBounds
+{
+	RumItem minItem;
+	RumItem maxItem;
+} RumItemScanEntryBounds;
+
 /* GUC parameter */
 int RumFuzzySearchLimit = 0;
 bool RumAllowOrderByRawKeys = RUM_DEFAULT_ALLOW_ORDER_BY_RAW_KEYS;
@@ -274,6 +281,34 @@ compareCurRumItemScanDirection(RumState *rumstate, RumScanEntry entry,
 									   entry->scanDirection,
 									   &entry->curItem, minItem);
 }
+
+
+#if 0
+inline static bool
+IsEntryInBounds(RumState *rumstate, RumScanEntry scanEntry,
+				RumItem *item, RumItemScanEntryBounds *scanEntryBounds,
+				bool checkMaximum)
+{
+	Assert(ItemPointerIsValid(&scanEntryBounds->minItem.iptr));
+	if (compareRumItem(rumstate, scanEntry->attnumOrig,
+					   item, &scanEntryBounds->minItem) < 0)
+	{
+		return false;
+	}
+
+	if (checkMaximum &&
+		ItemPointerIsValid(&scanEntryBounds->maxItem.iptr) &&
+		compareRumItem(rumstate, scanEntry->attnumOrig,
+					   item, &scanEntryBounds->maxItem) > 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
+#endif
 
 
 /*
@@ -925,6 +960,159 @@ scan_entry_cmp(const void *p1, const void *p2, void *arg)
 }
 
 
+#if 0
+
+/*
+ * Given a query and set of keys, tries to get the min/max item that could theoretically
+ * match that key in the index.
+ */
+static void
+DetectIndexBounds(RumScanOpaque so, RumState *rumstate,
+				  RumItem *minItem, RumItem *maxItem)
+{
+	int i;
+	bool canPreConsistent;
+	ItemPointerSetInvalid(&minItem->iptr);
+	ItemPointerSetInvalid(&maxItem->iptr);
+	for (i = 0; i < so->nkeys; i++)
+	{
+		RumScanEntry currentEntry;
+		RumScanKey currKey = so->keys[i];
+		bool hasValidMax = false;
+		if (!so->rumstate.hasCanPreConsistentFn[currKey->attnum - 1])
+		{
+			continue;
+		}
+
+		/* Assume that only keys that support "fast scans" and pre-consistent checks
+		 * can participate in faster lookups.
+		 */
+		canPreConsistent = DatumGetBool(FunctionCall6Coll(
+											&rumstate->canPreConsistentFn[currKey->attnum
+																		  -
+																		  1],
+											rumstate->supportCollation[currKey->attnum -
+																	   1],
+											UInt16GetDatum(currKey->strategy),
+											currKey->query,
+											UInt32GetDatum(currKey->nuserentries),
+											PointerGetDatum(currKey->extra_data),
+											PointerGetDatum(currKey->queryValues),
+											PointerGetDatum(currKey->queryCategories)));
+
+		if (!canPreConsistent || currKey->nentries != 1)
+		{
+			continue;
+		}
+
+		currentEntry = currKey->scanEntry[0];
+
+		/* Validate there's nothing that prevents us from accessing start/end */
+		if (currentEntry->isPartialMatch ||
+			currentEntry->isFinished ||
+			!ItemPointerIsValid(&currentEntry->curItem.iptr))
+		{
+			continue;
+		}
+
+		/* We have a valid scan key and entry: capture the minimum item. This is the minimal item
+		 * for this scanKey - now capture the "max" of this across all keys
+		 */
+		if (!ItemPointerIsValid(&minItem->iptr) ||
+			compareRumItem(rumstate, currentEntry->attnum, &currentEntry->curItem,
+						   minItem) > 0)
+		{
+			*minItem = currentEntry->curItem;
+		}
+
+		hasValidMax = currentEntry->nlist > 0;
+		if (hasValidMax && BufferIsValid(currentEntry->buffer))
+		{
+			/* In certain cases, we can have a Posting Tree with 1 page. If we are already
+			 * the right most page then we can consider the max from this page.
+			 */
+			Page page = BufferGetPage(currentEntry->buffer);
+			hasValidMax = RumPageRightMost(page);
+		}
+
+		/* See if we can capture the "max" - this can happen for low selectivity keys (keys that don't have
+		 * a posting tree). For a posting tree while we could capture this, we don't wanna do a page walk
+		 * so we skip that here for now. Across keys, we pick the "min" of the maxes.
+		 */
+		if (hasValidMax &&
+			(!ItemPointerIsValid(&maxItem->iptr) ||
+			 compareRumItem(rumstate, currentEntry->attnum,
+							&currentEntry->list[currentEntry->nlist - 1], maxItem) < 0))
+		{
+			*maxItem = currentEntry->list[currentEntry->nlist - 1];
+		}
+	}
+}
+
+
+static void
+startScanEntryExtended(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so)
+{
+	int i, minPartialMatchIndex = -1;
+	RumItemScanEntryBounds scanEntryBounds;
+	RumItemScanEntryBounds *entryBoundsPtr = NULL;
+
+	/* First start the scan entries for everything that's not range */
+	for (i = 0; i < so->totalentries; i++)
+	{
+		if (!so->entries[i]->isPartialMatch)
+		{
+			startScanEntry(rumstate, so->entries[i], scan->xs_snapshot,
+						   NULL);
+		}
+		else if (minPartialMatchIndex < 0)
+		{
+			minPartialMatchIndex = i;
+		}
+	}
+
+	if (minPartialMatchIndex < 0)
+	{
+		/* if there's no partialMatch we're done */
+		return;
+	}
+
+	/* Now walk the keys and see if there's any information we can get about the "min" row
+	 * or the "max" row that matches.
+	 */
+	ItemPointerSetInvalid(&scanEntryBounds.minItem.iptr);
+	ItemPointerSetInvalid(&scanEntryBounds.maxItem.iptr);
+	DetectIndexBounds(so, rumstate, &scanEntryBounds.minItem, &scanEntryBounds.maxItem);
+
+	/* If we detected at least a min, then let's set it on the partial scan */
+	if (ItemPointerIsValid(&scanEntryBounds.minItem.iptr))
+	{
+		entryBoundsPtr = &scanEntryBounds;
+	}
+	else
+	{
+		entryBoundsPtr = NULL;
+	}
+
+	/* Now initialize partialMatch entries based on the information from the entries already initialized */
+	for (i = minPartialMatchIndex; i < so->totalentries; i++)
+	{
+		if (so->entries[i]->isPartialMatch)
+		{
+			/*
+			 * When initializing it, if we're doing an index intersection with a non-partial match
+			 * and the overall state allows for a tidbitmap instead of a tuplestore.
+			 */
+			startScanEntry(rumstate, so->entries[i], scan->xs_snapshot,
+						   entryBoundsPtr);
+		}
+	}
+}
+
+
+#endif
+
+
 inline static int
 CompareRumKeyScanDirection(RumScanOpaque so, AttrNumber attnum,
 						   Datum leftDatum, RumNullCategory leftCategory,
@@ -1122,6 +1310,9 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 		bool isnull[INDEX_MAX_KEYS] = { true };
 
 		Datum idatum = rumtuple_get_key(&so->rumstate, itup, &icategory);
+
+		memset(isnull, true, sizeof(bool) *
+			   so->projectIndexTupleData->indexTupleDesc->natts);
 		oldContext = MemoryContextSwitchTo(so->keyCtx);
 
 		so->projectIndexTupleData->indexTupleDatum = FunctionCall4(

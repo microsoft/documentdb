@@ -83,6 +83,9 @@ pub struct ExplainPlan {
     #[serde(rename = "Group Key")]
     pub group_key: Option<Vec<String>>,
 
+    #[serde(rename = "Heap Fetches")]
+    pub heap_fetches: Option<i64>,
+
     #[serde(rename = "Index Cond")]
     pub index_condition: Option<String>,
 

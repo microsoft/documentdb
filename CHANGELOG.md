@@ -1,5 +1,6 @@
 ### documentdb v1.107-0 (Unreleased) ###
 - Support sort by _id against the _id index using the enableIndexOrderbyPushdown flag *[Feature]*.
+- Improvements to explain for various scan types *[Feature]*.
 
 ### documentdb v1.106-0 (Unreleased) ###
 * Add internal extension that provides extensions to the `rum` index. *[Feature]*
