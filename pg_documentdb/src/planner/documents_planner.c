@@ -885,11 +885,14 @@ ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	/* Before we *replace* function operators in restriction paths, we should apply the force pushdown
 	 * logic while we still have the FuncExprs available.
 	 */
-	Path *forceIndexPath = NULL;
 	if (indexContext.forceIndexQueryOpData.type != ForceIndexOpType_None)
 	{
-		forceIndexPath = ForceIndexForQueryOperators(root, rel, &indexContext);
+		ForceIndexForQueryOperators(root, rel, &indexContext);
 	}
+
+	rel->baserestrictinfo =
+		ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
+															&indexContext);
 
 	/*
 	 * Replace all function operators that haven't been transformed in indexed
@@ -897,21 +900,6 @@ ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	 */
 	ReplaceExtensionFunctionOperatorsInPaths(root, rel, rel->pathlist, PARENTTYPE_NONE,
 											 &indexContext);
-
-	rel->baserestrictinfo =
-		ReplaceExtensionFunctionOperatorsInRestrictionPaths(rel->baserestrictinfo,
-															&indexContext);
-
-	/* If there is a force index path and the base restrictinfo has no runtime filters,
-	 * we need to remove the runtime filters from the index path as postgres index paths restrict info is the base restrict info minus any filters satisfied by an index pfe. */
-	if (indexContext.forceIndexQueryOpData.type != ForceIndexOpType_None &&
-		rel->baserestrictinfo == NIL &&
-		forceIndexPath != NULL &&
-		IsA(forceIndexPath, IndexPath))
-	{
-		IndexPath *indexPath = (IndexPath *) forceIndexPath;
-		indexPath->indexinfo->indrestrictinfo = NIL;
-	}
 
 	if (EnableIndexOrderbyPushdown)
 	{
@@ -1001,9 +989,10 @@ ExtensionRelPathlistHook(PlannerInfo *root, RelOptInfo *rel, Index rti,
  * 4 - Other index access methods
  */
 static int
-GetIndexOptInfoSortOrder(const IndexOptInfo *info)
+GetIndexOptInfoSortOrder(const IndexOptInfo *info, int *pathCount)
 {
 	Oid amOid = info->relam;
+	*pathCount = info->ncolumns;
 	if (amOid == BTREE_AM_OID)
 	{
 		return IndexPriorityOrdering_PrimaryKey;
@@ -1020,6 +1009,7 @@ GetIndexOptInfoSortOrder(const IndexOptInfo *info)
 	/* If it is composite op class it's the next priority. Since composite indexes have a single column, we just get the first column for the opclass. */
 	if (IsCompositeOpFamilyOid(amOid, firstOpClassOid))
 	{
+		*pathCount = GetCompositeOpClassPathCount(info->opclassoptions[0]);
 		return IndexPriorityOrdering_Composite;
 	}
 
@@ -1066,10 +1056,17 @@ CompareIndexOptionsFunc(const ListCell *a, const ListCell *b)
 	IndexOptInfo *infoA = (IndexOptInfo *) lfirst(a);
 	IndexOptInfo *infoB = (IndexOptInfo *) lfirst(b);
 
-	int sortOrderA = GetIndexOptInfoSortOrder(infoA);
-	int sortOrderB = GetIndexOptInfoSortOrder(infoB);
+	int32_t pathCountA, pathCountB;
+	int sortOrderA = GetIndexOptInfoSortOrder(infoA, &pathCountA);
+	int sortOrderB = GetIndexOptInfoSortOrder(infoB, &pathCountB);
 
-	return sortOrderA - sortOrderB;
+	if (sortOrderA != sortOrderB)
+	{
+		return sortOrderA - sortOrderB;
+	}
+
+	/* Prefer smaller indexes that match (pathCount 2 is better than pathCount 3)*/
+	return pathCountA - pathCountB;
 }
 
 
@@ -1107,6 +1104,7 @@ LogRelationIndexesOrder(const RelOptInfo *rel)
 
 			char *opfamilyName = "(unknown)";
 
+			int numPaths = info->ncolumns;
 			if (info->ncolumns > 0)
 			{
 				Oid opfamilyOid = info->opfamily[0];
@@ -1118,10 +1116,16 @@ LogRelationIndexesOrder(const RelOptInfo *rel)
 					opfamilyName = NameStr(ofForm->opfname);
 					ReleaseSysCache(ofTup);
 				}
+
+				if (IsCompositeOpFamilyOid(info->relam, opfamilyOid))
+				{
+					numPaths = GetCompositeOpClassPathCount(info->opclassoptions[0]);
+				}
 			}
 
-			ereport(LOG, errmsg("Name: %s, access method: %s, 1st opfamily: %s",
-								indexName, amName, opfamilyName));
+			ereport(LOG, errmsg(
+						"Name: %s, access method: %s, 1st opfamily: %s, numPaths %d",
+						indexName, amName, opfamilyName, numPaths));
 		}
 	}
 }

@@ -536,12 +536,12 @@ SELECT documentdb_api.insert_one('comp_db', 'comp_collection', FORMAT('{ "_id": 
 set documentdb.logRelationIndexesOrder to on;
 set client_min_messages to log;
 EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1 } }');
-LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
-LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops, numPaths 2
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
                                             QUERY PLAN                                            
 --------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=4.43..8.45 rows=2 width=32)
@@ -552,12 +552,12 @@ LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamil
 (5 rows)
 
 EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true} } }');
-LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
-LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops, numPaths 2
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
                                             QUERY PLAN                                            
 --------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=4.43..8.45 rows=1 width=32)
@@ -585,13 +585,13 @@ SELECT documentdb_api.insert_one('comp_db', 'comp_collection', '{ "_id": 7, "a":
 set documentdb.forceDisableSeqScan to on;
 set client_min_messages to log;
 EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
-LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
-LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops, numPaths 2
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 3
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)
@@ -603,13 +603,13 @@ LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamil
 
 set documentdb.enableIndexPriorityOrdering to off;
 EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
-LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 3
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops, numPaths 2
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)
@@ -628,14 +628,14 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
 
 set documentdb.enableIndexPriorityOrdering to on;
 EXPLAIN VERBOSE SELECT document FROM documentdb_api_catalog.bson_aggregation_find('comp_db', '{ "find": "comp_collection", "filter": { "a": 1, "b": {"$exists": true}, "c": {"$exists": true} } }');
-LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops
-LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5613, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops
-LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
-LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops
+LOG:  Name: collection_pk_5603, access method: btree, 1st opfamily: integer_ops, numPaths 2
+LOG:  Name: documents_rum_index_5611, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5610, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5609, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5613, access method: documentdb_rum, 1st opfamily: bson_rum_composite_path_ops, numPaths 3
+LOG:  Name: documents_rum_index_5608, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5607, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 1
+LOG:  Name: documents_rum_index_5612, access method: documentdb_rum, 1st opfamily: bson_rum_single_path_ops, numPaths 3
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Bitmap Heap Scan on documentdb_data.documents_5603 collection  (cost=0.00..4.02 rows=1 width=32)

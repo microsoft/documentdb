@@ -239,8 +239,8 @@ SELECT document FROM bson_aggregation_pipeline('comp_db2', '{ "aggregate": "orde
                               document                               
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "c" : { "$numberInt" : "5000" } }
- { "_id" : { "$numberInt" : "4" }, "c" : { "$numberInt" : "5000" } }
  { "_id" : { "$numberInt" : "2" }, "c" : { "$numberInt" : "3001" } }
+ { "_id" : { "$numberInt" : "4" }, "c" : { "$numberInt" : "5000" } }
  { "_id" : { "$numberInt" : "3" }, "c" : { "$numberInt" : "2501" } }
 (4 rows)
 
@@ -266,8 +266,8 @@ SELECT document FROM bson_aggregation_pipeline('comp_db2', '{ "aggregate": "orde
                               document                               
 ---------------------------------------------------------------------
  { "_id" : { "$numberInt" : "1" }, "c" : { "$numberInt" : "5000" } }
- { "_id" : { "$numberInt" : "4" }, "c" : { "$numberInt" : "5000" } }
  { "_id" : { "$numberInt" : "2" }, "c" : { "$numberInt" : "3001" } }
+ { "_id" : { "$numberInt" : "4" }, "c" : { "$numberInt" : "5000" } }
  { "_id" : { "$numberInt" : "3" }, "c" : { "$numberInt" : "2501" } }
 (4 rows)
 

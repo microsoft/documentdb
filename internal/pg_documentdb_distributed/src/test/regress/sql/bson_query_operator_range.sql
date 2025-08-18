@@ -47,11 +47,21 @@ Set local citus.log_remote_commands to on; -- Will print Citus rewrites of the q
 Set local citus.log_local_commands to on; -- Will print the local queries 
 Set local log_statement to 'all'; -- Verbose logging
 SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} } }');
-EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} } }');
 
 -- when collation is present $push down of $range query is not done, and we use the unoptimized version (workitem=3423305)
 SET local documentdb_core.enableCollation TO on;
 SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} }, "collation" : {"locale" : "en", "strength" : 1} }');
+ROLLBACK;
+
+BEGIN;
+SET local client_min_messages TO ERROR;
+set local citus.enable_local_execution to off; -- Simulate remote exection with a single nodes
+Set local citus.log_remote_commands to on; -- Will print Citus rewrites of the queries
+Set local citus.log_local_commands to on; -- Will print the local queries 
+Set local log_statement to 'all'; -- Verbose logging
+EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} } }');
+
+SET local documentdb_core.enableCollation TO on;
 EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} } ,"collation" : {"locale" : "en", "strength" : 1} }');
 END;
 

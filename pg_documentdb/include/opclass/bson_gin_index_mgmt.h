@@ -203,10 +203,16 @@ bool CompositeIndexSupportsIndexOnlyScan(const struct IndexPath *indexPath);
 
 int32_t GetCompositeOpClassColumnNumber(const char *currentPath, void *contextOptions,
 										int8_t *sortDirection);
+
+int32_t GetCompositeOpClassPathCount(void *contextOptions);
 const char * GetCompositeFirstIndexPath(void *contextOptions);
 const char * GetFirstPathFromIndexOptionsIfApplicable(bytea *indexOptions,
 													  bool *isWildcardIndex);
 bool PathHasArrayIndexElements(const StringView *path);
+
+struct PlannerInfo;
+bool TraverseIndexPathForCompositeIndex(struct IndexPath *indexPath, struct
+										PlannerInfo *root);
 
 /* Helper macro to retrieve a length prefixed value in the index options */
 #define Get_Index_Path_Option(options, field, result, resultFieldLength) \
@@ -214,5 +220,11 @@ bool PathHasArrayIndexElements(const StringView *path);
 	if (pathDefinition == NULL) { resultFieldLength = 0; result = NULL; } \
 	else { resultFieldLength = *(uint32_t *) pathDefinition; result = pathDefinition + \
 																	  sizeof(uint32_t); }
+
+
+#define Get_Index_Path_Option_Length(options, field, resultFieldLength) \
+	const char *pathDefinition = GET_STRING_RELOPTION(options, field); \
+	if (pathDefinition == NULL) { resultFieldLength = 0; } \
+	else { resultFieldLength = *(uint32_t *) pathDefinition; }
 
 #endif

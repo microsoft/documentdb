@@ -79,6 +79,7 @@ extern bool DefaultInlineWriteOperations;
 extern int MaxAggregationStagesAllowed;
 extern bool EnableIndexOrderbyPushdown;
 extern bool EnableIndexHintSupport;
+extern bool EnableIndexOrderbyPushdownLegacy;
 
 /* GUC to config tdigest compression */
 extern int TdigestCompressionAccuracy;
@@ -4590,6 +4591,11 @@ CanPushSortFilterToIndex(Query *query)
 	if (entry->rtekind != RTE_RELATION)
 	{
 		return false;
+	}
+
+	if (!EnableIndexOrderbyPushdownLegacy)
+	{
+		return true;
 	}
 
 	/* If there's no quals, we can push a full scan order by */

@@ -38,6 +38,7 @@ extern bool EnableNewCompositeIndexOpclass;
 extern bool EnableIndexOrderbyPushdown;
 extern bool EnableDescendingCompositeIndex;
 extern bool EnableIndexOnlyScan;
+extern bool EnableIndexOrderbyPushdownLegacy;
 extern const RumIndexArrayStateFuncs RoaringStateFuncs;
 
 bool RumHasMultiKeyPaths = false;
@@ -374,16 +375,20 @@ extension_rumcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
 		return;
 	}
 
-
 	if (IsCompositeOpFamilyOid(path->indexinfo->relam,
 							   path->indexinfo->opfamily[0]))
 	{
+		bool firstColumnSpecified =
+			EnableIndexOrderbyPushdownLegacy ?
+			CompositePathHasFirstColumnSpecified(path) :
+			TraverseIndexPathForCompositeIndex(path, root);
+
 		/* If this is a composite index, then we need to ensure that
 		 * the first column of the index matches the query path.
 		 * This is because using the composite index would require specifying
 		 * the first column.
 		 */
-		if (!CompositePathHasFirstColumnSpecified(path))
+		if (!firstColumnSpecified)
 		{
 			*indexStartupCost = 0;
 			*indexTotalCost = INFINITY;

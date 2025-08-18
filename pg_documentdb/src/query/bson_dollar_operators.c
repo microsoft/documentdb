@@ -1231,9 +1231,7 @@ bson_dollar_range(PG_FUNCTION_ARGS)
 		PopulateRangeStateFromQuery,
 		filter);
 
-	DollarRangeParams localState = {
-		{ 0 }, { 0 }, false, false, false
-	};
+	DollarRangeParams localState = { 0 };
 	if (cachedRangeParamsState == NULL)
 	{
 		PopulateRangeStateFromQuery(&localState, filter);

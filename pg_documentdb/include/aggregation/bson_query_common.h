@@ -26,6 +26,7 @@ typedef struct DollarRangeParams
 	bool isMaxInclusive;
 
 	bool isFullScan;
+	int32_t orderScanDirection;
 } DollarRangeParams;
 
 DollarRangeParams * ParseQueryDollarRange(pgbsonelement *filterElement);

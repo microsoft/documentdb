@@ -2056,7 +2056,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('
                ->  Index Scan using idx_catalog_items_item_code on documentdb_data.documents_6001_60016 collection_0_1
                      Output: collection_0_1.shard_key_value, collection_0_1.object_id, collection_0_1.document
                      Index Cond: (collection_0_1.document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson))
-                     Filter: ((collection_0_1.shard_key_value = '6001'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson), 'item_code'::text))
+                     Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(collection_0_1.document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "item_code" : "item_name" }'::documentdb_core.bson), 'item_code'::text)
 (16 rows)
 
 ROLLBACK;

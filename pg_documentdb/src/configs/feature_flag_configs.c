@@ -80,6 +80,9 @@ bool DefaultUseCompositeOpClass = DEFAULT_USE_NEW_COMPOSITE_INDEX_OPCLASS;
 #define DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN false
 bool EnableIndexOrderbyPushdown = DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN;
 
+#define DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN_LEGACY false
+bool EnableIndexOrderbyPushdownLegacy = DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN_LEGACY;
+
 #define DEFAULT_ENABLE_DESCENDING_COMPOSITE_INDEX true
 bool EnableDescendingCompositeIndex = DEFAULT_ENABLE_DESCENDING_COMPOSITE_INDEX;
 
@@ -491,6 +494,14 @@ InitializeFeatureFlagConfigurations(const char *prefix, const char *newGucPrefix
 		gettext_noop(
 			"Whether to enable the sort on the new experimental composite index opclass"),
 		NULL, &EnableIndexOrderbyPushdown, DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableIndexOrderbyPushdownLegacy", newGucPrefix),
+		gettext_noop(
+			"Whether to enable the prior index sort on the new experimental composite index opclass"),
+		NULL, &EnableIndexOrderbyPushdownLegacy,
+		DEFAULT_ENABLE_INDEX_ORDERBY_PUSHDOWN_LEGACY,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

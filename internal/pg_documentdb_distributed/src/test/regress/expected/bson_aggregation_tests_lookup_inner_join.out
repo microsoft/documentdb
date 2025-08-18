@@ -222,7 +222,7 @@ set local documentdb.enableLookupInnerJoin to on;
 -- RIGHT JOIN without force bitmap scan, should use index scan
 EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('lookupdb', 
     '{ "aggregate": "planes", "pipeline": [ { "$match": { "model": { "$exists": true } } }, { "$lookup": { "from": "gate_availability", "as": "matched_docs", "localField": "model", "foreignField": "plane_model" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
-                                                                                                                                                 QUERY PLAN                                                                                                                                                 
+                                                                                                                            QUERY PLAN                                                                                                                             
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -236,7 +236,7 @@ EXPLAIN (SUMMARY OFF, COSTS OFF) SELECT document FROM bson_aggregation_pipeline(
                            Index Cond: (document OPERATOR(documentdb_api_catalog.@>=) '{ "model" : { "$minKey" : 1 } }'::documentdb_core.bson)
                ->  Index Scan using plane_model_1 on documents_7312_731004 collection_0_1
                      Index Cond: (document OPERATOR(documentdb_api_catalog.@*=) documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson))
-                     Filter: ((shard_key_value = '7312'::bigint) AND documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text))
+                     Filter: documentdb_api_internal.bson_dollar_lookup_join_filter(document, documentdb_api_internal.bson_dollar_lookup_extract_filter_expression(collection.document, '{ "plane_model" : "model" }'::documentdb_core.bson), 'plane_model'::text)
 (13 rows)
 
 ROLLBACK;

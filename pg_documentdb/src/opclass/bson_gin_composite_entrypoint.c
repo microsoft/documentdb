@@ -1180,6 +1180,17 @@ IsBsonDollarNinArrayContainsArrays(const bson_value_t *bsonValue)
 }
 
 
+int32_t
+GetCompositeOpClassPathCount(void *contextOptions)
+{
+	BsonGinCompositePathOptions *options =
+		(BsonGinCompositePathOptions *) contextOptions;
+	uint32_t pathCount;
+	Get_Index_Path_Option_Length(options, compositePathSpec, pathCount);
+	return (int32_t) pathCount;
+}
+
+
 const char *
 GetCompositeFirstIndexPath(void *contextOptions)
 {
