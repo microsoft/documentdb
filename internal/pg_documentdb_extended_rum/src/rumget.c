@@ -2866,6 +2866,7 @@ end:
 static void
 entryFindItem(RumState *rumstate, RumScanEntry entry, RumItem *item, Snapshot snapshot)
 {
+	Page page;
 	if (entry->nlist == 0)
 	{
 		entry->isFinished = true;
@@ -2909,6 +2910,22 @@ entryFindItem(RumState *rumstate, RumScanEntry entry, RumItem *item, Snapshot sn
 
 	/* Check rest of page */
 	LockBuffer(entry->buffer, RUM_SHARE);
+
+	/* If the page got split by the time we get here, then refind the leftmost page */
+	page = BufferGetPage(entry->buffer);
+	while (!RumPageIsLeaf(page) && RumEnableRefindLeafOnEntryNextItem)
+	{
+		RumBtreeData btree;
+		BlockNumber newBlock;
+		Buffer newBuffer;
+		rumPrepareDataScan(&btree, rumstate->index, entry->attnum, rumstate);
+		newBlock = btree.getLeftMostPage(&btree, page);
+		newBuffer = ReadBuffer(btree.index, newBlock);
+		LockBuffer(newBuffer, RUM_SHARE);
+		UnlockReleaseBuffer(entry->buffer);
+		entry->buffer = newBuffer;
+		page = BufferGetPage(entry->buffer);
+	}
 
 	PredicateLockPage(rumstate->index, BufferGetBlockNumber(entry->buffer), snapshot);
 
