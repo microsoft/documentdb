@@ -485,3 +485,9 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggr
 
 -- if we're querying just filters, use a_b_d since it's better
 EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggregation_find('comp_db', '{ "find": "index_orderby_selection", "filter": { "a": { "$in": [ 1, 2 ] }, "b": { "$in": [ 2, 3 ] }, "d": 10 } }');
+
+
+-- order by backward scan with unique index
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "unique_sort", "indexes": [ { "key": { "a": 1, "b": 1 }, "enableOrderedIndex": true, "name": "a_b_1", "unique": true }] }', true);
+select COUNT(documentdb_api.insert_one('comp_db', 'unique_sort', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s, "d": %s }', i, i, i, i, i )::bson)) FROM generate_series(1, 100) AS i;
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_find('comp_db', '{ "find": "unique_sort", "sort": { "a": -1, "b": -1 }}');

@@ -3588,6 +3588,12 @@ MoveScanForward(RumScanOpaque so, Snapshot snapshot)
 		 */
 		if (rumtuple_get_attrnum(btree.rumstate, itup) != entry->attnum)
 		{
+			if (ScanDirectionIsBackward(so->orderScanDirection))
+			{
+				so->orderByScanData->orderStack->off += so->orderScanDirection;
+				continue;
+			}
+
 			ItemPointerSetInvalid(&entry->curItem.iptr);
 			entry->isFinished = true;
 			return false;

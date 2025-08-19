@@ -584,8 +584,8 @@ SetBoundaryStoppingValueLessThan(bool hasEqualityPrefix, const BsonIndexTerm *co
 
 inline static int
 SetBoundaryStoppingValueGreaterThan(bool hasEqualityPrefix, const
-									BsonIndexTerm *compareTerm, bool isBackwardScan, bool
-									hasUnspecifiedPrefix)
+									BsonIndexTerm *compareTerm, bool isBackwardScan,
+									bool hasUnspecifiedPrefix)
 {
 	int cmp;
 	if (IsIndexTermValueDescending(compareTerm))
@@ -598,7 +598,16 @@ SetBoundaryStoppingValueGreaterThan(bool hasEqualityPrefix, const
 									   -1);
 	}
 
-	return isBackwardScan ? -cmp : cmp;
+	if (isBackwardScan)
+	{
+		cmp = -cmp;
+		if (!hasEqualityPrefix && cmp == 1)
+		{
+			cmp = -1;
+		}
+	}
+
+	return cmp;
 }
 
 

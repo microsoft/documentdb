@@ -2179,3 +2179,33 @@ EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT * FROM bson_aggr
          Index Cond: ((document @*= '{ "a" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] }'::bson) AND (document @*= '{ "b" : [ { "$numberInt" : "2" }, { "$numberInt" : "3" } ] }'::bson) AND (document @= '{ "d" : { "$numberInt" : "10" } }'::bson))
 (9 rows)
 
+-- order by backward scan with unique index
+SELECT documentdb_api_internal.create_indexes_non_concurrently('comp_db', '{ "createIndexes": "unique_sort", "indexes": [ { "key": { "a": 1, "b": 1 }, "enableOrderedIndex": true, "name": "a_b_1", "unique": true }] }', true);
+NOTICE:  creating collection
+                                                                                                   create_indexes_non_concurrently                                                                                                   
+---------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "1" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : true, "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+(1 row)
+
+select COUNT(documentdb_api.insert_one('comp_db', 'unique_sort', FORMAT('{ "_id": %s, "a": %s, "b": %s, "c": %s, "d": %s }', i, i, i, i, i )::bson)) FROM generate_series(1, 100) AS i;
+ count 
+---------------------------------------------------------------------
+   100
+(1 row)
+
+EXPLAIN (COSTS OFF, ANALYZE ON, SUMMARY OFF, TIMING OFF) SELECT document FROM bson_aggregation_find('comp_db', '{ "find": "unique_sort", "sort": { "a": -1, "b": -1 }}');
+                                                                                     QUERY PLAN                                                                                      
+---------------------------------------------------------------------
+ Custom Scan (DocumentDBApiExplainQueryScan) (actual rows=100 loops=1)
+   indexName: a_b_1
+   isMultiKey: false
+   indexBounds: ["a": (MinKey, MaxKey), "b": (MinKey, MaxKey)]
+   isBackwardScan: true
+   innerScanLoops: 100 loops
+   scanType: ordered
+   scanKeyDetails: key 1: [(isInequality: true, estimatedEntryCount: 100)]
+   ->  Index Scan using a_b_1 on documents_68012_680024 collection (actual rows=100 loops=1)
+         Index Cond: ((document @<> '{ "a" : { "orderByScan" : { "$numberInt" : "-1" } } }'::bson) AND (document @<> '{ "b" : { "orderByScan" : { "$numberInt" : "-1" } } }'::bson))
+         Order By: ((document <>-| '{ "a" : { "$numberInt" : "-1" } }'::bson) AND (document <>-| '{ "b" : { "$numberInt" : "-1" } }'::bson))
+(11 rows)
+
