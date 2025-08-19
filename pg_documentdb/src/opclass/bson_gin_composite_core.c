@@ -150,8 +150,8 @@ BuildLowerBoundTermFromIndexBounds(CompositeQueryRunData *runData,
 			runData->indexBounds[i].
 			requiresRuntimeRecheck;
 		hasTruncation = hasTruncation ||
-						runData->indexBounds[i].lowerBound.indexTermValue.
-						isIndexTermTruncated;
+						IsIndexTermTruncated(
+			&runData->indexBounds[i].lowerBound.indexTermValue);
 
 		/* If both lower and upper bound match it's equality */
 		if (runData->indexBounds[i].lowerBound.bound.value_type != BSON_TYPE_EOD &&
@@ -393,8 +393,8 @@ UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
 			ProcessBoundForQuery(&queryBounds[i].lowerBound,
 								 &metadata);
 			hasTruncation = hasTruncation ||
-							queryBounds[i].lowerBound.
-							indexTermValue.isIndexTermTruncated;
+							IsIndexTermTruncated(&queryBounds[i].lowerBound.
+												 indexTermValue);
 		}
 
 		if (queryBounds[i].upperBound.bound.value_type != BSON_TYPE_EOD)
@@ -402,8 +402,8 @@ UpdateBoundsForTruncation(CompositeIndexBounds *queryBounds, int32_t numPaths,
 			ProcessBoundForQuery(&queryBounds[i].upperBound,
 								 &metadata);
 			hasTruncation = hasTruncation ||
-							queryBounds[i].upperBound.
-							indexTermValue.isIndexTermTruncated;
+							IsIndexTermTruncated(&queryBounds[i].upperBound.
+												 indexTermValue);
 		}
 	}
 
@@ -741,7 +741,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 	{
 		case BSON_INDEX_STRATEGY_DOLLAR_REGEX:
 		{
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -779,7 +779,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		{
 			bson_value_t *notEqualQuery = (bson_value_t *) recheckArgs->queryDatum;
 
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -803,7 +803,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_CLEAR:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -816,7 +816,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_CLEAR:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -829,7 +829,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ALL_SET:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;
@@ -842,7 +842,7 @@ IsValidRecheckForIndexValue(const BsonIndexTerm *compareTerm,
 		case BSON_INDEX_STRATEGY_DOLLAR_BITS_ANY_SET:
 		{
 			bson_value_t *bitsQuery = (bson_value_t *) recheckArgs->queryDatum;
-			if (compareTerm->isIndexTermTruncated)
+			if (IsIndexTermTruncated(compareTerm))
 			{
 				/* don't bother, let the runtime check on this */
 				return true;

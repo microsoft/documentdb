@@ -194,6 +194,18 @@ BsonValueToPgbsonElementUnsafe(const bson_value_t *bsonValue,
 }
 
 
+void
+BsonDocumentBytesToPgbsonElementUnsafe(const uint8_t *bytes, uint32_t bytesLen,
+									   pgbsonelement *element)
+{
+	if (!FillPgbsonElementUnsafe((uint8_t *) bytes, bytesLen, element))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("invalid input BSON: Invalid single value document.")));
+	}
+}
+
+
 /*
  * For a given bson value of document type, converts to a pgbsonelement,
  * which contains the path and value at that path.
@@ -298,11 +310,10 @@ FillPgbsonElementUnsafe(uint8_t *data, uint32_t data_len, pgbsonelement *element
 
 	/* First 4 bytes are the length */
 	uint32_t length = *((int32_t *) data);
-	data += 4;
 
 	/* Fifth byte is the value */
-	element->bsonValue.value_type = (bson_type_t) data[0];
-	data++;
+	element->bsonValue.value_type = (bson_type_t) data[4];
+	data += 5;
 
 	/* Then the path that is null terminated */
 	element->path = (char *) data;

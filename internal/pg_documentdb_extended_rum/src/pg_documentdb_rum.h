@@ -804,6 +804,7 @@ typedef struct RumOrderByScanData
 {
 	RumBtreeStack *orderStack;
 	Page orderByEntryPageCopy;
+	bool isPageValid;
 	RumScanEntry orderByEntry;
 	IndexTuple boundEntryTuple;
 } RumOrderByScanData;

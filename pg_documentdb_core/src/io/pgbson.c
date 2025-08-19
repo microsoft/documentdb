@@ -748,6 +748,13 @@ PgbsonHeapWriterInit()
 }
 
 
+void
+PgbsonHeapWriterReset(pgbson_heap_writer *writer)
+{
+	bson_reinit(writer->innerBsonRef);
+}
+
+
 /*
  * Gets the length of the bson currently written into the writer.
  */
@@ -803,6 +810,23 @@ PgbsonWriterAppendValue(pgbson_writer *writer, const char *path, uint32_t pathLe
 						const bson_value_t *value)
 {
 	if (!bson_append_value(&(writer->innerBson), path, pathLength, value))
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
+							"adding %s value: failed due to value being too large",
+							BsonTypeName(value->value_type)))
+				);
+	}
+}
+
+
+/*
+ * Appends a bson value as a single element array to pgbson heap writer.
+ */
+void
+PgbsonHeapWriterAppendValue(pgbson_heap_writer *writer, const char *path,
+							uint32_t pathLength, const bson_value_t *value)
+{
+	if (!bson_append_value(writer->innerBsonRef, path, pathLength, value))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
 							"adding %s value: failed due to value being too large",
@@ -1379,6 +1403,30 @@ PgbsonWriterCopyDocumentDataToBsonValue(pgbson_writer *writer, bson_value_t *bso
 	bsonValue->value.v_doc.data_len = writerSize;
 
 	memcpy(bsonValue->value.v_doc.data, bson_get_data(&writer->innerBson), writerSize);
+}
+
+
+bson_value_t
+PgbsonWriterGetValue(pgbson_writer *writer)
+{
+	bson_value_t bsonValue = { 0 };
+	uint32_t writerSize = PgbsonWriterGetSize(writer);
+	bsonValue.value_type = BSON_TYPE_DOCUMENT;
+	bsonValue.value.v_doc.data = (uint8_t *) bson_get_data(&writer->innerBson);
+	bsonValue.value.v_doc.data_len = writerSize;
+	return bsonValue;
+}
+
+
+bson_value_t
+PgbsonHeapWriterGetValue(pgbson_heap_writer *writer)
+{
+	bson_value_t bsonValue = { 0 };
+	uint32_t writerSize = PgbsonHeapWriterGetSize(writer);
+	bsonValue.value_type = BSON_TYPE_DOCUMENT;
+	bsonValue.value.v_doc.data = (uint8_t *) bson_get_data(writer->innerBsonRef);
+	bsonValue.value.v_doc.data_len = writerSize;
+	return bsonValue;
 }
 
 

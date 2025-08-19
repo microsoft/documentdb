@@ -303,7 +303,7 @@ HandleConsistentGreaterLessEquals(Datum *queryKeys, bool *check, bool *recheck,
 	 */
 	BsonIndexTerm equalityTerm;
 	InitializeBsonIndexTerm(DatumGetByteaPP(queryKeys[1]), &equalityTerm);
-	*recheck = !check[0] && equalityTerm.isIndexTermTruncated;
+	*recheck = !check[0] && IsIndexTermTruncated(&equalityTerm);
 
 	/* A row matches if it's $gt/$lt OR $eq */
 	return check[0] || check[1];
@@ -781,7 +781,7 @@ GinBsonConsistentCore(BsonIndexStrategy strategy,
 			}
 			else
 			{
-				if (indexTerm.isIndexTermTruncated)
+				if (IsIndexTermTruncated(&indexTerm))
 				{
 					/* If the $ne is on a truncated term, we can't be totally
 					 * sure.
@@ -3399,7 +3399,7 @@ GinBsonComparePartialBitsWiseOperator(BsonIndexTerm *queryValue,
 	}
 	else
 	{
-		if (compareValue->isIndexTermTruncated)
+		if (IsIndexTermTruncated(compareValue))
 		{
 			/* If it's truncated, mark it as a match and let the runtime deal with it */
 			return 0;
@@ -3549,7 +3549,7 @@ GinBsonComparePartialDollarRange(DollarRangeValues *rangeValues,
 
 			/* The min may also be met if the min term is truncated for a > Min */
 			if (!rangeValues->params.isMinInclusive && minCmp == 0 &&
-				minValueIndexTerm.isIndexTermTruncated)
+				IsIndexTermTruncated(&minValueIndexTerm))
 			{
 				isMinConditionMet = true;
 			}
@@ -3577,7 +3577,7 @@ GinBsonComparePartialDollarRange(DollarRangeValues *rangeValues,
 
 			/* The max may also be met if the max term is truncated for a < Max */
 			if (!rangeValues->params.isMaxInclusive && maxCmp == 0 &&
-				maxValueIndexTerm.isIndexTermTruncated)
+				IsIndexTermTruncated(&maxValueIndexTerm))
 			{
 				isMaxConditionMet = true;
 			}
@@ -3702,7 +3702,7 @@ GinBsonComparePartialRegex(BsonIndexTerm *queryValue, BsonIndexTerm *compareValu
 		/* we can stop iterating more. */
 		return 1;
 	}
-	else if (compareValue->isIndexTermTruncated)
+	else if (IsIndexTermTruncated(compareValue))
 	{
 		/* Don't compare truncated terms in the index */
 		return -1;
@@ -3831,7 +3831,7 @@ GinBsonComparePartialSize(BsonIndexTerm *queryValue, BsonIndexTerm *compareValue
 		}
 
 		/* If it's truncated: */
-		if (compareValue->isIndexTermTruncated)
+		if (IsIndexTermTruncated(compareValue))
 		{
 			/* If we're already greater than the required size, we don't need to go
 			 * to the runtime. e.g. if { $size: 1} and we counted 2 elements in the

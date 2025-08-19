@@ -237,10 +237,10 @@ CompareIndexTermPathAndValue(const BsonIndexTerm *leftTerm, const
 	}
 
 	/* Both terms are equal by value - compare for truncation */
-	if (leftTerm->isIndexTermTruncated ^ rightTerm->isIndexTermTruncated)
+	if (IsIndexTermTruncated(leftTerm) ^ IsIndexTermTruncated(rightTerm))
 	{
-		return (int32_t) leftTerm->isIndexTermTruncated -
-			   (int32_t) rightTerm->isIndexTermTruncated;
+		return (int32_t) IsIndexTermTruncated(leftTerm) -
+			   (int32_t) IsIndexTermTruncated(rightTerm);
 	}
 
 	return 0;
@@ -315,6 +315,28 @@ IsSerializedIndexTermTruncated(bytea *indexTermSerialized)
 
 
 bool
+IsSerializedIndexTermMetadata(bytea *indexTermSerialized)
+{
+	const uint8_t *buffer = (const uint8_t *) VARDATA_ANY(indexTermSerialized);
+	uint32_t indexTermSize PG_USED_FOR_ASSERTS_ONLY = VARSIZE_ANY_EXHDR(
+		indexTermSerialized);
+
+	/* size must be bigger than metadata + bson overhead */
+	Assert(indexTermSize > (sizeof(uint8_t) + 5));
+
+	return (IndexTermMetadata) buffer[0] == IndexTermIsMetadata;
+}
+
+
+bool
+IsIndexTermTruncated(const BsonIndexTerm *indexTerm)
+{
+	return indexTerm->termMetadata == IndexTermTruncated ||
+		   indexTerm->termMetadata == IndexTermDescendingTruncated;
+}
+
+
+bool
 IsIndexTermMaybeUndefined(const BsonIndexTerm *indexTerm)
 {
 	return indexTerm->termMetadata == IndexTermPartialUndefinedValue ||
@@ -350,18 +372,10 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	Assert(indexTermSize > (sizeof(uint8_t) + 5));
 
 	/* First we have the metadata */
-	indexTerm->isIndexTermTruncated = false;
 	indexTerm->isIndexTermMetadata = false;
 	indexTerm->termMetadata = buffer[0];
 	switch ((IndexTermMetadata) buffer[0])
 	{
-		case IndexTermDescendingTruncated:
-		case IndexTermTruncated:
-		{
-			indexTerm->isIndexTermTruncated = true;
-			break;
-		}
-
 		case IndexTermIsMetadata:
 		{
 			indexTerm->isIndexTermMetadata = true;
@@ -375,11 +389,49 @@ InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm)
 	}
 
 	/* Next is the bson data serialized */
-	bson_value_t value;
-	value.value_type = BSON_TYPE_DOCUMENT;
-	value.value.v_doc.data_len = indexTermSize - 1;
-	value.value.v_doc.data = (uint8_t *) &buffer[1];
-	BsonValueToPgbsonElementUnsafe(&value, &indexTerm->element);
+	BsonDocumentBytesToPgbsonElementUnsafe((const uint8_t *) &buffer[1], indexTermSize -
+										   1, &indexTerm->element);
+}
+
+
+int32_t
+InitializeSerializedCompositeIndexTerm(bytea *indexTermSerialized,
+									   bytea *termValues[INDEX_MAX_KEYS])
+{
+	if (!IsSerializedIndexTermComposite(indexTermSerialized))
+	{
+		termValues[0] = indexTermSerialized;
+		return 1;
+	}
+
+	uint32_t termSize = VARSIZE_ANY_EXHDR(indexTermSerialized);
+	const uint8_t *buffer = (const uint8_t *) VARDATA_ANY(indexTermSerialized);
+
+	/* Skip the first byte - gets the first terms metadata */
+	buffer++;
+	termSize--;
+
+	int index = 0;
+	while (termSize > 0)
+	{
+		if (index >= INDEX_MAX_KEYS)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg("Index term exceeds maximum number of keys %d",
+								   INDEX_MAX_KEYS)));
+		}
+
+		bytea *bytes = (bytea *) buffer;
+		termValues[index] = bytes;
+		uint32_t leftSize = VARSIZE(bytes);
+
+		/* Move to the next term */
+		index++;
+		buffer += leftSize;
+		termSize -= leftSize;
+	}
+
+	return index;
 }
 
 
@@ -1119,7 +1171,7 @@ SerializeBsonIndexTermCore(pgbsonelement *indexElement,
 												   termMetadata, &indexTerm);
 
 	serializedTerm.indexTermVal = indexTermVal;
-	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
+	serializedTerm.isIndexTermTruncated = IsIndexTermTruncated(&indexTerm);
 	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
 	return serializedTerm;
 }
@@ -1175,7 +1227,7 @@ SerializeBsonIndexTermWithCompression(pgbsonelement *indexElement,
 												   termMetadata, &indexTerm);
 	serializedTerm.indexTermDatum = CompressTermIfNeeded(indexTermVal);
 
-	serializedTerm.isIndexTermTruncated = indexTerm.isIndexTermTruncated;
+	serializedTerm.isIndexTermTruncated = IsIndexTermTruncated(&indexTerm);
 	serializedTerm.isRootMetadataTerm = indexTerm.isIndexTermMetadata;
 	return serializedTerm;
 }
@@ -1405,11 +1457,7 @@ BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 		termMetadata = IndexTermTruncated;
 	}
 
-	if (termMetadata == IndexTermTruncated)
-	{
-		indexTerm->isIndexTermTruncated = true;
-	}
-	else if (termMetadata == IndexTermIsMetadata)
+	if (termMetadata == IndexTermIsMetadata)
 	{
 		indexTerm->isIndexTermMetadata = true;
 	}
@@ -1457,12 +1505,12 @@ BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
 							createMetadata->indexTermSizeLimit, BsonTypeName(
 								indexElement->bsonValue.value_type), dataSize,
-							indexTerm->isIndexTermTruncated),
+							IsIndexTermTruncated(indexTerm)),
 						errdetail_log(
 							"Truncation size limit specified %d, but index term with type %s was larger %d - isTruncated %d",
 							createMetadata->indexTermSizeLimit, BsonTypeName(
 								indexElement->bsonValue.value_type), dataSize,
-							indexTerm->isIndexTermTruncated)));
+							IsIndexTermTruncated(indexTerm))));
 	}
 
 	int indexTermSize = dataSize + VARHDRSZ + sizeof(uint8_t);
@@ -1471,6 +1519,7 @@ BuildSerializedIndexTerm(pgbsonelement *indexElement, const
 
 	uint8_t *buffer = (uint8_t *) VARDATA(indexTermVal);
 	buffer[0] = termMetadata;
+	indexTerm->termMetadata = termMetadata;
 	PgbsonWriterCopyToBuffer(&writer, &buffer[1], dataSize);
 	return indexTermVal;
 }

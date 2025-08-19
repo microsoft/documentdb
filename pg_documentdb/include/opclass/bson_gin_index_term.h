@@ -18,9 +18,6 @@
 /* Struct used in manipulating bson index terms */
 typedef struct BsonIndexTerm
 {
-	/* Whether or not the term is truncated */
-	bool isIndexTermTruncated;
-
 	/* Whether or not it's a metadata term */
 	bool isIndexTermMetadata;
 
@@ -108,10 +105,14 @@ bool IsIndexTermValueDescending(const BsonIndexTerm *indexTerm);
 
 bool IsSerializedIndexTermComposite(bytea *indexTermSerialized);
 bool IsSerializedIndexTermTruncated(bytea *indexTermSerialized);
+bool IsSerializedIndexTermMetadata(bytea *indexTermSerialized);
 void InitializeBsonIndexTerm(bytea *indexTermSerialized, BsonIndexTerm *indexTerm);
 
 int32_t InitializeCompositeIndexTerm(bytea *indexTermSerialized, BsonIndexTerm
 									 indexTerm[INDEX_MAX_KEYS]);
+
+int32_t InitializeSerializedCompositeIndexTerm(bytea *indexTermSerialized,
+											   bytea *termValues[INDEX_MAX_KEYS]);
 
 BsonIndexTermSerialized SerializeBsonIndexTerm(pgbsonelement *indexElement,
 											   const IndexTermCreateMetadata *
@@ -141,7 +142,7 @@ int32_t CompareBsonIndexTerm(const BsonIndexTerm *left, const BsonIndexTerm *rig
 inline static bool
 IsRootTruncationTerm(BsonIndexTerm *term)
 {
-	return term->isIndexTermTruncated &&
+	return IsIndexTermTruncated(term) &&
 		   term->element.pathLength == 0 &&
 		   term->element.bsonValue.value_type == BSON_TYPE_MAXKEY;
 }

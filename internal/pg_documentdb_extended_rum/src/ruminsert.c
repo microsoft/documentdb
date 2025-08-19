@@ -2401,7 +2401,7 @@ rumbuild_parallel(Relation heap, Relation index, struct IndexInfo *indexInfo,
 	 * Update metapage stats
 	 */
 	buildstate->buildStats.nTotalPages = RelationGetNumberOfBlocks(index);
-	ginUpdateStats(index, &buildstate->buildStats, true);
+	rumUpdateStats(index, &buildstate->buildStats, true);
 
 	/*
 	 * We didn't write WAL records as we built the index, so if WAL-logging is

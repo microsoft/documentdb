@@ -1264,6 +1264,117 @@ ValidateIndexEntry(RumScanOpaque so, Datum idatum,
 }
 
 
+/*
+ * This is a copy of index_form_tuple in Postgres,
+ * except we don't try to compress the tuples at all
+ * since this is not destined for storage but the runtime.
+ * Additionally, we reuse the prior indextuple memory to avoid
+ * re-allocating if possible.
+ */
+static IndexTuple
+IndexBuildTupleDynamic(TupleDesc tupleDescriptor,
+					   Datum *values,
+					   bool *isnull,
+					   IndexTuple priorTuple,
+					   MemoryContext context)
+{
+	char *tp;                   /* tuple pointer */
+	IndexTuple tuple;           /* return tuple */
+	Size size,
+		 data_size,
+		 hoff;
+	int i;
+	unsigned short infomask = 0;
+	bool hasnull = false;
+	uint16 tupmask = 0;
+	int numberOfAttributes = tupleDescriptor->natts;
+
+	if (numberOfAttributes > INDEX_MAX_KEYS)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_TOO_MANY_COLUMNS),
+				 errmsg("number of index columns (%d) exceeds limit (%d)",
+						numberOfAttributes, INDEX_MAX_KEYS)));
+	}
+
+	for (i = 0; i < numberOfAttributes; i++)
+	{
+		if (isnull[i])
+		{
+			hasnull = true;
+			break;
+		}
+	}
+
+	if (hasnull)
+	{
+		infomask |= INDEX_NULL_MASK;
+	}
+
+	hoff = IndexInfoFindDataOffset(infomask);
+	data_size = heap_compute_data_size(tupleDescriptor,
+									   values, isnull);
+	size = hoff + data_size;
+	size = MAXALIGN(size);      /* be conservative */
+
+	if (priorTuple != NULL)
+	{
+		Size priorSize = IndexTupleSize(priorTuple);
+		if (priorSize < size)
+		{
+			priorTuple = repalloc(priorTuple, size);
+		}
+
+		tp = (char *) priorTuple;
+		memset(tp, 0, sizeof(IndexTupleData));
+	}
+	else
+	{
+		tp = (char *) MemoryContextAllocZero(context, size);
+	}
+
+	tuple = (IndexTuple) tp;
+	heap_fill_tuple(tupleDescriptor,
+					values,
+					isnull,
+					(char *) tp + hoff,
+					data_size,
+					&tupmask,
+					(hasnull ? (bits8 *) tp + sizeof(IndexTupleData) : NULL));
+
+	/*
+	 * We do this because heap_fill_tuple wants to initialize a "tupmask"
+	 * which is used for HeapTuples, but we want an indextuple infomask. The
+	 * only relevant info is the "has variable attributes" field. We have
+	 * already set the hasnull bit above.
+	 */
+	if (tupmask & HEAP_HASVARWIDTH)
+	{
+		infomask |= INDEX_VAR_MASK;
+	}
+
+	/*
+	 * Here we make sure that the size will fit in the field reserved for it
+	 * in t_info.
+	 */
+	if ((size & INDEX_SIZE_MASK) != size)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+				 errmsg("index row requires %zu bytes, maximum size is %zu",
+						size, (Size) INDEX_SIZE_MASK)));
+	}
+
+	infomask |= size;
+
+	/*
+	 * initialize metadata
+	 */
+	tuple->t_info = infomask;
+	return tuple;
+}
+
+
 static void
 PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 						   Snapshot snapshot, IndexTuple itup)
@@ -1323,16 +1434,12 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 			so->projectIndexTupleData->indexTupleDatum);
 
 		/* Now form the index datum (freeing the prior one) */
-		if (so->projectIndexTupleData->iscan_tuple)
-		{
-			pfree(so->projectIndexTupleData->iscan_tuple);
-		}
-
 		values[0] = so->projectIndexTupleData->indexTupleDatum;
 		isnull[0] = false;
 
-		so->projectIndexTupleData->iscan_tuple = index_form_tuple(
-			so->projectIndexTupleData->indexTupleDesc, values, isnull);
+		so->projectIndexTupleData->iscan_tuple = IndexBuildTupleDynamic(
+			so->projectIndexTupleData->indexTupleDesc, values, isnull,
+			so->projectIndexTupleData->iscan_tuple, so->keyCtx);
 		MemoryContextSwitchTo(oldContext);
 	}
 
@@ -1452,10 +1559,9 @@ startScanEntryOrderedCore(RumScanOpaque so, RumScanEntry minScanEntry, Snapshot 
 	}
 	so->orderByScanData->orderStack = NULL;
 
-	if (so->orderByScanData->orderByEntryPageCopy)
+	if (so->orderByScanData->isPageValid)
 	{
-		pfree(so->orderByScanData->orderByEntryPageCopy);
-		so->orderByScanData->orderByEntryPageCopy = NULL;
+		so->orderByScanData->isPageValid = false;
 	}
 
 	/* Current entry being considered for ordered scan */
@@ -1625,6 +1731,7 @@ startOrderedScanEntries(IndexScanDesc scan, RumState *rumstate, RumScanOpaque so
 	}
 
 	so->orderByScanData = palloc0(sizeof(RumOrderByScanData));
+	so->orderByScanData->orderByEntryPageCopy = palloc(BLCKSZ);
 	startScanEntryOrderedCore(so, minEntry, scan->xs_snapshot);
 }
 
@@ -3322,6 +3429,14 @@ scanGetItemFull(IndexScanDesc scan, RumItem *advancePast,
 }
 
 
+inline static void
+CopyPageContents(Page sourcePage, Page targetPage)
+{
+	Size pageSize = PageGetPageSize(sourcePage);
+	memcpy(targetPage, sourcePage, pageSize);
+}
+
+
 static bool
 MoveBuffersForOrderedScan(RumScanOpaque so, RumBtree btree)
 {
@@ -3330,12 +3445,13 @@ MoveBuffersForOrderedScan(RumScanOpaque so, RumBtree btree)
 	BlockNumber nextBlockNo = InvalidBlockNumber;
 	IndexTuple boundTuple = NULL;
 	OffsetNumber boundTupleOffset = InvalidOffsetNumber;
-	if (scanData->orderByEntryPageCopy == NULL)
+	if (!scanData->isPageValid)
 	{
 		/* First time after startOrderedScan is called - need to init from current buffer page */
 		LockBuffer(scanData->orderStack->buffer, RUM_SHARE);
 		page = BufferGetPage(scanData->orderStack->buffer);
-		scanData->orderByEntryPageCopy = PageGetTempPageCopy(page);
+		CopyPageContents(page, scanData->orderByEntryPageCopy);
+		scanData->isPageValid = true;
 		LockBuffer(scanData->orderStack->buffer, RUM_UNLOCK);
 		return true;
 	}
@@ -3409,13 +3525,9 @@ MoveBuffersForOrderedScan(RumScanOpaque so, RumBtree btree)
 	}
 
 	/* Found a valid buffer to move to, now copy the buffer into the temp storage */
-	if (scanData->orderByEntryPageCopy)
-	{
-		pfree(scanData->orderByEntryPageCopy);
-	}
-
 	page = BufferGetPage(scanData->orderStack->buffer);
-	scanData->orderByEntryPageCopy = PageGetTempPageCopy(page);
+	CopyPageContents(page, scanData->orderByEntryPageCopy);
+	scanData->isPageValid = true;
 	scanData->orderStack->off =
 		ScanDirectionIsBackward(so->orderScanDirection) ?
 		PageGetMaxOffsetNumber(scanData->orderByEntryPageCopy)

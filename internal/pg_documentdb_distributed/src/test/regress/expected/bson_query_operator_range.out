@@ -154,21 +154,6 @@ EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "
                      Index Cond: ((document OPERATOR(documentdb_api_catalog.@*=) '{ "a" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }'::documentdb_core.bson) AND (document OPERATOR(documentdb_api_catalog.@<>) '{ "a" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson))
 (9 rows)
 
-EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "b": { "$in": [ 5, 6, 7] }, "a": { "$gt": 1 }, "a" : {"$lt" : 5} } }');
-                                                                                                              QUERY PLAN                                                                                                              
----------------------------------------------------------------------
- Custom Scan (Citus Adaptive)
-   Task Count: 1
-   Tasks Shown: All
-   ->  Task
-         Node: host=localhost port=58070 dbname=regression
-         ->  Bitmap Heap Scan on documents_49200_492007 collection
-               Recheck Cond: (document OPERATOR(documentdb_api_catalog.@<>) '{ "a" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-               Filter: (document OPERATOR(documentdb_api_catalog.@*=) '{ "b" : [ { "$numberInt" : "5" }, { "$numberInt" : "6" }, { "$numberInt" : "7" } ] }'::documentdb_core.bson)
-               ->  Bitmap Index Scan on a_range
-                     Index Cond: (document OPERATOR(documentdb_api_catalog.@<>) '{ "a" : { "min" : { "$numberInt" : "1" }, "max" : { "$numberInt" : "5" }, "minInclusive" : false, "maxInclusive" : false } }'::documentdb_core.bson)
-(10 rows)
-
 END;
 -- Shard orders collection on item 
 SELECT documentdb_api.shard_collection('db','range_query', '{"_id":"hashed"}', false);
@@ -190,6 +175,13 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filt
  { "_id" : { "$numberInt" : "3" }, "a" : [ { "b" : { "$numberInt" : "1" } }, { "$numberInt" : "2" }, [ { "$numberInt" : "4" }, { "$numberInt" : "5" } ] ] }
 (2 rows)
 
+END;
+BEGIN;
+SET local client_min_messages TO ERROR;
+set local citus.enable_local_execution to off; -- Simulate remote exection with a single nodes
+Set local citus.log_remote_commands to on; -- Will print Citus rewrites of the queries
+Set local citus.log_local_commands to on; -- Will print the local queries 
+Set local log_statement to 'all'; -- Verbose logging
 EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_query", "filter": { "a": { "$gt": 1 }, "a" : {"$lt" : 5} } }');
                                                                                                               QUERY PLAN                                                                                                              
 ---------------------------------------------------------------------
@@ -430,6 +422,10 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "range_js_tests", "f
  { "val" : [ { "$numberInt" : "2" } ] }
 (5 rows)
 
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan TO OFF;
+SET LOCAL seq_page_cost TO 9999999;
 EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_js_tests", "filter": { "val": { "$gt": 1 }, "val" : {"$lt" : 3} }, "projection": { "_id": 0, "val": 1 }, "sort": { "val": 1 } }');
                                                                                                                   QUERY PLAN                                                                                                                  
 ---------------------------------------------------------------------
@@ -711,6 +707,10 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "range_js_tests2", "
  { "val" : { "$numberInt" : "3" } }
 (6 rows)
 
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan TO OFF;
+SET LOCAL seq_page_cost TO 9999999;
 EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "range_js_tests2", "filter": { "val": { "$gte": {"$minKey" : 1}, "$lte": {"$maxKey" : 1}} }, "projection": { "_id": 0, "val": 1 }, "sort": { "val": 1 } }');
                                                                                                                        QUERY PLAN                                                                                                                        
 ---------------------------------------------------------------------
@@ -780,6 +780,10 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "daterangecoll", "fi
  { "createdAt" : { "$date" : { "$numberLong" : "2657991031608" } } }
 (4 rows)
 
+ROLLBACK;
+BEGIN;
+SET LOCAL enable_seqscan TO OFF;
+SET LOCAL seq_page_cost TO 9999999;
 EXPLAIN(costs off) SELECT document FROM bson_aggregation_find('db', '{ "find": "daterangecoll", "filter": { "createdAt": { "$gte": { "$date": { "$numberLong": "2657899731608" }}, "$lte": { "$date": { "$numberLong": "2657991031608" }} } }, "projection": { "_id": 0, "createdAt": 1 }, "sort": { "createdAt": 1 } }');
                                                                                                                                                QUERY PLAN                                                                                                                                               
 ---------------------------------------------------------------------

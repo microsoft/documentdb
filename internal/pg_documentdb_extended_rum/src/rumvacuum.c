@@ -224,8 +224,8 @@ RumFormTuple(RumState *rumstate,
 
 
 static bool
-rumVacuumLeafPage(RumVacuumState *gvs, OffsetNumber attnum, Page page, Buffer buffer, bool
-				  isRoot)
+rumVacuumLeafPage(RumVacuumState *gvs, OffsetNumber attnum, Page page, Buffer buffer,
+				  bool isRoot, OffsetNumber *maxOffsetAfterPrune)
 {
 	bool hasVoidPage = false;
 	OffsetNumber newMaxOff,
@@ -266,6 +266,7 @@ rumVacuumLeafPage(RumVacuumState *gvs, OffsetNumber attnum, Page page, Buffer bu
 		GenericXLogFinish(state);
 	}
 
+	*maxOffsetAfterPrune = newMaxOff;
 	return hasVoidPage;
 }
 
@@ -302,7 +303,8 @@ rumVacuumPostingTreeLeaves(RumVacuumState *gvs, OffsetNumber attnum,
 
 	if (RumPageIsLeaf(page))
 	{
-		if (rumVacuumLeafPage(gvs, attnum, page, buffer, isRoot))
+		OffsetNumber maxOffAfterPrune;
+		if (rumVacuumLeafPage(gvs, attnum, page, buffer, isRoot, &maxOffAfterPrune))
 		{
 			hasVoidPage = true;
 		}
@@ -668,11 +670,12 @@ rumVacuumPostingTreeLeavesNew(RumVacuumState *gvs, OffsetNumber attnum, BlockNum
 	/* Iterate all posting tree leaves using rightlinks and vacuum them */
 	while (true)
 	{
-		if (rumVacuumLeafPage(gvs, attnum, page, buffer, isPageRoot))
+		OffsetNumber maxOffAfterPrune;
+		if (rumVacuumLeafPage(gvs, attnum, page, buffer, isPageRoot, &maxOffAfterPrune))
 		{
 			numVoidPages++;
 		}
-		else
+		else if (maxOffAfterPrune > 0)
 		{
 			numNonVoidPages++;
 		}
@@ -742,8 +745,8 @@ rumVacuumPostingTreeNew(RumVacuumState *gvs, OffsetNumber attnum, BlockNumber ro
 		UnlockReleaseBuffer(buffer);
 	}
 
-	ereport(DEBUG2, errmsg("[RUM] Vacuum posting tree void pages %d, deleted pages %d",
-						   numVoidPages, numDeletedPages));
+	ereport(DEBUG2, (errmsg("[RUM] Vacuum posting tree void pages %d, deleted pages %d",
+							numVoidPages, numDeletedPages)));
 	return nonVoidPageCount == 0;
 }
 
@@ -1124,6 +1127,12 @@ rumvacuumcleanup(IndexVacuumInfo *info, IndexBulkDeleteResult *stats)
 	if (needLock)
 	{
 		UnlockRelationForExtension(index, ExclusiveLock);
+	}
+
+	if (stats->pages_free > 0)
+	{
+		ereport(DEBUG1, (errmsg("Vacuum pages - marked %d pages as reusable",
+								stats->pages_free)));
 	}
 
 	return stats;

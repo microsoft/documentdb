@@ -465,7 +465,7 @@ gin_bson_get_single_path_generated_terms(PG_FUNCTION_ARGS)
 			PgbsonWriterInit(&writer);
 			PgbsonWriterAppendValue(&writer, term.element.path, term.element.pathLength,
 									&term.element.bsonValue);
-			PgbsonWriterAppendBool(&writer, "t", 1, term.isIndexTermTruncated);
+			PgbsonWriterAppendBool(&writer, "t", 1, IsIndexTermTruncated(&term));
 			SRF_RETURN_NEXT(functionContext, PointerGetDatum(PgbsonWriterGetPgbson(
 																 &writer)));
 		}
@@ -549,7 +549,7 @@ gin_bson_get_wildcard_project_generated_terms(PG_FUNCTION_ARGS)
 			PgbsonWriterInit(&writer);
 			PgbsonWriterAppendValue(&writer, term.element.path, term.element.pathLength,
 									&term.element.bsonValue);
-			PgbsonWriterAppendBool(&writer, "t", 1, term.isIndexTermTruncated);
+			PgbsonWriterAppendBool(&writer, "t", 1, IsIndexTermTruncated(&term));
 			SRF_RETURN_NEXT(functionContext, PointerGetDatum(PgbsonWriterGetPgbson(
 																 &writer)));
 		}

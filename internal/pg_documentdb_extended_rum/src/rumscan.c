@@ -441,6 +441,7 @@ freeScanKeys(RumScanOpaque so)
 		}
 
 		pfree(so->orderByScanData);
+		so->orderByScanData = NULL;
 	}
 
 	MemoryContextReset(so->keyCtx);

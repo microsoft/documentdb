@@ -38,6 +38,8 @@ bool TryGetBsonValueToPgbsonElement(const bson_value_t *value, pgbsonelement *el
 /* Unsafe version of the BsonValueToPgbsonElement that assumes value is a single field doc */
 void BsonValueToPgbsonElementUnsafe(const bson_value_t *bsonValue,
 									pgbsonelement *element);
+void BsonDocumentBytesToPgbsonElementUnsafe(const uint8_t *bytes, uint32_t bytesLen,
+											pgbsonelement *element);
 pgbson * PgbsonElementToPgbson(pgbsonelement *element);
 
 #endif
