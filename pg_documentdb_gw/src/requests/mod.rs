@@ -71,8 +71,9 @@ impl RequestInfo<'_> {
     }
 
     pub fn db(&self) -> Result<&str> {
-        self.db
-            .ok_or(DocumentDBError::bad_value("$db value missing".to_string()))
+        self.db.ok_or(DocumentDBError::bad_value(
+            "Expected $db to be present".to_string(),
+        ))
     }
 }
 
@@ -218,7 +219,7 @@ impl FromStr for RequestType {
             "whatsmyuri" => Ok(RequestType::WhatsMyUri),
             _ => Err(DocumentDBError::documentdb_error(
                 ErrorCode::CommandNotSupported,
-                format!("Unknown command recieved: {}", cmd_name),
+                format!("Unknown request received: {}", cmd_name),
             )),
         }
     }
@@ -335,42 +336,49 @@ impl<'a> Request<'a> {
             let (k, v) = entry?;
             match k {
                 "$db" => {
-                    db = Some(v.as_str().ok_or(DocumentDBError::bad_value(
-                        "$db should be a string".to_string(),
-                    ))?)
+                    db = Some(v.as_str().ok_or(DocumentDBError::bad_value(format!(
+                        "Expected $db to be a string but got {:?}",
+                        v.element_type()
+                    )))?)
                 }
                 "maxTimeMS" => max_time_ms = Some(Self::to_i64(v)?),
                 "lsid" => {
                     session_id = Some(
                         v.as_document()
-                            .ok_or(DocumentDBError::bad_value(
-                                "lsid was not a document.".to_string(),
-                            ))?
+                            .ok_or(DocumentDBError::bad_value(format!(
+                                "Expected lsid to be a document but got {:?}",
+                                v.element_type()
+                            )))?
                             .get_binary("id")
                             .map_err(DocumentDBError::parse_failure())?
                             .bytes,
                     );
                 }
                 "txnNumber" => {
-                    transaction_number = Some(v.as_i64().ok_or(DocumentDBError::bad_value(
-                        "txnNumber was not an i64".to_string(),
-                    ))?);
+                    transaction_number =
+                        Some(v.as_i64().ok_or(DocumentDBError::bad_value(format!(
+                            "Expected txnNumber to be an i64 but got {:?}",
+                            v.element_type()
+                        )))?);
                 }
                 "autocommit" => {
-                    auto_commit = v.as_bool().ok_or(DocumentDBError::bad_value(
-                        "autoCommit was not a bool".to_string(),
-                    ))?;
+                    auto_commit = v.as_bool().ok_or(DocumentDBError::bad_value(format!(
+                        "Expected autocommit to be a bool but got {:?}",
+                        v.element_type()
+                    )))?;
                 }
                 "startTransaction" => {
-                    start_transaction = v.as_bool().ok_or(DocumentDBError::bad_value(
-                        "startTransaction was not a bool".to_string(),
-                    ))?;
+                    start_transaction = v.as_bool().ok_or(DocumentDBError::bad_value(format!(
+                        "Expected startTransaction to be a bool but got {:?}",
+                        v.element_type()
+                    )))?;
                 }
                 "readConcern" => {
                     if v.as_document()
-                        .ok_or(DocumentDBError::bad_value(
-                            "readConcern was not a document".to_string(),
-                        ))?
+                        .ok_or(DocumentDBError::bad_value(format!(
+                            "Expected readConcern to be a document but got {:?}",
+                            v.element_type()
+                        )))?
                         .get_str("level")
                         .unwrap_or("")
                         == "snapshot"
@@ -384,9 +392,10 @@ impl<'a> Request<'a> {
                         Some(
                             convert_to_f64(v)
                                 .map_or_else(|| v.as_str(), |_| Some(""))
-                                .ok_or(DocumentDBError::bad_value(
-                                    "Failed to parse, aggregate key invalid".to_string(),
-                                ))?,
+                                .ok_or(DocumentDBError::bad_value(format!(
+                                    "Failed to parse aggregate key; expected string or numeric but got {:?}",
+                                    v.element_type()
+                                )))?,
                         )
                     } else {
                         v.as_str()

@@ -35,7 +35,7 @@ pub async fn process_create_indexes(
     if db == "config" || db == "admin" {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::IllegalOperation,
-            "Indexes cannot be created in config and admin databases.".to_string(),
+            "Creating indexes in the \"config\" or \"admin\" databases is not allowed".to_string(),
         ));
     }
 

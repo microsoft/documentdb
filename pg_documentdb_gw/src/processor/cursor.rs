@@ -54,12 +54,12 @@ pub async fn process_kill_cursors(
         .document()
         .get("cursors")?
         .ok_or(DocumentDBError::bad_value(
-            "killCursors should have a cursors field".to_string(),
+            "cursors was missing in killCursors request".to_string(),
         ))?
         .as_array()
         .ok_or(DocumentDBError::documentdb_error(
             ErrorCode::TypeMismatch,
-            "KillCursors cursors should be an array".to_string(),
+            "killCursors cursors should be an array".to_string(),
         ))?;
 
     let mut cursor_ids = Vec::new();
@@ -121,7 +121,7 @@ pub async fn process_get_more(
         .await
         .ok_or(DocumentDBError::documentdb_error(
             ErrorCode::CursorNotFound,
-            "Provided cursor not found.".to_string(),
+            "Provided cursor was not found.".to_string(),
         ))?;
 
     let results = pg_data_client

@@ -18,7 +18,7 @@ use either::Either;
 // for tracking the gateway.
 #[async_trait]
 pub trait TelemetryProvider: Send + Sync + DynClone {
-    // Emits an event for every CRUD request dispached to backend
+    // Emits an event for every CRUD request dispatched to backend
     async fn emit_request_event(
         &self,
         _: &ConnectionContext,

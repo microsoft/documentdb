@@ -64,14 +64,14 @@ pub fn process_get_rw_concern(
         "getDefaultRWConcern" | "inMemory" | "comment" | "lsid" | "$db" => Ok(()),
         other => Err(DocumentDBError::documentdb_error(
             ErrorCode::UnknownBsonField,
-            format!("Unknown field for getDefaultRWConcern: {}", other),
+            format!("Not a valid value for getDefaultRWConcern: {}", other),
         )),
     })?;
 
     if request_info.db()? != "admin" {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::Unauthorized,
-            "getDefaultRWConcern may only be run against the admin database.".to_string(),
+            "Only the admin database can process getDefaultRWConcern.".to_string(),
         ));
     }
 
@@ -163,7 +163,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "abortTransaction",
 		admin_only: true,
-		help: "Aborts a transaction",
+		help: "Takes a transaction that's active and aborts it.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -171,7 +171,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "aggregate",
 		admin_only: false,
-		help: "Runs the sharded aggregation command. See http://dochub.mongodb.org/core/aggregation for more details.",
+		help: "Performs aggregation on the data, such as filtering, grouping, and sorting, and returns computed results. For more details, refer to https://aka.ms/AAxl8do.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -179,7 +179,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "authenticate",
 		admin_only: false,
-		help: "no help defined",
+		help: "Authenticates the underlying connection using user-supplied credentials.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -187,7 +187,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "buildInfo",
 		admin_only: false,
-		help: "get version #, etc.\n{ buildinfo:1 }",
+		help: "Returns the version information for the cluster.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -195,7 +195,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "collMod",
 		admin_only: false,
-		help: "Sets collection options.\nExample: { collMod: 'foo', viewOn: 'bar'} Example: { collMod: 'foo', index: {keyPattern: {a: 1}, expireAfterSeconds: 600} Example: { collMod: 'foo', index: {name: 'bar', expireAfterSeconds: 600} }\n",
+		help: "Configure options for a collection.\ne.g. { collMod: 'name', index: {keyPattern: {key: 1}, expireAfterSeconds: 10}, dryRun: false }\n     { collMod: 'name', index: {name: 'indexName', expireAfterSeconds: 120} }\n",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -203,7 +203,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "collStats",
 		admin_only: false,
-		help: "{ collStats:\"blog.posts\" , scale : 1 } scale divides sizes e.g. for KB use 1024\n    avgObjSize - in bytes",
+		help: "Get statistics about a collection, returns the average size in bytes.\ne.g. { collStats : \"shelter.dogs\" , scale : 1048576 } (returns result in Mb)",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -211,7 +211,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "commitTransaction",
 		admin_only: true,
-		help: "Commits a transaction",
+		help: "Finish a running transaction.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -219,7 +219,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "connectionStatus",
 		admin_only: false,
-		help: "Returns connection-specific information such as logged-in users and their roles",
+		help: "Get information about a connection like the roles of logged in users.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -227,7 +227,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "count",
 		admin_only: false,
-		help: "count objects in collection",
+		help: "Get the number of documents in a collection. For more details, refer to https://aka.ms/AAxl0ve.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -235,7 +235,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "create",
 		admin_only: false,
-		help: "explicitly creates a collection or view\n{\n  create: <string: collection or view name> [,\n  capped: <bool: capped collection>,\n  autoIndexId: <bool: automatic creation of _id index>,\n  idIndex: <document: _id index specification>,\n  size: <int: size in bytes of the capped collection>,\n  max: <int: max number of documents in the capped collection>,\n  storageEngine: <document: storage engine configuration>,\n  validator: <document: validation rules>,\n  validationLevel: <string: validation level>,\n  validationAction: <string: validation action>,\n  indexOptionDefaults: <document: default configuration for indexes>,\n  viewOn: <string: name of source collection or view>,\n  pipeline: <array<object>: aggregation pipeline stage>,\n  collation: <document: default collation for the collection or view>,\n  writeConcern: <document: write concern expression for the operation>]\n}",
+		help: "Create a new collection (or view).",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -243,7 +243,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "createIndex",
 		admin_only: false,
-		help: "no help defined",
+		help: "Create an index on a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -251,7 +251,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "createIndexes",
 		admin_only: false,
-		help: "no help defined",
+		help: "Create multiple indexes on a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -259,7 +259,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "currentOp",
 		admin_only: true,
-		help: "no help defined",
+		help: "Get information about currently running operations.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -267,7 +267,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "dbStats",
 		admin_only: false,
-		help: "{ dbStats : 1 , scale : 1 } scale divides sizes e.g. for KB use 1024\n    avgObjSize - in bytes",
+		help: "Get statistics about a database, returns the average size in bytes.\ne.g. { dbStats : 1 , scale : 1048576 } (returns result in Mb).",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -275,7 +275,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "delete",
 		admin_only: false,
-		help: "delete documents",
+		help: "Remove documents from a collection. For more details, refer to https://aka.ms/AAxl8en.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -283,7 +283,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "distinct",
 		admin_only: false,
-		help: "{ distinct : 'collection name' , key : 'a.b' , query : {} }",
+		help: "Get the unique values for a field in a collection. For more details, refer to https://aka.ms/AAxl0vh.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -291,7 +291,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "drop",
 		admin_only: false,
-		help: "drop a collection\n{drop : <collectionName>}",
+		help: "Remove a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -299,7 +299,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "dropDatabase",
 		admin_only: false,
-		help: "drop (delete) this database",
+		help: "Remove an entire database.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -307,7 +307,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "dropIndexes",
 		admin_only: false,
-		help: "drop indexes for a collection",
+		help: "Remove the indexes from a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -315,7 +315,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "enableSharding",
 		admin_only: true,
-		help: "Enable sharding for a database. Optionally allows the caller to specify the shard to be used as primary.(Use 'shardcollection' command afterwards.)\n  { enableSharding : \"<dbname>\", primaryShard:  \"<shard>\"}\n",
+		help: "Marks the database as shard-enabled, allowing sharded collections to be created.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -323,7 +323,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "endSessions",
 		admin_only: false,
-		help: "end a set of logical sessions",
+		help: "Stop multiple sessions and their operations.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -331,7 +331,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "explain",
 		admin_only: false,
-		help: "explain database reads and writes",
+		help: "Get information about an operation.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -339,7 +339,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "find",
 		admin_only: false,
-		help: "query for documents",
+		help: "Search for documents in a collection. For more details, refer to https://aka.ms/AAxlf5o.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -347,7 +347,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "findAndModify",
 		admin_only: false,
-		help: "{ findAndModify: \"collection\", query: {processed:false}, update: {$set: {processed:true}}, new: true}\n{ findAndModify: \"collection\", query: {processed:false}, remove: true, sort: {priority:-1}}\nEither update or remove is required, all other fields have default values.\nOutput is in the \"value\" field\n",
+		help: "Update the fields of a single document that matches a query. For more details, refer to https://aka.ms/AAxl0vr.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -355,7 +355,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getCmdLineOpts",
 		admin_only: true,
-		help: "get argv",
+		help: "Get the command line options used to start the server.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -363,7 +363,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getDefaultRWConcern",
 		admin_only: true,
-		help: "get cluster-wide read and write concern",
+		help: "Get the Read/Write concern for the cluster.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -371,7 +371,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getLastError",
 		admin_only: false,
-		help: "return error status of the last operation on this connection\n",
+		help: "Get the error information for the most recent operation run.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -379,7 +379,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getLog",
 		admin_only: true,
-		help: "{ getLog : '*' }  OR { getLog : 'global' }",
+		help: "Get recent log entries.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -387,7 +387,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getMore",
 		admin_only: false,
-		help: "retrieve more results from an existing cursor",
+		help: "Get the next page of documents from a cursor. For more details, refer to https://aka.ms/AAxl8es.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -395,7 +395,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getParameter",
 		admin_only: true,
-		help: "get administrative option(s) example: { getParameter:1, transactionLifetimeLimitSeconds:1 } pass a document as the value for getParameter to request options",
+		help: "Get the value of a particular parameter.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -403,7 +403,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "getnonce",
 		admin_only: false,
-		help: "internal",
+		help: "unused",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -411,7 +411,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "hello",
 		admin_only: false,
-		help: "Check if this server is primary for a replica set\n{ hello : 1 }",
+		help: "Gets information about the cluster topology.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -419,7 +419,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "hostInfo",
 		admin_only: false,
-		help: "returns information about the daemon's host",
+		help: "Get details about the host machine.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -427,7 +427,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "insert",
 		admin_only: false,
-		help: "insert documents",
+		help: "The insert command can be used to add one or more documents to a collection. For more details, refer to https://aka.ms/AAxkukq.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -435,7 +435,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "isMaster",
 		admin_only: false,
-		help: "Check if this server is primary for a replica set\n{ isMaster : 1 }",
+		help: "Gets information about the cluster topology.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -443,7 +443,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "isdbgrid",
 		admin_only: false,
-		help: "check if the server instance is mongos\n{ isdbgrid: 1 }",
+		help: "Check if the instance is sharded.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -451,7 +451,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "killCursors",
 		admin_only: false,
-		help: "Kill a list of cursor ids",
+		help: "Stop a set of cursors.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -459,7 +459,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "killOp",
 		admin_only: true,
-		help: "no help defined",
+		help: "Stop a running operation.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -467,7 +467,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "killSessions",
 		admin_only: false,
-		help: "kill a logical session and its operations",
+		help: "Stop a session along with its operations.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -475,7 +475,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "listCollections",
 		admin_only: false,
-		help: "list collections for this db",
+		help: "Show all collections in a particular database.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -483,7 +483,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "listCommands",
 		admin_only: false,
-		help: "get a list of all db commands",
+		help: "Show all possible commands.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -491,7 +491,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "listDatabases",
 		admin_only: true,
-		help: "{ listDatabases:1, [filter: <filterObject>] [, nameOnly: true ] }\nlist databases on this server",
+		help: "Show all databases on the cluster.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -499,7 +499,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "listIndexes",
 		admin_only: false,
-		help: "list indexes for a collection",
+		help: "Show all indexes on a particular collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: Some(false),
@@ -507,7 +507,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "logout",
 		admin_only: false,
-		help: "de-authenticdbate",
+		help: "Log out of the current session.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -515,7 +515,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "ping",
 		admin_only: false,
-		help: "a way to check that the server is alive. responds immediately even if server is in a db lock.",
+		help: "Check if the server is able to respond to network requests.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -523,7 +523,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "reIndex",
 		admin_only: false,
-		help: "re-index a collection",
+		help: "Rebuild an index.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -531,7 +531,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "renameCollection",
 		admin_only: true,
-		help: "example: { renameCollection: foo.a, to: bar.b }",
+		help: "Change the name of a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -539,7 +539,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "reshardCollection",
 		admin_only: true,
-		help: "Reshard an already sharded collection on a new shard key.",
+		help: "Change a sharded collection's shard key.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -547,7 +547,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "saslContinue",
 		admin_only: false,
-		help: "Subsequent steps in a SASL authentication conversation.",
+		help: "Perform the next steps of a SASL authentication.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -555,7 +555,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "saslStart",
 		admin_only: false,
-		help: "First step in a SASL authentication conversation.",
+		help: "Initiate a SASL authentication.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,
@@ -563,7 +563,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "serverStatus",
 		admin_only: false,
-		help: "returns lots of administrative server statistics",
+		help: "Get administrative details about the server.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -571,7 +571,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "shardCollection",
 		admin_only: true,
-		help: "Shard a collection. Requires key. Optional unique. Sharding must already be enabled for the database.\n   { enablesharding : \"<dbname>\" }\n",
+		help: "Make a collection sharded using a given key.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -579,7 +579,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "startSession",
 		admin_only: false,
-		help: "start a logical session",
+		help: "Initiate a logical session for isolating operations.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -587,7 +587,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "unshardCollection",
 		admin_only: true,
-		help: "Unshard an already sharded collection. Sharding must already be enabled for the database.\n   { enablesharding : \"<dbname>\" }\n",
+		help: "Remove sharding from a collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -595,7 +595,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "update",
 		admin_only: false,
-		help: "update documents",
+		help: "The update command can be used to update one or multiple documents based on filtering criteria. Values of fields can be changed, new fields and values can be added and existing fields can be removed. For more details, refer to https://aka.ms/AAxjzfd.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -603,7 +603,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "validate",
 		admin_only: false,
-		help: "Validate contents of a namespace by scanning its data structures for correctness.\n This is a slow operation.\n\tAdd {full: true} option to do a more thorough check.\n\tAdd {background: true} to validate in the background.\n\tAdd {repair: true} to run repair mode.\nCannot specify both {full: true, background: true}.",
+		help: "Check for correctness on a particular collection.",
 		secondary_ok: false,
 		requires_auth: true,
 		secondary_override_ok: None,
@@ -611,7 +611,7 @@ static SUPPORTED_COMMANDS : [CommandInfo; 57] = [
 	CommandInfo {
 		command_name: "whatsmyuri",
 		admin_only: false,
-		help: "{whatsmyuri:1}",
+		help: "Get the URI of the current connection.",
 		secondary_ok: false,
 		requires_auth: false,
 		secondary_override_ok: None,

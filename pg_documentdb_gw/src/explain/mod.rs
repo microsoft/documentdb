@@ -118,7 +118,7 @@ pub async fn process_explain(
     if let Some(result) = request.document().into_iter().next() {
         let result = result?;
 
-        // db.runCommand with Explain does not provide verbosity in some JSTests - we need to default to QueryPlanner here.
+        // Default to QueryPlanner here, as Default tends to be too brief
         let verbosity = verbosity.unwrap_or_else(|| {
             request
                 .document()
@@ -367,11 +367,11 @@ async fn transform_explain(
 
     let plan = try_simplify_plan(plan, is_unsharded, query_base, query_catalog);
 
-    let namespace = format!("{}.{}", db, collection);
+    let collection_path = format!("{}.{}", db, collection);
     let mut base_result = if subtype == RequestType::Aggregate {
-        aggregate_explain(plan, &namespace, verbosity, query_catalog)
+        aggregate_explain(plan, &collection_path, verbosity, query_catalog)
     } else {
-        cursor_explain(plan, &namespace, false, verbosity, query_catalog)
+        cursor_explain(plan, &collection_path, false, verbosity, query_catalog)
     };
 
     if let Some(planning_time) = planning_time {
@@ -1018,7 +1018,7 @@ fn get_stage_from_plan(
 
 fn aggregate_explain(
     mut plan: ExplainPlan,
-    namespace: &str,
+    collection_path: &str,
     verbosity: Verbosity,
     query_catalog: &QueryCatalog,
 ) -> RawDocumentBuf {
@@ -1040,7 +1040,7 @@ fn aggregate_explain(
     );
 
     if shard_count == 0 {
-        return aggregate_explain_core(plan, agg_type, namespace, verbosity, query_catalog);
+        return aggregate_explain_core(plan, agg_type, collection_path, verbosity, query_catalog);
     }
 
     let result = determine_pipeline_split(&mut plan);
@@ -1060,7 +1060,7 @@ fn aggregate_explain(
                     aggregate_explain_core(
                         shard_plan.clone(),
                         agg_type,
-                        namespace,
+                        collection_path,
                         verbosity,
                         query_catalog,
                     ),
@@ -1074,13 +1074,13 @@ fn aggregate_explain(
 
             return rawdoc! {
                 "splitPipeline": {
-                    "mergerPart": aggregate_explain_core(plan, AggregationType::StageBasedAggregation, namespace, verbosity, query_catalog)
+                    "mergerPart": aggregate_explain_core(plan, AggregationType::StageBasedAggregation, collection_path, verbosity, query_catalog)
                 },
                 "shards":  shards_explain
             };
         }
     }
-    aggregate_explain_core(plan, agg_type, namespace, verbosity, query_catalog)
+    aggregate_explain_core(plan, agg_type, collection_path, verbosity, query_catalog)
 }
 
 fn determine_pipeline_split(
@@ -1117,7 +1117,7 @@ fn determine_pipeline_split(
 fn aggregate_explain_core(
     plan: ExplainPlan,
     agg_type: AggregationType,
-    namespace: &str,
+    collection_path: &str,
     verbosity: Verbosity,
     query_catalog: &QueryCatalog,
 ) -> RawDocumentBuf {
@@ -1125,7 +1125,7 @@ fn aggregate_explain_core(
         AggregationType::SimpleAggregation => {
             rawdoc! {
                 "stages": [
-                    { "$cursor": cursor_explain(plan, namespace, false, verbosity, query_catalog) }
+                    { "$cursor": cursor_explain(plan, collection_path, false, verbosity, query_catalog) }
                 ]
             }
         }
@@ -1135,8 +1135,13 @@ fn aggregate_explain_core(
             let bufs: Vec<RawDocumentBuf> = processed_stages
                 .into_iter()
                 .map(|(documentdb_name, plan, _, f)| {
-                    let mut doc =
-                        cursor_explain(plan.clone(), namespace, true, verbosity, query_catalog);
+                    let mut doc = cursor_explain(
+                        plan.clone(),
+                        collection_path,
+                        true,
+                        verbosity,
+                        query_catalog,
+                    );
                     if let Some(f) = f {
                         f(&plan, &mut doc, query_catalog)
                     }
@@ -1296,13 +1301,13 @@ fn get_total_examined(plan: &ExplainPlan) -> (i64, i64) {
 
 fn query_planner(
     plan: ExplainPlan,
-    namespace: &str,
+    collection_path: &str,
     is_aggregation_stage: bool,
     query_catalog: &QueryCatalog,
 ) -> RawDocumentBuf {
     let mut writer = RawDocumentBuf::new();
     if plan.distributed_plan.is_none() && !is_aggregation_stage {
-        writer.append("namespace", namespace)
+        writer.append("namespace", collection_path)
     }
     let result = walk_plan_stage(
         plan,
@@ -1704,13 +1709,13 @@ fn walk_plan_stage_core(
 
 fn cursor_explain(
     plan: ExplainPlan,
-    namespace: &str,
+    collection_path: &str,
     is_aggregation_stage: bool,
     verbosity: Verbosity,
     query_catalog: &QueryCatalog,
 ) -> RawDocumentBuf {
     let mut doc = rawdoc! {
-        "queryPlanner": query_planner(plan.clone(), namespace, is_aggregation_stage, query_catalog),
+        "queryPlanner": query_planner(plan.clone(), collection_path, is_aggregation_stage, query_catalog),
     };
     if matches!(
         verbosity,

@@ -130,7 +130,7 @@ pub async fn process_rename_collection(
                 target = Some(
                     v.as_str()
                         .ok_or(DocumentDBError::bad_value(
-                            "renameCollection was not a string".to_string(),
+                            "to was not a string".to_string(),
                         ))?
                         .to_string(),
                 )
@@ -144,17 +144,17 @@ pub async fn process_rename_collection(
     })?;
 
     let source = source.ok_or(DocumentDBError::bad_value(
-        "renameCollection missing".to_string(),
+        "'renameCollection' missing".to_string(),
     ))?;
-    let target = target.ok_or(DocumentDBError::bad_value("to missing".to_string()))?;
+    let target = target.ok_or(DocumentDBError::bad_value("'to' missing".to_string()))?;
 
-    let (source_db, source_coll) = protocol::extract_namespace(&source)?;
-    let (target_db, target_coll) = protocol::extract_namespace(&target)?;
+    let (source_db, source_coll) = protocol::extract_database_and_collection_names(&source)?;
+    let (target_db, target_coll) = protocol::extract_database_and_collection_names(&target)?;
 
     if source_db != target_db {
         return Err(DocumentDBError::documentdb_error(
             ErrorCode::CommandNotSupported,
-            "RenameCollection cannot change databases".to_string(),
+            "renameCollection cannot change databases".to_string(),
         ));
     }
 
@@ -185,8 +185,9 @@ pub async fn process_shard_collection(
     reshard: bool,
     pg_data_client: &impl PgDataClient,
 ) -> Result<Response> {
-    let namespace = request_info.collection()?.to_string();
-    let (db, collection) = protocol::extract_namespace(namespace.as_str())?;
+    let collection_path = request_info.collection()?.to_string();
+    let (db, collection) =
+        protocol::extract_database_and_collection_names(collection_path.as_str())?;
     let key = request
         .document()
         .get_document("key")

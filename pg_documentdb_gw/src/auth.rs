@@ -105,7 +105,7 @@ where
     }
 
     Err(DocumentDBError::unauthorized(format!(
-        "Command {} not supported prior to authentication.",
+        "Command {} is not allowed as the connection is not authenticated yet.",
         request.request_type().to_string().to_lowercase()
     )))
 }
@@ -358,7 +358,7 @@ async fn handle_sasl_continue(
             .username
             .or(connection_context.auth_state.username.as_deref())
             .ok_or(DocumentDBError::internal_error(
-                "Username missing from sasl continue".to_string(),
+                "Username missing from SaslContinue".to_string(),
             ))?;
 
         if client_nonce != first_state.nonce {
@@ -428,7 +428,7 @@ async fn handle_sasl_continue(
         })))
     } else {
         Err(DocumentDBError::unauthorized(
-            "Sasl Continue called without SaslStart state.".to_string(),
+            "SaslContinue called without SaslStart state.".to_string(),
         ))
     }
 }

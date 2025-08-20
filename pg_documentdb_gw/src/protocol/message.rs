@@ -51,12 +51,13 @@ impl Message<'_> {
         if length_remaining == 4 && flags.contains(MessageFlags::CHECKSUM_PRESENT) {
             checksum = Some(reader.read_u32_sync()?);
         } else if length_remaining != 0 {
-            return Err(DocumentDBError::bad_value(
-                "Message request was not the length promised".to_string(),
-            ));
+            return Err(DocumentDBError::bad_value(format!(
+                "Malformed message. Expecting {} more bytes of data",
+                length_remaining
+            )));
         }
 
-        // Some drivers (mongo.exe) don't put the command document first.
+        // Some drivers don't put the command document first.
         sections.sort_by_key(|a| a.payload_type());
 
         Ok(Message {
@@ -69,7 +70,7 @@ impl Message<'_> {
     }
 }
 
-/// Represents a section as defined by the OP_MSG spec.
+/// Represents a section as defined by the OP_MSG definition in the driver.
 #[derive(Debug)]
 pub(crate) enum MessageSection<'a> {
     Document(&'a RawDocument),
@@ -128,8 +129,9 @@ impl MessageSection<'_> {
 }
 
 bitflags! {
-    /// Represents the bitwise flags for an OP_MSG as defined in the spec.
+    /// Represents the bitwise flags for an OP_MSG as defined in the c driver.
     pub(crate) struct MessageFlags: u32 {
+        const NONE             = 0b_0000_0000_0000_0000_0000_0000_0000_0000;
         const CHECKSUM_PRESENT = 0b_0000_0000_0000_0000_0000_0000_0000_0001;
         const MORE_TO_COME     = 0b_0000_0000_0000_0000_0000_0000_0000_0010;
         const EXHAUST_ALLOWED  = 0b_0000_0000_0000_0001_0000_0000_0000_0000;

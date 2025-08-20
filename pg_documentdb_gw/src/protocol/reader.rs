@@ -12,6 +12,7 @@ use std::str::FromStr;
 use bson::{rawdoc, RawArrayBuf, RawDocument, RawDocumentBuf};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
+use crate::protocol::extract_database_and_collection_names;
 use crate::{
     context::ConnectionContext,
     error::{DocumentDBError, Result},
@@ -91,7 +92,7 @@ async fn parse_query(message: &[u8]) -> Result<Request> {
     let _flags = reader.read_u32_le().await?;
 
     // Parse the collection and skip the position to the end of it
-    let (namespace, endpos) = str_from_u8_nul_utf8(&reader.get_ref()[4..])?;
+    let (collection_path, endpos) = str_from_u8_nul_utf8(&reader.get_ref()[4..])?;
 
     reader.set_position(u64::try_from(endpos + 5).map_err(|_| {
         DocumentDBError::internal_error("Collection length failed to convert to a u64.".to_string())
@@ -111,7 +112,7 @@ async fn parse_query(message: &[u8]) -> Result<Request> {
 
     // Treat the bytes as a raw bson reference
     let query = RawDocument::from_bytes(query_slice)?;
-    let (_db, collection_name) = parse_collection_path(namespace)?;
+    let (_db, collection_name) = extract_database_and_collection_names(collection_path)?;
 
     // OP_QUERY is only supported for commands currently
     if collection_name == "$cmd" {
@@ -119,7 +120,7 @@ async fn parse_query(message: &[u8]) -> Result<Request> {
     }
 
     Err(DocumentDBError::internal_error(
-        "OpQuery is not supported.".to_string(),
+        "Unable to parse OpQuery request".to_string(),
     ))
 }
 
@@ -194,7 +195,7 @@ async fn parse_cmd<'a>(command: &'a RawDocument, extra: Option<&'a [u8]>) -> Res
         Ok(Request::Raw(request_type, command, extra))
     } else {
         Err(DocumentDBError::bad_value(
-            "Admin command recieved without a command.".to_string(),
+            "Admin command received without a command.".to_string(),
         ))
     }
 }
@@ -209,7 +210,7 @@ async fn parse_insert(message: &RequestMessage) -> Result<Request> {
     // Skip the flags and the nul terminator
     let docs_slice = &reader.get_ref()[endpos + 5..];
 
-    let (db, coll) = parse_collection_path(collection_path)?;
+    let (db, coll) = extract_database_and_collection_names(collection_path)?;
 
     Ok(Request::RawBuf(
         RequestType::Insert,
@@ -238,14 +239,4 @@ fn read_documents(bytes: &'_ [u8]) -> Result<RawArrayBuf> {
         pos += doc_size as usize;
     }
     Ok(result)
-}
-
-/// Parse the db.collection string
-fn parse_collection_path(path: &str) -> Result<(&str, &str)> {
-    let dot_pos = path.find('.').ok_or(DocumentDBError::bad_value(
-        "Failed to find a . in the collection path".to_string(),
-    ))?;
-    let db = &path[..dot_pos];
-    let coll = &path[dot_pos + 1..];
-    Ok((db, coll))
 }

@@ -415,7 +415,7 @@ pub async fn process_request(
             Err(DocumentDBError::PoolError(PoolError::Backend(error), _)) => {
                 retry_policy(&dynamic_config, error, request.request_type()).await
             }
-            // Any other errors are not retriable
+            // Any other errors cannot be retried
             _ => Retry::None,
         };
 
