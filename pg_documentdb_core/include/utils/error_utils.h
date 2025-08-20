@@ -27,8 +27,15 @@
 
 /* Specific error code that tracks unredacted log messages in the server logs */
 #define UNREDACTED_LOG_CODE MAKE_SQLSTATE('M', 'Z', 'Z', 'Z', 'Z')
-int errmsg_unredacted(const char *fmt, ...)
-__attribute__((format(printf, 1, 2)));
+
+typedef int (*format_log_hook)(const char *fmt, ...) pg_attribute_printf (1, 2);
+extern format_log_hook unredacted_log_emit_hook;
+
+#define errmsg_unredacted(...) \
+	(unredacted_log_emit_hook ? \
+	 (*unredacted_log_emit_hook)(__VA_ARGS__) : \
+	 errmsg_internal(__VA_ARGS__))
+
 
 /* Macro to log messages that are generally PII Safe in server logs */
 #define elog_unredacted(...) \
