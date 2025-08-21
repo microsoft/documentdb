@@ -975,6 +975,7 @@ WalkPathsForIndexOperations(List *pathsList,
 
 void
 WalkRestrictionPathsForIndexOperations(List *restrictInfo,
+									   List *joinInfo,
 									   ReplaceExtensionFunctionContext *
 									   context)
 {
@@ -982,6 +983,13 @@ WalkRestrictionPathsForIndexOperations(List *restrictInfo,
 
 	ListCell *cell;
 	foreach(cell, restrictInfo)
+	{
+		RestrictInfo *rinfo = lfirst_node(RestrictInfo, cell);
+		CheckRestrictionPathNodeForIndexOperation(
+			rinfo->clause, context, &primaryKeyContext, rinfo);
+	}
+
+	foreach(cell, joinInfo)
 	{
 		RestrictInfo *rinfo = lfirst_node(RestrictInfo, cell);
 		CheckRestrictionPathNodeForIndexOperation(
@@ -3775,8 +3783,8 @@ TryUseAlternateIndexForPrimaryKeyLookup(PlannerInfo *root, RelOptInfo *rel,
 		BuildPointReadIndexClause(context->objectId.restrictInfo, 1);
 
 	IndexPath *path = NULL;
-	if (context->primaryKeyLookupPath != NULL && IsA(context->primaryKeyLookupPath,
-													 IndexPath))
+	if (context->primaryKeyLookupPath != NULL &&
+		IsA(context->primaryKeyLookupPath, IndexPath))
 	{
 		path = (IndexPath *) context->primaryKeyLookupPath;
 
@@ -3806,7 +3814,25 @@ TryUseAlternateIndexForPrimaryKeyLookup(PlannerInfo *root, RelOptInfo *rel,
 		List *orderbyCols = NIL;
 		List *pathKeys = NIL;
 		bool indexOnly = false;
-		Relids outerRelids = NULL;
+		Relids outerRelids = context->objectId.restrictInfo->outer_relids;
+		if (context->shardKeyQualExpr->outer_relids)
+		{
+			outerRelids = bms_union(outerRelids,
+									context->shardKeyQualExpr->outer_relids);
+		}
+
+		if (outerRelids && bms_is_member(rel->relid, outerRelids))
+		{
+			outerRelids = bms_copy(outerRelids);
+			outerRelids = bms_del_member(outerRelids, rel->relid);
+
+			/* Enforce convention that outerRelids is exactly NULL if empty */
+			if (bms_is_empty(outerRelids))
+			{
+				outerRelids = NULL;
+			}
+		}
+
 		double loopCount = 1;
 		bool partialPath = false;
 		path = create_index_path(root, primaryKeyInfo, clauses, orderbys,

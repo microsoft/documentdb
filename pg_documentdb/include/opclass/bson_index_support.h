@@ -148,6 +148,7 @@ void ConsiderIndexOnlyScan(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rt
 void WalkPathsForIndexOperations(List *pathsList,
 								 ReplaceExtensionFunctionContext *context);
 void WalkRestrictionPathsForIndexOperations(List *restrictInfo,
+											List *joinInfo,
 											ReplaceExtensionFunctionContext *context);
 
 bool IsBtreePrimaryKeyIndex(struct IndexOptInfo *indexInfo);

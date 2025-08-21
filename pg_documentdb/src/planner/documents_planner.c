@@ -879,7 +879,7 @@ ExtensionRelPathlistHookCoreNew(PlannerInfo *root, RelOptInfo *rel, Index rti,
 	 * the restriction paths.
 	 */
 	WalkPathsForIndexOperations(rel->pathlist, &indexContext);
-	WalkRestrictionPathsForIndexOperations(rel->baserestrictinfo,
+	WalkRestrictionPathsForIndexOperations(rel->baserestrictinfo, rel->joininfo,
 										   &indexContext);
 
 	/* Before we *replace* function operators in restriction paths, we should apply the force pushdown

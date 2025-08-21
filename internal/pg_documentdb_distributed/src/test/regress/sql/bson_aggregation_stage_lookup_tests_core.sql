@@ -685,6 +685,42 @@ BEGIN;
 set local enable_seqscan to off;
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "customer_purchases", "pipeline": [ { "$match": { "item_name": { "$exists": true } } }, { "$lookup": { "from": "catalog_items", "as": "matched_docs", "localField": "item_name", "foreignField": "item_code" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
+ROLLBACK;
+
+BEGIN;
+set local enable_seqscan to off;
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "customer_purchases", "pipeline": [ { "$match": { "item_name": { "$exists": true } } }, { "$lookup": { "from": "catalog_items", "as": "matched_docs", "localField": "item_name", "foreignField": "item_code" } }, { "$unwind": "$matched_docs" } ], "cursor": {} }');
+ROLLBACK;
+
+-- do a multi layer lookup that matches on _id
+SELECT COUNT(documentdb_api.insert_one('db', 'source1', FORMAT('{ "_id": %s, "field1": "value%s", "fieldsource1": "foo" }', i, i)::bson)) FROM generate_series(1, 100) i;
+SELECT COUNT(documentdb_api.insert_one('db', 'source2', FORMAT('{ "_id": "value%s", "field2": "othervalue%s", "fieldsource2": "foobar" }', i, i)::bson)) FROM generate_series(1, 100) i;
+SELECT COUNT(documentdb_api.insert_one('db', 'source3', FORMAT('{ "_id": "othervalue%s", "field3": "someothervalue%s", "fieldsource3": "foobarfoo" }', i, i)::bson)) FROM generate_series(1, 100) i;
+SELECT COUNT(documentdb_api.insert_one('db', 'source4', FORMAT('{ "_id": "someothervalue%s", "field4": "yetsomeothervalue%s", "fieldsource4": "foobarbaz" }', i, i)::bson)) FROM generate_series(1, 100) i;
+
+-- create indexes on the intermediate fields
+SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "source1", "indexes": [ { "key": { "field1": 1 }, "name": "field1_1" } ] }', TRUE);
+
+ANALYZE documentdb_data.documents_6020;
+ANALYZE documentdb_data.documents_6021;
+ANALYZE documentdb_data.documents_6022;
+ANALYZE documentdb_data.documents_6023;
+
+-- should always pick up _id index.
+BEGIN;
+set local enable_indexscan to off;
+set local enable_bitmapscan to off;
+set local enable_material to off;
+set local documentdb.useLegacyForcePushdownBehavior to off;
+EXPLAIN (COSTS OFF, ANALYZE ON, VERBOSE ON, TIMING OFF, SUMMARY OFF) SELECT document FROM bson_aggregation_pipeline('db',
+  '{ "aggregate": "source1", "pipeline": [ 
+    { "$match": { "field1": { "$eq": "value10" } } },
+    { "$lookup": { "from": "source2", "as": "source2_docs", "localField": "field1", "foreignField": "_id" } },
+    { "$unwind": { "path": "$source2_docs", "preserveNullAndEmptyArrays": true } },
+    { "$lookup": { "from": "source3", "as": "source3_docs", "localField": "source2_docs", "foreignField": "_id" } },
+    { "$unwind": { "path": "$source3_docs", "preserveNullAndEmptyArrays": true } },
+    { "$lookup": { "from": "source4", "as": "source4_docs", "localField": "source3_docs", "foreignField": "_id" } },
+    { "$unwind": { "path": "$source4_docs", "preserveNullAndEmptyArrays": true } }
+  ]}');
 ROLLBACK;

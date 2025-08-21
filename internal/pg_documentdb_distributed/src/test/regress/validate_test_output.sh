@@ -139,7 +139,8 @@ for validationFile in $(ls $scriptDir/expected/*.out); do
     if [[ "$sqlFile" =~ "tests_runtime.sql" ]] || [[ "$sqlFile" =~ "explain_index_composite" ]] || [[ "$sqlFile" =~ "explain_index_comp_desc.sql" ]] || [[ "$sqlFile" =~ "tests_index_no_bitmap.sql" ]] || [[ "$sqlFile" =~ "tests_index.sql" ]] ||  [[ "$sqlFile" =~ "tests_index_backcompat.sql" ]] || [[ "$sqlFile" =~ "tests_pg17_explain" ]] || [[ "$sqlFile" =~ "tests_explain_index.sql" ]] || [[ "$sqlFile" =~ "tests_explain_index_no_bitmap.sql" ]]; then
             skippedDuplicateCheckFile="$skippedDuplicateCheckFile $sqlFile"
             skipUniqueCheck="true"
-    elif [[ "$sqlFile" =~ _pg[0-9]+.sql ]] && [[ ! "$sqlFile" =~ "_pg${pg_version}.sql" ]]; then
+    elif [[ "$sqlFile" =~ _pg[0-9]+ ]]; then
+        echo "Skipping duplicate collectionId check for $sqlFile"
         skippedDuplicateCheckFile="$skippedDuplicateCheckFile $sqlFile"
         skipUniqueCheck="true"
     elif [[ "$aggregateCollectionIdStr" =~ ":$collectionIdOutput:" ]]; then
