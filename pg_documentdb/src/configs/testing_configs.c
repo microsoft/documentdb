@@ -77,6 +77,9 @@ bool EnableLogRelationIndexesOrder = DEFAULT_LOG_RELATION_INDEXES_ORDER;
 #define DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS true
 bool DefaultEnableLargeUniqueIndexKeys = DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS;
 
+#define DEFAULT_ENABLE_DEBUG_QUERY_TEXT false
+bool EnableDebugQueryText = DEFAULT_ENABLE_DEBUG_QUERY_TEXT;
+
 #define DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN false
 bool EnableMultiIndexRumJoin = DEFAULT_ENABLE_MULTI_INDEX_RUM_JOIN;
 
@@ -263,6 +266,13 @@ InitializeTestConfigurations(const char *prefix, const char *newGucPrefix)
 		psprintf("%s.enable_large_unique_index_keys", newGucPrefix),
 		gettext_noop("Whether or not to enable large index keys on unique indexes."),
 		NULL, &DefaultEnableLargeUniqueIndexKeys, DEFAULT_ENABLE_LARGE_UNIQUE_INDEX_KEYS,
+		PGC_USERSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(
+		psprintf("%s.enableDebugQueryText", newGucPrefix),
+		gettext_noop(
+			"Whether to enable query source text while planning aggregate/find queries for debugging, starts deparsing the query tree and degrades performance."),
+		NULL, &EnableDebugQueryText, DEFAULT_ENABLE_DEBUG_QUERY_TEXT,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 
 	DefineCustomBoolVariable(

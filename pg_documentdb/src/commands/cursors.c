@@ -21,6 +21,7 @@
 #include <executor/tstoreReceiver.h>
 #include <nodes/makefuncs.h>
 #include <utils/lsyscache.h>
+#include <utils/ruleutils.h>
 #include <metadata/metadata_cache.h>
 #include <io/bson_core.h>
 #include <utils/snapmgr.h>
@@ -46,6 +47,7 @@
 extern int32_t MaxWorkerCursorSize;
 extern bool EnablePrimaryKeyCursorScan;
 extern bool UseFileBasedPersistedCursors;
+extern bool EnableDebugQueryText;
 
 static char LastOpenPortalName[NAMEDATALEN] = { 0 };
 
@@ -185,8 +187,8 @@ static BsonStoreTupleDestReceiver * CreateBsonStoreTupleDestReceiver(
 	accumulatedSize, bool
 	closeCursor);
 static void DrainStatementViaExecutor(PlannedStmt *queryPlan, ParamListInfo paramList,
-									  DestReceiver *destReceiver, MemoryContext
-									  currentContext);
+									  const char *sourceText, DestReceiver *destReceiver,
+									  MemoryContext currentContext);
 
 const char NodeId[] = "nodeId";
 uint32_t NodeIdLength = 7;
@@ -214,7 +216,13 @@ DrainSingleResultQuery(Query *query)
 										   paramListInfo);
 
 	/* Set the plan in the cursor for this iteration */
-	PortalDefineQuery(queryPortal, NULL, "",
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	PortalDefineQuery(queryPortal, NULL, sourceText,
 					  CMDTAG_SELECT,
 					  list_make1(queryPlan),
 					  NULL);
@@ -401,7 +409,13 @@ CreateAndDrainSingleBatchQuery(const char *cursorName, Query *query,
 		cursorName,
 		accumulatedSize,
 		closeCursor);
-	DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	DrainStatementViaExecutor(queryPlan, paramList, sourceText, (DestReceiver *) receiver,
 							  currentContext);
 }
 
@@ -491,7 +505,13 @@ CreateAndDrainPersistedQuery(const char *cursorName, Query *query,
 	}
 
 	/* Set the plan into the portal  */
-	PortalDefineQuery(queryPortal, NULL, "",
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	PortalDefineQuery(queryPortal, NULL, sourceText,
 					  CMDTAG_SELECT,
 					  list_make1(queryPlan),
 					  NULL);
@@ -565,7 +585,13 @@ CreateAndDrainPersistedQueryWithFiles(const char *cursorName, Query *query,
 																			cursorName,
 																			accumulatedSize,
 																			closeCursor);
-	DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	DrainStatementViaExecutor(queryPlan, paramList, sourceText, (DestReceiver *) receiver,
 							  currentContext);
 
 	/* return the continuation state */
@@ -608,8 +634,14 @@ CreateAndDrainPointReadQuery(const char *cursorName, Query *query,
 		batchSize, cursorName,
 		accumulatedSize,
 		closeCursor);
-	DrainStatementViaExecutor(queryPlan, paramList, (DestReceiver *) receiver,
-							  currentContext);
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	DrainStatementViaExecutor(queryPlan, paramList, sourceText,
+							  (DestReceiver *) receiver, currentContext);
 }
 
 
@@ -769,7 +801,8 @@ CreateBsonStoreTupleDestReceiver(pgbson_array_writer *arrayWriter,
  *
  */
 static void
-DrainStatementViaExecutor(PlannedStmt *queryPlan, ParamListInfo paramList,
+DrainStatementViaExecutor(PlannedStmt *queryPlan, ParamListInfo paramList, const
+						  char *sourceText,
 						  DestReceiver *destReceiver, MemoryContext currentContext)
 {
 	ScanDirection scanDirection = ForwardScanDirection;
@@ -782,7 +815,7 @@ DrainStatementViaExecutor(PlannedStmt *queryPlan, ParamListInfo paramList,
 	MemoryContext oldContext = MemoryContextSwitchTo(localContext);
 
 	/* Create a QueryDesc for the query */
-	QueryDesc *queryDesc = CreateQueryDesc(queryPlan, "",
+	QueryDesc *queryDesc = CreateQueryDesc(queryPlan, sourceText,
 										   GetActiveSnapshot(), InvalidSnapshot,
 										   (DestReceiver *) destReceiver, paramList,
 										   queryEnv, 0);
@@ -830,7 +863,13 @@ PlanStreamingQuery(Query *query, Datum parameter, HTAB *cursorMap)
 	queryPortal->cursorOptions = cursorOptions;
 
 	/* Set the plan in the cursor for this iteration */
-	PortalDefineQuery(queryPortal, NULL, "",
+	char *sourceText = "";
+	if (EnableDebugQueryText)
+	{
+		bool pretty = false;
+		sourceText = pg_get_querydef(query, pretty);
+	}
+	PortalDefineQuery(queryPortal, NULL, sourceText,
 					  CMDTAG_SELECT,
 					  list_make1(queryPlan),
 					  NULL);
