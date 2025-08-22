@@ -72,7 +72,7 @@ SELECT documentdb_api.create_role('{"createRole":"", "roles":["documentdb_readon
 ERROR:  'createRole' cannot be empty.
 -- Test createRole with invalid inherited role, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidInheritRole", "roles":["nonexistent_role"]}');
-ERROR:  Role 'nonexistent_role' not found or not supported.
+ERROR:  Role 'nonexistent_role' not supported.
 -- Test createRole with invalid roles array type, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidRolesType", "roles":"not_an_array"}');
 ERROR:  'roles' must be an array, not string
@@ -90,7 +90,7 @@ SELECT documentdb_api.create_role('{"createRole":"customReadRole", "roles":["doc
 ERROR:  role "customReadRole" already exists
 -- Test roles array with mixed valid and invalid roles, should fail
 SELECT documentdb_api.create_role('{"createRole":"mixedRolesTest", "roles":["documentdb_readonly_role", "invalid_role"]}');
-ERROR:  Role 'invalid_role' not found or not supported.
+ERROR:  Role 'invalid_role' not supported.
 -- Test invalid JSON in createRole, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidJson", "roles":["documentdb_readonly_role"');
 ERROR:  invalid input syntax JSON for BSON: Code: '1', Message 'Incomplete JSON' at character 35

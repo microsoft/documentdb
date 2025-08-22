@@ -19,7 +19,9 @@
 #include "api_hooks.h"
 #include "utils/list_utils.h"
 #include "roles.h"
-#include <utils/elog.h>
+#include "utils/elog.h"
+#include "utils/array.h"
+#include "utils/hashset_utils.h"
 
 /* GUC to enable user crud operations */
 extern bool EnableRoleCrud;
@@ -30,7 +32,9 @@ PG_FUNCTION_INFO_V1(command_roles_info);
 PG_FUNCTION_INFO_V1(command_update_role);
 
 static void ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec);
-static void ValidateInheritedRole(const char *roleName);
+static void ParseRolesInfoSpec(pgbson *rolesInfoBson, RolesInfoSpec *rolesInfoSpec);
+static void ParseRoleDocument(bson_iter_t *rolesArrayIter, RolesInfoSpec *rolesInfoSpec);
+static void ParseRoleDefinition(bson_iter_t *iter, RolesInfoSpec *rolesInfoSpec);
 
 /*
  * Parses a createRole spec, executes the createRole command, and returns the result.
@@ -47,7 +51,7 @@ command_create_role(PG_FUNCTION_ARGS)
 
 
 /*
- * Implements dropRole command, which will be implemented in the future.
+ * Implements dropRole command.
  */
 Datum
 command_drop_role(PG_FUNCTION_ARGS)
@@ -64,9 +68,11 @@ command_drop_role(PG_FUNCTION_ARGS)
 Datum
 command_roles_info(PG_FUNCTION_ARGS)
 {
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-					errmsg("RolesInfo command is not supported in preview."),
-					errdetail_log("RolesInfo command is not supported in preview.")));
+	pgbson *rolesInfoSpec = PG_GETARG_PGBSON(0);
+
+	Datum response = roles_info(rolesInfoSpec);
+
+	PG_RETURN_DATUM(response);
 }
 
 
@@ -112,10 +118,10 @@ create_role(pgbson *createRoleBson)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 							errmsg(
-								"Create role operation failed. Error details: Metadata coordinator %s failure. Open a support request.",
+								"Create role operation failed: %s",
 								text_to_cstring(result.response)),
 							errdetail_log(
-								"Create role operation failed. Error details: Metadata coordinator %s failure. Open a support request.",
+								"Create role operation failed: %s",
 								text_to_cstring(result.response))));
 		}
 
@@ -151,8 +157,12 @@ create_role(pgbson *createRoleBson)
 	{
 		const char *inheritedRole = (const char *) lfirst(currentRole);
 
-		/* Validate that the inherited role is supported */
-		ValidateInheritedRole(inheritedRole);
+		if (!IS_SUPPORTED_BUILTIN_ROLE(inheritedRole))
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ROLENOTFOUND),
+							errmsg("Role '%s' not supported.",
+								   inheritedRole)));
+		}
 
 		StringInfo grantRoleInfo = makeStringInfo();
 		appendStringInfo(grantRoleInfo, "GRANT %s TO %s",
@@ -188,37 +198,54 @@ drop_role(pgbson *dropRoleBson)
 Datum
 roles_info(pgbson *rolesInfoBson)
 {
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-					errmsg("RolesInfo command is not supported."),
-					errdetail_log("RolesInfo command is not supported.")));
-}
-
-
-/*
- * update_role implements the core logic for updateRole command
- */
-Datum
-update_role(pgbson *updateRoleBson)
-{
-	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-					errmsg("UpdateRole command is not supported."),
-					errdetail_log("UpdateRole command is not supported.")));
-}
-
-
-/*
- * ValidateInheritedRole validates that the given role name is supported
- */
-static void
-ValidateInheritedRole(const char *roleName)
-{
-	if (strcmp(roleName, ApiAdminRoleV2) != 0 &&
-		strcmp(roleName, ApiReadOnlyRole) != 0)
+	if (!EnableRoleCrud)
 	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ROLENOTFOUND),
-						errmsg("Role '%s' not found or not supported.",
-							   roleName)));
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
+						errmsg("RolesInfo command is not supported."),
+						errdetail_log("RolesInfo command is not supported.")));
 	}
+
+	if (!IsMetadataCoordinator())
+	{
+		StringInfo rolesInfoQuery = makeStringInfo();
+		appendStringInfo(rolesInfoQuery,
+						 "SELECT %s.roles_info(%s::%s.bson)",
+						 ApiSchemaNameV2,
+						 quote_literal_cstr(PgbsonToHexadecimalString(rolesInfoBson)),
+						 CoreSchemaNameV2);
+		DistributedRunCommandResult result = RunCommandOnMetadataCoordinator(
+			rolesInfoQuery->data);
+
+		if (!result.success)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
+							errmsg(
+								"Roles info operation failed: %s",
+								text_to_cstring(result.response)),
+							errdetail_log(
+								"Roles info operation failed: %s",
+								text_to_cstring(result.response))));
+		}
+
+		pgbson_writer finalWriter;
+		PgbsonWriterInit(&finalWriter);
+		PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+		return PointerGetDatum(PgbsonWriterGetPgbson(&finalWriter));
+	}
+
+	RolesInfoSpec rolesInfoSpec = { NIL, false, false, false };
+	ParseRolesInfoSpec(rolesInfoBson, &rolesInfoSpec);
+
+	pgbson_writer finalWriter;
+	PgbsonWriterInit(&finalWriter);
+
+	pgbson_array_writer rolesArrayWriter;
+	PgbsonWriterStartArray(&finalWriter, "roles", 5, &rolesArrayWriter);
+
+	PgbsonWriterEndArray(&finalWriter, &rolesArrayWriter);
+	PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 1);
+
+	return PointerGetDatum(PgbsonWriterGetPgbson(&finalWriter));
 }
 
 
@@ -264,11 +291,11 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 				{
 					if (bson_iter_type(&rolesArrayIter) == BSON_TYPE_UTF8)
 					{
-						uint32_t roleStrLength = 0;
+						uint32_t roleNameLength = 0;
 						const char *inheritedBuiltInRole = bson_iter_utf8(&rolesArrayIter,
-																		  &roleStrLength);
+																		  &roleNameLength);
 
-						if (roleStrLength > 0)
+						if (roleNameLength > 0)
 						{
 							createRoleSpec->inheritedBuiltInRoles = lappend(
 								createRoleSpec->inheritedBuiltInRoles,
@@ -291,17 +318,6 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 									   BsonTypeName(bson_iter_type(&createRoleIter)))));
 			}
 		}
-		else if (strcmp(key, "db") == 0 || strcmp(key, "$db") == 0)
-		{
-			EnsureTopLevelFieldType(key, &createRoleIter, BSON_TYPE_UTF8);
-			uint32_t strLength = 0;
-			const char *db = bson_iter_utf8(&createRoleIter, &strLength);
-			if (strcmp(db, "admin") != 0)
-			{
-				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"Unsupported value specified for db. Only 'admin' is allowed.")));
-			}
-		}
 		else if (IsCommonSpecIgnoredField(key))
 		{
 			continue;
@@ -317,5 +333,199 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg("'createRole' is a required field.")));
+	}
+}
+
+
+/*
+ * ParseRolesInfoSpec parses the rolesInfo command parameters
+ */
+static void
+ParseRolesInfoSpec(pgbson *rolesInfoBson, RolesInfoSpec *rolesInfoSpec)
+{
+	bson_iter_t rolesInfoIter;
+	PgbsonInitIterator(rolesInfoBson, &rolesInfoIter);
+
+	rolesInfoSpec->roleNames = NIL;
+	rolesInfoSpec->showAllRoles = false;
+	rolesInfoSpec->showBuiltInRoles = false;
+	rolesInfoSpec->showPrivileges = false;
+	bool rolesInfoFound = false;
+	while (bson_iter_next(&rolesInfoIter))
+	{
+		const char *key = bson_iter_key(&rolesInfoIter);
+
+		if (strcmp(key, "rolesInfo") == 0)
+		{
+			rolesInfoFound = true;
+			if (bson_iter_type(&rolesInfoIter) == BSON_TYPE_INT32)
+			{
+				int32_t value = bson_iter_int32(&rolesInfoIter);
+				if (value == 1)
+				{
+					rolesInfoSpec->showAllRoles = true;
+				}
+				else
+				{
+					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+									errmsg(
+										"'rolesInfo' must be 1, a string, a document, or an array.")));
+				}
+			}
+			else if (bson_iter_type(&rolesInfoIter) == BSON_TYPE_ARRAY)
+			{
+				bson_iter_t rolesArrayIter;
+				bson_iter_recurse(&rolesInfoIter, &rolesArrayIter);
+
+				while (bson_iter_next(&rolesArrayIter))
+				{
+					ParseRoleDefinition(&rolesArrayIter, rolesInfoSpec);
+				}
+			}
+			else
+			{
+				ParseRoleDefinition(&rolesInfoIter, rolesInfoSpec);
+			}
+		}
+		else if (strcmp(key, "showBuiltInRoles") == 0)
+		{
+			if (BSON_ITER_HOLDS_BOOL(&rolesInfoIter))
+			{
+				rolesInfoSpec->showBuiltInRoles = bson_iter_as_bool(&rolesInfoIter);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"'showBuiltInRoles' must be a boolean value")));
+			}
+		}
+		else if (strcmp(key, "showPrivileges") == 0)
+		{
+			if (BSON_ITER_HOLDS_BOOL(&rolesInfoIter))
+			{
+				rolesInfoSpec->showPrivileges = bson_iter_as_bool(&rolesInfoIter);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"'showPrivileges' must be a boolean value")));
+			}
+		}
+		else if (IsCommonSpecIgnoredField(key))
+		{
+			continue;
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg("Unsupported field specified: '%s'.", key)));
+		}
+	}
+
+	if (!rolesInfoFound)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("'rolesInfo' is a required field.")));
+	}
+}
+
+
+/*
+ * Helper function to parse a role definition (string or document)
+ */
+static void
+ParseRoleDefinition(bson_iter_t *iter, RolesInfoSpec *rolesInfoSpec)
+{
+	if (bson_iter_type(iter) == BSON_TYPE_UTF8)
+	{
+		uint32_t roleNameLength = 0;
+		const char *roleName = bson_iter_utf8(iter, &roleNameLength);
+
+		/* If the string is empty, we will not add it to the list of roles to fetched */
+		if (roleNameLength > 0)
+		{
+			rolesInfoSpec->roleNames = lappend(rolesInfoSpec->roleNames, pstrdup(
+												   roleName));
+		}
+	}
+	else if (bson_iter_type(iter) == BSON_TYPE_DOCUMENT)
+	{
+		ParseRoleDocument(iter, rolesInfoSpec);
+	}
+	else
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg(
+							"'rolesInfo' must be 1, a string, a document, or an array.")));
+	}
+}
+
+
+/*
+ * Helper function to parse a role document from an array element or single document
+ */
+static void
+ParseRoleDocument(bson_iter_t *rolesArrayIter, RolesInfoSpec *rolesInfoSpec)
+{
+	bson_iter_t roleDocIter;
+	bson_iter_recurse(rolesArrayIter, &roleDocIter);
+
+	const char *roleName = NULL;
+	uint32_t roleNameLength = 0;
+	const char *dbName = NULL;
+	uint32_t dbNameLength = 0;
+
+	while (bson_iter_next(&roleDocIter))
+	{
+		const char *roleKey = bson_iter_key(&roleDocIter);
+
+		if (strcmp(roleKey, "role") == 0)
+		{
+			if (bson_iter_type(&roleDocIter) != BSON_TYPE_UTF8)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("'role' field must be a string.")));
+			}
+
+			roleName = bson_iter_utf8(&roleDocIter, &roleNameLength);
+		}
+
+		/* db is required as part of every role document. */
+		else if (strcmp(roleKey, "db") == 0)
+		{
+			if (bson_iter_type(&roleDocIter) != BSON_TYPE_UTF8)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg("'db' field must be a string.")));
+			}
+
+			dbName = bson_iter_utf8(&roleDocIter, &dbNameLength);
+
+			if (strcmp(dbName, "admin") != 0)
+			{
+				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+								errmsg(
+									"Unsupported value specified for db. Only 'admin' is allowed.")));
+			}
+		}
+		else
+		{
+			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+							errmsg("Unknown property '%s' in role document.", roleKey)));
+		}
+	}
+
+	if (roleName == NULL || dbName == NULL)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
+						errmsg("'role' and 'db' are required fields.")));
+	}
+
+	/* Only add role to the list if both role name and db name have valid lengths */
+	if (roleNameLength > 0 && dbNameLength > 0)
+	{
+		rolesInfoSpec->roleNames = lappend(rolesInfoSpec->roleNames, pstrdup(roleName));
 	}
 }

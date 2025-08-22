@@ -21,6 +21,7 @@
 #include <common/scram-common.h>
 #include "api_hooks_def.h"
 #include "users.h"
+#include "roles.h"
 #include "api_hooks.h"
 #include "utils/hashset_utils.h"
 #include "miscadmin.h"
@@ -131,7 +132,6 @@ static void WriteSingleUserDocument(UserRoleHashEntry *userEntry, bool showPrivi
 static void WriteRoles(const char *parentRole,
 					   pgbson_array_writer *roleArrayWriter);
 static void WriteMultipleRoles(HTAB *rolesTable, pgbson_array_writer *roleArrayWriter);
-static bool IsSupportedBuiltInRole(const char *roleName);
 static HTAB * CreateUserEntryHashSet(void);
 static HTAB * BuildUserRoleEntryTable(Datum *userDatums, int userCount);
 static uint32 UserHashEntryHashFunc(const void *obj, size_t objsize);
@@ -2365,7 +2365,7 @@ BuildUserRoleEntryTable(Datum *userDatums, int userCount)
 			{
 				const char *parentRole = bson_iter_utf8(&getIter, NULL);
 
-				if (!IsSupportedBuiltInRole(parentRole))
+				if (!IS_SUPPORTED_BUILTIN_ROLE(parentRole))
 				{
 					continue;
 				}
@@ -2467,16 +2467,4 @@ FreeUserRoleEntryTable(HTAB *userRolesTable)
 
 		hash_destroy(userRolesTable);
 	}
-}
-
-
-/*
- * Returns true if role is supported, and false otherwise.
- */
-static bool
-IsSupportedBuiltInRole(const char *roleName)
-{
-	return strcmp(roleName, ApiAdminRoleV2) == 0 || strcmp(roleName, ApiReadOnlyRole) ==
-		   0 || strcmp(roleName, ApiReadWriteRole) == 0 ||
-		   strcmp(roleName, ApiRootRole) == 0 || strcmp(roleName, ApiUserAdminRole) == 0;
 }
