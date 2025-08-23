@@ -423,7 +423,7 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 							setValueState->relativePath, BsonValueToJsonForLogging(
 								mulFactor)),
 						errdetail_log(
-							"Cannot multiply with non-numeric argument of type %s ",
+							"Multiplication cannot be performed because the argument is non-numeric and of type %s ",
 							BsonTypeName(mulFactor->value_type))));
 	}
 

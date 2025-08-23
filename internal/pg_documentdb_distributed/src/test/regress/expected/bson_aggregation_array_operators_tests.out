@@ -1587,7 +1587,7 @@ NOTICE:  creating collection
 select bson_dollar_project(document, '{"result": { "$firstN": {"input": "$a", "n":3} }}') from documentdb_api.collection('db','dollarFirstN');
 ERROR:  Input must be an array
 select bson_dollar_project(document, '{"result": { "$firstN": {"input": "$a", "n":"abc"} }}') from documentdb_api.collection('db','dollarFirstN');
-ERROR:  Value for 'n' must be of integral type, but found "abc"
+ERROR:  Expected 'integer' type for 'n' field but found '"abc"' type
 --$firstN, operator invalid input
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": true, "n":3} }}');
 ERROR:  Input must be an array
@@ -1603,15 +1603,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": "ayush_test_nam
 ERROR:  specification must be an object; found $firstN :"ayush_test_name"
 --$firstN, operator invalid n
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":"3"} }}');
-ERROR:  Value for 'n' must be of integral type, but found "3"
+ERROR:  Expected 'integer' type for 'n' field but found '"3"' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":0} }}');
 ERROR:  'n' must be greater than 0, found 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":-1} }}');
 ERROR:  'n' must be greater than 0, found -1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":3.124} }}');
-ERROR:  Value for 'n' must be of integral type, but found 3.124
+ERROR:  Expected 'integer' type for 'n' field but found 'double' type for value '3.124'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n": {"$numberDecimal": "9223372036854775808"} } }}');
-ERROR:  Value for 'n' must be of integral type, but found 9223372036854775808
+ERROR:  Expected 'integer' type for 'n' field but found 'decimal' type for value '9223372036854775808'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n": {"$numberDecimal": "0"} } }}');
 ERROR:  'n' must be greater than 0, found 0
 -- $lastN, operator with docs in db 
@@ -1659,7 +1659,7 @@ select documentdb_api.insert_one('db','dollarLastN','{"b":[] , "_id":5}');
 select bson_dollar_project(document, '{"result": { "$lastN": {"input": "$a", "n":3} }}') from documentdb_api.collection('db','dollarLastN');
 ERROR:  Input must be an array
 select bson_dollar_project(document, '{"result": { "$lastN": {"input": "$a", "n":"abc"} }}') from documentdb_api.collection('db','dollarLastN');
-ERROR:  Value for 'n' must be of integral type, but found "abc"
+ERROR:  Expected 'integer' type for 'n' field but found '"abc"' type
 --$firstN, operator missing or extra args
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4]} }}');
 ERROR:  $firstN requires an 'n' field
@@ -1731,15 +1731,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": "ayush_test_name
 ERROR:  specification must be an object; found $lastN :"ayush_test_name"
 --$lastN, operator invalid n
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":"3"} }}');
-ERROR:  Value for 'n' must be of integral type, but found "3"
+ERROR:  Expected 'integer' type for 'n' field but found '"3"' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":0} }}');
 ERROR:  'n' must be greater than 0, found 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":-1} }}');
 ERROR:  'n' must be greater than 0, found -1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":3.124} }}');
-ERROR:  Value for 'n' must be of integral type, but found 3.124
+ERROR:  Expected 'integer' type for 'n' field but found 'double' type for value '3.124'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n": {"$numberDecimal": "9223372036854775808"} } }}');
-ERROR:  Value for 'n' must be of integral type, but found 9223372036854775808
+ERROR:  Expected 'integer' type for 'n' field but found 'decimal' type for value '9223372036854775808'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n": {"$numberDecimal": "0"} } }}');
 ERROR:  'n' must be greater than 0, found 0
 --$lastN, operator missing or extra args
@@ -3226,7 +3226,7 @@ ERROR:  The input argument to $sortArray must be an array, but was of type: stri
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"sortBy": 1 } } }');
 ERROR:  $sortArray requires 'input' to be specified
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4] } } }');
-ERROR:  $sortArray requires 'sortBy' to be specified
+ERROR:  The $sortArray needs the 'sortBy' parameter to be explicitly specified
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": "", "sortBy": 1} } }');
 ERROR:  The input argument to $sortArray must be an array, but was of type: string
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": {}, "sortBy": 1} } }');

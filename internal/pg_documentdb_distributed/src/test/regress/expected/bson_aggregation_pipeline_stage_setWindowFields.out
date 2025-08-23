@@ -137,7 +137,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  BSON field '$setWindowFields.sortBy' is the wrong type 'string', expected type 'object'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": "Not an object" }}}]}');
-ERROR:  The field 'total' must be an object
+ERROR:  Expected 'document' type for 'total'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$unknownOperator": 1}}}}]}');
 ERROR:  Unrecognized window function, $unknownOperator
@@ -149,7 +149,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  FieldPath cannot be constructed with empty string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1}, "total2": "Not an object" }}}]}');
-ERROR:  The field 'total2' must be an object
+ERROR:  Expected 'document' type for 'total2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": "Not an object"}}}}]}');
 ERROR:  'window' field must be an object
@@ -5224,11 +5224,11 @@ ERROR:  Unknown argument to $bottomN 'fourth'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": -2, "sortBy": {"quantity": 1}}}}}} ] }'); -- negative n
 ERROR:  'n' must be greater than 0, found -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": 2.2, "sortBy": {"quantity": 1}}}}}} ] }'); -- non-integer n
-ERROR:  Value for 'n' must be of integral type, but found 2.2
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '2.2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": "a", "sortBy": {"quantity": 1}}}}}} ] }'); -- non-integer n
-ERROR:  Value for 'n' must be of integral type, but found "a"
+ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": {"$undefined": true}, "sortBy": {"quantity": 1}}}}}} ] }'); -- undefined  n
-ERROR:  Value for 'n' must be of integral type, but found { "$undefined" : true }
+ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": {"$numberDecimal": "Infinity"}, "sortBy": {"quantity": 1}}}}}} ] }'); -- undefined  n
 ERROR:  Can't coerce out of range value Infinity to long
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": 1}}}}} ] }'); -- sortBy is not an object
@@ -6833,11 +6833,11 @@ ERROR:  $lastN found an unknown argument: third
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": -2}}}}} ] }'); -- negative n
 ERROR:  'n' must be greater than 0, found -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": 2.2}}}}} ] }'); -- non-integer n
-ERROR:  Value for 'n' must be of integral type, but found 2.2
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '2.2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": "a"}}}}} ] }'); -- non-integer n
-ERROR:  Value for 'n' must be of integral type, but found "a"
+ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": {"$undefined": true}}}}}} ] }'); -- undefined  n
-ERROR:  Value for 'n' must be of integral type, but found { "$undefined" : true }
+ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": {"$numberDecimal": "Infinity"}}}}}} ] }'); -- undefined  n
 ERROR:  Can't coerce out of range value Infinity to long
 /* Test $first, $last, $firstN, $lastN with $group stage as code path is common with $setWindowFields */

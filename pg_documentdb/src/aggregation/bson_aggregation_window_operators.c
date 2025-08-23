@@ -749,7 +749,8 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		if (output.bsonValue.value_type != BSON_TYPE_DOCUMENT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("The field '%s' must be an object", output.path),
+							errmsg("Expected 'document' type for '%s'",
+								   output.path),
 							errdetail_log(
 								"$setWindowField output field must be an object")));
 		}

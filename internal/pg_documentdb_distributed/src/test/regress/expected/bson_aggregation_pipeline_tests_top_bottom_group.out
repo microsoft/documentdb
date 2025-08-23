@@ -83,15 +83,15 @@ ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n
 ERROR:  Missing value for 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": "a"}}}} ] }'); -- n is not a number
-ERROR:  Value for 'n' must be of integral type, but found "a"
+ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": {"$undefined": true}}}}} ] }'); -- n is not a number
-ERROR:  Value for 'n' must be of integral type, but found { "$undefined" : true }
+ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": {"$numberDecimal": "Infinity"}}}}} ] }'); -- n is not a number
 ERROR:  Can't coerce out of range value Infinity to long
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": -1}}}} ] }'); -- n is negative
 ERROR:  'n' must be greater than 0, found -1
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 0.5}}}} ] }'); -- n is not an integer
-ERROR:  Value for 'n' must be of integral type, but found 0.5
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
 ERROR:  Missing value for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output
@@ -99,15 +99,15 @@ ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n
 ERROR:  Missing value for 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": "a"}}}} ] }'); -- n is not a number
-ERROR:  Value for 'n' must be of integral type, but found "a"
+ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": {"$undefined": true}}}}} ] }'); -- n is not a number
-ERROR:  Value for 'n' must be of integral type, but found { "$undefined" : true }
+ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": {"$numberDecimal": "Infinity"}}}}} ] }'); -- n is not a number
 ERROR:  Can't coerce out of range value Infinity to long
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": -1}}}} ] }'); -- n is negative
 ERROR:  'n' must be greater than 0, found -1
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 0.5}}}} ] }'); -- n is not an integer
-ERROR:  Value for 'n' must be of integral type, but found 0.5
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": 1, "n": 1}}}} ] }'); -- sortBy is not an object
 ERROR:  expected 'sortBy' to already be an object in the arguments to $bottomN
 /* $top operator with $group */

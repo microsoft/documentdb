@@ -2769,11 +2769,13 @@ ValidateElementForNGroupAccumulators(bson_value_t *elementsToFetch, const
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787903),
 								errmsg(
-									"Value for 'n' must be of integral type, but found %s",
+									"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+									BsonTypeName(elementsToFetch->value_type),
 									BsonValueToJsonForLogging(elementsToFetch)),
 								errdetail_log(
-									"Value for 'n' must be of integral type, but found of type %s",
-									BsonTypeName(elementsToFetch->value_type))));
+									"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+									BsonTypeName(elementsToFetch->value_type),
+									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
 			/* This is done as elements to fetch must only be int64. */
@@ -2808,11 +2810,14 @@ ValidateElementForNGroupAccumulators(bson_value_t *elementsToFetch, const
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787902),
-							errmsg("Value for 'n' must be of integral type, but found %s",
-								   BsonValueToJsonForLogging(elementsToFetch)),
+							errmsg(
+								"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+								BsonTypeName(elementsToFetch->value_type),
+								BsonValueToJsonForLogging(elementsToFetch)),
 							errdetail_log(
-								"Value for 'n' must be of integral type, but found of type %s",
-								BsonTypeName(elementsToFetch->value_type))));
+								"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+								BsonTypeName(elementsToFetch->value_type),
+								BsonValueToJsonForLogging(elementsToFetch))));
 		}
 	}
 }
@@ -3099,7 +3104,7 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
 						errmsg(
-							"BSON field '$fill.output' is missing but a required field")));
+							"Required field '$fill.output' is missing")));
 	}
 
 
@@ -3609,7 +3614,8 @@ HandleMatch(const bson_value_t *existingValue, Query *query,
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15959),
-						errmsg("the match filter must be an expression in an object")));
+						errmsg(
+							"The match filter must always be provided as an expression within a object.")));
 	}
 
 	if (query->limitOffset != NULL || query->limitCount != NULL)
@@ -3831,7 +3837,7 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
 		/* This is a view */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
 						errmsg(
-							"$changeStream is not supported on views.")));
+							"$changeStream cannot be used on views.")));
 	}
 
 	/*Check the first stage and make sure it is $changestream. */
@@ -4157,7 +4163,8 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28811),
-									errmsg("unrecognized option to $unwind stage")));
+									errmsg(
+										"Invalid option specified for $unwind stage")));
 				}
 			}
 
@@ -4502,7 +4509,8 @@ HandleCount(const bson_value_t *existingValue, Query *query,
 	if (StringViewStartsWith(&countField, '$'))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40158),
-						errmsg("the count field cannot be a $-prefixed path")));
+						errmsg(
+							"The count field is not allowed to be a $-prefixed path")));
 	}
 
 	if (StringViewContains(&countField, '.'))
@@ -6834,7 +6842,8 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
-							errmsg("Index hint must be a string or a document")));
+							errmsg(
+								"Index hint should be provided as either a string or a document")));
 		}
 
 		FuncExpr *indexHintExpr = makeFuncExpr(

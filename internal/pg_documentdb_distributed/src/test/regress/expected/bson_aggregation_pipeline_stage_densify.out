@@ -69,7 +69,7 @@ ERROR:  BSON field '$densify.range.bounds' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : 1 } } }]}');
 ERROR:  the bounds in a range statement must be the string 'full', 'partition', or an ascending array of two numbers or two dates
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "na" } } }]}');
-ERROR:  Bounds string must either be 'full' or 'partition'
+ERROR:  The bounds string value should be either 'full' or 'partition'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full" } } }]}');
 ERROR:  BSON field '$densify.range.step' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "partition" } } }]}');

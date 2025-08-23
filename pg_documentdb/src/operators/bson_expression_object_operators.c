@@ -324,7 +324,7 @@ ParseDollarGetField(const bson_value_t *argument, AggregationExpressionData *dat
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION3041701), errmsg(
-									"$getField found an unknown argument: %s",
+									"$getField encountered an unknown argument: %s",
 									key)));
 			}
 		}
@@ -501,7 +501,7 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION4161103),
 						errmsg(
-							"$setField requires 'value' to be specified")));
+							"The $setField requires that a 'value' parameter be explicitly provided")));
 	}
 
 	if (input.value_type == BSON_TYPE_EOD)

@@ -113,16 +113,16 @@ SELECT document FROM bson_aggregation_pipeline('db', '{"aggregate": "timestampTe
 
 -- $tsIncrement operator negative tests
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": "" }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is string
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'string' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": [1,2] }}');
 ERROR:  Expression $tsIncrement takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": [1] }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is int
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'int' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": 11 }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is int
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'int' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": true }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is bool
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'bool' type
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$tsIncrement": "$a" }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is int
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'int' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": {"$regex": "a*b", "$options":""} }}');
-ERROR:  Argument to $tsIncrement must be a timestamp, but is regex
+ERROR:  Expected 'timestamp' type for $tsIncrement but found 'regex' type

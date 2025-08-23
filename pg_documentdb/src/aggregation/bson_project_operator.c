@@ -650,7 +650,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31395),
 							errmsg(
-								"positional projection cannot be used with exclusion")));
+								"Exclusion is not compatible with positional projection usage")));
 		}
 		else if (IsElemMatchIncluded(treeState->operatorExistenceFlag))
 		{

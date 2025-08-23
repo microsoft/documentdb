@@ -770,7 +770,7 @@ SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", 
 ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField.
 -- output field is not present in the document
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "sortBy": { "date": 1 }}}]}');
-ERROR:  BSON field '$fill.output' is missing but a required field
+ERROR:  Required field '$fill.output' is missing
 -- fill non-numeric field
 SELECT documentdb_api.drop_collection('db','filltest');
  drop_collection 

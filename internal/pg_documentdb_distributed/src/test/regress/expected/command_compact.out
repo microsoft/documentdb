@@ -11,7 +11,7 @@ SELECT documentdb_api.compact(NULL);
 SELECT documentdb_api.compact('{}');
 ERROR:  Invalid command compact specification, missing database or collection name
 SELECT documentdb_api.compact('{"noIdea": "collection1"}');
-ERROR:  BSON field compact.noIdea is an unknown field
+ERROR:  The BSON field compact.noIdea is not recognized as a known field
 SELECT documentdb_api.compact('{"compact": "non_existing_collection"}');
 ERROR:  Invalid command compact specification, missing database or collection name
 SELECT documentdb_api.compact('{"compact": 1 }');

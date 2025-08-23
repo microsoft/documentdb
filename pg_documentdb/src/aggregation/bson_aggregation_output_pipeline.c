@@ -1908,7 +1908,7 @@ ValidateAndAddObjectIdToWriter(pgbson_writer *writer,
 			ValidateIdField(value);
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_IMMUTABLEFIELD),
 							errmsg(
-								"$merge failed to update the matching document, did you attempt to modify the _id or the shard key?")));
+								"$merge could not update the target document as an immutable field (like '_id' or shardKey) was detected to be modified.")));
 		}
 	}
 
@@ -1991,7 +1991,6 @@ HandleOut(const bson_value_t *existingValue, Query *query,
 		ValidateTargetNameSpaceForOutputStage(&outArgs.targetDB,
 											  &outArgs.targetCollection, isMergeStage);
 
-		/* Create the target collection if it does not exist */
 		targetCollection =
 			CreateCollectionForInsert(StringViewGetTextDatum(&outArgs.targetDB),
 									  StringViewGetTextDatum(&outArgs.targetCollection));

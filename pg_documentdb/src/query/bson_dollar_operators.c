@@ -61,7 +61,7 @@ typedef struct BsonDollarAllQueryState
 	/* Whether or not the $all array has exclusively nulls */
 	bool arrayHasOnlyNulls;
 
-	/* The number of elements in the $all array */
+	/* The total count of elements present in the $all array */
 	int numElements;
 
 	/* An array of exprEvalState for expression evaluation.

@@ -81,7 +81,7 @@ SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_passw
 ERROR:  Unsupported value specified for db. Only 'admin' is allowed.
 --Create a user with a disallowed role
 SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"read","db":"admin"}, {"role":"clusterAdmin","db":"admin"}]}');
-ERROR:  Invalid value specified for role: 'read'.
+ERROR:  The specified value for the role is invalid: 'read'.
 --Create a user with no DB
 SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_password", "roles":[{"role":"readWriteAnyDatabase"}, {"role":"clusterAdmin"}]}');
             create_user            

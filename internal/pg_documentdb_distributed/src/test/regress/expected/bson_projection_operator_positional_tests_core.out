@@ -10,13 +10,13 @@ ERROR:  FieldPath must not end with a '.'.
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$slice": 1}}', '{}');
 ERROR:  positional projection cannot be used with an expression or sub object
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": 0}', '{}');
-ERROR:  positional projection cannot be used with exclusion
+ERROR:  Exclusion is not compatible with positional projection usage
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": [1,2,3]}', '{}');
 ERROR:  positional projection cannot be used with a literal
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": "Hello"}', '{}');
 ERROR:  positional projection cannot be used with a literal
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$numberDecimal": "0"}}', '{}');
-ERROR:  positional projection cannot be used with exclusion
+ERROR:  Exclusion is not compatible with positional projection usage
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a": 1, "a.$": 1 }', '{}');
 ERROR:  Path collision at a
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.b": 1, "a.b.$": 1 }', '{}');

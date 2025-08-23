@@ -169,10 +169,10 @@ SetResultValueForDollarTsIncrement(bson_value_t *inputArgument, bson_value_t *re
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5687302), errmsg(
-							"Argument to $tsIncrement must be a timestamp, but is %s",
+							"Expected 'timestamp' type for $tsIncrement but found '%s' type",
 							BsonTypeName(inputArgument->value_type)),
 						errdetail_log(
-							"Argument to $tsIncrement must be a timestamp, but is %s",
+							"Expected 'timestamp' type for $tsIncrement but found '%s' type",
 							BsonTypeName(inputArgument->value_type))));
 	}
 }

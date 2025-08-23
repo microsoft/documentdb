@@ -312,9 +312,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxmi
 ERROR:  'n' must be greater than 0, found -1
 /*n == 0.5*/
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": 0.5 } } } } ] }');
-ERROR:  Value for 'n' must be of integral type, but found 0.5
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$minN": {"input": "$points", "n": 0.5 } } } } ] }');
-ERROR:  Value for 'n' must be of integral type, but found 0.5
+ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 /*n is a variable*/
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": "$$nValue" } } } } ], "let": { "nValue": 3 } }');
                                                   document                                                  

@@ -369,7 +369,7 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"$geoNear requires that 'distanceField' option as a String")));
+								"Expected 'string' type for $geoNear 'distanceField'.")));
 			}
 
 			request->distanceField = value->value.v_utf8.str;

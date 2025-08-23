@@ -47,7 +47,7 @@ ValidateSortSpecAndSetSortContext(bson_value_t sortBsonValue, SortContext *sortC
 				if (keyLength == 0)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"The $sort field cannot be empty")));
+										"The $sort field should not be left empty")));
 				}
 
 				if (key[0] == '.' || key[keyLength - 1] == '.')

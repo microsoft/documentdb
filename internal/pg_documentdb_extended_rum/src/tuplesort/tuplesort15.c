@@ -252,7 +252,7 @@ struct Tuplesortstate
 	bool bounded;               /* did caller specify a maximum number of
 	                             * tuples to return? */
 	bool boundUsed;             /* true if we made use of a bounded heap */
-	int bound;                  /* if bounded, the maximum number of tuples */
+	int bound;                  /* When bounded, the max count of possible tuples */
 	bool tuples;                /* Can SortTuple.tuple ever be set? */
 	int64 availMem;             /* remaining memory available, in bytes */
 	int64 allowedMem;           /* total memory allowed, in bytes */

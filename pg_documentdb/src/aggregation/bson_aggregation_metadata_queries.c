@@ -302,7 +302,7 @@ HandleCurrentOp(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40602),
 						errmsg(
-							"$currentOp is only valid as the first stage in the pipeline.")));
+							"The $currentOp can only be used as the initial stage in the pipeline.")));
 	}
 
 	const char *databaseStr = text_to_cstring(context->databaseNameDatum);

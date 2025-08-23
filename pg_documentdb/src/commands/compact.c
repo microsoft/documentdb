@@ -320,10 +320,11 @@ ParseCompactCommandSpec(pgbson *compactSpec, CompactArgs *args)
 		else if (!IsCommonSpecIgnoredField(element.path))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field compact.%s is an unknown field",
-								   element.path),
+							errmsg(
+								"The BSON field compact.%s is not recognized as a known field",
+								element.path),
 							errdetail_log(
-								"BSON field compact.%s is an unknown field",
+								"The BSON field compact.%s is not recognized as a known field",
 								element.path)));
 		}
 	}

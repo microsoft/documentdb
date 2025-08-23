@@ -170,7 +170,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": {
 ERROR:  $setField requires 'field' to be specified
 -- Missing param value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": { "field": "a", "input": "$$ROOT" } }]}}');
-ERROR:  $setField requires 'value' to be specified
+ERROR:  The $setField requires that a 'value' parameter be explicitly provided
 -- Wrong type for field, must be a string not null or bool
 SELECT * FROM bson_dollar_project('{ "d1": {"val": "a"}}', '{"result": { "fieldA": [ { "$literal": "b"}, {"$setField": { "field": true, "value": "REMOVE" } }]}}');
 ERROR:  $setField requires 'input' to be specified

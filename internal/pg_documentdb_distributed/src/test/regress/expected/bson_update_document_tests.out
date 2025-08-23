@@ -151,7 +151,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 (1 row)
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "a": [] }', '{ "": { "$set": { "a.1500001": 1 } } }', '{}');
-ERROR:  can't backfill more than 1500000 elements
+ERROR:  Backfilling is not possible for more than 1500000 elements.
 -- update scenario tests: $inc
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$inc": { "a.b": 2 } } }', '{}');
                             bson_update_document                            
@@ -1547,7 +1547,7 @@ ERROR:  The $sort field is a dotted field but has an empty part: a.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4,5]}', '{ "": { "$push" :{"a": { "$each": [], "$sort": {".b.c": -2} }}} }', '{}');
 ERROR:  The $sort field is a dotted field but has an empty part: .b.c
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4,5]}', '{ "": { "$push" :{"a": { "$each": [], "$sort": {"": 1} }}} }', '{}');
-ERROR:  The $sort field cannot be empty
+ERROR:  The $sort field should not be left empty
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4,5]}', '{ "": { "$push" :{"a": { "$each": [], "$sort": {} }}} }', '{}');
 ERROR:  The $sort pattern is empty when it should be a set of fields.
 -- TODO: Make the error compatible with mongo: "errmsg" : "Cannot create field 'y' in element {x: [ { y: 1 } ]}"

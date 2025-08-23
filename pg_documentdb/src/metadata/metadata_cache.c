@@ -1359,7 +1359,7 @@ DocumentDBApiExtensionOwner(void)
 	if (!HeapTupleIsValid(extensionTuple))
 	{
 		ereport(ERROR, (errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
-						errmsg("API extension has not been loaded")));
+						errmsg("The API extension is currently not loaded")));
 	}
 
 	Form_pg_extension extensionForm = (Form_pg_extension) GETSTRUCT(extensionTuple);

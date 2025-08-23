@@ -2131,7 +2131,7 @@ HandleUnresolvedArrayFields(const BsonUpdateIntermediatePathNode *tree,
 	if (maxIndex - currentMaxIndex > 1500000)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTBACKFILLARRAY), errmsg(
-							"can't backfill more than 1500000 elements")));
+							"Backfilling is not possible for more than 1500000 elements.")));
 	}
 
 	for (int index = currentMaxIndex; index <= maxIndex; index++)

@@ -1626,7 +1626,8 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16878), errmsg(
-							"$map requires an object argument")));
+							"Expected 'document' type for $map but found '%s' type",
+							BsonTypeName(argument->value_type))));
 	}
 
 	data->operator.returnType = BSON_TYPE_ARRAY;
@@ -2007,7 +2008,7 @@ ParseDollarSortArray(const bson_value_t *argument, AggregationExpressionData *da
 	if (sortby.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION2942503), errmsg(
-							"$sortArray requires 'sortBy' to be specified")));
+							"The $sortArray needs the 'sortBy' parameter to be explicitly specified")));
 	}
 
 	DollarSortArrayArguments *arguments = palloc0(sizeof(DollarSortArrayArguments));
@@ -3395,11 +3396,13 @@ ProcessDollarMaxAndMinN(bson_value_t *result, bson_value_t *evaluatedLimit,
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787902), errmsg(
-							"Value for 'n' must be of integral type, but found %s",
+							"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+							BsonTypeName(evaluatedLimit->value_type),
 							BsonValueToJsonForLogging(evaluatedLimit)),
 						errdetail_log(
-							"Value for 'n' must be of integral type, but found %s",
-							BsonTypeName(evaluatedLimit->value_type))));
+							"Expected 'integer' type for 'n' but found '%s' for value '%s'",
+							BsonTypeName(evaluatedLimit->value_type),
+							BsonValueToJsonForLogging(evaluatedLimit))));
 	}
 
 
@@ -3627,11 +3630,13 @@ ValidateElementForFirstAndLastN(bson_value_t *elementsToFetch, const
 			if (!IsBsonValueFixedInteger(elementsToFetch))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787903), errmsg(
-									"Value for 'n' must be of integral type, but found %s",
+									"Expected 'integer' type for 'n' field but found '%s' type for value '%s'",
+									BsonTypeName(elementsToFetch->value_type),
 									BsonValueToJsonForLogging(elementsToFetch)),
 								errdetail_log(
-									"Value for 'n' must be of integral type, but found of type %s",
-									BsonTypeName(elementsToFetch->value_type))));
+									"Expected 'integer' type for 'n' field but found '%s' type for value '%s'",
+									BsonTypeName(elementsToFetch->value_type),
+									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
 			/* This is done as elements to fetch must only be int64. */
@@ -3655,10 +3660,10 @@ ValidateElementForFirstAndLastN(bson_value_t *elementsToFetch, const
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787902), errmsg(
-								"Value for 'n' must be of integral type, but found %s",
+								"Expected 'integer' type for 'n' field but found '%s' type",
 								BsonValueToJsonForLogging(elementsToFetch)),
 							errdetail_log(
-								"Value for 'n' must be of integral type, but found of type %s",
+								"Expected 'integer' type for 'n' field but found '%s' type",
 								BsonTypeName(elementsToFetch->value_type))));
 		}
 	}

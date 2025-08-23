@@ -107,7 +107,7 @@ typedef struct
 	/* View definition if applicable */
 	pgbson *viewDefinition;
 
-	/* The UUID of the collection or view */
+	/* The unique identifier (UUID) associated with the specified collection or view */
 	pg_uuid_t collectionUUID;
 
 	/* creation_time column attribute number */

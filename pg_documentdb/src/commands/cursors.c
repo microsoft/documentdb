@@ -1003,7 +1003,7 @@ DrainPersistedCursor(const char *cursorName, int batchSize,
 	if (portal == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORNOTFOUND),
-						errmsg("Cursor not found in the store.")));
+						errmsg("Failed to locate the cursor in the specified store.")));
 	}
 
 	HTAB *cursorMap = NULL;

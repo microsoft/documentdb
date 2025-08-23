@@ -897,7 +897,7 @@ GetMongoCollectionFromCatalogById(uint64 collectionId, Oid relationId,
 		Datum collectionNameDatum = heap_getattr(tuple, 2, tupleDescriptor, &isNull);
 		if (isNull)
 		{
-			ereport(ERROR, (errmsg("collection_name should not be NULL in catalog")));
+			ereport(ERROR, (errmsg("collection name must not be NULL")));
 		}
 
 		memcpy(collection->name.collectionName, VARDATA_ANY(collectionNameDatum),

@@ -198,7 +198,7 @@ bson_covariance_pop_samp_transition(PG_FUNCTION_ARGS)
 		if (AggCheckCallContext(fcinfo, &aggregateContext) != AGG_CONTEXT_WINDOW)
 		{
 			ereport(ERROR, errmsg(
-						"window aggregate function called in non-window-aggregate context"));
+						"window aggregate function is invoked outside a valid window aggregate context"));
 		}
 
 		/* Create the aggregate state in the aggregate context. */
@@ -1939,7 +1939,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"'N' field must be an integer, but found type %s",
+									"Expected 'integer' type for 'N' field but found '%s' type.",
 									BsonTypeName(weightExpression->value_type))));
 			}
 
@@ -2188,7 +2188,7 @@ RunTimeCheckForIntegralAndDerivative(bson_value_t *xBsonValue, bson_value_t *yBs
 	if (timeUnitInt64 && xBsonValue->value_type != BSON_TYPE_DATE_TIME)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5429513), errmsg(
-							"Expected the sortBy field to be a Date, but it was %s",
+							"Expected 'Date' type for 'sortBy' field but found '%s' type",
 							BsonTypeName(
 								xBsonValue->value_type))));
 	}

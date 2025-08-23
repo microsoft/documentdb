@@ -481,7 +481,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataReplaceIdDiff", "pipeline": [ {"$merge" : { "into": "targetDataReplaceIdDiff", "on" : "a", "whenMatched" : "replace" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge failed to update the matching document, did you attempt to modify the _id or the shard key?
+ERROR:  $merge could not update the target document as an immutable field (like '_id' or shardKey) was detected to be modified.
 -- Now let's see what happens when we are not projecting _id from source and source _id is getting generated and if source objectID is generated then it will be not same as targets.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataReplaceIdDiff", 
 "pipeline": [  {"$project" : { "_id": 0 }},
@@ -646,7 +646,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataMergeIdDiff", "pipeline": [ {"$merge" : { "into": "targetDataMergeIdDiff", "on" : "a", "whenMatched" : "merge" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge failed to update the matching document, did you attempt to modify the _id or the shard key?
+ERROR:  $merge could not update the target document as an immutable field (like '_id' or shardKey) was detected to be modified.
 SELECT document FROM documentdb_api.collection('db','targetDataMergeIdDiff');
                              document                              
 ---------------------------------------------------------------------
@@ -900,7 +900,7 @@ SELECT * FROM aggregate_cursor_first_page('db',
                                         "whenNotMatched" : "insert" }
                                  } 
                               ] , "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge failed to update the matching document, did you attempt to modify the _id or the shard key?
+ERROR:  $merge could not update the target document as an immutable field (like '_id' or shardKey) was detected to be modified.
 select document FROM documentdb_api.collection('db','targetMatchedIdTests');
                                   document                                   
 ---------------------------------------------------------------------

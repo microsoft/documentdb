@@ -1142,7 +1142,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 						ereport(ERROR, (
 									errcode(ERRCODE_DOCUMENTDB_LOCATION5946802),
 									errmsg(
-										"Bounds string must either be 'full' or 'partition'")));
+										"The bounds string value should be either 'full' or 'partition'")));
 					}
 				}
 				else if (rangeElement.bsonValue.value_type == BSON_TYPE_ARRAY)

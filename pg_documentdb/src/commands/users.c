@@ -583,7 +583,7 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 									"'roles' is a required field.")));
 			}
 
-			/* Validate that it is of the right format */
+			/* Check if it's in the right format */
 			spec->pgRole = ValidateAndObtainUserRole(&spec->roles);
 			has_roles = true;
 		}
@@ -713,10 +713,11 @@ ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ROLENOTFOUND),
-									errmsg("Invalid value specified for role: '%s'.",
-										   role),
+									errmsg(
+										"The specified value for the role is invalid: '%s'.",
+										role),
 									errdetail_log(
-										"Invalid value specified for role: '%s'.",
+										"The specified value for the role is invalid: '%s'.",
 										role)));
 				}
 			}
