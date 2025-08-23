@@ -390,6 +390,7 @@ static void ProcessBatchUpdateNonTransactionalUnsharded(MongoCollection *collect
 														BatchUpdateResult *batchResult);
 static inline void PgbsonWriterAppendInt(pgbson_writer *writer, const char *path,
 										 uint32_t pathLength, int64 value);
+static inline void ReportUpdateFeatureUsage(int batchSize);
 
 PG_FUNCTION_INFO_V1(command_update_bulk);
 PG_FUNCTION_INFO_V1(command_update);
@@ -712,6 +713,7 @@ BuildUpdates(BatchUpdateSpec *spec)
 	}
 
 	spec->updates = updates;
+	ReportUpdateFeatureUsage(list_length(updates));
 }
 
 
@@ -878,7 +880,7 @@ BuildUpdateSpecList(bson_iter_t *updateArrayIter, bool *hasUpsert,
 			*hasUpsert = true;
 		}
 	}
-
+	ReportUpdateFeatureUsage(list_length(updates));
 	return updates;
 }
 
@@ -3879,5 +3881,31 @@ PgbsonWriterAppendInt(pgbson_writer *writer, const char *path,
 	else
 	{
 		PgbsonWriterAppendInt64(writer, path, pathLength, value);
+	}
+}
+
+
+static inline void
+ReportUpdateFeatureUsage(int batchSize)
+{
+	if (batchSize == 1)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_UPDATE_ONE);
+	}
+	else if (batchSize <= 100)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_UPDATE_100);
+	}
+	else if (batchSize <= 500)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_UPDATE_500);
+	}
+	else if (batchSize <= 1000)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_UPDATE_1000);
+	}
+	else
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_UPDATE_EXTENDED);
 	}
 }

@@ -144,6 +144,7 @@ static inline List * CreateTargetListForInsert(MongoCollection *collection);
 static inline RangeTblEntry * CreateBaseTableRteForInsert(MongoCollection *collection, Oid
 														  shardOid,
 														  List **optionalPermInfos);
+static inline void ReportInsertFeatureUsage(int batchSize);
 
 /*
  * ApiGucPrefix.enable_create_collection_on_insert GUC determines whether
@@ -987,7 +988,7 @@ CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocCon
 	/* we first validate insert command BSON and build a specification */
 	BatchInsertionSpec *batchSpec = BuildBatchInsertionSpec(&insertCommandIter,
 															insertDocs);
-
+	ReportInsertFeatureUsage(list_length(batchSpec->documents));
 	BatchInsertionResult batchResult;
 	batchResult.resultMemoryContext = allocContext;
 	MemoryContextSwitchTo(oldContext);
@@ -1710,4 +1711,30 @@ CreateTargetListForInsert(MongoCollection *collection)
 	}
 
 	return targetList;
+}
+
+
+static inline void
+ReportInsertFeatureUsage(int batchSize)
+{
+	if (batchSize == 1)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_INSERT_ONE);
+	}
+	else if (batchSize <= 100)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_INSERT_100);
+	}
+	else if (batchSize <= 500)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_INSERT_500);
+	}
+	else if (batchSize <= 1000)
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_INSERT_1000);
+	}
+	else
+	{
+		ReportFeatureUsage(FEATURE_COMMAND_INSERT_EXTENDED);
+	}
 }

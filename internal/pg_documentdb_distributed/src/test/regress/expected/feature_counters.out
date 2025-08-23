@@ -274,9 +274,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorCollNonExistent", "pipeline": [{ "$vectorSearch": { "queryVector": [8.0, 1.0, 8.0, 7], "limit": 1, "path": "myvector4", "numCandidates": 10 } }, { "$project": { "myvector4": 1, "_id": 0 }} ]}');
 ERROR:  $vectorSearch must be the first stage in the pipeline
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                                                                                                                       get_feature_counter_pretty                                                                                                                                       
+                                                                                                                                                     get_feature_counter_pretty                                                                                                                                                     
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 2}, {"create_index_vector_ip" : 1}, {"create_index_vector_l2" : 1}, {"create_index_vector_type_ivfflat" : 2}, {"project" : 2}, {"search_vector_default_nprobes" : 2}, {"search_vector_ivfflat" : 2}, {"vector_search_native" : 2}]}
+ {"Feature_usage":[{"command_insert" : 2}, {"command_insert_one" : 2}, {"create_index_vector" : 2}, {"create_index_vector_ip" : 1}, {"create_index_vector_l2" : 1}, {"create_index_vector_type_ivfflat" : 2}, {"project" : 2}, {"search_vector_default_nprobes" : 2}, {"search_vector_ivfflat" : 2}, {"vector_search_native" : 2}]}
 (1 row)
 
 -- check vector indexes
@@ -368,9 +368,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
 
 ROLLBACK;
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                                                                                                                                                                                                                                 get_feature_counter_pretty                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                               get_feature_counter_pretty                                                                                                                                                                                                                                                               
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 2}, {"create_index_vector" : 4}, {"create_index_vector_cos" : 2}, {"create_index_vector_compression_half" : 2}, {"create_index_vector_l2" : 2}, {"create_index_vector_type_hnsw" : 2}, {"create_index_vector_type_ivfflat" : 2}, {"match" : 2}, {"search" : 6}, {"search_vector_compression_half" : 2}, {"search_vector_default_nprobes" : 1}, {"search_vector_default_efsearch" : 1}, {"search_vector_hnsw" : 3}, {"search_vector_ivfflat" : 3}, {"search_vector_pre_filter" : 2}]}
+ {"Feature_usage":[{"command_insert" : 2}, {"command_insert_one" : 2}, {"create_index_vector" : 4}, {"create_index_vector_cos" : 2}, {"create_index_vector_compression_half" : 2}, {"create_index_vector_l2" : 2}, {"create_index_vector_type_hnsw" : 2}, {"create_index_vector_type_ivfflat" : 2}, {"match" : 2}, {"search" : 6}, {"search_vector_compression_half" : 2}, {"search_vector_default_nprobes" : 1}, {"search_vector_default_efsearch" : 1}, {"search_vector_hnsw" : 3}, {"search_vector_ivfflat" : 3}, {"search_vector_pre_filter" : 2}]}
 (1 row)
 
 -- aggregation operators counters
@@ -403,9 +403,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_co
 (3 rows)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(false);
-                              get_feature_counter_pretty                               
+                                            get_feature_counter_pretty                                             
 ---------------------------------------------------------------------
- {"Feature_usage":[{"agg_operator_add" : 1}, {"command_insert" : 3}, {"project" : 1}]}
+ {"Feature_usage":[{"agg_operator_add" : 1}, {"command_insert" : 3}, {"command_insert_one" : 3}, {"project" : 1}]}
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_counter_col3", "pipeline": [ {"$project": {"_id": 0, "result": { "$add": ["$a", 1]}}}], "cursor": {} }');
@@ -425,9 +425,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_co
 (3 rows)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                              get_feature_counter_pretty                                              
+                                                            get_feature_counter_pretty                                                            
 ---------------------------------------------------------------------
- {"Feature_usage":[{"agg_operator_add" : 2}, {"agg_operator_multiply" : 1}, {"command_insert" : 3}, {"project" : 3}]}
+ {"Feature_usage":[{"agg_operator_add" : 2}, {"agg_operator_multiply" : 1}, {"command_insert" : 3}, {"command_insert_one" : 3}, {"project" : 3}]}
 (1 row)
 
 -- nested should be counted
@@ -518,9 +518,9 @@ SELECT document -> '2dspherekey' FROM documentdb_api.collection('db', 'feature_c
 (1 row)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                             get_feature_counter_pretty                                             
+                                                           get_feature_counter_pretty                                                           
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 2}, {"query_operator_geointersects" : 1}, {"query_operator_geowithin" : 3}]}
+ {"Feature_usage":[{"command_insert" : 2}, {"command_insert_one" : 2}, {"query_operator_geointersects" : 1}, {"query_operator_geowithin" : 3}]}
 (1 row)
 
 -- Test feature counter for $text
@@ -543,9 +543,9 @@ SELECT document -> 'textkey' FROM documentdb_api.collection('db', 'feature_count
 (1 row)
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                     get_feature_counter_pretty                                     
+                                                   get_feature_counter_pretty                                                   
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 1}, {"create_index_text" : 1}, {"query_operator_text" : 1}]}
+ {"Feature_usage":[{"command_insert" : 1}, {"command_insert_one" : 1}, {"create_index_text" : 1}, {"query_operator_text" : 1}]}
 (1 row)
 
 -- TTL index usage tests
@@ -643,9 +643,9 @@ CALL documentdb_api_internal.delete_expired_rows(3);
 CALL documentdb_api_internal.delete_expired_rows(3);
 CALL documentdb_api_internal.delete_expired_rows(3);
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
-                                                                            get_feature_counter_pretty                                                                             
+                                                                                           get_feature_counter_pretty                                                                                           
 ---------------------------------------------------------------------
- {"Feature_usage":[{"command_insert" : 10}, {"command_list_indexes_cursor_first_page" : 1}, {"create_index_ttl" : 1}, {"cursor_type_single_batch" : 1}, {"ttl_purger_calls" : 3}]}
+ {"Feature_usage":[{"command_insert" : 10}, {"command_insert_one" : 10}, {"command_list_indexes_cursor_first_page" : 1}, {"create_index_ttl" : 1}, {"cursor_type_single_batch" : 1}, {"ttl_purger_calls" : 3}]}
 (1 row)
 
 -- Feature counter for _internalInhibitOptimization
@@ -668,5 +668,41 @@ SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
                                                                         get_feature_counter_pretty                                                                         
 ---------------------------------------------------------------------
  {"Feature_usage":[{"add_fields" : 3}, {"_internalInhibitOptimization" : 3}, {"match" : 1}, {"replace_root" : 1}, {"replace_with" : 1}, {"sort" : 1}, {"sort_by_id" : 1}]}
+(1 row)
+
+SELECT documentdb_api.insert('db', '{"insert":"writeFC", "documents":[
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 }
+]}');
+NOTICE:  creating collection
+                                         insert                                         
+---------------------------------------------------------------------
+ ("{ ""n"" : { ""$numberInt"" : ""1"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.insert('db', '{"insert":"writeFC", "documents":[
+   { "_id" : 2, "movie": "Wolverine", "Budget": 180000000, "year": 2012 },
+   { "_id" : 3, "movie": "Spider Man", "Budget": 180000000, "year": 2013 }
+]}');
+                                         insert                                         
+---------------------------------------------------------------------
+ ("{ ""n"" : { ""$numberInt"" : ""2"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" } }",t)
+(1 row)
+
+SELECT documentdb_api.update('db', '{"update": "writeFC", "updates":[{"q": {"_id": 1},"u":{"$set":{"year": "1998" }},"multi":true}]}');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""1"" }, ""n"" : { ""$numberInt"" : ""1"" } }",t)
+(1 row)
+
+SELECT documentdb_api.update('db', '{"update": "writeFC", "updates":[{"q": {"_id": 1},"u":{"$set":{"year": "2001" }},"multi":true}, {"q": {"_id": 2},"u":{"$set":{"year": "2002" }},"multi":true}]}');
+                                                               update                                                               
+---------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""2"" }, ""n"" : { ""$numberInt"" : ""2"" } }",t)
+(1 row)
+
+SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
+                                                                             get_feature_counter_pretty                                                                             
+---------------------------------------------------------------------
+ {"Feature_usage":[{"command_insert" : 2}, {"command_insert_one" : 1}, {"command_insert_100" : 1}, {"command_update" : 2}, {"command_update_one" : 1}, {"command_update_100" : 1}]}
 (1 row)
 

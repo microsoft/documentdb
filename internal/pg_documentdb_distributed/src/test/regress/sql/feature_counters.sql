@@ -230,3 +230,16 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_us
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_usage_inhibit", "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } }, { "$_internalInhibitOptimization": 1 }, { "$addFields": { "newField2": "someOtherField" } } ], "cursor": {} }');
 
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
+
+SELECT documentdb_api.insert('db', '{"insert":"writeFC", "documents":[
+   { "_id" : 1, "movie": "Iron Man 3", "Budget": 180000000, "year": 2011 }
+]}');
+
+SELECT documentdb_api.insert('db', '{"insert":"writeFC", "documents":[
+   { "_id" : 2, "movie": "Wolverine", "Budget": 180000000, "year": 2012 },
+   { "_id" : 3, "movie": "Spider Man", "Budget": 180000000, "year": 2013 }
+]}');
+
+SELECT documentdb_api.update('db', '{"update": "writeFC", "updates":[{"q": {"_id": 1},"u":{"$set":{"year": "1998" }},"multi":true}]}');
+SELECT documentdb_api.update('db', '{"update": "writeFC", "updates":[{"q": {"_id": 1},"u":{"$set":{"year": "2001" }},"multi":true}, {"q": {"_id": 2},"u":{"$set":{"year": "2002" }},"multi":true}]}');
+SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);

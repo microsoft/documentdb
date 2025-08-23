@@ -221,6 +221,11 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_FIND_CURSOR_FIRST_PAGE] = "command_find_cursor_first_page",
 	[FEATURE_COMMAND_GET_MORE] = "command_get_more",
 	[FEATURE_COMMAND_INSERT] = "command_insert",
+	[FEATURE_COMMAND_INSERT_ONE] = "command_insert_one",
+	[FEATURE_COMMAND_INSERT_100] = "command_insert_100",
+	[FEATURE_COMMAND_INSERT_500] = "command_insert_500",
+	[FEATURE_COMMAND_INSERT_1000] = "command_insert_1000",
+	[FEATURE_COMMAND_INSERT_EXTENDED] = "command_insert_extended",
 	[FEATURE_COMMAND_INSERT_BULK] = "command_insert_bulk",
 	[FEATURE_COMMAND_LIST_COLLECTIONS_CURSOR_FIRST_PAGE] =
 		"command_list_collections_cursor_first_page",
@@ -230,6 +235,11 @@ static char FeatureMapping[MAX_FEATURE_COUNT][MAX_FEATURE_NAME_LENGTH] = {
 	[FEATURE_COMMAND_RESHARD_COLLECTION] = "command_reshard_collection",
 	[FEATURE_COMMAND_UNSHARD_COLLECTION] = "command_unshard_collection",
 	[FEATURE_COMMAND_UPDATE] = "command_update",
+	[FEATURE_COMMAND_UPDATE_ONE] = "command_update_one",
+	[FEATURE_COMMAND_UPDATE_100] = "command_update_100",
+	[FEATURE_COMMAND_UPDATE_500] = "command_update_500",
+	[FEATURE_COMMAND_UPDATE_1000] = "command_update_1000",
+	[FEATURE_COMMAND_UPDATE_EXTENDED] = "command_update_extended",
 	[FEATURE_COMMAND_UPDATE_BULK] = "command_update_bulk",
 	[FEATURE_COMMAND_VALIDATE_REPAIR] = "validate_repair",
 
