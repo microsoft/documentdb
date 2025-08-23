@@ -1891,7 +1891,7 @@ ValidateBinDataSubType(const bson_subtype_t toSubtype)
 	if (toSubtype < BSON_SUBTYPE_BINARY || toSubtype > BSON_SUBTYPE_SENSITIVE)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION4341107), errmsg(
-							"Invalid 'subtype' parameter to $convert for binData: %d",
+							"Cannot use bindata subtype %d for $convert operation",
 							toSubtype)));
 	}
 }

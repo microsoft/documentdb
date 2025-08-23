@@ -146,7 +146,7 @@ HandlePreParsedDollarMeta(pgbson *doc, void *arguments,
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17308),
-						errmsg("Unsupported argument to $meta: %.*s",
+						errmsg("Argument provided to the $meta is not supported: %.*s",
 							   valueView.length, valueView.string)));
 	}
 

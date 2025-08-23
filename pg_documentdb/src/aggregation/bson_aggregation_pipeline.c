@@ -2537,9 +2537,9 @@ ParseInputForNGroupAccumulators(const bson_value_t *inputDocument,
 	if (input->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787907),
-						errmsg("%s requires an 'input' field", opName),
+						errmsg("%s needs to have an 'input' field", opName),
 						errdetail_log(
-							"%s requires an 'input' field", opName)));
+							"%s needs to have an 'input' field", opName)));
 	}
 
 	if (elementsToFetch->value_type == BSON_TYPE_EOD)
@@ -3480,7 +3480,7 @@ HandleSkip(const bson_value_t *existingValue, Query *query,
 		double doubleValue = BsonValueAsDouble(existingValue);
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5107200),
 						errmsg(
-							"invalid argument to $skip stage: Cannot represent as a 64-bit integer $skip: %f",
+							"Invalid parameter provided to $skip stage: value cannot be expressed as a 64-bit integer $skip: %f",
 							doubleValue)));
 	}
 
@@ -3489,7 +3489,7 @@ HandleSkip(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5107200),
 						errmsg(
-							"invalid argument to $skip stage: Expected a non-negative number in $skip: %ld",
+							"Invalid argument provided to $skip stage: A non-negative numerical value was expected in $skip, but received %ld.",
 							skipValue)));
 	}
 
@@ -3550,7 +3550,7 @@ HandleLimit(const bson_value_t *existingValue, Query *query,
 		double doubleValue = BsonValueAsDouble(existingValue);
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5107201),
 						errmsg(
-							"invalid argument to $limit stage: Cannot represent as a 64-bit integer: $limit: %f",
+							"Invalid $limit stage argument: value cannot be represented as a 64-bit integer: $limit: %f",
 							doubleValue)));
 	}
 
@@ -3559,7 +3559,7 @@ HandleLimit(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5107201),
 						errmsg(
-							"invalid argument to $skip stage: Expected a non - negative number in: $limit: %ld",
+							"Invalid argument passed to the $skip stage: a non-negative number was expected but received in $limit: %ld",
 							limitValue)));
 	}
 
@@ -4122,7 +4122,7 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28810),
 										errmsg(
-											"expected a non-empty string for the includeArrayIndex option to $unwind stage")));
+											"A non-empty string value was expected for the includeArrayIndex option in the $unwind stage.")));
 					}
 
 					StringView includeArrayIndexView = (StringView) {
@@ -4134,14 +4134,14 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28810),
 										errmsg(
-											"expected a non-empty string for the includeArrayIndex option to $unwind stage")));
+											"A non-empty string value was expected for the includeArrayIndex option in the $unwind stage.")));
 					}
 
 					if (StringViewStartsWith(&includeArrayIndexView, '$'))
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28822),
 										errmsg(
-											"includeArrayIndex option to $unwind stage should not be prefixed with a '$': %s",
+											"The includeArrayIndex option used in the $unwind stage must not have a '$' operator at the beginning: %s",
 											includeArrayIndexView.string)));
 					}
 				}
@@ -4151,7 +4151,7 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28809),
 										errmsg(
-											"expected a boolean for the preserveNullAndEmptyArrays option to $unwind stage")));
+											"A boolean value was expected for the preserveNullAndEmptyArrays option used in the $unwind stage.")));
 					}
 				}
 				else
@@ -4176,13 +4176,14 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 	if (pathValue.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28812),
-						errmsg("No path specified to $unwind stage")));
+						errmsg("No path provided for $unwind stage")));
 	}
 	if (pathValue.value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28808),
-						errmsg("Expected a string as the path for $unwind stage, got %s",
-							   BsonTypeName(pathValue.value_type))));
+						errmsg(
+							"A string value was expected as the path in the $unwind stage, but received %s.",
+							BsonTypeName(pathValue.value_type))));
 	}
 
 	StringView pathView = {
@@ -4192,14 +4193,14 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 	if (pathView.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28812),
-						errmsg("No path specified to $unwind stage")));
+						errmsg("No path provided for $unwind stage")));
 	}
 
 	if (!StringViewStartsWith(&pathView, '$') || pathView.length == 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28818),
 						errmsg(
-							"path option to $unwind stage should be prefixed with a '$': %.*s",
+							"The path option provided to the $unwind stage must start with the '$' symbol: %.*s",
 							pathView.length, pathView.string)));
 	}
 
@@ -4941,7 +4942,7 @@ HandleSortByCount(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40147),
 						errmsg(
-							"the sortByCount field must be defined as a $-prefixed path or an expression inside an object")));
+							"The sortByCount field must be specified either as a $-prefixed path or as a valid expression contained within an object.")));
 	}
 
 	/* Convert to

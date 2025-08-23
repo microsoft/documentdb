@@ -1136,10 +1136,10 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 SET documentdb.test.internalQueryMaxAllowedDensifyDocs TO 10;
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [0, 11], "step": 1 } } }]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Generated 11 documents in $densify, which is over the limit of 10. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter to allow more generated documents
+ERROR:  $densify stage produced 11 documents which is greater that the allowed limit of 10
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [0, 45], "step": 4 } } }]}');  
-ERROR:  PlanExecutor error during aggregation :: caused by :: Generated 11 documents in $densify, which is over the limit of 10. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter to allow more generated documents
+ERROR:  $densify stage produced 11 documents which is greater that the allowed limit of 10
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [0, 10], "step": 4 } } }]}'); -- should pass
               document               
@@ -1164,7 +1164,7 @@ SELECT insert_one('db','densify_limit','{ "_id": 2, "a": "abc", "cost": 12, "qua
 
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": "full", "step": 1 } } }]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Generated 11 documents in $densify, which is over the limit of 10. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter to allow more generated documents
+ERROR:  $densify stage produced 11 documents which is greater that the allowed limit of 10
 SELECT insert_one('db','densify_limit','{ "_id": 3, "a": "def", "cost": 0, "quantity": 501, "date": { "$date": { "$numberLong": "1718841600000" } } }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------
@@ -1181,7 +1181,7 @@ SELECT insert_one('db','densify_limit','{ "_id": 4, "a": "def", "cost": 12, "qua
 SET documentdb.test.internalQueryMaxAllowedDensifyDocs TO 20;
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": "full", "step": 1 } } }]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Generated 21 documents in $densify, which is over the limit of 20. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter to allow more generated documents
+ERROR:  $densify stage produced 21 documents which is greater that the allowed limit of 20
 -- Verify existing documents don't count towards the limit
 SELECT insert_one('db','densify_limit','{ "_id": 5, "a": "abc", "cost": 5, "quantity": 501, "date": { "$date": { "$numberLong": "1718841600000" } } }', NULL);
                               insert_one                              
@@ -1250,7 +1250,7 @@ SELECT insert_one('db','densify_limit','{ "_id": 2, "a": "abc", "cost": 12, "qua
 SET documentdb.test.internalQueryMaxAllowedDensifyDocs TO 5;
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "date", "partitionByFields": ["a"], "range": { "bounds": "partition", "step": 1 , "unit": "second"} } }]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Generated 6 documents in $densify, which is over the limit of 5. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter to allow more generated documents
+ERROR:  $densify stage produced 6 documents which is greater that the allowed limit of 5
 RESET documentdb.test.internalQueryMaxAllowedDensifyDocs;
 -- Test memory limit too
 SET documentdb.test.internaldocumentsourcedensifymaxmemorybytes TO 100;

@@ -1195,7 +1195,7 @@ bson_to_double_array(FunctionCallInfo fcinfo, bson_value_t *barray, int *len)
 	if (barray->value_type != BSON_TYPE_ARRAY || BsonDocumentValueCountKeys(barray) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION7750301), errmsg(
-							"The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: %s",
+							"Expected an array containing numbers from 0.0 to 1.0, but instead received: %s",
 							BsonValueToJsonForLogging(barray))));
 	}
 
@@ -1213,14 +1213,14 @@ bson_to_double_array(FunctionCallInfo fcinfo, bson_value_t *barray, int *len)
 							errmsg(
 								"Accumulator $percentile is not implemented yet")));
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION7750302), errmsg(
-								"The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: %s",
+								"Expected an array containing numbers from 0.0 to 1.0, but instead received: %s",
 								BsonValueToJsonForLogging(value))));
 		}
 		double percentile = BsonValueAsDoubleQuiet(bson_iter_value(&iter));
 		if (percentile < 0 || percentile > 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION7750303), errmsg(
-								"The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: %lf",
+								"Expected an array containing numbers from 0.0 to 1.0, but instead received: %lf",
 								percentile)));
 		}
 		result[i] = percentile;

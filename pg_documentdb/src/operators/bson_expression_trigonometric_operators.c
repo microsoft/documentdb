@@ -578,7 +578,7 @@ ApplyTrigOperator(bson_value_t *currentValue,
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"%s only supports numeric types, not %s",
+							"%s works exclusively with numeric data types, not with %s",
 							operatorName,
 							BsonTypeName(currentValue->value_type))));
 	}
@@ -848,14 +848,14 @@ ProcessDollarAtan2(const bson_value_t *firstValue, const bson_value_t *secondVal
 		if (firstValue->value_type == BSON_TYPE_DOUBLE)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51045), errmsg(
-								"$atan2 only supports numeric types, not %s and %s",
+								"$atan2 can operate solely on numeric types, and does not accept %s or %s as valid inputs",
 								BsonTypeName(firstValue->value_type), BsonTypeName(
 									secondValue->value_type))));
 		}
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51044), errmsg(
-								"$atan2 only supports numeric types, not %s and %s",
+								"$atan2 can operate solely on numeric types, and does not accept %s or %s as valid inputs",
 								BsonTypeName(firstValue->value_type), BsonTypeName(
 									secondValue->value_type))));
 		}

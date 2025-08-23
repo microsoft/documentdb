@@ -1277,7 +1277,7 @@ GetLanguagePathOverride(const StringView *pathView, StringView *lastParentPath,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17261),
 							errmsg(
-								"found language override field in document with non-string type")));
+								"The language override field within the document is detected not a string type.")));
 		}
 
 		StringView languageView = { 0 };

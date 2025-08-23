@@ -599,7 +599,7 @@ HandleDocumentsStage(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5858203),
 						errmsg(
-							"error during aggregation :: caused by :: an array is expected")));
+							"An array was expected.")));
 	}
 
 	/* Create a distinct unwind - to expand arrays and such */
@@ -1217,7 +1217,7 @@ ValidateFacet(const bson_value_t *facetValue)
 	if (numStages == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40169),
-						errmsg("the $facet specification must be a non-empty object")));
+						errmsg("$facet requires a non-empty object specification.")));
 	}
 
 	return numStages;
@@ -1854,7 +1854,7 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51047),
 									errmsg(
-										"%s is not allowed to be used within a $lookup stage",
+										"%s usage is prohibited inside a $lookup stage",
 										nestedPipelineStage)));
 				}
 			}
@@ -3114,10 +3114,10 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40100),
 								errmsg(
-									"graphlookup argument 'maxDepth' must be a number, is type %s",
+									"The 'maxDepth' argument in graphlookup must be specified as a numeric value, but a value of type %s was provided instead.",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"graphlookup argument 'maxDepth' must be a number, is type %s",
+									"The 'maxDepth' argument in graphlookup must be specified as a numeric value, but a value of type %s was provided instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -3147,10 +3147,10 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40103),
 								errmsg(
-									"graphlookup argument 'depthField' must be a string, is type %s",
+									"The 'depthField' argument in graphlookup must be provided as a string, but a value of type %s was given instead.",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"graphlookup argument 'depthField' must be a string, is type %s",
+									"The 'depthField' argument in graphlookup must be provided as a string, but a value of type %s was given instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -3173,7 +3173,7 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40185),
 								errmsg(
-									"graphlookup argument 'restrictSearchWithMatch' must be a document, is type %s",
+									"The 'restrictSearchWithMatch' argument in graphlookup must be provided as a document, but a value of type %s was received instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -3190,31 +3190,32 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 	if (args->asField.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40105),
-						errmsg("must specify 'as' field for a $graphLookup")));
+						errmsg("$graphLookup requires 'as' field to be specified")));
 	}
 
 	if (!fromSpecified)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("must specify 'from' field for a $graphLookup")));
+						errmsg("$graphLookup requires 'from' field to be specified")));
 	}
 	if (args->fromCollection.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("must specify 'from' field for a $graphLookup")));
+						errmsg("$graphLookup requires 'from' field to be specified")));
 	}
 
 	if (args->inputExpression.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40105),
-						errmsg("must specify 'startWith' for a $graphLookup")));
+						errmsg(
+							"You must provide a 'startWith' parameter when performing a $graphLookup operation")));
 	}
 
 	if (args->connectFromField.length == 0 || args->connectToField.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40105),
 						errmsg(
-							"must specify both 'connectFrom' and 'connectTo' for a $graphLookup")));
+							"Both 'connectFrom' and 'connectTo' operators must be provided for a $graphLookup operation.")));
 	}
 
 	StringInfo connectExpr = makeStringInfo();

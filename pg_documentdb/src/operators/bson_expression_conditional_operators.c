@@ -49,7 +49,7 @@ ParseDollarIfNull(const bson_value_t *argument, AggregationExpressionData *data,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARIFNULLREQUIRESATLEASTTWOARGS),
 						errmsg(
-							"$ifNull needs at least two arguments, had: %d",
+							"Expression $ifNull requires at least two provided arguments, but received only %d.",
 							numArgs)));
 	}
 
@@ -286,7 +286,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESOBJECT), errmsg(
-							"$switch requires an object as an argument, found: %s",
+							"The $switch expression requires an object as its argument, but instead received: %s",
 							BsonTypeName(argument->value_type))));
 	}
 
@@ -306,7 +306,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 				ereport(ERROR, (errcode(
 									ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESARRAYFORBRANCHES),
 								errmsg(
-									"$switch expected an array for 'branches', found: %s",
+									"$switch requires an array for 'branches', but received: %s",
 									BsonTypeName(bson_iter_type(&documentIter)))));
 			}
 
@@ -490,7 +490,7 @@ ParseBranchForSwitch(bson_iter_t *iter, bool *allArgumentsConstant,
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESOBJECTFOREACHBRANCH),
 						errmsg(
-							"$switch expected each branch to be an object, found: %s",
+							"$switch requires each branch to be an object, but received: %s",
 							BsonTypeName(bson_iter_type(iter)))));
 	}
 
@@ -530,7 +530,7 @@ ParseBranchForSwitch(bson_iter_t *iter, bool *allArgumentsConstant,
 			ereport(ERROR, (errcode(
 								ERRCODE_DOCUMENTDB_DOLLARSWITCHUNKNOWNARGUMENTFORBRANCH),
 							errmsg(
-								"$switch found an unknown argument to a branch: %s",
+								"$switch encountered an unrecognized argument for a branch: %s",
 								key)));
 		}
 	}
@@ -540,14 +540,14 @@ ParseBranchForSwitch(bson_iter_t *iter, bool *allArgumentsConstant,
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESCASEEXPRESSIONFORBRANCH),
 						errmsg(
-							"$switch requires each branch have a 'case' expression")));
+							"The $switch requires that every branch must contain a valid 'case' expression.")));
 	}
 	else if (isThenMissing)
 	{
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESTHENEXPRESSIONFORBRANCH),
 						errmsg(
-							"$switch requires each branch have a 'then' expression")));
+							"The $switch requires that every branch must contain a valid 'then' expression.")));
 	}
 
 	return branchDef;

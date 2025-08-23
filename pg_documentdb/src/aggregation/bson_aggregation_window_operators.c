@@ -471,7 +471,8 @@ EnsureSortRequirements(int frameOptions, WindowOperatorContext *context)
 		if (sortByLength != 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5339902),
-							errmsg("Range-based bounds require sortBy a single field")));
+							errmsg(
+								"Expected a single sort by field for range-based window")));
 		}
 
 		SetWindowFieldSortOption *sortField = (SetWindowFieldSortOption *) linitial(
@@ -483,7 +484,7 @@ EnsureSortRequirements(int frameOptions, WindowOperatorContext *context)
 			 * generic failed to parse
 			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Range-based bounds require an ascending sortBy")));
+							errmsg("Expected ascending sortBy field definition")));
 		}
 	}
 	else if (sortByLength == 0)
@@ -495,7 +496,7 @@ EnsureSortRequirements(int frameOptions, WindowOperatorContext *context)
 		{
 			/* Must be supplied for a bounded document window */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5339901),
-							errmsg("Document-based bounds require a sortBy")));
+							errmsg("Missing sortBy field for document-based window")));
 		}
 	}
 }
@@ -1195,7 +1196,7 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 				}
 
 				/**
-				 * Range-based bounds require an ascending sortBy. Thus we set the inRangeAsc and inRangeNullsFirst always set to be true
+				 * Expected ascending sortBy field definition. Thus we set the inRangeAsc and inRangeNullsFirst always set to be true
 				 */
 				windowClause->inRangeAsc = true;
 				windowClause->inRangeNullsFirst = true;
@@ -1637,8 +1638,9 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 				else if (unit < DateUnit_Week)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5490710), errmsg(
-										"unit must be 'week' or smaller"),
-									errdetail_log("unit must be 'week' or smaller")));
+										"The specified unit must be 'week' or a smaller time interval"),
+									errdetail_log(
+										"The specified unit must be 'week' or a smaller time interval")));
 				}
 				Datum interval = GetIntervalFromDateUnitAndAmount(unit, 1);
 				float8 secondsInInterval = DatumGetFloat8(DirectFunctionCall2(
@@ -1978,20 +1980,21 @@ ValidateInputForRankFunctions(const bson_value_t *opValue,
 	if (context->isWindowPresent)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5371601),
-						errmsg("Rank style window functions take no other arguments")));
+						errmsg(
+							"Rank-style window functions do not accept any additional arguments")));
 	}
 
 	if (!IsBsonValueEmptyDocument(opValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5371603),
-						errmsg("(None) must be specified with '{}' as the value")));
+						errmsg("A value of '{}' must be explicitly assigned to (None)")));
 	}
 
 	if (list_length(context->sortOptions) != 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5371602),
 						errmsg(
-							"%s must be specified with a top level sortBy expression with exactly one element",
+							"%s must be provided along with a top-level sortBy expression that contains exactly one element",
 							opName)));
 	}
 }
@@ -2095,7 +2098,7 @@ HandleDollarLinearFillWindowOperator(const bson_value_t *opValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION605001),
 						errmsg(
-							"$linearFill must be specified with a top level sortBy expression with exactly one element")));
+							"$linearFill requires specifying a top-level sortBy expression that contains exactly one element")));
 	}
 	if (context->isWindowPresent)
 	{
@@ -2652,8 +2655,8 @@ ValidteForMaxNMinNNAccumulators(const bson_value_t *opValue, const char *opName)
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787907),
-						errmsg("%s requires an 'input' field", opName),
-						errdetail_log("%s requires an 'input' field", opName)));
+						errmsg("%s needs to have an 'input' field", opName),
+						errdetail_log("%s needs to have an 'input' field", opName)));
 	}
 
 	if (elementsToFetch.value_type == BSON_TYPE_EOD)

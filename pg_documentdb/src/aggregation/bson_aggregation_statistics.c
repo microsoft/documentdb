@@ -2161,7 +2161,7 @@ RunTimeCheckForIntegralAndDerivative(bson_value_t *xBsonValue, bson_value_t *yBs
 							ERRCODE_DOCUMENTDB_LOCATION5624901;
 			const char *errorMsg = isIntegralOperator
 								   ?
-								   "%s (with no 'unit') expects the sortBy field to be numeric"
+								   "%s (without specifying 'unit') requires the sortBy field to be numeric values"
 								   : "%s where the sortBy is a Date requires an 'unit'";
 			ereport(ERROR, errcode(errorCode),
 					errmsg(errorMsg, opName),
@@ -2176,7 +2176,8 @@ RunTimeCheckForIntegralAndDerivative(bson_value_t *xBsonValue, bson_value_t *yBs
 		{
 			int errorCode = isIntegralOperator ? ERRCODE_DOCUMENTDB_LOCATION5423901 :
 							ERRCODE_DOCUMENTDB_LOCATION5624900;
-			const char *errorMsg = "%s with 'unit' expects the sortBy field to be a Date";
+			const char *errorMsg =
+				"%s with 'unit' requires that the sortBy field needs to be a Date value";
 			ereport(ERROR, errcode(errorCode),
 					errmsg(errorMsg, opName),
 					errdetail_log(errorMsg, opName));

@@ -309,13 +309,13 @@ select bson_dollar_project('{"_id":"1" }', '{"intersection" : { "$setIntersectio
 
 ---- $setIntersection operator: Negative:
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"intersection" : { "$setIntersection" : {} } }');
-ERROR:  All operands of $setIntersection must be arrays. One argument is of type: object
+ERROR:  All operands of $setIntersection must be arrays, but one provided argument has type: object
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"intersection" : { "$setIntersection" : 1 } }');
-ERROR:  All operands of $setIntersection must be arrays. One argument is of type: int
+ERROR:  All operands of $setIntersection must be arrays, but one provided argument has type: int
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"intersection" : { "$setIntersection" : [1] } }');
-ERROR:  All operands of $setIntersection must be arrays. One argument is of type: int
+ERROR:  All operands of $setIntersection must be arrays, but one provided argument has type: int
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"intersection" : { "$setIntersection" : [[1],{}]} }');
-ERROR:  All operands of $setIntersection must be arrays. One argument is of type: object
+ERROR:  All operands of $setIntersection must be arrays, but one provided argument has type: object
 -- $setUnion operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"union" : { "$setUnion" : [[1,2,3],[2,3,4]]} }');
                                                       bson_dollar_project                                                      
@@ -622,13 +622,13 @@ select bson_dollar_project('{"_id":"1" }', '{"union" : { "$setUnion" : [[{"$minK
 
 ---- $setUnion operator: Negative:
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"union" : { "$setUnion" : {} } }');
-ERROR:  All operands of $setUnion must be arrays. One argument is of type: object
+ERROR:  All operands of $setUnion are required to be arrays, but one provided argument has the type: object
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"union" : { "$setUnion" : 1 } }');
-ERROR:  All operands of $setUnion must be arrays. One argument is of type: int
+ERROR:  All operands of $setUnion are required to be arrays, but one provided argument has the type: int
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"union" : { "$setUnion" : [1] } }');
-ERROR:  All operands of $setUnion must be arrays. One argument is of type: int
+ERROR:  All operands of $setUnion are required to be arrays, but one provided argument has the type: int
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"union" : { "$setUnion" : [[1],{}]} }');
-ERROR:  All operands of $setUnion must be arrays. One argument is of type: object
+ERROR:  All operands of $setUnion are required to be arrays, but one provided argument has the type: object
 -- $setEquals operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"setEqual" : { "$setEquals" : [[],[]]} }');
         bson_dollar_project         
@@ -878,29 +878,29 @@ select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [[{"$
 
 -- $setEquals operator: Negative test:
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : {} } }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : 1 } }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [1] } }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : ["$a",[1,2,3]] } }');
-ERROR:  All operands of $setEquals must be arrays. One argument is of type: missing
+ERROR:  All operands of $setEquals must be arrays; one provided argument is of type: missing
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [[1,2,3],"$a"] } }');
-ERROR:  All operands of $setEquals must be arrays. One argument is of type: missing
+ERROR:  All operands of $setEquals must be arrays; one provided argument is of type: missing
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [[1],{}]} }');
-ERROR:  All operands of $setEquals must be arrays. One argument is of type: object
+ERROR:  All operands of $setEquals must be arrays; one provided argument is of type: object
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : null} }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : { "$undefined" : true}} }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [null]} }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [null,null]} }');
-ERROR:  All operands of $setEquals must be arrays. One argument is of type: null
+ERROR:  All operands of $setEquals must be arrays; one provided argument is of type: null
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [[1,2,3],null]} }');
-ERROR:  All operands of $setEquals must be arrays. One argument is of type: null
+ERROR:  All operands of $setEquals must be arrays; one provided argument is of type: null
 select bson_dollar_project('{"_id":"1" }', '{"setEqual" : { "$setEquals" : [{ "$undefined" : true}]} }');
-ERROR:  $setEquals needs at least two arguments had: 1
+ERROR:  $setEquals requires a minimum of two arguments, but received 1
 -- $setDifference operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"difference" : { "$setDifference" : [[],[]]} }');
          bson_dollar_project          
@@ -1103,9 +1103,9 @@ ERROR:  Expression $setDifference takes exactly 2 arguments. 1 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"difference" : { "$setDifference" : null} }');
 ERROR:  Expression $setDifference takes exactly 2 arguments. 1 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"difference" : { "$setDifference" : [1,2]} }');
-ERROR:  both operands of $setDifference must be arrays. First argument is of type: int
+ERROR:  Both operands in $setDifference must be arrays, but the first provided argument is of type: int
 select bson_dollar_project('{"_id":"1"}', '{"difference" : { "$setDifference" : [[1],2]} }');
-ERROR:  both operands of $setDifference must be arrays. Second argument is of type: int
+ERROR:  Both operands in $setDifference need to be arrays, but the second one has type: int
 -- $setIsSubset operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"isSubset" : { "$setIsSubset" : [[],[]]} }');
         bson_dollar_project         
@@ -1274,17 +1274,17 @@ ERROR:  Expression $setIsSubset takes exactly 2 arguments. 1 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"isSubset" : { "$setIsSubset" : [null]} }');
 ERROR:  Expression $setIsSubset takes exactly 2 arguments. 1 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"isSubset" : { "$setIsSubset" : [1,2]} }');
-ERROR:  both operands of $setIsSubset must be arrays. First argument is of type: int
+ERROR:  Both operands used with $setIsSubset should be arrays, but the first provided argument is of type: int
 select bson_dollar_project('{"_id":"1"}', '{"isSubset" : { "$setIsSubset" : [[1],2]} }');
-ERROR:  both operands of $setIsSubset must be arrays. Second argument is of type: int
+ERROR:  Both operands in $setIsSubset must be arrays, but the second operand provided is of type: int
 select bson_dollar_project('{"_id":"1" }', '{"isSubset" : { "$setIsSubset" : null} }');
 ERROR:  Expression $setIsSubset takes exactly 2 arguments. 1 were passed in.
 select bson_dollar_project('{"_id":"1" }', '{"isSubset" : { "$setIsSubset" : [[1,2,3],null]} }');
-ERROR:  both operands of $setIsSubset must be arrays. Second argument is of type: null
+ERROR:  Both operands in $setIsSubset must be arrays, but the second operand provided is of type: null
 select bson_dollar_project('{"_id":"1" }', '{"isSubset" : { "$setIsSubset" : [[1,2,3],"$a"]} }');
-ERROR:  both operands of $setIsSubset must be arrays. Second argument is of type: missing
+ERROR:  Both operands in $setIsSubset must be arrays, but the second operand provided is of type: missing
 select bson_dollar_project('{"_id":"1" }', '{"isSubset" : { "$setIsSubset" : ["$a",[1,2,3]]} }');
-ERROR:  both operands of $setIsSubset must be arrays. First argument is of type: missing
+ERROR:  Both operands used with $setIsSubset should be arrays, but the first provided argument is of type: missing
 select bson_dollar_project('{"_id":"1" }', '{"isSubset" : { "$setIsSubset" : { "$undefined" : true}} }');
 ERROR:  Expression $setIsSubset takes exactly 2 arguments. 1 were passed in.
 --$allElementsTrue : Test for True Outputs

@@ -878,7 +878,7 @@ CheckForViewCyclesAndDepth(Datum databaseDatum, const char *viewName, const
 	{
 		const char *databaseStr = TextDatumGetCString(databaseDatum);
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_GRAPHCONTAINSCYCLE),
-						errmsg("View cycle detected: %s.%s -> %s.%s",
+						errmsg("Cycle detected in view: %s.%s -> %s.%s",
 							   databaseStr, viewName, databaseStr, viewSource)));
 	}
 
@@ -895,7 +895,8 @@ CheckForViewCyclesAndDepth(Datum databaseDatum, const char *viewName, const
 		if (list_length(intermediateViews) > MAX_VIEW_DEPTH)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_VIEWDEPTHLIMITEXCEEDED),
-							errmsg("View depth exceeded limit %d", MAX_VIEW_DEPTH)));
+							errmsg("Depth limit exceeded in view. MaxDepth is %d",
+								   MAX_VIEW_DEPTH)));
 		}
 
 		CHECK_FOR_INTERRUPTS();
@@ -950,6 +951,6 @@ CheckForViewCyclesAndDepth(Datum databaseDatum, const char *viewName, const
 
 		appendStringInfo(errorStr, " %s.%s", databaseStr, viewName);
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_GRAPHCONTAINSCYCLE),
-						errmsg("View cycle detected: %s", errorStr->data)));
+						errmsg("Cycle detected in view: %s", errorStr->data)));
 	}
 }

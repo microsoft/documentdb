@@ -1340,11 +1340,11 @@ ERROR:  BSON field 'into.coll' is the wrong type 'object', expected type 'string
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : "apple", "haha" : "haha"}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  BSON field 'into.haha' is an unknown field
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "on" :  1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge 'on' field  must be either a string or an array of strings, but found int
+ERROR:  The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: int
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "on" :  [1]  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  $merge 'on' array elements must be strings, but found int
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "whenMatched" : 1   }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge 'whenMatched' field  must be string, but found int
+ERROR:  The 'whenMatched' field in $merge needs to be a string value, but a int type was provided.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "whenMatched" : "falsevalue"   }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  Enumeration value 'falsevalue' for field 'whenMatched' is not a valid value.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "whenNotMatched" : 1   }} ], "cursor": { "batchSize": 1 } }', 4294967294);

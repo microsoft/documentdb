@@ -370,7 +370,7 @@ ParseDollarGetField(const bson_value_t *argument, AggregationExpressionData *dat
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_LOCATION3041704),
 						errmsg(
-							"$getField requires 'field' to evaluate to type String, but got %s",
+							"$getField needs 'field' to evaluate to a String type, but received %s",
 							BsonTypeName(arguments->field.value.value_type))));
 	}
 
@@ -525,7 +525,7 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_LOCATION4161106),
 						errmsg(
-							"%s requires 'field' to evaluate to a constant, but got a non-constant argument",
+							"The %s needs the 'field' value to be constant, but a non-constant value was provided instead.",
 							operatorName)));
 	}
 	else if (validationCode == NON_STRING_CONSTANT)
@@ -545,7 +545,7 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION4161108),
 						errmsg(
-							"A field path reference which is not allowed in this context. Did you mean {$literal: '%s'}?",
+							"A field path reference is being used here, but it is not permitted in this specific context. Perhaps you intended to use the operators {$literal: '%s'} instead?",
 							arguments->field.value.value.v_utf8.str)));
 	}
 
@@ -581,7 +581,7 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 			ereport(ERROR, (errcode(
 								ERRCODE_DOCUMENTDB_LOCATION4161105),
 							errmsg(
-								"%s requires 'input' to evaluate to type Object",
+								"%s needs 'input' to evaluate as an Object type",
 								operatorName)));
 		}
 	}
@@ -644,7 +644,7 @@ HandlePreParsedDollarSetFieldOrUnsetFieldCore(pgbson *doc, void *arguments,
 	if (evaluatedInputArg.value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSETFIELDREQUIRESOBJECT), errmsg(
-							"%s requires 'input' to evaluate to type Object",
+							"%s needs 'input' to evaluate as an Object type",
 							operatorName)));
 	}
 
@@ -746,7 +746,7 @@ ProcessResultForDollarGetField(bson_value_t field, bson_value_t input)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_LOCATION3041704),
 						errmsg(
-							"$getField requires 'field' to evaluate to type String, but got %s",
+							"$getField  needs 'field' to evaluate to a String type, but received %s ",
 							field.value_type == BSON_TYPE_EOD ? "missing" : BsonTypeName(
 								field.value_type))));
 	}

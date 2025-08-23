@@ -557,7 +557,7 @@ ERROR:  If an object is passed to $out it must have exactly 2 fields: 'db' and '
 SELECT * FROM aggregate_cursor_first_page('newdb', '{ "aggregate": "source", "pipeline": [ {"$out" : {"db" : "a", "coll" : "a", "other" : "a"} } ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  If an object is passed to $out it must have exactly 2 fields: 'db' and 'coll'
 SELECT * FROM aggregate_cursor_first_page('newdb', '{ "aggregate": "source", "pipeline": [ {"$out" : {"db" : "a", "coll" : 1} } ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  wrong type for field (coll) int != string
+ERROR:  Field type mismatch in (coll): int expected string
 SELECT * FROM aggregate_cursor_first_page('newdb', '{ "aggregate": "source", "pipeline": [ {"$out" : {"db" : 1, "coll" : "a"} } ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  wrong type for field (db) int != string
 -- test when target is view:

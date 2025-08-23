@@ -458,13 +458,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [true, -5]
 ERROR:  $arrayElemAt's first argument must be an array, but is bool
 -- should error if second arg is not a number
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {}]}}');
-ERROR:  $arrayElemAt's second argument must be a numeric value, but is object
+ERROR:  The second argument of $arrayElemAt must be a numeric type value, but it is object instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], true]}}');
-ERROR:  $arrayElemAt's second argument must be a numeric value, but is bool
+ERROR:  The second argument of $arrayElemAt must be a numeric type value, but it is bool instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], [1, 2]]}}');
-ERROR:  $arrayElemAt's second argument must be a numeric value, but is array
+ERROR:  The second argument of $arrayElemAt must be a numeric type value, but it is array instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], "string"]}}');
-ERROR:  $arrayElemAt's second argument must be a numeric value, but is string
+ERROR:  The second argument of $arrayElemAt must be a numeric type value, but it is string instead.
 -- should return null if second arg is null or undefined
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], null]}}');
  bson_dollar_project 
@@ -480,23 +480,23 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], "$a"
 
 -- should error if second arg is not representable as a 32-bit integer
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberLong": "2147483648"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 2147483648
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 2147483648
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberLong": "-2147483649"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: -2147483649
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: -2147483649
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberDouble": "1.1"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 1.1
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 1.1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberDouble": "1.0003"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 1.0003
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 1.0003
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[1, 2, 3, {"a": 5}], {"$numberDouble": "2147483648.0"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 2.14748E+09
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 2.14748E+09
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[1, 2, 3, {"a": 5}], {"$numberDouble": "-2147483649.0"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: -2.14748E+09
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: -2.14748E+09
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberDecimal": "2147483648.0"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 2147483648.0
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 2147483648.0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberDecimal": "-2147483649.0"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: -2147483649.0
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: -2147483649.0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$numberDecimal": "1.0003"}]}}');
-ERROR:  $arrayElemAt's second argument must be representable as a 32-bit integer: 1.0003
+ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 1.0003
 -- should honor nested expression errors even second arg is not a 32-bit integer or if the value is found (even if the index points to an expression that doesn't produce an error).
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[{"$divide": [1, 0]}], {"$numberDecimal": "1.0003"}]}}');
 ERROR:  can't $divide by zero
@@ -725,17 +725,17 @@ SELECT * FROM bson_dollar_project('{"a": null}', '{"result": { "$objectToArray":
 
 -- $objectToArray: expects document as input
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": [1]}}');
-ERROR:  $objectToArray requires a document input, found: int
+ERROR:  $objectToArray expression requires a document input, but received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": 1}}');
-ERROR:  $objectToArray requires a document input, found: int
+ERROR:  $objectToArray expression requires a document input, but received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": "string"}}');
-ERROR:  $objectToArray requires a document input, found: string
+ERROR:  $objectToArray expression requires a document input, but received: string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": [true]}}');
-ERROR:  $objectToArray requires a document input, found: bool
+ERROR:  $objectToArray expression requires a document input, but received: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": false}}');
-ERROR:  $objectToArray requires a document input, found: bool
+ERROR:  $objectToArray expression requires a document input, but received: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": {"$add": [1, 2]}}}');
-ERROR:  $objectToArray requires a document input, found: int
+ERROR:  $objectToArray expression requires a document input, but received: int
 -- $objectToArray: accepts exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": []}}');
 ERROR:  Expression $objectToArray takes exactly 1 arguments. 0 were passed in.
@@ -883,9 +883,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [{"$add"
 ERROR:  $arrayToObject requires an array input, found: int
 -- $arrayToObject: requires consistent input all objects or all arrays
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["a", "value"], {"k": "b", "v": 1}]]}}');
-ERROR:  $arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Array was detected, now found: object
+ERROR:  $arrayToObject needs a consistent format of input. All elements must either be arrays or objects exclusively. An array was identified initially, but the following element was found: object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "b", "v": 1}, ["a", "value"]]]}}');
-ERROR:  $arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Object was detected, now found: array
+ERROR:  $arrayToObject needs a consistent format of input; every element should be either entirely arrays or entirely objects. An object was initially detected, but the following element was found: array
 -- $arrayToObject: key must be string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[[1, "value"]]]}}');
 ERROR:  $arrayToObject requires an array of key-value pairs, where the key must be of type string. Found key type: int
@@ -1069,11 +1069,11 @@ ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 1 were 
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["hello",1,2]}}');
 ERROR:  First argument to $slice must be an array, but is of type: string
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a","str",2]}}');
-ERROR:  Second argument to $slice must be numeric, but is of type: string
+ERROR:  The Second argument for the $slice needs to be a numeric value; however, it is currently of type: string
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,"str"]}}');
-ERROR:  Third argument to $slice must be numeric, but is of type: string
+ERROR:  The Third argument for the $slice needs to be a numeric value; however, it is currently of type: string
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,1.02]}}');
-ERROR:  Third argument to $slice can't be represented as a 32-bit integer: 1.02
+ERROR:  The argument Third for $slice cannot be expressed as a 32-bit integer: 1.02
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,-1]}}');
 ERROR:  Third argument to $slice must be positive: -1
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,0]}}');
@@ -1083,13 +1083,13 @@ ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 1 were 
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,2,4]}}');
 ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 4 were passed in.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "NaN"}]}}');
-ERROR:  Second argument to $slice can't be represented as a 32-bit integer: NaN
+ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: NaN
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "Infinity"}]}}');
-ERROR:  Second argument to $slice can't be represented as a 32-bit integer: NaN
+ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: NaN
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "Infinity"},{ "$numberDecimal" : "NaN"}]}}');
-ERROR:  Second argument to $slice can't be represented as a 32-bit integer: Infinity
+ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: Infinity
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "Infinity"},{ "$numberDecimal" : "Infinity"}]}}');
-ERROR:  Second argument to $slice can't be represented as a 32-bit integer: Infinity
+ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: Infinity
 -- $concatArrays operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$concatArrays": []}}');
  bson_dollar_project 
@@ -1227,15 +1227,15 @@ SELECT * FROM bson_dollar_project('{"doc": {"foo": "string"}, "array": ["first",
 
 -- $concatArrays error when arguments are not an array
 SELECT * FROM bson_dollar_project('{"a": {"b": "1"}}', '{"result": { "$concatArrays": "$a"}}');
-ERROR:  $concatArrays only supports arrays, not object
+ERROR:  $concatArrays requires array inputs, but a value of type object was provided
 SELECT * FROM bson_dollar_project('{"a": {"b": "1"}}', '{"result": { "$concatArrays": ["$a"]}}');
-ERROR:  $concatArrays only supports arrays, not object
+ERROR:  $concatArrays requires array inputs, but a value of type object was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$concatArrays": [[1], {"a": "1"}]}}');
-ERROR:  $concatArrays only supports arrays, not object
+ERROR:  $concatArrays requires array inputs, but a value of type object was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$concatArrays": [true]}}');
-ERROR:  $concatArrays only supports arrays, not bool
+ERROR:  $concatArrays requires array inputs, but a value of type bool was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$concatArrays": ["string"]}}');
-ERROR:  $concatArrays only supports arrays, not string
+ERROR:  $concatArrays requires array inputs, but a value of type string was provided
 -- $filter simple cond
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true}} }');
                         bson_dollar_project                        
@@ -1664,7 +1664,7 @@ ERROR:  Value for 'n' must be of integral type, but found "abc"
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4]} }}');
 ERROR:  $firstN requires an 'n' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"n": 5} }}');
-ERROR:  $firstN requires an 'input' field
+ERROR:  $firstN needs to have an 'input' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"n": 5, "input": [1,2,3], "abc":1} }}');
 ERROR:  $firstN found an unknown argument: abc
 -- $lastN, operator
@@ -1746,7 +1746,7 @@ ERROR:  'n' must be greater than 0, found 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4]} }}');
 ERROR:  $lastN requires an 'n' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"n": 5} }}');
-ERROR:  $lastN requires an 'input' field
+ERROR:  $lastN needs to have an 'input' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"n": 5, "input": [1,2,3], "abc":1} }}');
 ERROR:  $lastN found an unknown argument: abc
 -- $range, simple condition asc
@@ -1899,11 +1899,11 @@ ERROR:  $range requires a starting value that can be represented as a 32-bit int
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [{"$numberDecimal":"0.35"},400,40] } }');
 ERROR:  $range requires a starting value that can be represented as a 32-bit integer, found value: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": ["abvcf",400,40] } }');
-ERROR:  $range requires a numeric starting value, found value of type: string
+ERROR:  $range expression requires a numeric start value but encountered a value of type: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [true,400,40] } }');
-ERROR:  $range requires a numeric starting value, found value of type: bool
+ERROR:  $range expression requires a numeric start value but encountered a value of type: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [null,400,40] } }');
-ERROR:  $range requires a numeric starting value, found value of type: null
+ERROR:  $range expression requires a numeric start value but encountered a value of type: null
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [null,400,40,400] } }');
 ERROR:  Expression $range takes at least 2 arguments, and at most 3, but 4 were passed in.
 -- $range, negative conditions ending number
@@ -1912,24 +1912,24 @@ ERROR:  $range requires a ending value that can be represented as a 32-bit integ
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [-10, {"$numberDecimal":"0.35"},4] } }');
 ERROR:  $range requires a ending value that can be represented as a 32-bit integer, found value: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [400,"abvcf",400] } }');
-ERROR:  $range requires a numeric ending value, found value of type: string
+ERROR:  $range expression needs a numeric ending value, but a value of type string was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [5,true,40] } }');
-ERROR:  $range requires a numeric ending value, found value of type: bool
+ERROR:  $range expression needs a numeric ending value, but a value of type bool was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,null] } }');
-ERROR:  $range requires a numeric ending value, found value of type: null
+ERROR:  $range expression needs a numeric ending value, but a value of type null was provided
 -- $range, negative conditions step number
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [21,21471,2147483648] } }');
 ERROR:  $range requires a step value that can be represented as a 32-bit integer, found value: 2147483648
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [-10,15, {"$numberDecimal":"0.35"}] } }');
 ERROR:  $range requires a step value that can be represented as a 32-bit integer, found value: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,400,"abvcf"] } }');
-ERROR:  $range requires a numeric step value, found value of type: string
+ERROR:  Expression $range needs a numeric step value, but received a value of type: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [5,40,true] } }');
-ERROR:  $range requires a numeric step value, found value of type: bool
+ERROR:  Expression $range needs a numeric step value, but received a value of type: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,5,null] } }');
-ERROR:  $range requires a numeric step value, found value of type: null
+ERROR:  Expression $range needs a numeric step value, but received a value of type: null
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,5,0] } }');
-ERROR:  $range requires a non-zero step value
+ERROR:  $range requires a step value that cannot be zero
 -- $range, tests large numbers
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$size":{"$range": [200,20000] }} }');
             bson_dollar_project            
@@ -3308,18 +3308,18 @@ select *from bson_dollar_project('{"array1": [1, 2, 3], "array2": ["a", "b", "c"
 
 -- $zip, negative cases
 select *from bson_dollar_project('{"a": [[ 0 ], [ 1, 2 ], [ 3 ]]}', '{"result": {"$zip": {"inputs": "$a", "defaults": [ "a", "b", "c" ]} } }');
-ERROR:  cannot specify defaults unless useLongestLength is true
+ERROR:  defaults can only be specified when useLongestLength is set to true
 select *from bson_dollar_project('{"a": [[ 0 ], [ 1, 2 ], [ 3 ]]}', '{"result": {"$zip": {"inputs": "$a", "useLongestLength": true, "defaults": [ "a", "b" ]} } }');
-ERROR:  defaults and inputs must have the same length
+ERROR:  defaults and inputs are required to be of identical length
 select *from bson_dollar_project('{"a": []}', '{"result": {"$zip": {"inputs": "$a"} } }');
 ERROR:  $zip requires at least one input array
 select *from bson_dollar_project('{"a": null}', '{"result": {"$zip": {"inputs": "$a"} } }');
-ERROR:  inputs must be an array of expressions, found null
+ERROR:  Inputs must be provided as an array of expressions, but null was encountered instead.
 select *from bson_dollar_project('{"a": [1]}', '{"result": {"$zip": {"inputs": "$a"} } }');
-ERROR:  $zip found a non-array expression in input: 1
+ERROR:  The $zip encountered an input that is not an array: 1
 select *from bson_dollar_project('{"a": [[1,2,3], "anString"]}', '{"result": {"$zip": {"inputs": "$a"} } }');
-ERROR:  $zip found a non-array expression in input: "anString"
+ERROR:  The $zip encountered an input that is not an array: "anString"
 select *from bson_dollar_project('{"a": [[0], [1, 2]]}', '{"result": {"$zip": {"inputs": "$a", "useLongestLength": 0} } }');
-ERROR:  useLongestLength must be a bool, found int
+ERROR:  useLongestLength must be a boolean value, but a int type was given
 select *from bson_dollar_project('{"a": [[0], [1, 2]]}', '{"result": {"$zip": {"inputs": "$a", "useLongestLength": true, "defaults": 0} } }');
-ERROR:  defaults must be an array of expressions, found int
+ERROR:  defaults are expected to be provided as an array of expressions, but received int

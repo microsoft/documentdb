@@ -290,10 +290,12 @@ ProcessDollarBit(pgbson *doc, bson_value_t *result, void *arguments,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765)), errmsg(
-						"%s only supports numeric types, not %s", operatorName,
+						"%s works exclusively with numeric data types, not with %s",
+						operatorName,
 						BsonTypeName(currentElem.value_type)),
 					errdetail_log(
-						"%s only supports numeric types, not %s", operatorName,
+						"%s works exclusively with numeric data types, not with %s",
+						operatorName,
 						BsonTypeName(currentElem.value_type)));
 		}
 	}

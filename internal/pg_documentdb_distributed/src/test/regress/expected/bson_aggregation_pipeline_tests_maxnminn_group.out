@@ -397,9 +397,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxmi
 ERROR:  $minN requires an 'n' field
 /*input missing */
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"n": 3 } } } } ] }');
-ERROR:  $maxN requires an 'input' field
+ERROR:  $maxN needs to have an 'input' field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$minN": {"n": 3 } } } } ] }');
-ERROR:  $minN requires an 'input' field
+ERROR:  $minN needs to have an 'input' field
 /*test null/$undefined */
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test2", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": 3 } } } } ] }');
                                                   document                                                  

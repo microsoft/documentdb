@@ -411,7 +411,7 @@ ThrowErrorArraysNotSupported(const char * path, int pathLength)
 	errorPath = (char *) palloc0(sizeof(char) * (pathLength + 1));
 	memcpy(errorPath, path, pathLength);
 	ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_HASHEDINDEXDONOTSUPPORTARRAYVALUES), errmsg(
-				"hashed indexes do not currently support array values. Found array at path: %s",
+				"Index type 'hashed' does not support array values. Array was detected at path: %s",
 				errorPath));
 }
 

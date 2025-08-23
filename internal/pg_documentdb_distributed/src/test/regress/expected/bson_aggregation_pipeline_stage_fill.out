@@ -755,7 +755,7 @@ SELECT documentdb_api.insert_one('db','filltest','{ "_id": 3, "a": "abc", "cost"
 
 -- without sortBy field
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "output": {"quantity": { "method": "linear"}}}}]}');
-ERROR:  $linearFill must be specified with a top level sortBy expression with exactly one element
+ERROR:  $linearFill requires specifying a top-level sortBy expression that contains exactly one element
 -- sortBy is not numeric or date
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "sortBy": { "a": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
 ERROR:  sortBy value must be numeric or a date, but found string

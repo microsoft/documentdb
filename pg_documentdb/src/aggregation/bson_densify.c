@@ -681,22 +681,22 @@ CheckFieldValue(const bson_value_t *fieldValue, DensifyWindowState *state)
 	if (!BsonValueIsNumber(fieldValue) && fieldValue->value_type != BSON_TYPE_DATE_TIME)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733201),
-						errmsg("PlanExecutor error during aggregation :: caused by :: "
-							   "Densify field type must be numeric or a date")));
+						errmsg(
+							"Expected a numeric or date type for densify.")));
 	}
 
 	if (isDateUnitPresent && BsonValueIsNumber(fieldValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6053600),
-						errmsg("PlanExecutor error during aggregation :: caused by :: "
-							   "Encountered numeric densify value in collection when step has a date unit.")));
+						errmsg(
+							"Encountered numeric densify value in collection when step has a date unit.")));
 	}
 
 	if (!isDateUnitPresent && fieldValue->value_type == BSON_TYPE_DATE_TIME)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6053600),
-						errmsg("PlanExecutor error during aggregation :: caused by :: "
-							   "Encountered date densify value in collection when step does not have a date unit.")));
+						errmsg(
+							"Encountered date densify value in collection when step does not have a date unit.")));
 	}
 }
 
@@ -729,12 +729,10 @@ ThorwLimitExceededError(int32 nDocumentsGenerated)
 	ereport(ERROR, (
 				errcode(ERRCODE_DOCUMENTDB_LOCATION5897900),
 				errmsg(
-					"PlanExecutor error during aggregation :: caused by :: Generated %d documents in $densify"
-					", which is over the limit of %d. Increase the 'internalQueryMaxAllowedDensifyDocs' parameter"
-					" to allow more generated documents",
+					"$densify stage produced %d documents which is greater that the allowed limit of %d",
 					nDocumentsGenerated, PEC_InternalQueryMaxAllowedDensifyDocs),
 				errdetail_log(
-					"Generated %d documents in $densify, which is over the limit of %d.",
+					"Generated %d documents in $densify, exceeding the allowed limit of %d.",
 					nDocumentsGenerated, PEC_InternalQueryMaxAllowedDensifyDocs)));
 }
 

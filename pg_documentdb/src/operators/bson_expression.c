@@ -1309,7 +1309,7 @@ ReportOperatorExpressonSyntaxError(const char *fieldA, bson_iter_t *fieldBIter, 
 									  fieldBIter)[0] == '$'))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40181), errmsg(
-							"an expression operator specification must contain exactly one field, found 2 fields '%s' and '%s'.",
+							"Expected a single field in an expression operator specification. Found: '%s' and '%s'.",
 							fieldA,
 							bson_iter_key(fieldBIter))));
 	}
@@ -2450,7 +2450,7 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 		if (bson_iter_next(&docIter))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40181), errmsg(
-								"an expression operator specification must contain exactly one field, found 2 fields '%s' and '%s'.",
+								"Expected a single field in an expression operator specification. Found: '%s' and '%s'.",
 								operatorKey,
 								bson_iter_key(&docIter))));
 		}

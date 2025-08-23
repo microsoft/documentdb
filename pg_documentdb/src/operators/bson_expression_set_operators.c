@@ -277,7 +277,7 @@ ParseDollarSetEquals(const bson_value_t *argument,
 	if (numArgs < 2)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17045), errmsg(
-							"$setEquals needs at least two arguments had: %d",
+							"$setEquals requires a minimum of two arguments, but received %d",
 							numArgs)));
 	}
 
@@ -698,7 +698,7 @@ ProcessDollarSetIntersection(const bson_value_t *currentElement, void *state,
 	if (currentElement->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17047), errmsg(
-							"All operands of $setIntersection must be arrays. One argument is of type: %s",
+							"All operands of $setIntersection must be arrays, but one provided argument has type: %s",
 							BsonTypeName(currentElement->value_type))));
 	}
 
@@ -756,7 +756,7 @@ ProcessDollarSetUnion(const bson_value_t *currentValue, void *state, bson_value_
 	if (currentValue->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17043), errmsg(
-							"All operands of $setUnion must be arrays. One argument is of type: %s",
+							"All operands of $setUnion are required to be arrays, but one provided argument has the type: %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -806,7 +806,7 @@ ProcessDollarSetEqualsElement(const bson_value_t *currentElement, void *state,
 	if (currentElement->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17044), errmsg(
-							"All operands of $setEquals must be arrays. One argument is of type: %s",
+							"All operands of $setEquals must be arrays; one provided argument is of type: %s",
 							currentElement->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentElement->value_type))));
@@ -874,14 +874,14 @@ ProcessDollarSetDifference(void *state, const char *collationString, bson_value_
 	if (context->firstArgument.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17048), errmsg(
-							"both operands of $setDifference must be arrays. First argument is of type: %s",
+							"Both operands in $setDifference must be arrays, but the first provided argument is of type: %s",
 							BsonTypeName(context->firstArgument.value_type))));
 	}
 
 	if (context->secondArgument.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17049), errmsg(
-							"both operands of $setDifference must be arrays. Second argument is of type: %s",
+							"Both operands in $setDifference need to be arrays, but the second one has type: %s",
 							BsonTypeName(context->secondArgument.value_type))));
 	}
 
@@ -948,14 +948,14 @@ ProcessDollarSetIsSubset(void *state, const char *collationString, bson_value_t 
 		}
 
 		ereport(ERROR, (errcode(errorCode), errmsg(
-							"both operands of $setIsSubset must be arrays. First argument is of type: %s",
+							"Both operands used with $setIsSubset should be arrays, but the first provided argument is of type: %s",
 							typeName)));
 	}
 
 	if (context->secondArgument.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17042), errmsg(
-							"both operands of $setIsSubset must be arrays. Second argument is of type: %s",
+							"Both operands in $setIsSubset must be arrays, but the second operand provided is of type: %s",
 							context->secondArgument.value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(context->secondArgument.value_type))));

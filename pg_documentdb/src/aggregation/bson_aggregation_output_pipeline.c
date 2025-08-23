@@ -1041,10 +1041,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51186),
 								errmsg(
-									"$merge 'on' field  must be either a string or an array of strings, but found %s",
+									"The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: %s",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"$merge 'on' field  must be either a string or an array of strings, but found %s",
+									"The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: %s",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -1104,11 +1104,11 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 				/* TODO : Modify error text when we support pipeline. Replace `must be string` with `must be either a string or array` */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51191),
 								errmsg(
-									"$merge 'whenMatched' field  must be string, but found %s",
+									"The 'whenMatched' field in $merge needs to be a string value, but a %s type was provided.",
 									BsonTypeName(
 										value->value_type)),
 								errdetail_log(
-									"$merge 'whenMatched' field  must be string, but found %s",
+									"The 'whenMatched' field in $merge needs to be a string value, but a %s type was provided.",
 									BsonTypeName(
 										value->value_type))));
 			}
@@ -2149,8 +2149,9 @@ ParseOutStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			if (bsonValue->value_type != BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION13111),
-								errmsg("wrong type for field (coll) %s != string",
-									   BsonTypeName(bsonValue->value_type))));
+								errmsg(
+									"Field type mismatch in (coll): %s expected string",
+									BsonTypeName(bsonValue->value_type))));
 			}
 
 			args->targetCollection = (StringView) {

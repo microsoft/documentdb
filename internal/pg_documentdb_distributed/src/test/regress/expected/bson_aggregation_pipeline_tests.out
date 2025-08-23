@@ -922,9 +922,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": null }], "cursor": {}}');
 ERROR:  Argument to $skip must be a number
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": -3.14159 }], "cursor": {}}');
-ERROR:  invalid argument to $skip stage: Cannot represent as a 64-bit integer $skip: -3.141590
+ERROR:  Invalid parameter provided to $skip stage: value cannot be expressed as a 64-bit integer $skip: -3.141590
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": -9223372036854775808 }], "cursor": {}}');
-ERROR:  invalid argument to $skip stage: Expected a non-negative number in $skip: -9223372036854775808
+ERROR:  Invalid argument provided to $skip stage: A non-negative numerical value was expected in $skip, but received -9223372036854775808.
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_count('db', '{ "count": "aggregation_pipeline" }');
                      QUERY PLAN                     
 ---------------------------------------------------------------------
@@ -1708,11 +1708,11 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 
 -- NumberDouble Range+1 and Range-1 Negative test $skip
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$skip": {"$numberDouble" : "-9223372036854776833"} } ], "cursor": {} }');
-ERROR:  invalid argument to $skip stage: Cannot represent as a 64-bit integer $skip: -9223372036854777856.000000
+ERROR:  Invalid parameter provided to $skip stage: value cannot be expressed as a 64-bit integer $skip: -9223372036854777856.000000
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$skip": {"$numberDouble" : "9223372036854775296"} } ], "cursor": {} }');
-ERROR:  invalid argument to $skip stage: Cannot represent as a 64-bit integer $skip: 9223372036854775808.000000
+ERROR:  Invalid parameter provided to $skip stage: value cannot be expressed as a 64-bit integer $skip: 9223372036854775808.000000
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$skip": {"$numberDouble" : "-9223372036854776832"} } ], "cursor": {} }');
-ERROR:  invalid argument to $skip stage: Expected a non-negative number in $skip: -9223372036854775808
+ERROR:  Invalid argument provided to $skip stage: A non-negative numerical value was expected in $skip, but received -9223372036854775808.
 -- samplerate
 /* insert 100 documents */
 /* test unshard case */

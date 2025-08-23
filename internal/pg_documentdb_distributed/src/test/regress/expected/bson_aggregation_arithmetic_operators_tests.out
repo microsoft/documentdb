@@ -192,21 +192,21 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$add": [ {"$date": "2019-
 
 -- Should error with non-numeric or date expressions
 SELECT * FROM bson_dollar_project('{"a":{ }, "b": null}', '{"result": { "$add": [ "$a", 922, 1 ]}}');
-ERROR:  $add only supports numeric or date types, not object
+ERROR:  $add can only process numeric or date types, not object
 SELECT * FROM bson_dollar_project('{"a": 1, "b": false}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  $add only supports numeric or date types, not bool
+ERROR:  $add can only process numeric or date types, not bool
 SELECT * FROM bson_dollar_project('{"a": 1, "b": "false"}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  $add only supports numeric or date types, not string
+ERROR:  $add can only process numeric or date types, not string
 SELECT * FROM bson_dollar_project('{"a": 1, "b": [2, 3]}', '{"result": { "$add": [ "$a", "$b", 1 ]}}');
-ERROR:  $add only supports numeric or date types, not array
+ERROR:  $add can only process numeric or date types, not array
 SELECT * FROM bson_dollar_project('{"a":[1,2]}', '{"result": { "$add": [ "$a.0", "$a.1", 0 ]}}');
-ERROR:  $add only supports numeric or date types, not array
+ERROR:  $add can only process numeric or date types, not array
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", "string" ]}}');
-ERROR:  $add only supports numeric or date types, not string
+ERROR:  $add can only process numeric or date types, not string
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", true ]}}');
-ERROR:  $add only supports numeric or date types, not bool
+ERROR:  $add can only process numeric or date types, not bool
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", {} ]}}');
-ERROR:  $add only supports numeric or date types, not object
+ERROR:  $add can only process numeric or date types, not object
 -- Should error if multiple dates are passed in
 SELECT * FROM bson_dollar_project('{"a":{ "$date": { "$numberLong" : "0" }}, "b": {"$date": { "$numberLong" : "1000" }}}', '{"result": { "$add": [ "$a", "$b" ]}}');
 ERROR:  only one date allowed in an $add expression
@@ -547,21 +547,21 @@ SELECT * FROM bson_dollar_project('{"a":1 }', '{"result": { "$multiply": [ "$a",
 
 -- Should error if no number is provided
 SELECT * FROM bson_dollar_project('{"a":{ }}', '{"result": { "$multiply": [ "$a", 922 ]}}');
-ERROR:  $multiply only supports numeric types, not object
+ERROR:  $multiply works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{"a": 1, "b": false}', '{"result": { "$multiply": [ "$a", "$b"]}}');
-ERROR:  $multiply only supports numeric types, not bool
+ERROR:  $multiply works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$multiply": [ "string", 1]}}');
-ERROR:  $multiply only supports numeric types, not string
+ERROR:  $multiply works exclusively with numeric data types, not with string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$multiply": [ 1, "string"]}}');
-ERROR:  $multiply only supports numeric types, not string
+ERROR:  $multiply works exclusively with numeric data types, not with string
 SELECT * FROM bson_dollar_project('{"a":[1,2]}', '{"result": { "$multiply": [ "$a.0", 2 ]}}');
-ERROR:  $multiply only supports numeric types, not array
+ERROR:  $multiply works exclusively with numeric data types, not with array
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$multiply": [ "$a", true ]}}');
-ERROR:  $multiply only supports numeric types, not bool
+ERROR:  $multiply works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$multiply": [ "$a", {} ]}}');
-ERROR:  $multiply only supports numeric types, not object
+ERROR:  $multiply works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{"a":{}}', '{"result": { "$multiply": [ "$a", 32 ]}}');
-ERROR:  $multiply only supports numeric types, not object
+ERROR:  $multiply works exclusively with numeric data types, not with object
 -- $divide operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1, 1]}}');
             bson_dollar_project             
@@ -913,13 +913,13 @@ SELECT * FROM bson_dollar_project('{"a": 2}', '{"result": { "$mod": [{ "$numberD
 ERROR:  can't $mod by zero
 -- $mod operator : Only numerics allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$mod": [1, "str"]}}');
-ERROR:  $mod only supports numeric types, not int and string
+ERROR:  $mod operator supports only numeric types, not int and string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$mod": ["str", 1]}}');
-ERROR:  $mod only supports numeric types, not string and int
+ERROR:  $mod operator supports only numeric types, not string and int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$mod": [true, 1]}}');
-ERROR:  $mod only supports numeric types, not bool and int
+ERROR:  $mod operator supports only numeric types, not bool and int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$mod": [2, false]}}');
-ERROR:  $mod only supports numeric types, not int and bool
+ERROR:  $mod operator supports only numeric types, not int and bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$mod": [2, "$a"]}}');
 ERROR:  $mod only supports numeric types
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$mod": ["$a", 5]}}');
@@ -1088,7 +1088,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": null}}');
 
 -- $abs: can't calculate abs of MIN_INT64
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": {"$numberLong": "-9223372036854775808"}}}');
-ERROR:  can't take $abs of long long min
+ERROR:  Cannot compute $abs for minimum long long value
 -- $abs: supports only numerics
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": "str"}}');
 ERROR:  $abs only supports numeric types, not string
@@ -1581,15 +1581,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [{"$numberDouble":
 ERROR:  $log's argument must be a positive number, but is -3
 -- $log: base must be positive number greater than 1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [1, 1]}}');
-ERROR:  $log's base must be a positive number not equal to 1, but is 1
+ERROR:  The base value for the $log must be positive and cannot be 1, but it is 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, 0]}}');
-ERROR:  $log's base must be a positive number not equal to 1, but is 0
+ERROR:  The base value for the $log must be positive and cannot be 1, but it is 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, { "$numberDecimal": "1"}]}}');
-ERROR:  $log's base must be a positive number not equal to 1, but is 1
+ERROR:  The base value for the $log must be positive and cannot be 1, but it is 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, { "$numberDecimal": "0"}]}}');
-ERROR:  $log's base must be a positive number not equal to 1, but is 0
+ERROR:  The base value for the $log must be positive and cannot be 1, but it is 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, { "$numberDouble": "0"}]}}');
-ERROR:  $log's base must be a positive number not equal to 1, but is 0
+ERROR:  The base value for the $log must be positive and cannot be 1, but it is 0.
 -- $log: arguments must be numbers
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [[], 1]}}');
 ERROR:  $log's argument must be numeric, not array
@@ -1916,13 +1916,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [false, true]}}');
 ERROR:  $pow's base must be numeric, not bool
 -- $pow: exponent can't be negative if base is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -31]}}');
-ERROR:  $pow cannot take a base of 0 and a negative exponent
+ERROR:  A base of 0 and a negative exponent can't be taken by $pow
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -1]}}');
-ERROR:  $pow cannot take a base of 0 and a negative exponent
+ERROR:  A base of 0 and a negative exponent can't be taken by $pow
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -0.00000001]}}');
-ERROR:  $pow cannot take a base of 0 and a negative exponent
+ERROR:  A base of 0 and a negative exponent can't be taken by $pow
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, {"$numberDecimal": "-0.00000001"}]}}');
-ERROR:  $pow cannot take a base of 0 and a negative exponent
+ERROR:  A base of 0 and a negative exponent can't be taken by $pow
 -- $pow: takes exactly 2 arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -31, 3]}}');
 ERROR:  Expression $pow takes exactly 2 arguments. 3 were passed in.
@@ -2312,7 +2312,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [2147483647, -1]
 (1 row)
 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [{"$numberLong": "9223372036854775806"}, -1]}}');
-ERROR:  invalid conversion from Decimal128 result in $round resulting from arguments: [9223372036854775806, -1]
+ERROR:  Invalid conversion from Decimal128 leading to $round, caused by provided arguments: [9223372036854775806, -1]
 -- $round: num args should be either 1 or 2.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [2147483647, -1, 4]}}');
 ERROR:  Expression $round takes at least 1 arguments, and at most 2, but 3 were passed in.
@@ -2322,16 +2322,16 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": []}}');
 ERROR:  Expression $round takes at least 1 arguments, and at most 2, but 0 were passed in.
 -- $round: args should be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [{}]}}');
-ERROR:  $round only supports numeric types, not object
+ERROR:  $round works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [1, "str"]}}');
 ERROR:  can't convert from BSON type string to long
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [true, 1]}}');
-ERROR:  $round only supports numeric types, not bool
+ERROR:  $round works exclusively with numeric data types, not with bool
 -- $round: precision must be >= -20 and <= 100
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [214, -21]}}');
-ERROR:  cannot apply $round with precision value -21 value must be in [-20, 100]
+ERROR:  Unable to apply $round when using precision value -21, as the acceptable range is between -20 and 100.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [214, 101]}}');
-ERROR:  cannot apply $round with precision value 101 value must be in [-20, 100]
+ERROR:  Unable to apply $round when using precision value 101, as the acceptable range is between -20 and 100.
 -- $round: precision must be integral value in int64 range
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [214, {"$numberDecimal": "-21.1"} ]}}');
 ERROR:  precision argument to  $round must be a integral value
@@ -2629,16 +2629,16 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": []}}');
 ERROR:  Expression $trunc takes at least 1 arguments, and at most 2, but 0 were passed in.
 -- $trunc: args should be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [{}]}}');
-ERROR:  $trunc only supports numeric types, not object
+ERROR:  $trunc works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [1, "str"]}}');
 ERROR:  can't convert from BSON type string to long
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [true, 1]}}');
-ERROR:  $trunc only supports numeric types, not bool
+ERROR:  $trunc works exclusively with numeric data types, not with bool
 -- $trunc: precision must be >= -20 and <= 100
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [214, -21]}}');
-ERROR:  cannot apply $trunc with precision value -21 value must be in [-20, 100]
+ERROR:  Unable to apply $trunc when using precision value -21, as the acceptable range is between -20 and 100.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [214, 101]}}');
-ERROR:  cannot apply $trunc with precision value 101 value must be in [-20, 100]
+ERROR:  Unable to apply $trunc when using precision value 101, as the acceptable range is between -20 and 100.
 -- $trunc: precision must be integral value in int64 range
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [214, {"$numberDecimal": "-21.1"} ]}}');
 ERROR:  precision argument to  $trunc must be a integral value

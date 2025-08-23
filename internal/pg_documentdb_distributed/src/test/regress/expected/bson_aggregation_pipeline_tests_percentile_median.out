@@ -157,13 +157,13 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  BSON field '$$percentile.unknownField' is an unknown field.
 -- p value not an array
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": 1.5, "method": "approximate" } } } } ] }');
-ERROR:  The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: 1.5
+ERROR:  Expected an array containing numbers from 0.0 to 1.0, but instead received: 1.5
 -- p value is an empty array
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": [], "method": "approximate" } } } } ] }');
-ERROR:  The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: [  ]
+ERROR:  Expected an array containing numbers from 0.0 to 1.0, but instead received: [  ]
 -- p value is an array with invalid value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": [ 1.5 ], "method": "approximate" } } } } ] }');
-ERROR:  The $percentile 'p' field must be an array of numbers from [0.0, 1.0], but found: 1.500000
+ERROR:  Expected an array containing numbers from 0.0 to 1.0, but instead received: 1.500000
 -- invalid method
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": [ 0.95 ], "method": "invalid" } } } } ] }');
 ERROR:  Currently only 'approximate' can be used as percentile 'method'

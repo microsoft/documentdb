@@ -46,11 +46,11 @@ EXPLAIN (COSTS OFF, VERBOSE ON) SELECT document FROM bson_aggregation_pipeline('
 
 -- error cases
 SELECT document FROM bson_aggregation_pipeline('agnosticTests', '{ "aggregate": 1, "pipeline": [ { "$documents": null }], "cursor": {} }');
-ERROR:  error during aggregation :: caused by :: an array is expected
+ERROR:  An array was expected.
 SELECT document FROM bson_aggregation_pipeline('agnosticTests', '{ "aggregate": 1, "pipeline": [ { "$documents": "String Value" }], "cursor": {} }');
-ERROR:  error during aggregation :: caused by :: an array is expected
+ERROR:  An array was expected.
 SELECT document FROM bson_aggregation_pipeline('agnosticTests', '{ "aggregate": 1, "pipeline": [ { "$documents": {} }], "cursor": {}}');
-ERROR:  error during aggregation :: caused by :: an array is expected
+ERROR:  An array was expected.
 -- bugfix scenario:
 SELECT document FROM bson_aggregation_pipeline('agnosticTests', '{ "aggregate": 1, "pipeline": [{ "$documents": [ { "userId": "User1", "sessionId": "S1", "points": 100 } ] }, { "$group": { "_id": "$sessionId", "firstFivePoints": { "$firstN": { "input": "$points", "n": 5 } } } } ] }');
                         documents_aggregate                         

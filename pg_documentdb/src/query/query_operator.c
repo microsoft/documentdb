@@ -2422,7 +2422,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 							&refIterator)[0] != '$')
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION55), errmsg(
-											"The DBRef $ref field must be followed by a $id field")));
+											"The $ref field should always be directly followed by $id field.")));
 					}
 					else
 					{
@@ -3563,7 +3563,7 @@ CreateExprForDollarRegex(bson_iter_t *currIter, bson_value_t **options,
 			strlen(regexBsonValue->value.v_regex.options) != 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51074), errmsg(
-								"options set in both $regex and $options")));
+								"Options are specified in both the $regex operator and the $options operator")));
 		}
 
 		Expr *qual = CreateFuncExprForRegexOperator(*options, regexBsonValue, context,
@@ -3590,7 +3590,7 @@ CreateExprForDollarRegex(bson_iter_t *currIter, bson_value_t **options,
 				strlen(regexBsonValue->value.v_regex.options) != 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51075), errmsg(
-									"options set in both $regex and $options")));
+									"Options are specified in both the $regex and the $options")));
 			}
 
 			bson_value_t *optionsBsonVal = (bson_value_t *) bson_iter_value(&optionsIter);

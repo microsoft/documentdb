@@ -1348,7 +1348,7 @@ ParseDollarTrimCore(const bson_value_t *argument, AggregationExpressionData *dat
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50696), errmsg(
-							"%s only supports an object as an argument, found %s",
+							"%s can only accept an object as its argument, but received %s",
 							opName, BsonTypeName(argument->value_type))));
 	}
 
@@ -1379,7 +1379,7 @@ ParseDollarTrimCore(const bson_value_t *argument, AggregationExpressionData *dat
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50695), errmsg(
-							"%s requires an 'input' field", opName)));
+							"%s needs to have an 'input' field", opName)));
 	}
 
 	AggregationExpressionData *parsedInput = palloc0(sizeof(AggregationExpressionData));
@@ -1479,7 +1479,7 @@ ParseDollarRegexInput(const bson_value_t *operatorValue,
 	if (operatorValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51103), errmsg(
-							"%s expects an object of named arguments but found: %s",
+							"%s requires an object containing named arguments, but encountered: %s",
 							opName, BsonTypeName(operatorValue->value_type))));
 	}
 
@@ -1510,13 +1510,13 @@ ParseDollarRegexInput(const bson_value_t *operatorValue,
 	if (input->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31022), errmsg(
-							"%s requires 'input' parameter", opName)));
+							"%s needs the 'input' parameter specified", opName)));
 	}
 
 	if (regex.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31023), errmsg(
-							"%s requires 'regex' parameter", opName)));
+							"%s needs the 'regex' parameter specified", opName)));
 	}
 
 	DollarRegexArguments *regexArgs = palloc0(sizeof(DollarRegexArguments));
@@ -1580,7 +1580,7 @@ ProcessDollarConcatElement(const bson_value_t *currentValue, void *state,
 	if (currentValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16702), errmsg(
-							"$concat only supports strings, not %s",
+							"$concat supports only string values, not %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1675,21 +1675,21 @@ ProcessDollarSplit(void *state, bson_value_t *result)
 	if (context->firstArgument.value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40085), errmsg(
-							"$split requires an expression that evaluates to a string as a first argument, found: %s",
+							"$split needs its first argument to be an expression that results in a string, but received: %s",
 							BsonTypeName(context->firstArgument.value_type))));
 	}
 
 	if (context->secondArgument.value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40086), errmsg(
-							"$split requires an expression that evaluates to a string as a second argument, found: %s",
+							"$split needs a second argument that is an expression evaluating to a string, but received: %s",
 							BsonTypeName(context->secondArgument.value_type))));
 	}
 
 	if (context->secondArgument.value.v_utf8.len == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40087), errmsg(
-							"$split requires a non-empty separator")));
+							"$split requires a separator that is not empty")));
 	}
 
 
@@ -1734,7 +1734,7 @@ ProcessDollarStrLenBytes(const bson_value_t *currentValue, bson_value_t *result)
 	if (currentValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34473), errmsg(
-							"$strLenBytes requires a string argument, found: %s",
+							"$strLenBytes needs a string input, but received: %s",
 							currentValue->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentValue->value_type))));
@@ -1752,7 +1752,7 @@ ProcessDollarStrLenCP(const bson_value_t *currentValue, bson_value_t *result)
 	if (currentValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34471), errmsg(
-							"$strLenCP requires a string argument, found: %s",
+							"$strLenCP needs a string input, but received: %s",
 							currentValue->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentValue->value_type))));
@@ -1880,7 +1880,7 @@ ProcessCommonBsonTypesForStringOperators(bson_value_t *result,
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16007), errmsg(
-								"can't convert from BSON type %s to String",
+								"Unable to convert from BSON type %s into a String value",
 								BsonTypeName(currentValue->value_type))));
 		}
 	}
@@ -2012,7 +2012,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		int errorCode = isIndexOfBytesOp ? ERRCODE_DOCUMENTDB_LOCATION40091 :
 						ERRCODE_DOCUMENTDB_LOCATION40093;
 		ereport(ERROR, (errcode(errorCode), errmsg(
-							"%s requires a string as the first argument, found: %s",
+							"%s needs the first argument to be a string, but received: %s",
 							opName,
 							BsonTypeName(input->firstArgument.value_type))));
 	}
@@ -2022,7 +2022,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		int errorCode = isIndexOfBytesOp ? ERRCODE_DOCUMENTDB_LOCATION40092 :
 						ERRCODE_DOCUMENTDB_LOCATION40094;
 		ereport(ERROR, (errcode(errorCode), errmsg(
-							"%s requires a string as the second argument, found: %s",
+							"%s expects its second argument to be a string, but received: %s",
 							opName,
 							input->secondArgument.value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
@@ -2054,7 +2054,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		if (*startIndex < 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40097), errmsg(
-								"%s requires a nonnegative start index, found: %d",
+								"%s needs a nonnegative starting index but received: %d",
 								opName,
 								*startIndex)));
 		}
@@ -2065,7 +2065,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		if (!IsBsonValueFixedInteger(&input->fourthArgument))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40096), errmsg(
-								"%s requires an integral ending index, found a value of type: %s, with value: %s",
+								"%s needs an integral ending index but received a value of type %s with the value %s",
 								opName,
 								input->fourthArgument.value_type == BSON_TYPE_EOD ?
 								MISSING_TYPE_NAME :
@@ -2074,7 +2074,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 								MISSING_VALUE_NAME :
 								BsonValueToJsonForLogging(&input->fourthArgument)),
 							errdetail_log(
-								"%s requires an integral ending index, found a value of type: %s",
+								"%s needs an integral ending index but received a value of type %s",
 								opName,
 								input->fourthArgument.value_type == BSON_TYPE_EOD ?
 								MISSING_TYPE_NAME :
@@ -2190,7 +2190,7 @@ ProcessCoersionForStrCaseCmp(bson_value_t *element)
 			if (element->value_type != BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16007), errmsg(
-									"can't convert from BSON type %s to String",
+									"Unable to convert from BSON type %s into a String value",
 									BsonTypeName(element->value_type))));
 			}
 			break;
@@ -2460,13 +2460,13 @@ ProcessDollarSubstrBytes(void *state, bson_value_t *result)
 	if (!BsonValueIsNumber(&secondValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16034), errmsg(
-							"$substrBytes: starting index must be a numeric type (is BSON type %s)",
+							"$substrBytes: the starting index must be a numeric value type (currently BSON type %s)",
 							BsonTypeName(secondValue.value_type))));
 	}
 	else if (!BsonValueIsNumber(&thirdValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16035), errmsg(
-							"$substrBytes: length must be a numeric type (is BSON type %s)",
+							"$substrBytes: the length must be a numeric value (currently BSON type %s)",
 							BsonTypeName(thirdValue.value_type))));
 	}
 	else if (IsExpressionResultNullOrUndefined(&firstValue))
@@ -2486,7 +2486,7 @@ ProcessDollarSubstrBytes(void *state, bson_value_t *result)
 	if (offset < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50752), errmsg(
-							"$substrBytes: starting index must be non-negative (got: %ld)",
+							"$substrBytes: starting index cannot be negative (received: %ld)",
 							offset
 							)));
 	}
@@ -2524,7 +2524,7 @@ ProcessDollarSubstrBytes(void *state, bson_value_t *result)
 	if (IsUtf8ContinuationByte(offsetStringWithLength))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28657), errmsg(
-							"$substrBytes: Invalid range, ending index is in the middle of a UTF-8 character."
+							"$substrBytes: Invalid range, ending index falls within a UTF-8 character boundary."
 							)));
 	}
 
@@ -2546,24 +2546,24 @@ ProcessDollarSubstrCP(void *state, bson_value_t *result)
 	if (!BsonValueIsNumber(&secondValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34450), errmsg(
-							"$substrCP: starting index must be a numeric type (is BSON type %s)",
+							"$substrCP: starting index must be provided as a numeric value, but it is currently of BSON type %s",
 							BsonTypeName(secondValue.value_type))));
 	}
 	else if (!IsBsonValue32BitInteger(&secondValue, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34451), errmsg(
-							"$substrCP: starting index cannot be represented as a 32-bit integral value")));
+							"$substrCP: starting index is not representable as a valid 32-bit integer value")));
 	}
 	else if (!BsonValueIsNumber(&thirdValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34452), errmsg(
-							"$substrCP: length must be a numeric type (is BSON type %s)",
+							"$substrCP: length value must be numeric type (currently BSON type %s)",
 							BsonTypeName(thirdValue.value_type))));
 	}
 	else if (!IsBsonValue32BitInteger(&thirdValue, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34453), errmsg(
-							"$substrCP: length cannot be represented as a 32-bit integral value")));
+							"$substrCP: length value is not representable as a valid 32-bit integer value")));
 	}
 	else if (IsExpressionResultNullOrUndefined(&firstValue))
 	{
@@ -2583,13 +2583,13 @@ ProcessDollarSubstrCP(void *state, bson_value_t *result)
 	if (length < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34454), errmsg(
-							"$substrCP: length must be a nonnegative integer."
+							"$substrCP: length needs to be a valid non-negative integer."
 							)));
 	}
 	else if (offset < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34455), errmsg(
-							"$substrCP: the starting index must be nonnegative integer."
+							"$substrCP: starting index needs to be a non-negative integer."
 							)));
 	}
 
@@ -2664,11 +2664,11 @@ ProcessDollarTrim(const bson_value_t *inputValue, const bson_value_t *charsValue
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50699),
 						errmsg(
-							"%s requires its input to be a string, got %s (of type %s) instead.",
+							"The %s expects its input parameter to be a string, but it received %s, which is of type %s instead.",
 							opName, BsonValueToJsonForLogging(inputValue), BsonTypeName(
 								inputValue->value_type)),
 						errdetail_log(
-							"%s requires its input to be a string, got of type %s instead.",
+							"The %s expects its input parameter to be a string, but got of type %s instead.",
 							opName, BsonTypeName(inputValue->value_type))));
 	}
 
@@ -2676,10 +2676,10 @@ ProcessDollarTrim(const bson_value_t *inputValue, const bson_value_t *charsValue
 		BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50700), errmsg(
-							" %s requires 'chars' to be a string, got %s (of type %s) instead.",
+							" %s requires the 'chars' parameter to be a string value, but received %s which is of type %s instead.",
 							opName, BsonValueToJsonForLogging(charsValue), BsonTypeName(
 								charsValue->value_type)), errdetail_log(
-							" %s requires 'chars' to be a string, got of type %s instead.",
+							" %s requires the 'chars' parameter to be a string value, but received %s.",
 							opName, BsonTypeName(charsValue->value_type))));
 	}
 
@@ -2806,7 +2806,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 		else if (input->value_type != BSON_TYPE_UTF8)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51104), errmsg(
-								"%s needs 'input' to be of type string", opName)));
+								"The %s requires that the 'input' parameter must be of type string.",
+								opName)));
 		}
 		return true;
 	}
@@ -2819,7 +2820,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (BsonValueStringHasNullCharcter(options))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51110), errmsg(
-									"%s:  regular expression options cannot contain an embedded null byte",
+									"%s: regular expression options must not include an embedded null byte",
 									opName)));
 			}
 
@@ -2844,13 +2845,14 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 				BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51106), errmsg(
-									"%s needs 'options' to be of type string", opName)));
+									"%s requires that 'options' must be provided as a string",
+									opName)));
 			}
 
 			if (typeRegexOptionLength > 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51107), errmsg(
-									"%s found regex option(s) specified in both 'regex' and 'option' fields",
+									"%s detected that regex options have been defined in both the 'regex' and 'option' fields",
 									opName)));
 			}
 
@@ -2883,7 +2885,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 		if (BsonValueStringHasNullCharcter(regex))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51109), errmsg(
-								"%s: regular expression cannot contain an embedded null byte",
+								"%s: regular expressions are not allowed to include an embedded null byte",
 								opName)));
 		}
 
@@ -2892,7 +2894,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (options->value_type != BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51106), errmsg(
-									"%s needs 'options' to be of type string", opName)));
+									"%s requires that 'options' must be provided as a string",
+									opName)));
 			}
 
 			if (BsonValueStringHasNullCharcter(options))
@@ -2916,7 +2919,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51105), errmsg(
-							"%s needs 'regex' to be of type string or regex", opName)));
+							"%s requires that 'regex' must be provided as either a string or a regular expression",
+							opName)));
 	}
 
 	if (IsExpressionResultNullOrUndefined(input))
@@ -2926,7 +2930,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 	else if (input->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51104), errmsg(
-							"%s needs 'input' to be of type string", opName)));
+							"The %s requires that the 'input' parameter must be of type string.",
+							opName)));
 	}
 
 	if (validInput && regexData->regex)
@@ -3074,7 +3079,7 @@ WriteOutputOfDollarRegexFindAll(bson_value_t *input, RegexData *regexData,
 		if (PgbsonArrayWriterGetSize(&arrayWriter) > MAX_REGEX_OUTPUT_BUFFER_SIZE)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51151), errmsg(
-								"$regexFindAll: the size of buffer to store output exceeded the 64MB limit")));
+								"$regexFindAll: buffer size for storing the output has surpassed the allowable 64MB limit")));
 		}
 	}
 
@@ -3095,7 +3100,7 @@ ParseDollarReplaceHelper(const bson_value_t *argument,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51751), errmsg(
-							"%s requires an object as an argument, found: %s",
+							"%s requires an object type as its argument, but received: %s",
 							opName,
 							BsonTypeName(argument->value_type))));
 	}
@@ -3139,12 +3144,14 @@ ParseDollarReplaceHelper(const bson_value_t *argument,
 	else if (find.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51748), errmsg(
-							"%s requires 'find' to be specified", opName)));
+							"The %s  requires that 'find' be explicitly specified",
+							opName)));
 	}
 	else if (replacement.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51747), errmsg(
-							"%s requires 'replacement' to be specified", opName)));
+							"The %s cannot proceed because the 'replacement' parameter has not been specified",
+							opName)));
 	}
 
 	DollarReplaceArguments *arguments = palloc0(sizeof(DollarReplaceArguments));
@@ -3289,7 +3296,7 @@ ValidateParsedInputForDollarReplace(bson_value_t *input,
 		!IsExpressionResultNullOrUndefined(input))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51746), errmsg(
-							"%s requires that 'input' be a string, found: %s",
+							"%s expects 'input' to be  provided as a string, but it was given: %s",
 							opName,
 							(char *) BsonValueToJsonForLogging(input)), errdetail_log(
 							"%s requires that 'input' be a string, found of type %s",
@@ -3300,7 +3307,7 @@ ValidateParsedInputForDollarReplace(bson_value_t *input,
 			 !IsExpressionResultNullOrUndefined(find))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51745), errmsg(
-							"%s requires that 'find' be a string, found: %s",
+							"%s expects 'find' to be provided as a string, but it was given: %s",
 							opName,
 							(char *) BsonValueToJsonForLogging(find)), errdetail_log(
 							"%s requires that 'find' be a string, found of type %s",
@@ -3311,7 +3318,7 @@ ValidateParsedInputForDollarReplace(bson_value_t *input,
 			 !IsExpressionResultNullOrUndefined(replacement))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51744), errmsg(
-							"%s requires that 'replacement' be a string, found: %s",
+							"%s requires 'replacement' to be  provided as a string type, but it was given: %s",
 							opName,
 							(char *) BsonValueToJsonForLogging(replacement)),
 						errdetail_log(

@@ -296,9 +296,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 
 -- invalid hash indexes
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"b": "hashed" }, "unique": 1, "name": "invalid_hashed"}]}');
-                                                                                                                                                                            retval                                                                                                                                                                             | ok | requests 
+                                                                                                                                                                   retval                                                                                                                                                                    | ok | requests 
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"b\" : \"hashed\" }, \"unique\" : 1, \"name\" : \"invalid_hashed\" } :: caused by :: Currently hashed indexes cannot guarantee uniqueness. Use a regular index", "code" : { "$numberInt" : "319291421" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"b\" : \"hashed\" }, \"unique\" : 1, \"name\" : \"invalid_hashed\" } :: caused by :: Index type 'hashed' does not support the unique option.", "code" : { "$numberInt" : "319291421" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"b": "hashed", "c": "hashed" }, "name": "invalid_hashed"}]}');

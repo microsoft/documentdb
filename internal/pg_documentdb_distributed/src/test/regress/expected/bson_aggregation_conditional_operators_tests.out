@@ -66,22 +66,22 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null, null, {"$
 
 -- $ifNull: should have at least 2 arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": {}}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": "string"}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": false}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": []}}');
-ERROR:  $ifNull needs at least two arguments, had: 0
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null]}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [{"$divide": [1, 0]}]}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 -- $ifNull: should honor nested expression errors, even if a not null expression is found
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null, "not null", {"$divide": [1, 0]}]}}');
 ERROR:  can't $divide by zero
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null, "not null", {"$ifNull": [1]}]}}');
-ERROR:  $ifNull needs at least two arguments, had: 1
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 -- $cond: returns then when condition is true
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [true, "then", "else"]}}');
   bson_dollar_project  
@@ -365,18 +365,18 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"
 
 -- $switch: requires object argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": []}}');
-ERROR:  $switch requires an object as an argument, found: array
+ERROR:  The $switch expression requires an object as its argument, but instead received: array
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": true}}');
-ERROR:  $switch requires an object as an argument, found: bool
+ERROR:  The $switch expression requires an object as its argument, but instead received: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": "Str"}}');
-ERROR:  $switch requires an object as an argument, found: string
+ERROR:  The $switch expression requires an object as its argument, but instead received: string
 -- $switch: branches must be an array
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": {}}}}');
-ERROR:  $switch expected an array for 'branches', found: object
+ERROR:  $switch requires an array for 'branches', but received: object
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": "true"}}}');
-ERROR:  $switch expected an array for 'branches', found: string
+ERROR:  $switch requires an array for 'branches', but received: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": false}}}');
-ERROR:  $switch expected an array for 'branches', found: bool
+ERROR:  $switch requires an array for 'branches', but received: bool
 -- $switch: found an unknown argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [], "foo": "blah"}}}');
 ERROR:  $switch found an unknown argument: foo
@@ -392,24 +392,24 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"
 ERROR:  $switch could not find a matching branch for an input, and no default was specified.
 -- $switch: found unknown argument to a branch
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "$b"}, {"foo": "blah"}]}}}');
-ERROR:  $switch found an unknown argument to a branch: foo
+ERROR:  $switch encountered an unrecognized argument for a branch: foo
 -- $switch: branch requires a case expression
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "$b"}, {"then": "blah"}]}}}');
-ERROR:  $switch requires each branch have a 'case' expression
+ERROR:  The $switch requires that every branch must contain a valid 'case' expression.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "$b"}, {}]}}}');
-ERROR:  $switch requires each branch have a 'case' expression
+ERROR:  The $switch requires that every branch must contain a valid 'case' expression.
 -- $switch: branch requires a then expression
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "$b"}, {"case": "blah"}]}}}');
-ERROR:  $switch requires each branch have a 'then' expression
+ERROR:  The $switch requires that every branch must contain a valid 'then' expression.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false}]}}}');
-ERROR:  $switch requires each branch have a 'then' expression
+ERROR:  The $switch requires that every branch must contain a valid 'then' expression.
 -- Fails for constant error expressions
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}, {"case": false, "then": {"$ifNull": []}}]}}}');
-ERROR:  $ifNull needs at least two arguments, had: 0
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}, {"case": false, "then": "false"}], "default": {"$ifNull": []}}}}');
-ERROR:  $ifNull needs at least two arguments, had: 0
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "first branch is true"}, {"case": false, "then": "false"}], "default": {"$ifNull": []}}}}');
-ERROR:  $ifNull needs at least two arguments, had: 0
+ERROR:  Expression $ifNull requires at least two provided arguments, but received only 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}, {"case": {"$divide": [1, 0]}, "then": "false"}], "default": {"$ifNull": []}}}}');
 ERROR:  can't $divide by zero
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "first branch is true"}, {"case": {"$divide": [1, 0]}, "then": "false"}], "default": {"$ifNull": []}}}}');

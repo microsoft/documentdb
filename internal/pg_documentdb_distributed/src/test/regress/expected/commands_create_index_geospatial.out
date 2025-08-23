@@ -20,11 +20,11 @@ NOTICE:  creating collection
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "unique": true }]}', true); -- 2d with unique
 ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "unique" : true } :: caused by :: Index type '2d' does not support the unique option
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d", "b": "2d"}, "name": "my_2d_a_idx" }]}', true); -- Multi 2d
-ERROR:  Error in specification { "key" : { "a" : "2d", "b" : "2d" }, "name" : "my_2d_a_idx" } :: caused by :: can't have 2 geo fields
+ERROR:  Error in specification { "key" : { "a" : "2d", "b" : "2d" }, "name" : "my_2d_a_idx" } :: caused by :: Cannot contain more than one geo fields
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d", "b": 1}, "name": "my_2d_a_idx" } ]}', true); -- Multi 2d
 ERROR:  Compound 2d indexes are not supported yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"b": 1, "a": "2d"}, "name": "my_2d_a_idx" }]}', true); -- Multi 2d and 2d index is not the first one
-ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2d" }, "name" : "my_2d_a_idx" } :: caused by :: 2d has to be first in index
+ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2d" }, "name" : "my_2d_a_idx" } :: caused by :: The 2d field must be the first in the index.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a.$**": "2d"}, "name": "my_2d_a_idx" }]}', true); -- 2d with wildcard
 ERROR:  Error in specification { "key" : { "a.$**" : "2d" }, "name" : "my_2d_a_idx" } :: caused by :: Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "max": -190 } ]}', true); -- 2d with max -170 and min -180 (default)
@@ -53,11 +53,11 @@ ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2dsphere" }, "name" :
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a.$**": "2dsphere"}, "name": "my_2ds_a_idx" }]}', true); -- 2dsphere with wildcard
 ERROR:  Error in specification { "key" : { "a.$**" : "2dsphere" }, "name" : "my_2ds_a_idx" } :: caused by :: Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "coarsestIndexedLevel": -1 } ]}', true); -- 2dsphere with coarestIndexedLevel invalid value
-ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "coarsestIndexedLevel" : -1 } :: caused by :: coarsestIndexedLevel must be >= 0
+ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "coarsestIndexedLevel" : -1 } :: caused by :: coarsestIndexedLevel must be greater than or equal to zero
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "finestIndexedLevel": 31 } ]}', true); -- 2dsphere with finestIndexedLevel invalid value
-ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "finestIndexedLevel" : 31 } :: caused by :: finestIndexedLevel must be <= 30
+ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "finestIndexedLevel" : 31 } :: caused by :: finestIndexedLevel must not exceed 30
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "coarsestIndexedLevel": 32, "finestIndexedLevel": 30 } ]}', true); -- 2dsphere with finestIndexedLevel invalid value
-ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "coarsestIndexedLevel" : 32, "finestIndexedLevel" : 30 } :: caused by :: finestIndexedLevel must be >= coarsestIndexedLevel
+ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "coarsestIndexedLevel" : 32, "finestIndexedLevel" : 30 } :: caused by :: finestIndexedLevel must be greater than or equal to coarsestIndexedLevel
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "expireAfterSeconds": 20 } ]}', true); -- With TTL
 ERROR:  Creating a 2dsphere index as ttl index is not supported.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere", "b": "text"}, "name": "my_2ds_a_idx" } ]}', true); -- 2dsphere with different

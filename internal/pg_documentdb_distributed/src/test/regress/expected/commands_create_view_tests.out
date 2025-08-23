@@ -248,7 +248,7 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "create_view_tests_v
 
 -- create a view cycle (fails)
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests", "viewOn": "create_view_tests_view_1" }');
-ERROR:  View cycle detected: db.create_view_tests -> db.create_view_tests_view_1 ->  db.create_view_tests
+ERROR:  Cycle detected in view: db.create_view_tests -> db.create_view_tests_view_1 ->  db.create_view_tests
 -- recreate a collection
 SELECT documentdb_api.insert_one('db', 'create_view_tests', '{ "_id": 3, "a": 140 }');
 NOTICE:  creating collection
@@ -303,7 +303,7 @@ SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_cyc
 (1 row)
 
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_cycle_4", "viewOn": "create_view_cycle_1" }');
-ERROR:  View cycle detected: db.create_view_cycle_4 -> db.create_view_cycle_1 -> db.create_view_cycle_2 -> db.create_view_cycle_3 ->  db.create_view_cycle_4
+ERROR:  Cycle detected in view: db.create_view_cycle_4 -> db.create_view_cycle_1 -> db.create_view_cycle_2 -> db.create_view_cycle_3 ->  db.create_view_cycle_4
 -- create with long name
 SELECT documentdb_api.create_collection_view('db', FORMAT('{ "create": "create_view_cycle_4_%s", "viewOn": "create_view_cycle_1" }', repeat('1bc', 80))::documentdb_core.bson);
 ERROR:  Full namespace must not exceed 235 bytes.

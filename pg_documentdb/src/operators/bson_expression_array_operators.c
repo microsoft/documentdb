@@ -1626,7 +1626,7 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16878), errmsg(
-							"$map only supports an object as its argument")));
+							"$map requires an object argument")));
 	}
 
 	data->operator.returnType = BSON_TYPE_ARRAY;
@@ -2125,11 +2125,13 @@ ParseDollarZip(const bson_value_t *argument, AggregationExpressionData *data,
 	else if (useLongestLength.value_type != BSON_TYPE_BOOL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34463), errmsg(
-							"useLongestLength must be a bool, found %s", BsonTypeName(
+							"useLongestLength must be a boolean value, but a %s type was given",
+							BsonTypeName(
 								useLongestLength.value_type)),
-						errdetail_log("useLongestLength must be a bool, found %s",
-									  BsonTypeName(
-										  useLongestLength.value_type))));
+						errdetail_log(
+							"useLongestLength must be a boolean value, but a %s type was given",
+							BsonTypeName(
+								useLongestLength.value_type))));
 	}
 
 	DollarZipArguments *arguments = palloc0(sizeof(DollarZipArguments));
@@ -2246,10 +2248,10 @@ ParseElementFromObjectForArrayToObject(const bson_value_t *element)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTALLMUSTBEOBJECTS),
 						errmsg(
-							"$arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Object was detected, now found: %s",
+							"$arrayToObject needs a consistent format of input; every element should be either entirely arrays or entirely objects. An object was initially detected, but the following element was found: %s",
 							BsonTypeName(element->value_type)),
 						errdetail_log(
-							"$arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Object was detected, now found: %s",
+							"$arrayToObject needs a consistent format of input; every element should be either entirely arrays or entirely objects. An object was initially detected, but the following element was found: %s",
 							BsonTypeName(element->value_type))));
 	}
 
@@ -2319,10 +2321,10 @@ ParseElementFromArrayForArrayToObject(const bson_value_t *element)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTALLMUSTBEARRAYS),
 						errmsg(
-							"$arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Array was detected, now found: %s",
+							"$arrayToObject needs a consistent format of input. All elements must either be arrays or objects exclusively. An array was identified initially, but the following element was found: %s",
 							BsonTypeName(element->value_type)),
 						errdetail_log(
-							"$arrayToObject requires a consistent input format. Elements must all be arrays or all be objects. Array was detected, now found: %s",
+							"$arrayToObject needs a consistent format of input. All elements must either be arrays or objects exclusively. An array was identified initially, but the following element was found: %s",
 							BsonTypeName(element->value_type))));
 	}
 
@@ -2551,23 +2553,23 @@ ParseZipDefaultsArgument(int rowNum, bson_value_t evaluatedDefaultsArg, bool
 		if (evaluatedDefaultsArg.value_type != BSON_TYPE_ARRAY)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34462), errmsg(
-								"defaults must be an array of expressions, found %s",
+								"defaults are expected to be provided as an array of expressions, but received %s",
 								BsonTypeName(
 									evaluatedDefaultsArg.value_type)),
 							errdetail_log(
-								"defaults must be an array of expressions, found %s",
+								"defaults are expected to be provided as an array of expressions, but received %s",
 								BsonTypeName(
 									evaluatedDefaultsArg.value_type))));
 		}
 		else if (useLongestLengthArgBoolValue == false)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34466), errmsg(
-								"cannot specify defaults unless useLongestLength is true")));
+								"defaults can only be specified when useLongestLength is set to true")));
 		}
 		else if (BsonDocumentValueCountKeys(&evaluatedDefaultsArg) != rowNum)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34467), errmsg(
-								"defaults and inputs must have the same length")));
+								"defaults and inputs are required to be of identical length")));
 		}
 	}
 
@@ -2639,10 +2641,10 @@ ParseZipInputsArgument(int rowNum, bson_value_t evaluatedInputsArg, bool
 		else if (inputsElem->value_type != BSON_TYPE_ARRAY)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34468), errmsg(
-								"$zip found a non-array expression in input: %s",
+								"The $zip encountered an input that is not an array: %s",
 								BsonValueToJsonForLogging(inputsElem)),
 							errdetail_log(
-								"$zip found a non-array expression in input: %s",
+								"The $zip encountered an input that is not an array: %s",
 								BsonValueToJsonForLogging(inputsElem))));
 		}
 		else
@@ -2989,12 +2991,12 @@ ProcessDollarArrayElemAt(void *state, bson_value_t *result)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARARRAYELEMATSECONDARGARGMUSTBENUMERIC),
 						errmsg(
-							"$arrayElemAt's second argument must be a numeric value, but is %s",
+							"The second argument of $arrayElemAt must be a numeric type value, but it is %s instead.",
 							isUndefined ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(indexValue.value_type)),
 						errdetail_log(
-							"$arrayElemAt's second argument must be a numeric value, but is %s",
+							"The second argument of $arrayElemAt must be a numeric type value, but it is %s instead.",
 							isUndefined ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(indexValue.value_type))));
@@ -3007,7 +3009,7 @@ ProcessDollarArrayElemAt(void *state, bson_value_t *result)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARARRAYELEMATSECONDARGARGMUSTBE32BIT),
 						errmsg(
-							"$arrayElemAt's second argument must be representable as a 32-bit integer: %s",
+							"The second argument of $arrayElemAt must be a valid 32-bit integer value: %s",
 							BsonValueToJsonForLogging(&indexValue)),
 						errdetail_log(
 							"$arrayElemAt's second argument of type %s can't be representable as a 32-bit integer",
@@ -3145,10 +3147,10 @@ ProcessDollarArrayToObject(const bson_value_t *currentValue, bson_value_t *resul
 			ereport(ERROR, (errcode(
 								ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTBADINPUTTYPEFORMAT),
 							errmsg(
-								"Unrecognised input type format for $arrayToObject: %s",
+								"The input type format provided for $arrayToObject: %s is not recognized",
 								BsonIterTypeName(&arrayIter)),
 							errdetail_log(
-								"Unrecognised input type format for $arrayToObject: %s",
+								"The input type format provided for $arrayToObject: %s is not recognized",
 								BsonIterTypeName(&arrayIter))));
 		}
 
@@ -3304,12 +3306,13 @@ ProcessDollarZip(bson_value_t evaluatedInputsArg, bson_value_t evaluatedLongestL
 	if (evaluatedInputsArg.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34461), errmsg(
-							"inputs must be an array of expressions, found %s",
+							"Inputs must be provided as an array of expressions, but %s was encountered instead.",
 							BsonTypeName(
 								evaluatedInputsArg.value_type)),
-						errdetail_log("inputs must be an array of expressions, found %s",
-									  BsonTypeName(
-										  evaluatedInputsArg.value_type))));
+						errdetail_log(
+							"Inputs must be provided as an array of expressions, but %s was encountered instead.",
+							BsonTypeName(
+								evaluatedInputsArg.value_type))));
 	}
 
 	int rowNum = BsonDocumentValueCountKeys(&evaluatedInputsArg);
@@ -3500,10 +3503,10 @@ ProcessDollarObjectToArray(const bson_value_t *currentValue, bson_value_t *resul
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLAROBJECTTOARRAYREQUIRESOBJECT),
 						errmsg(
-							"$objectToArray requires a document input, found: %s",
+							"$objectToArray expression requires a document input, but received: %s",
 							BsonTypeName(currentValue->value_type)),
 						errdetail_log(
-							"$objectToArray requires a document input, found: %s",
+							"$objectToArray expression requires a document input, but received: %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -3558,10 +3561,11 @@ ProcessDollarConcatArraysElement(const bson_value_t *currentValue, void *state,
 	if (currentValue->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28664), errmsg(
-							"$concatArrays only supports arrays, not %s",
+							"$concatArrays requires array inputs, but a value of type %s was provided",
 							BsonTypeName(currentValue->value_type)),
-						errdetail_log("$concatArrays only supports arrays, not %s",
-									  BsonTypeName(currentValue->value_type))));
+						errdetail_log(
+							"$concatArrays requires array inputs, but a value of type %s was provided",
+							BsonTypeName(currentValue->value_type))));
 	}
 
 	ConcatArraysState *concatArraysState = state;
@@ -3736,10 +3740,10 @@ GetStartValueForDollarRange(bson_value_t *startValue)
 	if (!BsonTypeIsNumber(startValue->value_type))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34443), errmsg(
-							"$range requires a numeric starting value, found value of type: %s",
+							"$range expression requires a numeric start value but encountered a value of type: %s",
 							BsonTypeName(startValue->value_type)),
 						errdetail_log(
-							"$range requires a numeric starting value, found value of type: %s",
+							"$range expression requires a numeric start value but encountered a value of type: %s",
 							BsonTypeName(startValue->value_type))));
 	}
 	else if (!IsBsonValue32BitInteger(startValue, checkFixedInteger))
@@ -3770,7 +3774,7 @@ GetEndValueForDollarRange(bson_value_t *endValue)
 	if (!BsonTypeIsNumber(endValue->value_type))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34445), errmsg(
-							"$range requires a numeric ending value, found value of type: %s",
+							"$range expression needs a numeric ending value, but a value of type %s was provided",
 							BsonTypeName(endValue->value_type))));
 	}
 	else if (!IsBsonValue32BitInteger(endValue, checkFixedInteger))
@@ -3797,10 +3801,10 @@ GetStepValueForDollarRange(bson_value_t *stepValue)
 	if (!BsonTypeIsNumber(stepValue->value_type))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34447), errmsg(
-							"$range requires a numeric step value, found value of type: %s",
+							"Expression $range needs a numeric step value, but received a value of type: %s",
 							BsonTypeName(stepValue->value_type)),
 						errdetail_log(
-							"$range requires a numeric step value, found value of type: %s",
+							"Expression $range needs a numeric step value, but received a value of type: %s",
 							BsonTypeName(stepValue->value_type))));
 	}
 	else if (!IsBsonValue32BitInteger(stepValue, checkFixedInteger))
@@ -3818,7 +3822,7 @@ GetStepValueForDollarRange(bson_value_t *stepValue)
 	if (stepValInt32 == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34449), errmsg(
-							"$range requires a non-zero step value")));
+							"$range requires a step value that cannot be zero")));
 	}
 
 	return stepValInt32;
@@ -4087,11 +4091,11 @@ DollarSliceInputValidation(bson_value_t *inputValue, bool isSecondArg)
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDTYPESECONDARG :
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDTYPETHIRDARG),
 						errmsg(
-							"%s argument to $slice must be numeric, but is of type: %s",
+							"The %s argument for the $slice needs to be a numeric value; however, it is currently of type: %s",
 							isSecondArg ? "Second" : "Third",
 							BsonTypeName(inputValue->value_type)),
 						errdetail_log(
-							"%s argument to $slice must be numeric, but is of type: %s",
+							"The %s argument for the $slice needs to be a numeric value; however, it is currently of type: %s",
 							isSecondArg ? "Second" : "Third",
 							BsonTypeName(inputValue->value_type))));
 	}
@@ -4104,11 +4108,11 @@ DollarSliceInputValidation(bson_value_t *inputValue, bool isSecondArg)
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDVALUESECONDARG :
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDVALUETHIRDARG),
 						errmsg(
-							"%s argument to $slice can't be represented as a 32-bit integer: %s",
+							"The argument %s for $slice cannot be expressed as a 32-bit integer: %s",
 							isSecondArg ? "Second" : "Third",
 							BsonValueToJsonForLogging(inputValue)),
 						errdetail_log(
-							"%s argument of type %s to $slice can't be represented as a 32-bit integer",
+							"%s argument of type %s to $slice cannot be expressed as a 32-bit integer",
 							isSecondArg ? "Second" : "Third",
 							BsonTypeName(inputValue->value_type))));
 	}

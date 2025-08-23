@@ -244,7 +244,7 @@ SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ "$a.b
 (1 row)
 
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ "$a.b" ] , "a": 1.0} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  an expression operator specification must contain exactly one field, found 2 fields '$isArray' and 'a'.
+ERROR:  Expected a single field in an expression operator specification. Found: '$isArray' and 'a'.
 SELECT bson_expression_map(document, 'array', '{ "field" : { "first": 1.0, "$isArray": [ "$a.b" ]} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
 ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
 SELECT bson_expression_map(document, 'array', '{ "field" : ["$_id", ["$a", "$b"], { "arrayobj" : [{},"$_id"]}] }') FROM documentdb_api.collection('db', 'mapprojectexprs');

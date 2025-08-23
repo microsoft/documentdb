@@ -398,21 +398,21 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 /* negative cases, validations: */
 -- required fields
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "buckets": 3 } } ] }');
-ERROR:  $bucketAuto requires 'groupBy' and 'buckets' to be specified.
+ERROR:  The $bucketAuto stage must include both 'groupBy' and 'buckets' parameters.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price" } } ] }');
-ERROR:  $bucketAuto requires 'groupBy' and 'buckets' to be specified.
+ERROR:  The $bucketAuto stage must include both 'groupBy' and 'buckets' parameters.
 -- groupBy must be a path with prefix $ or expression
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "price", "buckets": 3 } } ] }');
-ERROR:  The $bucketAuto 'groupBy' field must be defined as a $-prefixed path or an expression object, but found: "price"
+ERROR:  The $bucketAuto 'groupBy' field must be specified using either a $-prefixed path or a valid expression object, but instead received: "price"
 -- buckets must be a positive integer
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": "abc" } } ] }');
-ERROR:  The $bucketAuto 'buckets' field must be a numeric value, but found type: string
+ERROR:  The 'buckets' field in $bucketAuto must contain a numeric value, but a different type was detected: string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3.1 } } ] }');
-ERROR:  The $bucketAuto 'buckets' field must be representable as a 32-bit integer, but found: 3.1, value type: double
+ERROR:  The 'buckets' setting in $bucketAuto must fit within a 32-bit integer range, but was given: 3.1, type: double
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": -3 } } ] }');
-ERROR:  The $bucketAuto 'buckets' field must be greater than 0, but found: -3
+ERROR:  The 'buckets' field in the $bucketAuto operator must have a value greater than zero, but the provided value was: -3
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 0 } } ] }');
-ERROR:  The $bucketAuto 'buckets' field must be greater than 0, but found: 0
+ERROR:  The 'buckets' field in the $bucketAuto operator must have a value greater than zero, but the provided value was: 0
 -- output must be document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": 1 } } ] }');
 ERROR:  The $bucketAuto 'output' field must be an object, but found type: int
@@ -427,9 +427,9 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  Unknown rounding granularity: abc
 -- when has granularity, groupby value must be a non-negative number
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 3, "granularity": "POWERSOF2" } } ] }');
-ERROR:   $bucketAuto can specify a 'granularity' with numeric boundaries only, but found a value with type: string
+ERROR:  $bucketAuto only allows specifying a 'granularity' with numeric boundaries, but encountered a value of type: string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": { "$subtract": ["$price", 100] }, "buckets": 3, "granularity": "POWERSOF2" } } ] }');
-ERROR:   $bucketAuto can specify a 'granularity' with numeric boundaries only, but found a negative value: -99.000000
+ERROR:   $bucketAuto only allows specifying a 'granularity' with numeric boundaries, but a negative value was provided: -99.000000
 /* Explain */
 EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3 } } ] }');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      

@@ -2116,7 +2116,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	{
 		ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_LOCATION16764),
 				errmsg(
-					"Currently hashed indexes cannot guarantee uniqueness. Use a regular index"));
+					"Index type 'hashed' does not support the unique option."));
 	}
 
 	if (indexDef->unique == BoolIndexOption_True && indexDef->key->hasTextIndexes)
@@ -2203,21 +2203,23 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		{
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_LOCATION16747),
-						errmsg("coarsestIndexedLevel must be >= 0")));
+						errmsg(
+							"coarsestIndexedLevel must be greater than or equal to zero")));
 		}
 
 		if (finest > 30)
 		{
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_LOCATION16748),
-						errmsg("finestIndexedLevel must be <= 30")));
+						errmsg("finestIndexedLevel must not exceed 30")));
 		}
 
 		if (coarsest > finest)
 		{
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_LOCATION16749),
-						errmsg("finestIndexedLevel must be >= coarsestIndexedLevel")));
+						errmsg(
+							"finestIndexedLevel must be greater than or equal to coarsestIndexedLevel")));
 		}
 
 		indexDef->sphereIndexVersion = 3;
@@ -2738,12 +2740,12 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				/* Can't have more than one 2d index fields */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16800),
-								errmsg("can't have 2 geo fields")));
+								errmsg("Cannot contain more than one geo fields")));
 			}
 			else if (indexDefKey->keyPathList != NIL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16801),
-								errmsg("2d has to be first in index")));
+								errmsg("The 2d field must be the first in the index.")));
 			}
 			else if (isWildcardKeyPath)
 			{
