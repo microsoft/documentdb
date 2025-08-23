@@ -77,7 +77,6 @@ PgbsonCountKeys(const pgbson *bsonDocument)
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg("invalid input syntax for BSON")));
 	}
-
 	return bson_count_keys(&bson);
 }
 
@@ -97,10 +96,7 @@ BsonDocumentValueCountKeys(const bson_value_t *value)
 	bson_t bson;
 	if (!bson_init_static(&bson, value->value.v_doc.data,
 						  value->value.v_doc.data_len))
-	{
-		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("invalid input syntax for BSON")));
-	}
+		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg("invalid input syntax for BSON")));
 
 	return bson_count_keys(&bson);
 }
