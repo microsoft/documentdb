@@ -434,4 +434,5 @@ SELECT cursorpage FROM documentdb_api.aggregate_cursor_first_page('documentdb', 
 
 - Checkout our website at https://documentdb.io to stay up to date with the latest docs and blogs.
 - Please refer to page for contributing to our [Roadmap list](https://github.com/orgs/microsoft/projects/1407/views/1).
+- [FerretDB](https://github.com/FerretDB/FerretDB) integration allows using DocumentDB as backend engine.
 - Contributors and users can join the [DocumentDB Discord channel](https://discord.gg/vH7bYu524D) for quick collaboration.
