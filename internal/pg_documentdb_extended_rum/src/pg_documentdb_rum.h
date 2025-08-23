@@ -965,6 +965,7 @@ typedef enum SimilarityType
 #define DEFAULT_FORCE_RUM_ORDERED_INDEX_SCAN false
 #define RUM_DEFAULT_PREFER_ORDERED_INDEX_SCAN true
 #define RUM_DEFAULT_ENABLE_SKIP_INTERMEDIATE_ENTRY true
+#define RUM_DEFAULT_USE_NEW_ITEM_PTR_DECODING true
 
 /* GUC parameters */
 extern int RumFuzzySearchLimit;
@@ -981,6 +982,7 @@ extern bool RumSkipRetryOnDeletePage;
 extern bool RumForceOrderedIndexScan;
 extern bool RumPreferOrderedIndexScan;
 extern bool RumEnableSkipIntermediateEntry;
+extern bool RumUseNewItemPtrDecoding;
 
 /*
  * Functions for reading ItemPointers with additional information. Used in
@@ -989,6 +991,249 @@ extern bool RumEnableSkipIntermediateEntry;
 
 #define SEVENTHBIT (0x40)
 #define SIXMASK (0x3F)
+
+#define InitBlockNumberIncr(x, iptr) uint64 x = iptr->ip_blkid.bi_lo + \
+												(iptr->ip_blkid.bi_hi << 16)
+#define InitBlockNumberIncrZero(x) uint64 x = 0
+
+/*
+ * Decode varbyte-encoded integer at *ptr. *ptr is incremented to next integer.
+ */
+static uint64
+decode_varbyte_blocknumber(unsigned char **ptr)
+{
+	uint64 val;
+	unsigned char *p = *ptr;
+	uint64 c;
+
+	/* 1st byte */
+	c = *(p++);
+	val = c & 0x7F;
+	if (c & 0x80)
+	{
+		/* 2nd byte */
+		c = *(p++);
+		val |= (c & 0x7F) << 7;
+		if (c & 0x80)
+		{
+			/* 3rd byte */
+			c = *(p++);
+			val |= (c & 0x7F) << 14;
+			if (c & 0x80)
+			{
+				/* 4th byte */
+				c = *(p++);
+				val |= (c & 0x7F) << 21;
+				if (c & 0x80)
+				{
+					/* 5th byte */
+					c = *(p++);
+					val |= (c & 0x7F) << 28;
+					if (c & 0x80)
+					{
+						/* 6th byte */
+						c = *(p++);
+						val |= (c & 0x7F) << 35;
+						if (c & 0x80)
+						{
+							/* 7th byte, should not have continuation bit */
+							c = *(p++);
+							val |= c << 42;
+							Assert((c & 0x80) == 0);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	*ptr = p;
+
+	return val;
+}
+
+
+/*
+ * Read next item pointer from leaf data page. Replaces current item pointer
+ * with the next one. Zero item pointer should be passed in order to read the
+ * first item pointer. Also reads value of addInfoIsNull flag which is stored
+ * with item pointer.
+ */
+static inline char *
+rumDataPageLeafReadItemPointerWithBlockNumberIncr(char *ptr, RumItem *item,
+												  uint64 *blockNumberIncrPtr)
+{
+	uint16 offset = 0;
+	int i;
+	uint8 v;
+
+	*blockNumberIncrPtr += decode_varbyte_blocknumber((unsigned char **) &ptr);
+	Assert(*blockNumberIncrPtr < ((uint64) 1 << 32));
+
+	item->iptr.ip_blkid.bi_lo = *blockNumberIncrPtr & 0xFFFF;
+	item->iptr.ip_blkid.bi_hi = (*blockNumberIncrPtr >> 16) & 0xFFFF;
+
+	i = 0;
+
+	while (true)
+	{
+		v = *ptr;
+		ptr++;
+		Assert(i < 14 || ((i == 14) && ((v & SIXMASK) < (1 << 2))));
+
+		if (v & HIGHBIT)
+		{
+			offset |= (v & (~HIGHBIT)) << i;
+		}
+		else
+		{
+			offset |= (v & SIXMASK) << i;
+			item->addInfoIsNull = (v & SEVENTHBIT) ? true : false;
+			break;
+		}
+		i += 7;
+	}
+
+	if (RumThrowErrorOnInvalidDataPage && !OffsetNumberIsValid(offset))
+	{
+		/* Reuse retry on lost path */
+		elog(ERROR, "invalid offset on rumpage");
+	}
+
+	Assert(OffsetNumberIsValid(offset));
+	item->iptr.ip_posid = offset;
+
+	return ptr;
+}
+
+
+static inline char *
+rumDataPageLeafReadItemPointerNew(char *ptr, RumItem *rumItem)
+{
+	InitBlockNumberIncr(blockNumberIncr, (&rumItem->iptr));
+	return rumDataPageLeafReadItemPointerWithBlockNumberIncr(ptr, rumItem,
+															 &blockNumberIncr);
+}
+
+
+static inline Pointer
+rumDataPageLeafReadWithBlockNumberIncr(Pointer ptr, OffsetNumber attnum, RumItem *item,
+									   bool copyAddInfo, RumState *rumstate,
+									   uint64 *blockNumberIncrPtr)
+{
+	Form_pg_attribute attr;
+
+	if (rumstate->useAlternativeOrder)
+	{
+		memcpy(&item->iptr, ptr, sizeof(ItemPointerData));
+		ptr += sizeof(ItemPointerData);
+
+		if (item->iptr.ip_posid & ALT_ADD_INFO_NULL_FLAG)
+		{
+			item->iptr.ip_posid &= ~ALT_ADD_INFO_NULL_FLAG;
+			item->addInfoIsNull = true;
+		}
+		else
+		{
+			item->addInfoIsNull = false;
+		}
+	}
+	else
+	{
+		ptr = rumDataPageLeafReadItemPointerWithBlockNumberIncr(ptr, item,
+																blockNumberIncrPtr);
+	}
+
+	Assert(item->iptr.ip_posid != InvalidOffsetNumber);
+
+	if (!item->addInfoIsNull)
+	{
+		attr = rumstate->addAttrs[attnum - 1];
+
+		Assert(attr);
+
+		if (attr->attbyval)
+		{
+			/* do not use aligment for pass-by-value types */
+			union
+			{
+				int16 i16;
+				int32 i32;
+			}
+			u;
+
+			switch (attr->attlen)
+			{
+				case sizeof(char):
+				{
+					item->addInfo = Int8GetDatum(*ptr);
+					break;
+				}
+
+				case sizeof(int16):
+				{
+					memcpy(&u.i16, ptr, sizeof(int16));
+					item->addInfo = Int16GetDatum(u.i16);
+					break;
+				}
+
+				case sizeof(int32):
+				{
+					memcpy(&u.i32, ptr, sizeof(int32));
+					item->addInfo = Int32GetDatum(u.i32);
+					break;
+				}
+
+#if SIZEOF_DATUM == 8
+				case sizeof(Datum):
+				{
+					memcpy(&item->addInfo, ptr, sizeof(Datum));
+					break;
+				}
+
+#endif
+				default:
+					elog(ERROR, "unsupported byval length: %d",
+						 (int) (attr->attlen));
+			}
+		}
+		else
+		{
+			Datum addInfo;
+
+			ptr = (Pointer) att_align_pointer(ptr, attr->attalign, attr->attlen,
+											  ptr);
+			addInfo = fetch_att(ptr, attr->attbyval, attr->attlen);
+			item->addInfo = copyAddInfo ?
+							datumCopy(addInfo, attr->attbyval, attr->attlen) : addInfo;
+		}
+
+		ptr = (Pointer) att_addlength_pointer(ptr, attr->attlen, ptr);
+	}
+	return ptr;
+}
+
+
+inline static void
+rumPopulateDataPage(RumState *rumstate, RumScanEntry entry, OffsetNumber maxoff, Page
+					pageInner)
+{
+	InitBlockNumberIncrZero(blockNumberIncr);
+	Pointer ptr = RumDataPageGetData(pageInner);
+	for (OffsetNumber i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+	{
+		ptr = rumDataPageLeafReadWithBlockNumberIncr(ptr, entry->attnum,
+													 &entry->list[i - FirstOffsetNumber],
+													 true,
+													 rumstate, &blockNumberIncr);
+	}
+
+	if (maxoff < 1)
+	{
+		memset(&entry->list[0], 0, sizeof(RumItem));
+	}
+}
+
 
 /*
  * Read next item pointer from leaf data page. Replaces current item pointer
@@ -1258,5 +1503,12 @@ extern PGDLLEXPORT void try_explain_rum_index(IndexScanDesc scan,
 extern PGDLLEXPORT bool can_rum_index_scan_ordered(IndexScanDesc scan);
 
 void InitializeDocumentDBRum(void);
+
+#define UNREDACTED_RUM_LOG_CODE MAKE_SQLSTATE('R', 'Z', 'Z', 'Z', 'Z')
+
+#define elog_rum_unredacted(...) \
+	ereport(LOG, (errcode(UNREDACTED_RUM_LOG_CODE), errhidecontext(true), \
+				  errhidestmt(true), errmsg( \
+					  __VA_ARGS__)))
 
 #endif   /* __RUM_H__ */

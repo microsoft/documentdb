@@ -43,6 +43,7 @@ static char * rumbuildphasename(int64 phasenum);
 static relopt_kind rum_relopt_kind;
 
 bool RumThrowErrorOnInvalidDataPage = RUM_DEFAULT_THROW_ERROR_ON_INVALID_DATA_PAGE;
+bool RumUseNewItemPtrDecoding = RUM_DEFAULT_USE_NEW_ITEM_PTR_DECODING;
 
 /*
  * Module load callback
@@ -178,6 +179,15 @@ _PG_init(void)
 		NULL, NULL, NULL);
 
 	MarkGUCPrefixReserved(DOCUMENTDB_RUM_GUC_PREFIX);
+
+	DefineCustomBoolVariable(
+		DOCUMENTDB_RUM_GUC_PREFIX ".rum_use_new_item_ptr_decoding",
+		"Sets whether or not to use new item pointer decoding",
+		NULL,
+		&RumUseNewItemPtrDecoding,
+		RUM_DEFAULT_USE_NEW_ITEM_PTR_DECODING,
+		PGC_USERSET, 0,
+		NULL, NULL, NULL);
 
 	rum_relopt_kind = add_reloption_kind();
 

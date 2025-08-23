@@ -12,6 +12,7 @@
 #include <utils/builtins.h>
 #include <lib/stringinfo.h>
 #include <utils/timestamp.h>
+#include <utils/json.h>
 
 #define PRIVATE_PGBSON_H
 #include "io/pgbson.h"
@@ -225,11 +226,8 @@ PgbsonToJsonForLogging(const pgbson *bsonDocument)
 }
 
 
-/*
- * BsonValueToJsonForLogging converts a bson_value structure to an extended json syntax string.
- */
-const char *
-BsonValueToJsonForLogging(const bson_value_t *value)
+static const char *
+BsonValueToJsonForLoggingCore(const bson_value_t *value, bool quoteStrings)
 {
 	bson_t bson;
 	pgbson *bsonDocument;
@@ -260,13 +258,18 @@ BsonValueToJsonForLogging(const bson_value_t *value)
 		case BSON_TYPE_UTF8:
 		{
 			/* create a string that has the original string, \0, and the quotes. */
-			char *finalString = palloc(value->value.v_utf8.len + 1 + 2);
-			finalString[0] = '"';
-			memcpy(&finalString[1], value->value.v_utf8.str, value->value.v_utf8.len);
-			finalString[value->value.v_utf8.len + 1] = '"';
-			finalString[value->value.v_utf8.len + 2] = 0;
+			if (quoteStrings)
+			{
+				StringInfoData strData;
+				initStringInfo(&strData);
+				escape_json(&strData, value->value.v_utf8.str);
+				returnValue = strData.data;
+			}
+			else
+			{
+				returnValue = pnstrdup(value->value.v_utf8.str, value->value.v_utf8.len);
+			}
 
-			returnValue = finalString;
 			break;
 		}
 
@@ -328,6 +331,28 @@ BsonValueToJsonForLogging(const bson_value_t *value)
 	}
 
 	return returnValue;
+}
+
+
+/*
+ * BsonValueToJsonForLogging converts a bson_value structure to an extended json syntax string.
+ */
+const char *
+BsonValueToJsonForLogging(const bson_value_t *value)
+{
+	bool quoteStrings = true;
+	return BsonValueToJsonForLoggingCore(value, quoteStrings);
+}
+
+
+/*
+ * BsonValueToJsonForLogging converts a bson_value structure to
+ * simplified an extended json syntax string.
+ */
+const char *
+BsonValueToJsonForLoggingWithOptions(const bson_value_t *value, bool quoteStrings)
+{
+	return BsonValueToJsonForLoggingCore(value, quoteStrings);
 }
 
 

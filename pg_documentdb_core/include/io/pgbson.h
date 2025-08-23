@@ -77,6 +77,8 @@ pgbson * CastByteaToPgbson(bytea *byteBuffer);
 /* output functions functions to various formats (json string, bytea)s */
 const char * PgbsonToJsonForLogging(const pgbson *bsonDocument);
 const char * BsonValueToJsonForLogging(const bson_value_t *value);
+const char * BsonValueToJsonForLoggingWithOptions(const bson_value_t *value, bool
+												  quoteStrings);
 const char * FormatBsonValueForShellLogging(const bson_value_t *bson);
 const char * PgbsonIterDocumentToJsonForLogging(const bson_iter_t *iter);
 const char * PgbsonToCanonicalExtendedJson(const pgbson *bsonDocument);

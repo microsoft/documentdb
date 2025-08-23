@@ -1479,6 +1479,7 @@ updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate)
 	int j = 0,
 		maxoff,
 		i;
+	InitBlockNumberIncrZero(blocknoIncr);
 
 	/* Iterate over page */
 
@@ -1506,7 +1507,16 @@ updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate)
 			}
 			j++;
 		}
-		ptr = rumDataPageLeafRead(ptr, attnum, &item, false, rumstate);
+
+		if (RumUseNewItemPtrDecoding)
+		{
+			ptr = rumDataPageLeafReadWithBlockNumberIncr(ptr, attnum, &item, false,
+														 rumstate, &blocknoIncr);
+		}
+		else
+		{
+			ptr = rumDataPageLeafRead(ptr, attnum, &item, false, rumstate);
+		}
 	}
 
 	/* Fill rest of page indexes with InvalidOffsetNumber if any */

@@ -235,12 +235,13 @@ bson_get_value_text(PG_FUNCTION_ARGS)
 {
 	pgbson *document = PG_GETARG_PGBSON_PACKED(0);
 	char *path = text_to_cstring(PG_GETARG_TEXT_PP(1));
+	bool quoteString = PG_NARGS() > 2 ? PG_GETARG_BOOL(2) : false;
 	bson_iter_t pathIterator;
 
 	if (PgbsonInitIteratorAtPath(document, path, &pathIterator))
 	{
 		const bson_value_t *value = bson_iter_value(&pathIterator);
-		const char *strRepr = BsonValueToJsonForLogging(value);
+		const char *strRepr = BsonValueToJsonForLoggingWithOptions(value, quoteString);
 		PG_RETURN_POINTER(cstring_to_text(strRepr));
 	}
 	else

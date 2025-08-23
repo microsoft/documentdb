@@ -319,7 +319,7 @@ static void
 scanPostingTree(Relation index, RumScanEntry scanEntry,
 				BlockNumber rootPostingTree, OffsetNumber attnum,
 				RumState *rumstate, Datum idatum, RumNullCategory icategory,
-				Snapshot snapshot)
+				Snapshot snapshot, RumItemScanEntryBounds *scanEntryBounds)
 {
 	RumPostingTreeScan *gdi;
 	Buffer buffer;
@@ -407,7 +407,8 @@ scanPostingTree(Relation index, RumScanEntry scanEntry,
  */
 static bool
 collectMatchBitmap(RumBtreeData *btree, RumBtreeStack *stack,
-				   RumScanEntry scanEntry, Snapshot snapshot)
+				   RumScanEntry scanEntry, Snapshot snapshot,
+				   RumItemScanEntryBounds *scanEntryBounds)
 {
 	OffsetNumber attnum;
 	Form_pg_attribute attr;
@@ -552,7 +553,7 @@ collectMatchBitmap(RumBtreeData *btree, RumBtreeStack *stack,
 
 			/* Collect all the TIDs in this entry's posting tree */
 			scanPostingTree(btree->index, scanEntry, rootPostingTree, attnum,
-							rumstate, idatum, icategory, snapshot);
+							rumstate, idatum, icategory, snapshot, scanEntryBounds);
 
 			/*
 			 * We lock again the entry page and while it was unlocked insert
@@ -700,9 +701,12 @@ setListPositionScanEntry(RumState *rumstate, RumScanEntry entry)
 
 /*
  * Start* functions setup beginning state of searches: finds correct buffer and pins it.
+ * scanEntryBounds is an optional argument that contains min/max bounds if found for the entry
+ * used in partialMatch scenarios
  */
 static void
-startScanEntry(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
+startScanEntry(RumState *rumstate, RumScanEntry entry, Snapshot snapshot,
+			   RumItemScanEntryBounds *scanEntryBounds)
 {
 	RumBtreeData btreeEntry;
 	RumBtreeStack *stackEntry;
@@ -750,7 +754,8 @@ restartScanEntry:
 		 * for the entry type.
 		 */
 		btreeEntry.findItem(&btreeEntry, stackEntry);
-		if (collectMatchBitmap(&btreeEntry, stackEntry, entry, snapshot) == false)
+		if (collectMatchBitmap(&btreeEntry, stackEntry, entry, snapshot,
+							   scanEntryBounds) == false)
 		{
 			/*
 			 * RUM tree was seriously restructured, so we will cleanup all
@@ -845,15 +850,22 @@ restartScanEntry:
 			maxoff = RumPageGetOpaque(pageInner)->maxoff;
 			entry->nlist = maxoff;
 
-			ptr = RumDataPageGetData(pageInner);
-
-			/* Ensure the first entry is 0 initialized */
-			memset(&entry->list[0], 0, sizeof(RumItem));
-			for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+			if (RumUseNewItemPtrDecoding)
 			{
-				ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
-										  rumstate);
-				entry->list[i - FirstOffsetNumber] = item;
+				rumPopulateDataPage(rumstate, entry, entry->nlist, pageInner);
+			}
+			else
+			{
+				ptr = RumDataPageGetData(pageInner);
+
+				/* Ensure the first entry is 0 initialized */
+				memset(&entry->list[0], 0, sizeof(RumItem));
+				for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+				{
+					ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
+											  rumstate);
+					entry->list[i - FirstOffsetNumber] = item;
+				}
 			}
 
 			LockBuffer(entry->buffer, RUM_UNLOCK);
@@ -1490,15 +1502,22 @@ PrepareOrderedMatchedEntry(RumScanOpaque so, RumScanEntry entry,
 		maxoff = RumPageGetOpaque(pageInner)->maxoff;
 		entry->nlist = maxoff;
 
-		ptr = RumDataPageGetData(pageInner);
-
-		/* Ensure the first entry is 0 initialized */
-		memset(&entry->list[0], 0, sizeof(RumItem));
-		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		if (RumUseNewItemPtrDecoding)
 		{
-			ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
-									  &so->rumstate);
-			entry->list[i - FirstOffsetNumber] = item;
+			rumPopulateDataPage(&so->rumstate, entry, maxoff, pageInner);
+		}
+		else
+		{
+			ptr = RumDataPageGetData(pageInner);
+
+			/* Ensure the first entry is 0 initialized */
+			memset(&entry->list[0], 0, sizeof(RumItem));
+			for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+			{
+				ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
+										  &so->rumstate);
+				entry->list[i - FirstOffsetNumber] = item;
+			}
 		}
 
 		LockBuffer(entry->buffer, RUM_UNLOCK);
@@ -1807,7 +1826,8 @@ startScan(IndexScanDesc scan)
 	{
 		for (i = 0; i < so->totalentries; i++)
 		{
-			startScanEntry(rumstate, so->entries[i], scan->xs_snapshot);
+			startScanEntry(rumstate, so->entries[i], scan->xs_snapshot,
+						   NULL);
 		}
 	}
 	MemoryContextSwitchTo(oldCtx);
@@ -2197,15 +2217,22 @@ entryGetNextItemList(RumState *rumstate, RumScanEntry entry, Snapshot snapshot)
 		maxoff = RumPageGetOpaque(pageInner)->maxoff;
 		entry->nlist = maxoff;
 
-		ptr = RumDataPageGetData(pageInner);
-
-		/* Ensure the first entry is 0 initialized */
-		memset(&entry->list[0], 0, sizeof(RumItem));
-		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		if (RumUseNewItemPtrDecoding)
 		{
-			ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
-									  rumstate);
-			entry->list[i - FirstOffsetNumber] = item;
+			rumPopulateDataPage(rumstate, entry, maxoff, pageInner);
+		}
+		else
+		{
+			ptr = RumDataPageGetData(pageInner);
+
+			/* Ensure the first entry is 0 initialized */
+			memset(&entry->list[0], 0, sizeof(RumItem));
+			for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+			{
+				ptr = rumDataPageLeafRead(ptr, entry->attnum, &item, true,
+										  rumstate);
+				entry->list[i - FirstOffsetNumber] = item;
+			}
 		}
 
 		LockBuffer(entry->buffer, RUM_UNLOCK);
