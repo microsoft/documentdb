@@ -485,7 +485,7 @@ tdigest_compute_quantiles(tdigest_aggstate_t *state, double *result)
 				break;
 			}
 
-			/* account for the centroid */
+			/* Account for the centroid by adding its count */
 			count += c->count;
 		}
 

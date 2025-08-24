@@ -717,7 +717,7 @@ ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28646), errmsg(
-							"$filter only supports an object as its argument")));
+							"$filter can accept only an object type as its valid argument")));
 	}
 
 	data->operator.returnType = BSON_TYPE_ARRAY;
@@ -766,7 +766,7 @@ ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
 	if (cond.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28650), errmsg(
-							"Missing 'cond' parameter to $filter")));
+							"The 'cond' parameter required by the $filter operator is missing")));
 	}
 
 	bson_value_t aliasValue = {
@@ -843,7 +843,7 @@ HandlePreParsedDollarFilter(pgbson *doc, void *arguments,
 		if (!IsBsonValue32BitInteger(&evaluatedLimit, checkFixedInteger))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION327391), errmsg(
-								"$filter: limit must be represented as a 32-bit integral value: %s",
+								"Operator $filter requires the limit to be specified as a 32-bit integer value: %s",
 								BsonValueToJsonForLogging(&evaluatedLimit)),
 							errdetail_log(
 								"$filter: limit of type %s can't be represented as a 32-bit integral value",
@@ -1474,7 +1474,7 @@ ParseDollarIndexOfArray(const bson_value_t *argument, AggregationExpressionData 
 			data->value = result;
 			data->kind = AggregationExpressionKind_Constant;
 
-			/* free the list */
+			/* Release the allocated list memory */
 			list_free_deep(argsList);
 			return;
 		}
@@ -1513,7 +1513,7 @@ ParseDollarIndexOfArray(const bson_value_t *argument, AggregationExpressionData 
 		data->value = result;
 		data->kind = AggregationExpressionKind_Constant;
 
-		/* free the list */
+		/* Release the allocated list memory */
 		list_free_deep(argsList);
 
 		return;
@@ -1743,10 +1743,12 @@ HandlePreParsedDollarMap(pgbson *doc, void *arguments,
 	if (evaluatedInputArg.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16883), errmsg(
-							"input to $map must be an array not %s", BsonTypeName(
+							"The $map operator requires an array input, but received %s instead",
+							BsonTypeName(
 								evaluatedInputArg.value_type)),
-						errdetail_log("input to $map must be an array not %s",
-									  BsonTypeName(evaluatedInputArg.value_type))));
+						errdetail_log(
+							"The $map operator requires an array input, but received %s instead",
+							BsonTypeName(evaluatedInputArg.value_type))));
 	}
 
 	StringView aliasName = {
@@ -1843,7 +1845,7 @@ ParseDollarReduce(const bson_value_t *argument, AggregationExpressionData *data,
 	if (in.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40079), errmsg(
-							"Missing 'in' parameter to $reduce")));
+							"Missing 'in' argument for operator $reduce")));
 	}
 
 	if (initialValue.value_type == BSON_TYPE_EOD)
@@ -2289,10 +2291,10 @@ ParseElementFromObjectForArrayToObject(const bson_value_t *element)
 				ereport(ERROR, (errcode(
 									ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTOBJECTKEYMUSTBESTRING),
 								errmsg(
-									"$arrayToObject requires an object with keys 'k' and 'v', where the value of 'k' must be of type string. Found type: %s",
+									"$arrayToObject needs an input object containing keys 'k' and 'v', with 'k' specifically required to be a string type. Detected type: %s",
 									BsonTypeName(resultKey->value_type)),
 								errdetail_log(
-									"$arrayToObject requires an object with keys 'k' and 'v', where the value of 'k' must be of type string. Found type: %s",
+									"$arrayToObject needs an input object containing keys 'k' and 'v', with 'k' specifically required to be a string type. Detected type: %s",
 									BsonTypeName(resultKey->value_type))));
 			}
 
@@ -2931,7 +2933,7 @@ ProcessDollarSlice(void *state, bson_value_t *result)
 								"Third argument to $slice must be positive: %s",
 								BsonValueToJsonForLogging(currentElement)),
 							errdetail_log(
-								"Third argument to $slice must be positive but found negative")));
+								"The third argument for the $slice operator must be a positive value, but a negative number was provided.")));
 		}
 		numToReturn = BsonValueAsInt32(currentElement);
 	}
@@ -3184,7 +3186,7 @@ ProcessDollarArrayToObject(const bson_value_t *currentValue, bson_value_t *resul
 													   ERRCODE_DOCUMENTDB_LOCATION4940400;
 
 				ereport(ERROR, (errcode(errorCode), errmsg(
-									"Key field cannot contain an embedded null byte")));
+									"Key field must not include an embedded null byte")));
 			}
 
 			PgbsonElementHashEntry searchEntry = {
@@ -3254,10 +3256,10 @@ ProcessDollarSortArray(bson_value_t *inputValue, SortContext *sortContext,
 	if (inputValue->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION2942504), errmsg(
-							"The input argument to $sortArray must be an array, but was of type: %s",
+							"The provided input for the $sortArray operator must be an array, but a value of type %s was received instead.",
 							BsonTypeName(inputValue->value_type)),
 						errdetail_log(
-							"The input argument to $sortArray must be an array, but was of type: %s",
+							"The provided input for the $sortArray operator must be an array, but a value of type %s was received instead.",
 							BsonTypeName(inputValue->value_type))));
 	}
 
@@ -3822,7 +3824,7 @@ GetStepValueForDollarRange(bson_value_t *stepValue)
 	else if (!IsBsonValue32BitInteger(stepValue, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34448), errmsg(
-							"$range requires a step value that can be represented as a 32-bit integer, found value: %s",
+							"$range operator needs a step value that fits within a 32-bit integer, but the provided value was: %s",
 							BsonValueToJsonForLogging(stepValue))));
 	}
 	else
@@ -4012,7 +4014,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
 	if (!BsonTypeIsNumber(arg->value_type) || !IsBsonValueFixedInteger(arg))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40096), errmsg(
-							"$indexOfArray requires an integral %s index, found a value of type: %s, with value: %s",
+							"The $indexOfArray operator needs an integer %s index, but encountered a value of type %s with the value %s.",
 							isStartIndex ? startingIndexString : endingIndexString,
 							BsonTypeName(arg->value_type),
 							BsonValueToJsonForLogging(arg)),
@@ -4028,7 +4030,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
 	if (result > INT32_MAX)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40096), errmsg(
-							"$indexOfArray requires an integral %s index, found a value of type: %s, with value: %s",
+							"The $indexOfArray operator needs an integer %s index, but encountered a value of type %s with the value %s.",
 							isStartIndex ? startingIndexString : endingIndexString,
 							BsonTypeName(arg->value_type),
 							BsonValueToJsonForLogging(arg)),

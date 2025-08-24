@@ -752,9 +752,9 @@ static inline void
 pg_attribute_noreturn() ThrowLocation5439013Error(bson_type_t foundType, char * opName)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5439013), errmsg(
-						"%s requires 'unit' to be a string, but got %s",
+						"%s needs 'unit' as a string, but received %s instead",
 						opName, BsonTypeName(foundType)),
-					errdetail_log("%s requires 'unit' to be a string, but got %s",
+					errdetail_log("%s needs 'unit' as a string, but received %s instead",
 								  opName, BsonTypeName(foundType))));
 }
 
@@ -794,10 +794,10 @@ ValidateDateValueIsInRange(uint32_t value)
 	if (value > 9999)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION18537), errmsg(
-							"Could not convert date to string: date component was outside the supported range of 0-9999: %d",
+							"Failed to convert date into text because the date value was beyond the supported range of 0 to 9999: %d",
 							value),
 						errdetail_log(
-							"Could not convert date to string: date component was outside the supported range of 0-9999: %d",
+							"Failed to convert date into text because the date value was beyond the supported range of 0 to 9999: %d",
 							value)));
 	}
 }
@@ -1163,7 +1163,7 @@ ParseDollarDateToString(const bson_value_t *argument, AggregationExpressionData 
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION18629), errmsg(
-							"$dateToString only supports an object as its argument")));
+							"$dateToString requires an object parameter only")));
 	}
 
 	bson_value_t dateExpression = { 0 };
@@ -2282,6 +2282,11 @@ GetDateStringWithFormat(int64_t dateInMs, ExtensionTimezone timezone, StringView
 
 		if (i + 1 >= format.length)
 		{
+			/*
+			 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output to maintain
+			 * compatibility with existing tools and scripts that rely on specific error message formats.
+			 * Modifying this text may cause unexpected behavior in dependent systems.
+			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION18535), errmsg(
 								"Unmatched '%%' at end of format string")));
 		}
@@ -3510,7 +3515,7 @@ ValidateDatePart(DatePart datePart, bson_value_t *inputValue, char *inputKey)
 	}
 	int64 datePartValue = BsonValueAsInt64(inputValue);
 
-	/* Validate Range */
+	/* Check value range */
 	switch (datePart)
 	{
 		case DatePart_Year:
@@ -4243,10 +4248,10 @@ ValidateArgumentsForDateTrunc(bson_value_t *binSize, bson_value_t *date,
 		if (*weekDay == WeekDay_Invalid)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5439016), errmsg(
-								"$dateTrunc parameter 'startOfWeek' value cannot be recognized as a day of a week: %s",
+								"The 'startOfWeek' parameter in $dateTrunc has a value that is not recognized as a valid day of the week: %s",
 								startOfWeek->value.v_utf8.str),
 							errdetail_log(
-								"$dateTrunc parameter 'startOfWeek' value cannot be recognized as a day of a week")));
+								"The 'startOfWeek' parameter in $dateTrunc has a value that is not recognized as a valid day of the week")));
 		}
 	}
 
@@ -5994,10 +5999,10 @@ ParseDollarDateFromString(const bson_value_t *argument, AggregationExpressionDat
 		 * Modifying this text may cause unexpected behavior in dependent systems.
 		 */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40540), errmsg(
-							"$dateFromString only supports an object as an argument, found: %s",
+							"$dateFromString only supports an object as an argument, found: %s\",",
 							BsonTypeName(argument->value_type)),
 						errdetail_log(
-							"$dateFromString only supports an object as an argument, found: %s",
+							"$dateFromString only supports an object as an argument, found: %s\",",
 							BsonTypeName(argument->value_type))));
 	}
 	bson_value_t format = { 0 };
@@ -6263,6 +6268,11 @@ CheckIfRequiredPartsArePresent(DollarDateFromPartsBsonValue *dateFromParts,
 			dateFromParts->month.value_type == BSON_TYPE_EOD ||
 			dateFromParts->day.value_type == BSON_TYPE_EOD)
 		{
+			/*
+			 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output to maintain
+			 * compatibility with existing tools and scripts that rely on specific error message formats.
+			 * Modifying this text may cause unexpected behavior in dependent systems.
+			 */
 			CONDITIONAL_EREPORT(isOnErrorPresent, ereport(ERROR, (errcode(
 																	  ERRCODE_DOCUMENTDB_CONVERSIONFAILURE),
 																  errmsg(
@@ -6782,7 +6792,7 @@ VerifyAndParseFormatStringToParts(bson_value_t *dateString, char *format,
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION18536), errmsg(
 									"End with '%%' in format string"),
 								errdetail_log(
-									"Invalid format character in format string")));
+									"Invalid character found in the format string")));
 			}
 
 			char specifier[3] = { *format, *(format + 1), '\0' };
@@ -6800,7 +6810,7 @@ VerifyAndParseFormatStringToParts(bson_value_t *dateString, char *format,
 									"Invalid format character '%s' in format string",
 									specifier),
 								errdetail_log(
-									"Invalid format character in format string")));
+									"Invalid character found in the format string")));
 			}
 
 			int minCharsToRead = dateFormats[fmtSpecifierIndex].minLen;
@@ -6949,7 +6959,7 @@ VerifyAndParseFormatStringToParts(bson_value_t *dateString, char *format,
 					CONDITIONAL_EREPORT(isOnErrorPresent, ereport(ERROR, (errcode(
 																			  ERRCODE_DOCUMENTDB_CONVERSIONFAILURE),
 																		  errmsg(
-																			  "you cannot pass in a date/time string with time zone information ('%s') together with a timezone argument",
+																			  "It is not allowed to provide a date/time string containing time zone details ('%s') at the same time as specifying a separate timezone argument.",
 																			  parts[i].
 																			  rawString),
 																		  errdetail_log(

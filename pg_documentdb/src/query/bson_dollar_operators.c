@@ -270,7 +270,7 @@ typedef struct
 	/* The raw element being compared for sort */
 	pgbsonelement element;
 
-	/* The collation used for sorting */
+	/* Sorting operation uses specified collation */
 	const char *collationString;
 
 	/* Whether or not the sort input is truncated */
@@ -1723,7 +1723,7 @@ Datum
 bson_dollar_text(PG_FUNCTION_ARGS)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INDEXNOTFOUND),
-					errmsg("text index required for $text query")));
+					errmsg("A text index is necessary to perform a $text query.")));
 	PG_RETURN_BOOL(false);
 }
 
@@ -2719,7 +2719,7 @@ BsonOrderbyCore(pgbson *document, pgbson *filter, const char *collationString,
 	if (!BsonValueIsNumber(&filterElement.bsonValue) && validateSort)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Invalid sort direction %s",
+						errmsg("Sort direction value %s is not valid",
 							   BsonValueToJsonForLogging(
 								   &filterElement.bsonValue))));
 	}

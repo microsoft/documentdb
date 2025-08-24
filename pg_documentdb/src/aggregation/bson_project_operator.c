@@ -632,7 +632,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31276),
 							errmsg(
-								"Cannot specify more than one positional projection per query.")));
+								"More than one positional projection cannot be specified within a single query.")));
 		}
 		if (pathSpecValue->value_type == BSON_TYPE_DOCUMENT)
 		{
@@ -1129,7 +1129,7 @@ HandleSliceInputData(const bson_value_t *sliceOperatorValue,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDINPUT),
 								errmsg(
-									"Second argument to $slice must be a positive number, but is of type: %s",
+									"The second parameter provided to the $slice operator must always be a positive numeric value, but is of type: %s",
 									BsonTypeName(numToReturnBsonVal->value_type))));
 			}
 
@@ -1147,7 +1147,7 @@ HandleSliceInputData(const bson_value_t *sliceOperatorValue,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDINPUT),
 								errmsg(
-									"Second argument to $slice must be a positive number")));
+									"The second parameter provided to the $slice operator must always be a positive numeric value")));
 			}
 		}
 	}

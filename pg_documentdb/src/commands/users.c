@@ -560,7 +560,7 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"Password cannot be empty.")));
+									"The password field must not be left empty.")));
 			}
 
 			has_pwd = true;
@@ -594,7 +594,8 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 			{
 				ereport(ERROR,
 						(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						 errmsg("'customData' must be a BSON document.")));
+						 errmsg(
+							 "The 'customData' parameter is required to be provided as a BSON document.")));
 			}
 
 			if (!IsBsonValueEmptyDocument(customDataDocument))
@@ -1123,7 +1124,7 @@ UpdateNativeUser(UpdateUserSpec *spec)
 	if (spec->pwd == NULL || spec->pwd[0] == '\0')
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Password cannot be empty.")));
+						errmsg("The password field must not be left empty.")));
 	}
 
 	/* Verify password meets complexity requirements */

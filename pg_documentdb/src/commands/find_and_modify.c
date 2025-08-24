@@ -269,7 +269,8 @@ ParseFindAndModifyMessage(pgbson *message)
 			if (strlen(spec.collectionName) == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-								errmsg("Invalid empty namespace specified")));
+								errmsg(
+									"An invalid and empty namespace has been specified")));
 			}
 		}
 		else if (strcmp(key, "query") == 0)
@@ -429,8 +430,9 @@ ParseFindAndModifyMessage(pgbson *message)
 		}
 
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("BSON field 'findAndModify.%s' is an unknown "
-							   "field", key)));
+						errmsg(
+							"The BSON field 'findAndModify.%s' is not recognized as a valid field.",
+							key)));
 	}
 
 	if (spec.collectionName == NULL)
@@ -535,7 +537,8 @@ ProcessFindAndModifySpec(MongoCollection *collection, FindAndModifySpec *spec,
 		if (deleteOneResult.isRowDeleted &&
 			deleteOneResult.resultDeletedDocument == NULL)
 		{
-			ereport(ERROR, (errmsg("couldn't return deleted document")));
+			ereport(ERROR, (errmsg(
+								"Failed to return the document that was previously deleted")));
 		}
 
 		FindAndModifyResult result = {

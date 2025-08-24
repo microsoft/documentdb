@@ -4,7 +4,7 @@ SET documentdb.next_collection_id TO 2700;
 SET documentdb.next_collection_index_id TO 2700;
 -- Invalid scenarios
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": 1, "b.$": 1}', '{}');
-ERROR:  Cannot specify more than one positional projection per query.
+ERROR:  More than one positional projection cannot be specified within a single query.
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a..$": 1}', '{}');
 ERROR:  The FieldPath cannot terminate with a '.' character.
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$slice": 1}}', '{}');

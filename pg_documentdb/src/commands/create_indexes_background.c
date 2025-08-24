@@ -69,7 +69,7 @@
  */
 typedef struct
 {
-	/* All index requests have been processed */
+	/* All requested indexes have now been successfully processed */
 	bool finish;
 
 	/* At-least one create index request failed */

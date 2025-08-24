@@ -895,7 +895,7 @@ create_indexes_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexesArg
 			 * We don't allow "indexes" array to be empty, so this means that
 			 * all the indexes already exist ..
 			 */
-			result.note = "all indexes already exist";
+			result.note = "All specified indexes already exist";
 		}
 		else if (list_length(createIndexesArg.indexDefList) < nindexesRequested)
 		{
@@ -1007,11 +1007,10 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 		!IsDataTableCreatedWithinCurrentXact(collection))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OPERATIONNOTSUPPORTEDINTRANSACTION),
-						errmsg("Cannot create new indexes on existing "
-							   "collection %s.%s in a multi-document "
-							   "transaction.",
-							   collection->name.databaseName,
-							   collection->name.collectionName)));
+						errmsg(
+							"Creation of new indexes on the specified existing collection %s.%s is not permitted within a multi-document transaction.",
+							collection->name.databaseName,
+							collection->name.collectionName)));
 	}
 
 	/* pop the snapshot that we've just pushed above */
@@ -1054,7 +1053,7 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 		 * We don't allow "indexes" array to be empty, so this means that
 		 * all the indexes already exist ..
 		 */
-		result.note = "all indexes already exist";
+		result.note = "All specified indexes already exist";
 	}
 	else if (list_length(createIndexesArg.indexDefList) < nindexesRequested)
 	{
@@ -1299,7 +1298,7 @@ ParseCreateIndexesArg(Datum dbNameDatum, pgbson *arg)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
 								errmsg(
-									"namespaces cannot have embedded null characters")));
+									"Namespaces are not allowed to contain any embedded null characters")));
 			}
 		}
 		else if (strcmp(argKey, "indexes") == 0)
@@ -1383,7 +1382,8 @@ ParseCreateIndexesArg(Datum dbNameDatum, pgbson *arg)
 	{
 		/* "indexes" field is specified, but to be an empty array */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Must specify at least one index to create")));
+						errmsg(
+							"You must provide at least one index in order to proceed with creation")));
 	}
 
 	return createIndexesArg;
@@ -1402,7 +1402,7 @@ ParseIndexDefDocument(const bson_iter_t *indexesArrayIter, bool ignoreUnknownInd
 	const char *indexSpecRepr = PgbsonIterDocumentToJsonForLogging(indexesArrayIter);
 	StringInfo errorMessagePrefixStr = makeStringInfo();
 	appendStringInfo(errorMessagePrefixStr,
-					 "Error in specification %s :: caused by :: ",
+					 "Error in specification %s:",
 					 indexSpecRepr);
 
 	MemoryContext savedMemoryContext = CurrentMemoryContext;
@@ -1606,9 +1606,9 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			else if (!IsSupportedIndexVersion(vValAsInt))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("Invalid index specification %s; cannot "
-									   "create an index with v=%d",
-									   indexSpecRepr, vValAsInt)));
+								errmsg(
+									"Invalid index specification %s; unable to create an index using v=%d",
+									indexSpecRepr, vValAsInt)));
 			}
 
 			indexDef->version = vValAsInt;
@@ -1619,7 +1619,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"TTL index 'expireAfterSeconds' option must be numeric, but received a type of %s.",
+									"The 'expireAfterSeconds' option for a TTL index must be a numeric value, but a different data type was provided: %s.",
 									BsonIterTypeName(&indexDefDocIter))));
 			}
 
@@ -1907,8 +1907,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 					ereport(ERROR, (errcode(
 										ERRCODE_DOCUMENTDB_INVALIDINDEXSPECIFICATIONOPTION),
 									errmsg(
-										"The field 'storageEngine.%s' is not valid for an index "
-										"specification. Specification: %s",
+										"The 'storageEngine.%s' field is invalid for use in an index specification. "
+										"Full specification provided: %s",
 										key,
 										PgbsonIterDocumentToJsonForLogging(
 											indexesArrayIter))));
@@ -1923,11 +1923,11 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			 *       error here for the unexpected field.
 			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDINDEXSPECIFICATIONOPTION),
-							errmsg("The field '%s' is not valid for an index "
-								   "specification. Specification: %s",
-								   indexDefDocKey,
-								   PgbsonIterDocumentToJsonForLogging(
-									   indexesArrayIter))));
+							errmsg(
+								"The field '%s' cannot be used in an index specification. Provided specification: %s",
+								indexDefDocKey,
+								PgbsonIterDocumentToJsonForLogging(
+									indexesArrayIter))));
 		}
 	}
 
@@ -2108,7 +2108,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"language_override can only be specified for text indexes.")));
+							"The language_override option is permitted exclusively when using text indexes.")));
 	}
 
 	if (indexDef->unique == BoolIndexOption_True && indexDef->key->isWildcard)
@@ -2640,7 +2640,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Values in the index key pattern cannot be empty strings")));
+									"Index key pattern values must not contain empty strings")));
 			}
 			else
 			{
@@ -2668,7 +2668,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-										errmsg("Unknown index plugin %s",
+										errmsg("Unknown plugin index specified: %s",
 											   BsonValueToJsonForLogging(keyValue))));
 					}
 				}
@@ -2875,7 +2875,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 						errmsg(
-							"Can't use more than one index plugin for a single index.")));
+							"It is not allowed to enable more than one index plugin for the same index.")));
 	}
 
 	if ((allindexKinds & MongoIndexKind_2dsphere) == MongoIndexKind_2dsphere &&

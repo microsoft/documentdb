@@ -702,7 +702,7 @@ ProcessDollarTan(const bson_value_t *currentValue, bson_value_t *result)
 	if (IsBsonValueInfinity(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $tan to %s, value must be in (-inf,inf)",
+							"Unable to use operators tan on %s since the value must lie within the range (-inf, inf)",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}

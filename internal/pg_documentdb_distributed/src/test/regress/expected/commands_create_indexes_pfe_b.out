@@ -18,7 +18,7 @@ SELECT documentdb_distributed_test_helpers.drop_primary_key('db','compound_index
 BEGIN;
   set local enable_seqscan TO off;
   EXPLAIN (COSTS OFF) SELECT object_id, document FROM documentdb_api.collection('db', 'compound_index_test') WHERE document @@ '{ "a.b": { "$gte" : 1 }}';
-                                                            QUERY PLAN                                                            
+                                                                 QUERY PLAN                                                                 
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -228,7 +228,7 @@ BEGIN;
     "c": {"$exists": 1}
   }
   ';
-                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                                                                                       
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -256,7 +256,7 @@ BEGIN;
     "c": {"$exists": 1}
   }
   ';
-                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                          
+                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                         
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -282,7 +282,7 @@ BEGIN;
     }
   }
   ';
-                                                                                                                                                                              QUERY PLAN                                                                                                                                                                               
+                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                         
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -307,7 +307,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                         
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -334,7 +334,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                                                                                                                                                                                                                      QUERY PLAN                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -359,7 +359,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                                                                                                                                                                                                                      QUERY PLAN                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                                                                                                                                                                                
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -414,7 +414,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    true
 );
-ERROR:  Error in specification { "key" : { "z.$**" : 1 }, "name" : "my_idx_7", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } } :: caused by :: Expression not supported in partial index: $or
+ERROR:  Error in specification { "key" : { "z.$**" : 1 }, "name" : "my_idx_7", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } }:Expression not supported in partial index: $or
     a $eq 1
 
 SELECT documentdb_distributed_test_helpers.documentdb_index_get_pg_def('mydb', 'collection_10', 'my_idx_7');

@@ -163,13 +163,13 @@ RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs)
 
 	if (funcs == NULL)
 	{
-		ereport(ERROR, (errmsg("Index array state functions cannot be null")));
+		ereport(ERROR, (errmsg("Index array state functions must not be null")));
 	}
 
 	if (funcs->createState == NULL || funcs->addItem == NULL ||
 		funcs->freeState == NULL)
 	{
-		ereport(ERROR, (errmsg("Index array state functions cannot be null")));
+		ereport(ERROR, (errmsg("Index array state functions must not be null")));
 	}
 
 	IndexArrayStateFuncs = funcs;

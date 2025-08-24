@@ -214,9 +214,9 @@ GetAggregationPipelineUpdateState(const bson_value_t *updateSpec,
 			if (AggregationOperators[i].populateFunc == NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED), errmsg(
-									"%s not supported yet",
+									"%s is not currently supported",
 									aggregationElement.path), errdetail_log(
-									"%s not supported yet",
+									"%s is not currently supported",
 									aggregationElement.path)));
 			}
 

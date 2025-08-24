@@ -1769,7 +1769,7 @@ SELECT document FROM bson_aggregation_pipeline('db', $$
     ]
 }
 $$);
-ERROR:  $geoNear requires a constant near argument
+ERROR:  The $geoNear operator must be provided with a fixed and constant near argument
 SELECT document FROM bson_aggregation_pipeline('db', $$
 {
     "aggregate": "agg_geonear_let", 

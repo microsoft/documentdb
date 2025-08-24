@@ -937,8 +937,9 @@ CheckMaxAllowedAggregationStages(int numberOfStages)
 	if (numberOfStages > MaxAggregationStagesAllowed)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION7749501),
-						errmsg("Pipeline length must be no longer than %d stages.",
-							   MaxAggregationStagesAllowed)));
+						errmsg(
+							"The pipeline length cannot exceed a maximum of %d stages.",
+							MaxAggregationStagesAllowed)));
 	}
 }
 
@@ -2033,10 +2034,10 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH)),
 							errmsg(
-								"BSON field 'skip' is the wrong type '%s', expected types '[long, int, decimal, double]'",
+								"The BSON field 'skip' has an incorrect type '%s'; it should be one of the following types: [long, int, decimal, double].",
 								BsonTypeName(skip.value_type)),
 							errdetail_log(
-								"BSON field 'skip' is the wrong type '%s', expected types '[long, int, decimal, double]'",
+								"The BSON field 'skip' has an incorrect type '%s'; it should be one of the following types: [long, int, decimal, double].",
 								BsonTypeName(skip.value_type)));
 				}
 
@@ -2175,7 +2176,7 @@ GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStateme
 	if (distinctKey.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("distinct key can't be empty.")));
+						errmsg("A distinct key value must not be left empty.")));
 	}
 
 	if (strlen(distinctKey.string) != distinctKey.length)
@@ -2493,8 +2494,9 @@ ParseInputForNGroupAccumulators(const bson_value_t *inputDocument,
 		if (strcmp(opName, "$maxN") == 0 || strcmp(opName, "$minN") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787900),
-							errmsg("specification must be an object; found %s: %s",
-								   opName, BsonValueToJsonForLogging(inputDocument)),
+							errmsg(
+								"Specification should be an object type; encountered %s: %s",
+								opName, BsonValueToJsonForLogging(inputDocument)),
 							errdetail_log(
 								"specification must be an object; opname: %s type found: %s",
 								opName, BsonTypeName(inputDocument->value_type))));
@@ -2635,7 +2637,7 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 	if (sortSpec->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788005),
-						errmsg("Missing value for 'sortBy'"),
+						errmsg("No value provided for 'sortBy'"),
 						errdetail_log(
 							"%s requires a 'sortBy", opName)));
 	}
@@ -2675,7 +2677,7 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 						errmsg("specification must be an object; found %s type: %s",
 							   opName, BsonTypeName(inputDocument->value_type)),
 						errdetail_log(
-							"%s specification must be an object", opName)));
+							"The %s format requires an object", opName)));
 	}
 	bson_iter_t docIter;
 	BsonValueInitIterator(inputDocument, &docIter);
@@ -2711,7 +2713,7 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 		((method->value_type == BSON_TYPE_EOD) && (keyName = "method")))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414), errmsg(
-							"BSON field '$%s.%s' is missing but is a required field",
+							"The BSON field '$%s.%s' is required but is currently missing from the data structure",
 							opName, keyName)));
 	}
 
@@ -3842,7 +3844,7 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
 		!StringViewEqualsCString(&context->collectionNameView,
 								 context->mongoCollection->name.collectionName))
 	{
-		/* This is a view */
+		/* This represents a view */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
 						errmsg(
 							"$changeStream cannot be used on views.")));
@@ -4367,9 +4369,9 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("$geoNear is only supported on collections."),
+					errmsg("$geoNear can only be used with specific collections."),
 					errdetail_log(
-						"$geoNear is only supported on collections. RTE KIND: %d",
+						"$geoNear can only be used with specific collections. RTE KIND: %d",
 						rte->rtekind)));
 	}
 
@@ -4704,7 +4706,7 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 			if (!BsonValueIsNumber(&element.bsonValue))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Invalid sort direction %s",
+								errmsg("Sort direction value %s is not valid",
 									   BsonValueToJsonForLogging(
 										   &element.bsonValue))));
 			}
@@ -4752,7 +4754,7 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Invalid sort direction %s",
+									errmsg("Sort direction value %s is not valid",
 										   BsonValueToJsonForLogging(
 											   &element.bsonValue))));
 				}
@@ -4909,7 +4911,8 @@ HandleSort(const bson_value_t *existingValue, Query *query,
 	if (sortlist == NIL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15976),
-						errmsg("$sort stage must have at least one sort key")));
+						errmsg(
+							"The $sort stage requires specifying at least one sorting key to proceed")));
 	}
 
 	query->targetList = targetEntryList;
@@ -6625,15 +6628,16 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COLLECTIONUUIDMISMATCH),
 							errmsg(
-								"Namespace %s has a mismatch on collectionUUID: Collection does not exist",
+								"Namespace %s contains a mismatch in the collectionUUID identifier: Collection does not exist",
 								context->namespaceName)));
 		}
 
 		if (memcmp(collectionUuid->data, collection->collectionUUID.data, 16) != 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COLLECTIONUUIDMISMATCH),
-							errmsg("Namespace %s has a mismatch on collectionUUID",
-								   context->namespaceName)));
+							errmsg(
+								"Namespace %s contains a mismatch in the collectionUUID identifier",
+								context->namespaceName)));
 		}
 	}
 
@@ -6809,10 +6813,14 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 				collection->collectionId, indexName);
 			if (details == NULL)
 			{
+				/*
+				 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output to maintain
+				 * compatibility with existing tools and scripts that rely on specific error message formats.
+				 * Modifying this text may cause unexpected behavior in dependent systems.
+				 */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"index specified by index hint is not found: "
-									"hint provided does not correspond to an existing index")));
+									"index specified by index hint is not found: hint provided does not correspond to an existing index")));
 			}
 
 			indexKeyDocument = details->indexSpec.indexKeyDocument;
@@ -6834,10 +6842,14 @@ GenerateBaseTableQuery(text *databaseDatum, const StringView *collectionNameView
 
 				if (list_length(indexDocs) == 0)
 				{
+					/*
+					 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output to maintain
+					 * compatibility with existing tools and scripts that rely on specific error message formats.
+					 * Modifying this text may cause unexpected behavior in dependent systems.
+					 */
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 									errmsg(
-										"index specified by index hint is not found: "
-										"hint provided does not correspond to an existing index")));
+										"index specified by index hint is not found: hint provided does not correspond to an existing index")));
 				}
 				else if (list_length(indexDocs) > 1)
 				{
@@ -7154,7 +7166,8 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 	if (sortlist == NIL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15976),
-						errmsg("$sort stage must have at least one sort key")));
+						errmsg(
+							"The $sort stage requires specifying at least one sorting key to proceed")));
 	}
 
 	query->sortClause = sortlist;
@@ -7434,7 +7447,7 @@ ParseCursorDocument(bson_iter_t *iterator, QueryData *queryData)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Unrecognized field: %s",
+							errmsg("Field not recognized: %s",
 								   path)));
 		}
 	}

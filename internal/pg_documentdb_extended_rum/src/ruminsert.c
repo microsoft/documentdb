@@ -1034,7 +1034,7 @@ _rum_build_tuple(OffsetNumber attrnum, unsigned char category,
 		elog(ERROR, "unexpected typlen value (%d)", typlen);
 	}
 
-	/* compress the item pointers */
+	/* Compress the item reference pointers */
 	ncompressed = 0;
 	compresslen = 0;
 	dlist_init(&segments);
@@ -1873,7 +1873,7 @@ _rum_parallel_scan_and_build(RumBuildState *state,
 	state->bs_reltuples += reltuples;
 
 	/*
-	 * Done.  Record ambuild statistics.
+	 * Completed. Recording ambuild performance statistics.
 	 */
 	SpinLockAcquire(&rumshared->mutex);
 	rumshared->nparticipantsdone++;
@@ -2272,7 +2272,7 @@ _rum_end_parallel(RumLeader *rumleader, RumBuildState *state)
 {
 	int i;
 
-	/* Shutdown worker processes */
+	/* Terminate active worker processes */
 	WaitForParallelWorkersToFinish(rumleader->pcxt);
 
 	/*

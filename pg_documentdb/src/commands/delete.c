@@ -85,7 +85,7 @@ typedef struct
 	/* response status (seems to always be 1?) */
 	double ok;
 
-	/* number of rows deleted */
+	/* Count of deleted rows */
 	uint64 rowsDeleted;
 
 	/* list of write errors for each deletion, or NIL */
@@ -310,7 +310,7 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 			if (deleteDocs != NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("Unexpected additional deletes")));
+								errmsg("Unexpected extra delete operations")));
 			}
 
 			deletions = *bson_iter_value(deleteCommandIter);
@@ -369,8 +369,8 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 	if (collectionName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'delete.delete' is missing but "
-							   "a required field")));
+						errmsg(
+							"The required BSON field 'delete.delete' is not present in the data.")));
 	}
 
 	if (deleteDocs != NULL)
@@ -381,8 +381,8 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 	if (!hasDeletes)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'delete.deletes' is missing but "
-							   "a required field")));
+						errmsg(
+							"The required BSON field 'delete.deletes' is not present in the data.")));
 	}
 
 	BatchDeletionSpec *batchSpec = palloc0(sizeof(BatchDeletionSpec));
@@ -573,15 +573,15 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 	if (query == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'delete.deletes.q' is missing but "
-							   "a required field")));
+						errmsg(
+							"The BSON field 'delete.deletes.q' is not present, but it is required")));
 	}
 
 	if (limit == -1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'delete.deletes.limit' is missing but "
-							   "a required field")));
+						errmsg(
+							"The BSON field 'delete.deletes.limit' is not present, but it is required")));
 	}
 
 	DeletionSpec *deletionSpec = palloc0(sizeof(DeletionSpec));
@@ -1383,7 +1383,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 		argNulls[objectIdArgIndex] = ' ';
 	}
 
-	/* set sort values */
+	/* assign sorting values */
 	if (sortFieldDocumentsLength > 0)
 	{
 		appendStringInfoString(&selectQuery, " ORDER BY");
@@ -1792,7 +1792,8 @@ DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-					errmsg("failed to delete document after %d tries", maxTries)));
+					errmsg("Unable to remove document even after %d attempts",
+						   maxTries)));
 }
 
 

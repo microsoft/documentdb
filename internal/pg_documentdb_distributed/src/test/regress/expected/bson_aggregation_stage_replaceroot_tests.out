@@ -72,7 +72,7 @@ SELECT bson_dollar_replace_root(document, '{ "newRoot": { } }') FROM documentdb_
 
 -- newRoot is required
 SELECT bson_dollar_replace_root(document, '{ }') FROM documentdb_api.collection('db', 'replaceRootOps');
-ERROR:  BSON field '$replaceRoot.newRoot' is missing but a required field
+ERROR:  The required BSON field '$replaceRoot.newRoot' is not present in the data.
 SELECT bson_dollar_replace_root(document, '{ "newRoot": 10 }') FROM documentdb_api.collection('db', 'replaceRootOps');
 ERROR:  'newRoot' expression must evaluate to an object, but resulting value was: 10. Type of resulting value: 'int'.
 SELECT bson_dollar_replace_root(document, '{ "newRoot": "$a" }') FROM documentdb_api.collection('db', 'replaceRootOps');
@@ -114,4 +114,4 @@ ERROR:  Expected 'document' type for $mergeObjects but value [ "dogs", "cats", "
 SELECT bson_dollar_replace_root('{}', '{ "newRoot": 1 }') FROM documentdb_api.collection('db', 'replaceRootOps');
 ERROR:  'newRoot' expression must evaluate to an object, but resulting value was: 1. Type of resulting value: 'int'.
 SELECT bson_dollar_replace_root('{}', '{ "newRoot": "$x" }') FROM documentdb_api.collection('db', 'replaceRootOps');
-ERROR:  'newRoot' expression must evaluate to an object, but resulting value was: : MISSING. Type of resulting value: 'missing'
+ERROR:  The expression 'newRoot' must result in an object, however the computed value was missing, with type identified as 'missing'.

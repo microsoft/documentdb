@@ -387,7 +387,7 @@ EvaluateMetaTextScore(pgbson *document)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40218),
 						errmsg(
-							"query requires text score metadata, but it is not available")));
+							"The query needs text score metadata, but this required information is currently unavailable.")));
 	}
 
 	if (QueryTextData->indexOptions == NULL ||
@@ -456,7 +456,7 @@ TryCheckMetaScoreOrderBy(const bson_value_t *value)
 		if (metaOrderingElement.bsonValue.value_type != BSON_TYPE_UTF8)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31138),
-							errmsg("Illegal $meta sort: $meta: \"%s\"",
+							errmsg("Invalid use of $meta sort: $meta: \"%s\"",
 								   BsonValueToJsonForLogging(
 									   &metaOrderingElement.bsonValue))));
 		}
@@ -947,8 +947,9 @@ BsonValidateAndExtractTextQuery(const bson_value_t *queryValue,
 	if (searchValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$search had the wrong type. Expected string, found %s",
-							   BsonTypeName(searchValue->value_type))));
+						errmsg(
+							"The $search was given a value of the wrong type; a string was expected, but instead a %s was provided.",
+							BsonTypeName(searchValue->value_type))));
 	}
 
 	if (languageValue.value_type != BSON_TYPE_EOD &&

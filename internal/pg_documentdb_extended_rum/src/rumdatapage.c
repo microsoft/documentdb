@@ -1481,7 +1481,7 @@ updateItemIndexes(Page page, OffsetNumber attnum, RumState *rumstate)
 		i;
 	InitBlockNumberIncrZero(blocknoIncr);
 
-	/* Iterate over page */
+	/* Iterating through the page data */
 
 	maxoff = RumPageGetOpaque(page)->maxoff;
 	ptr = RumDataPageGetData(page);

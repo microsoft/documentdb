@@ -35,7 +35,7 @@ typedef struct BsonPositionalQueryQual
 	/* The path to the query filter (e.g., a.b.c) */
 	const char *path;
 
-	/* The expression to evaluate for this filter */
+	/* The expression that needs to be evaluated for applying this filter */
 	ExprEvalState *evalState;
 
 	/* Whether or not the filter only matches an array */

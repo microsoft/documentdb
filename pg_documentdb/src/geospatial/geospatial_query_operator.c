@@ -324,7 +324,7 @@ CompareGeoWithinState(const pgbson *document, const char *path,
 										&withinState);
 	}
 
-	/* Free the buffer */
+	/* Release the allocated buffer memory */
 	DeepFreeWKB(withinState.WKBBuffer);
 
 	/* If there are no valid points return false match */
@@ -375,7 +375,7 @@ CompareGeoIntersectsState(const pgbson *document, const char *path,
 		return false;
 	}
 
-	/* Free the buffer */
+	/* Release the allocated buffer memory */
 	DeepFreeWKB(geoIntersectState.WKBBuffer);
 
 	return geoIntersectState.runtimeMatcher.isMatched;

@@ -90,7 +90,7 @@ bson_dollar_json_schema(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-				 errmsg("$jsonSchema must be an object")));
+				 errmsg("$jsonSchema must be of object type")));
 	}
 
 	BsonValueInitIterator(&(element.bsonValue), &schemaIter);

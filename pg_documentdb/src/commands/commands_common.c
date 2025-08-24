@@ -596,7 +596,7 @@ CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
 		PushActiveSnapshot(GetTransactionSnapshot());
 	}
 
-	/* Now acquire the collection lock */
+	/* Acquire the collection lock */
 	LockRelationOid(collection->relationId, RowExclusiveLock);
 
 	/* If the shard table OID is valid, lock it as well */

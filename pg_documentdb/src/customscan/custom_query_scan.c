@@ -275,7 +275,7 @@ AddCustomPathCore(List *pathList, InputQueryState *queryState)
 		customPath->flags = CUSTOMPATH_SUPPORT_PROJECTION;
 #endif
 
-		/* store the continuation data */
+		/* Save the continuation data into storage */
 		queryState->extensible.type = T_ExtensibleNode;
 		queryState->extensible.extnodename = InputContinuationNodeName;
 
@@ -386,7 +386,7 @@ AddCustomPathForVectorCore(PlannerInfo *planner, List *pathList, RelOptInfo *rel
 	customPath->flags = CUSTOMPATH_SUPPORT_PROJECTION;
 #endif
 
-	/* store the continuation data */
+	/* Save the continuation data into storage */
 	queryState->extensible.type = T_ExtensibleNode;
 	queryState->extensible.extnodename = InputContinuationNodeName;
 
@@ -423,7 +423,7 @@ ExtensionQueryScanPlanCustomPath(PlannerInfo *root,
 	cscan->custom_private = best_path->custom_private;
 	cscan->custom_plans = custom_plans;
 
-	/* There should only be 1 plan here */
+	/* Only one plan is allowed here */
 	Assert(list_length(custom_plans) == 1);
 
 	/* The main plan comes in first */
@@ -495,7 +495,7 @@ static void
 ExtensionQueryScanBeginCustomScan(CustomScanState *node, EState *estate,
 								  int eflags)
 {
-	/* Initialize the actual state of the plan */
+	/* Initialize the current state of the plan */
 	ExtensionQueryScanState *queryScanState = (ExtensionQueryScanState *) node;
 
 	/* Add any custom per query level stuff here (Setting probes, details for $project)

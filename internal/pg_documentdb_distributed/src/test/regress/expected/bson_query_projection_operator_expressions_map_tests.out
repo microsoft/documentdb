@@ -337,11 +337,11 @@ SELECT bson_expression_map(document, 'array', '{"field": [ ["$a.x.y"], 2, [{"$ar
 
 -- Error cases when a field is an empty string
 SELECT bson_expression_map(document, 'array', '{ "field" : {"" : "$a.b"} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  FieldPath cannot be constructed with empty string.
+ERROR:  A FieldPath object cannot be created when the provided string is empty.
 SELECT bson_expression_map(document, 'array', '{ "new" : {"val": ["1", "2", {"": "hello"}], "val2": "$_id"}}') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  FieldPath cannot be constructed with empty string.
+ERROR:  A FieldPath object cannot be created when the provided string is empty.
 SELECT bson_expression_map(document, 'array', '{ "field" : [{"literal" : [2, {"" : "empty"}]}] }') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  FieldPath cannot be constructed with empty string.
+ERROR:  A FieldPath object cannot be created when the provided string is empty.
 -- Field not present or null, NullOnEmpty = false
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{ "": "$a" }', false), 
 bson_expression_map('{"array": [{"a" : null}]}', 'array', '{ "": "$a" }', false),

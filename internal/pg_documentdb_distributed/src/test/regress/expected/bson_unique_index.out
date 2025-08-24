@@ -223,9 +223,9 @@ SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', '
 
 -- create unique index fails for wildcard.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('uniquedb', '{"createIndexes": "collection1", "indexes": [{"key": {"f.$**": 1}, "name": "my_idx3", "unique": 1.0}]}', true);
-ERROR:  Error in specification { "key" : { "f.$**" : 1 }, "name" : "my_idx3", "unique" : 1.0 } :: caused by :: Index type 'wildcard' does not support the unique option
+ERROR:  Error in specification { "key" : { "f.$**" : 1 }, "name" : "my_idx3", "unique" : 1.0 }:Index type 'wildcard' does not support the unique option
 SELECT documentdb_api_internal.create_indexes_non_concurrently('uniquedb', '{"createIndexes": "collection1", "indexes": [{"key": {"$**": 1}, "wildcardProjection": { "f.g": 0 }, "name": "my_idx3", "unique": 1.0}]}', true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "wildcardProjection" : { "f.g" : 0 }, "name" : "my_idx3", "unique" : 1.0 } :: caused by :: Index type 'wildcard' does not support the unique option
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "wildcardProjection" : { "f.g" : 0 }, "name" : "my_idx3", "unique" : 1.0 }:Index type 'wildcard' does not support the unique option
 -- test for sharded
 SELECT documentdb_api.insert_one('db','queryuniqueindexsharded','{"_id":"1", "a": { "b": 1 }, "d": 1 }', NULL);
 NOTICE:  creating collection

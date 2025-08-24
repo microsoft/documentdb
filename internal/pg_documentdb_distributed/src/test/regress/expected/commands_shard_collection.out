@@ -432,9 +432,9 @@ SELECT documentdb_api.shard_collection('db','reshard', '{"a.b":"hashed"}', true)
 
 -- we should not allow arrays in the path even if the value is not an array
 SELECT documentdb_api.insert_one('db','reshard','{"_id":"10", "a": [{"b":22}]}');
-                                                                                                                  insert_one                                                                                                                  
+                                                                                                                            insert_one                                                                                                                            
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "Shard key cannot contain array values or array descendants." } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "Shard key is not allowed to include array values or any array-derived elements." } ] }
 (1 row)
 
 -- nested objects should be fine

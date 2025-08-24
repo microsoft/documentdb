@@ -1482,7 +1482,7 @@ SELECT document FROM bson_aggregation_pipeline('db',
 -- $lookup.pipeline Negative tests
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": { "$count": "efe" }, "as": "c" } } ], "cursor": {} }');
-ERROR:  BSON field '$lookup.pipeline' is the wrong type 'object', expected type 'array'
+ERROR:  The BSON field '$lookup.pipeline' has an incorrect type 'object'; it should be of type 'array'.
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ "$count" ], "as": "c" } } ], "cursor": {} }');
 ERROR:  Pipeline stage for lookup pipeline must be a document
@@ -1851,7 +1851,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeli
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": -1.23 } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": null } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": NaN } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": Infinity } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
@@ -1859,11 +1859,11 @@ ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": -Infinity } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": "0.65" } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": 10 } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": false } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 -- Pipeline directly push to shards if all stages refer to same collection and that is not sharded and is present on the same node as coordinator.
 SELECT documentdb_api.insert_one('pipelineDB','agg_pipeline_optimizations','{ "_id": 1, "a": "RANDOM_A", "b": {"c": ["SAMPLE1", "SAMPLE2"], "d": [[1,2], [3, 4]]} }', NULL);
 NOTICE:  creating collection
@@ -2088,7 +2088,7 @@ SELECT check_aggregation_stages_limit(1000);
 (1 row)
 
 SELECT check_aggregation_stages_limit(1001);
-ERROR:  Pipeline length must be no longer than 1000 stages.
+ERROR:  The pipeline length cannot exceed a maximum of 1000 stages.
 CONTEXT:  SQL statement "SELECT document FROM bson_aggregation_pipeline('db', aggregate_spec::text::documentdb_core.bson)"
 PL/pgSQL function check_aggregation_stages_limit(integer) line 12 at PERFORM
 SELECT check_lookup_stages_limit(1, 1);
@@ -2116,11 +2116,11 @@ SELECT check_lookup_stages_limit(500, 500);
 (1 row)
 
 SELECT check_lookup_stages_limit(1000, 1);
-ERROR:  Pipeline length must be no longer than 1000 stages.
+ERROR:  The pipeline length cannot exceed a maximum of 1000 stages.
 CONTEXT:  SQL statement "SELECT document FROM bson_aggregation_pipeline('db', aggregate_spec::text::documentdb_core.bson)"
 PL/pgSQL function check_lookup_stages_limit(integer,integer) line 18 at PERFORM
 SELECT check_lookup_stages_limit(1, 1000);
-ERROR:  Pipeline length must be no longer than 1000 stages.
+ERROR:  The pipeline length cannot exceed a maximum of 1000 stages.
 CONTEXT:  SQL statement "SELECT document FROM bson_aggregation_pipeline('db', aggregate_spec::text::documentdb_core.bson)"
 PL/pgSQL function check_lookup_stages_limit(integer,integer) line 18 at PERFORM
 SET documentdb.aggregation_stages_limit = 1005;

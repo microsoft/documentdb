@@ -226,7 +226,7 @@ SELECT * FROM documentdb_api_catalog.bson_dollar_project('{"a": {"b": 1, "c": 2}
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": 1}}}');
 ERROR:  $unsetField only supports an object as its argument
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a"}}}}');
-ERROR:  $unsetField requires 'input' to be specified
+ERROR:  $unsetField needs the 'input' parameter to be explicitly specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"input": null}}}}');
 ERROR:  $unsetField requires 'field' to be specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": null, "value": 1}}}}');

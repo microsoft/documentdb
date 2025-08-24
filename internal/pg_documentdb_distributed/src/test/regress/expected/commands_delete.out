@@ -80,35 +80,35 @@ ERROR:  delete document cannot be NULL
 select documentdb_api.delete(NULL, '{"delete":"removeme", "deletes":[{"q":{},"limit":0}]}');
 ERROR:  database name cannot be NULL
 select documentdb_api.delete('db', '{"deletes":[{"q":{},"limit":0}]}');
-ERROR:  BSON field 'delete.delete' is missing but a required field
+ERROR:  The required BSON field 'delete.delete' is not present in the data.
 select documentdb_api.delete('db', '{"delete":"removeme"}');
-ERROR:  BSON field 'delete.deletes' is missing but a required field
+ERROR:  The required BSON field 'delete.deletes' is not present in the data.
 select documentdb_api.delete('db', '{"delete":["removeme"], "deletes":[{"q":{},"limit":0}]}');
 ERROR:  collection name has invalid type array
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":{"q":{},"limit":0}}');
-ERROR:  BSON field 'delete.deletes' is the wrong type 'object', expected type 'array'
+ERROR:  The BSON field 'delete.deletes' has an incorrect type 'object'; it should be of type 'array'.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}], "extra":1}');
 ERROR:  BSON field 'delete.extra' is an unknown field
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{}}]}');
-ERROR:  BSON field 'delete.deletes.limit' is missing but a required field
+ERROR:  The BSON field 'delete.deletes.limit' is not present, but it is required
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"limit":0}]}');
-ERROR:  BSON field 'delete.deletes.q' is missing but a required field
+ERROR:  The BSON field 'delete.deletes.q' is not present, but it is required
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":[],"limit":0}]}');
-ERROR:  BSON field 'delete.deletes.q' is the wrong type 'array', expected type 'object'
+ERROR:  The BSON field 'delete.deletes.q' has an incorrect type 'array'; it should be of type 'object'.
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0,"extra":1}]}');
 ERROR:  The BSON field 'delete.deletes.extra' is not recognized as a valid field.
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}],"ordered":1}');
-ERROR:  BSON field 'delete.ordered' is the wrong type 'int', expected type 'bool'
+ERROR:  The BSON field 'delete.ordered' has an incorrect type 'int'; it should be of type 'bool'.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":5}]}');
 ERROR:  The limit field in delete objects must be 0 or 1. Got 5
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 -- Disallow writes to system.views
 select documentdb_api.delete('db', '{"delete":"system.views", "deletes":[{"q":{},"limit":0}]}');
-ERROR:  cannot write to db.system.views
+ERROR:  Unable to write data to specified location db.system.views
 -- delete all
 begin;
 SET LOCAL search_path TO '';
@@ -672,7 +672,7 @@ rollback;
 -- deletes with both specs specified 
 begin;
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes": [{"q":{"a":{"$eq":5}},"limit":1}] }', '{ "":[{"q":{"a":{"$eq":5}},"limit":1}] }');
-ERROR:  Unexpected additional deletes
+ERROR:  Unexpected extra delete operations
 rollback;
 -- delete with index hint specified by name and by key object
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "removeme", "indexes": [ { "key" : { "a": 1 }, "name": "validIndex"}] }', true);

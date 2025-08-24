@@ -134,12 +134,12 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"The sortBy field must be either numeric or a date, but not both"),
+							"The sortBy field should contain either numeric values or dates, but cannot include both types simultaneously"),
 						errdetail_log(
-							"The sortBy field must be either numeric or a date, but not both")));
+							"The sortBy field should contain either numeric values or dates, but cannot include both types simultaneously")));
 	}
 
-	/* Check if there are repeated values in the sortBy field in a single partition */
+	/* Verify presence of duplicate values within the sortBy field for an individual partition */
 	if (current_pos != 0 && WinRowsArePeers(winobj, current_pos - 1, current_pos))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6050106),

@@ -254,7 +254,8 @@ BsonValueGetBox(const bson_value_t *shapePointValue, ShapeOperatorInfo *opInfo)
 			value->value_type != BSON_TYPE_DOCUMENT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Point must be an array or object")));
+							errmsg(
+								"The specified point should either be structured as an array or defined as an object")));
 		}
 
 		Point point;
@@ -286,7 +287,8 @@ BsonValueGetBox(const bson_value_t *shapePointValue, ShapeOperatorInfo *opInfo)
 		 * If 2 points are not given, the box is not defined
 		 */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Point must be an array or object")));
+						errmsg(
+							"The specified point should either be structured as an array or defined as an object")));
 	}
 
 	/*
@@ -377,7 +379,8 @@ BsonValueGetPolygon(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 			value->value_type != BSON_TYPE_DOCUMENT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Point must be an array or object")));
+							errmsg(
+								"The specified point should either be structured as an array or defined as an object")));
 		}
 
 		Point point;
@@ -449,8 +452,9 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 		shapeValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("unknown geo specifier: $center: %s",
-							   BsonValueToJsonForLogging(shapeValue)),
+						errmsg(
+							"Unrecognized geographical specifier in operator $center: %s",
+							BsonValueToJsonForLogging(shapeValue)),
 						errdetail_log(
 							"unknown geo specifier: $center with argument type %s",
 							BsonTypeName(shapeValue->value_type))));
@@ -467,7 +471,8 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 		if (index > 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Only 2 fields allowed for circular region")));
+							errmsg(
+								"A maximum of two fields can be defined for the circular region.")));
 		}
 		const bson_value_t *value = bson_iter_value(&centerValueIter);
 		if (index == 0)
@@ -476,7 +481,8 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 				value->value_type != BSON_TYPE_DOCUMENT)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Point must be an array or object")));
+								errmsg(
+									"The specified point should either be structured as an array or defined as an object")));
 			}
 			else
 			{
@@ -528,7 +534,8 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 	if (index == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Point must be an array or object")));
+						errmsg(
+							"The specified point should either be structured as an array or defined as an object")));
 	}
 	else if (index == 1)
 	{
@@ -633,7 +640,7 @@ BsonValueGetGeometry(const bson_value_t *value, ShapeOperatorInfo *opInfo)
 		{
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("Strict winding order is only supported by Polygon.")));
+						errmsg("Polygon supports strict winding order exclusively.")));
 		}
 		else
 		{
@@ -689,7 +696,8 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 		if (index > 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Only 2 fields allowed for circular region")));
+							errmsg(
+								"A maximum of two fields can be defined for the circular region.")));
 		}
 		const bson_value_t *value = bson_iter_value(&centerValueIter);
 		if (index == 0)
@@ -698,7 +706,8 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 				value->value_type != BSON_TYPE_DOCUMENT)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Point must be an array or object")));
+								errmsg(
+									"The specified point should either be structured as an array or defined as an object")));
 			}
 			else
 			{
@@ -741,7 +750,8 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 	if (index == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Point must be an array or object")));
+						errmsg(
+							"The specified point should either be structured as an array or defined as an object")));
 	}
 	else if (index == 1)
 	{

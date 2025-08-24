@@ -2034,7 +2034,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		if (!IsBsonValueFixedInteger(&input->thirdArgument))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40096), errmsg(
-								"%s requires an integral starting index, found a value of type: %s, with value: %s",
+								"An integral starting index is required for %s, but the provided value has type: %s with actual value: %s",
 								opName,
 								input->thirdArgument.value_type == BSON_TYPE_EOD ?
 								MISSING_TYPE_NAME :
@@ -2086,7 +2086,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		if (*endIndex < 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40097), errmsg(
-								"%s requires a nonnegative ending index, found: %d",
+								"%s requires the ending index to be nonnegative, but received: %d",
 								opName,
 								*endIndex)));
 		}

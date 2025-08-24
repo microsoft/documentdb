@@ -186,12 +186,12 @@ ParseDollarCond(const bson_value_t *argument, AggregationExpressionData *data,
 		else if (isThenMissing)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARCONDMISSINGTHENPARAMETER),
-							errmsg("Missing 'then' parameter to $cond")));
+							errmsg("'then' parameter is missing in the $cond operator")));
 		}
 		else if (isElseMissing)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARCONDMISSINGELSEPARAMETER),
-							errmsg("Missing 'else' parameter to $cond")));
+							errmsg("'else' parameter is missing in the $cond operator")));
 		}
 
 		argumentsList = list_make3(ifData, thenData, elseData);
@@ -399,7 +399,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 			ereport(ERROR, (errcode(
 								ERRCODE_DOCUMENTDB_DOLLARSWITCHNOMATCHINGBRANCHANDNODEFAULT),
 							errmsg(
-								"$switch could not find a matching branch for an input, and no default was specified.")));
+								"The $switch operator failed to locate a matching branch for the provided input, and no default branch was defined.")));
 		}
 
 		if (result.value_type != BSON_TYPE_EOD)
@@ -470,7 +470,7 @@ HandlePreParsedDollarSwitch(pgbson *doc, void *arguments,
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARSWITCHNOMATCHINGBRANCHANDNODEFAULT),
 						errmsg(
-							"$switch could not find a matching branch for an input, and no default was specified.")));
+							"The $switch operator failed to locate a matching branch for the provided input, and no default branch was defined.")));
 	}
 
 	/* If resulted is EOD because of field not found, should be a no-op. */

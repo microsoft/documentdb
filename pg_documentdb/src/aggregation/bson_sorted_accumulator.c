@@ -356,7 +356,7 @@ BsonOrderTransition(PG_FUNCTION_ARGS, bool invertSort, bool isSingle, bool
 	}
 	else
 	{
-		/* The 3rd argument is number of results to return */
+		/* The third parameter specifies the number of results that should be returned */
 		numResults = PG_GETARG_INT64(2);
 		Assert(numResults > 0);
 
@@ -616,7 +616,7 @@ BsonOrderTransitionOnSorted(PG_FUNCTION_ARGS, bool invertSort, bool isSingle)
 		currentCount = 1;
 		if (!isSingle)
 		{
-			/* The 3rd argument is number of results to return */
+			/* The third parameter specifies the number of results that should be returned */
 			returnCount = PG_GETARG_INT64(2);
 			inputExpression = storeInputExpression ? PG_GETARG_MAYBE_NULL_PGBSON(3) :
 							  NULL;

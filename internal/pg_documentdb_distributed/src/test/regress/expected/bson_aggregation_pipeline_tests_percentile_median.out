@@ -169,13 +169,13 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  Currently only 'approximate' can be used as percentile 'method'
 -- missing input field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "p": [ 0.95 ], "method": "approximate" } } } } ] }');
-ERROR:  BSON field '$$percentile.input' is missing but is a required field
+ERROR:  The BSON field '$$percentile.input' is required but is currently missing from the data structure
 -- missing p field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "method": "approximate" } } } } ] }');
-ERROR:  BSON field '$$percentile.p' is missing but is a required field
+ERROR:  The BSON field '$$percentile.p' is required but is currently missing from the data structure
 -- missing method field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": [ 0.95 ] } } } } ] }');
-ERROR:  BSON field '$$percentile.method' is missing but is a required field
+ERROR:  The BSON field '$$percentile.method' is required but is currently missing from the data structure
 -- negative test case for median
 -- invalid input document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": 1 } } } ] }');
@@ -188,10 +188,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  Currently only 'approximate' can be used as percentile 'method'
 -- missing input field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": { "method": "approximate" } } } } ] }');
-ERROR:  BSON field '$$median.input' is missing but is a required field
+ERROR:  The BSON field '$$median.input' is required but is currently missing from the data structure
 -- missing method field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": { "input": "$dataVal" } } } } ] }');
-ERROR:  BSON field '$$median.method' is missing but is a required field
+ERROR:  The BSON field '$$median.method' is required but is currently missing from the data structure
 /* shard collection */
 SELECT documentdb_api.shard_collection('db', 'testPercentileAndMedian', '{ "_id": "hashed" }', false);
  shard_collection 

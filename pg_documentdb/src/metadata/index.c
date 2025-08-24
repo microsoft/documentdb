@@ -1899,7 +1899,7 @@ MergeTextIndexWeights(List *textIndexes, const bson_value_t *weights, bool *isWi
 {
 	if (weights->value_type != BSON_TYPE_DOCUMENT)
 	{
-		ereport(ERROR, (errmsg("weights must be a document")));
+		ereport(ERROR, (errmsg("weights must be a valid document")));
 	}
 
 	bson_iter_t weightsIter;

@@ -123,7 +123,7 @@ bson_in(PG_FUNCTION_ARGS)
 
 
 /*
- * Converts a bson to a hex string representation.
+ * Transforms a BSON object into its hexadecimal string format.
  */
 Datum
 bson_to_bson_hex(PG_FUNCTION_ARGS)
@@ -679,7 +679,7 @@ PgbsonElementWriterWriteSQLValue(pgbson_element_writer *writer,
 												 &fieldBsonValue.value.v_decimal128))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Invalid numeric value %s", numStr)));
+									errmsg("Invalid number value %s", numStr)));
 				}
 
 				bool isFixedInteger = IsDecimal128AFixedInteger(&fieldBsonValue);

@@ -414,7 +414,7 @@ ParseHNSWCreationSpec(bson_iter_t *vectorOptionsIter,
 		}
 	}
 
-	/* Set default efConstruction for hnsw */
+	/* Default efConstruction value set for hnsw */
 	if (vectorIndexOptions->efConstruction == 0)
 	{
 		vectorIndexOptions->efConstruction = HNSW_DEFAULT_EF_CONSTRUCTION;
@@ -550,7 +550,7 @@ ParseHNSWIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 		/* Safe guard against the ApiGucPrefix.enableVectorHNSWIndex GUC */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg(
-							"hnsw index is not supported."),
+							"HNSW index type is currently unsupported"),
 						errdetail(
 							"hnsw index configuration is not enabled. Set ApiGucPrefix.enableVectorHNSWIndex to true to enable hnsw index.")));
 	}

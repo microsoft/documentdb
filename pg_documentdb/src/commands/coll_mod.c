@@ -59,7 +59,7 @@ typedef struct
 	/* The validator for the collection */
 	bson_value_t validator;
 
-	/* The validation level for the collection */
+	/* The collection's validation level setting */
 	char *validationLevel;
 
 	/* The validation action for the collection */
@@ -344,7 +344,7 @@ ParseSpecSetCollModOptions(const pgbson *collModSpec,
 			 * TODO: implement "validationAction","validationLevel",
 			 * "validator","viewOn", "pipeline", "expireAfterSeconds"
 			 */
-			elog(DEBUG1, "Unrecognized command field: collMod.%s", key);
+			elog(DEBUG1, "Command field not recognized: collMod.%s", key);
 		}
 		else
 		{

@@ -285,7 +285,7 @@ DocumentDBBackgroundWorkerMain(Datum main_arg)
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);
 
-		/* An interrupt may have occurred while we were waiting. */
+		/* An interrupt might have taken place during the waiting process. */
 		CHECK_FOR_INTERRUPTS();
 
 		HandleMainLoopInterrupts();
@@ -504,7 +504,7 @@ WaitForBackgroundWorkerDependencies(void)
 							   WAIT_EVENT_PG_SLEEP);
 		ResetLatch(&BackgroundWorkerShmem->latch);
 
-		/* An interrupt may have occurred while we were waiting. */
+		/* An interrupt might have taken place during the waiting process. */
 		CHECK_FOR_INTERRUPTS();
 
 		HandleMainLoopInterrupts();

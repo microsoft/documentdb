@@ -142,7 +142,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    false
 );
-ERROR:  Cannot create new indexes on existing collection mydb.collection_2 in a multi-document transaction.
+ERROR:  Creation of new indexes on the specified existing collection mydb.collection_2 is not permitted within a multi-document transaction.
 ROLLBACK;
 -- would only create idx_2
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_200", "indexes": [{"key": {"$**": 1}, "name": "idx_1"}],
@@ -176,9 +176,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    true
 );
-                                                                                                                      create_indexes_non_concurrently                                                                                                                       
+                                                                                                                           create_indexes_non_concurrently                                                                                                                            
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "note" : "all indexes already exist", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "note" : "All specified indexes already exist", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
 ROLLBACK;

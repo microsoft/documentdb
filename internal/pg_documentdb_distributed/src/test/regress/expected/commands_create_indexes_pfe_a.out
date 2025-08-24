@@ -62,9 +62,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    true
 );
-                                                                                                                      create_indexes_non_concurrently                                                                                                                       
+                                                                                                                           create_indexes_non_concurrently                                                                                                                            
 ---------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "note" : "all indexes already exist", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "2" }, "numIndexesAfter" : { "$numberInt" : "2" }, "createdCollectionAutomatically" : false, "note" : "All specified indexes already exist", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } }
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
@@ -121,7 +121,7 @@ BEGIN;
     ]
   }
   ';
-                                                         QUERY PLAN                                                          
+                                                              QUERY PLAN                                                               
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -144,7 +144,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                 QUERY PLAN                                                                                                                 
+                                                                                                                           QUERY PLAN                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -169,7 +169,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                 QUERY PLAN                                                                                                                 
+                                                                                                                           QUERY PLAN                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -194,7 +194,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                 QUERY PLAN                                                                                                                 
+                                                                                                                           QUERY PLAN                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -219,7 +219,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                                 QUERY PLAN                                                                                                                 
+                                                                                                                           QUERY PLAN                                                                                                                           
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -245,7 +245,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                    QUERY PLAN                                                                                                    
+                                                                                                              QUERY PLAN                                                                                                              
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -267,7 +267,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                           QUERY PLAN                                                                                                           
+                                                                                                                     QUERY PLAN                                                                                                                     
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -290,7 +290,7 @@ BEGIN;
     ]
   }
   ';
-                                                                                                         QUERY PLAN                                                                                                         
+                                                                                                                   QUERY PLAN                                                                                                                   
 ---------------------------------------------------------------------
  Custom Scan (Citus Adaptive)
    Task Count: 1
@@ -333,7 +333,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } } :: caused by :: Expression not supported in partial index: $or
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } }:Expression not supported in partial index: $or
     a $eq 1
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -341,7 +341,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$nor": [{"a": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 } ] } } :: caused by :: Expression not supported in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 } ] } }:Expression not supported in partial index: $not
     $or
         a $eq 1
 
@@ -350,7 +350,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$nor": [{"a": 1}, {"b": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 }, { "b" : 1 } ] } } :: caused by :: Expression not supported in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 }, { "b" : 1 } ] } }:Expression not supported in partial index: $not
     $or
         a $eq 1
         b $eq 1
@@ -362,27 +362,27 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : [ 2 ] } }, { "c" : 4 } ] } } :: caused by :: Expression not supported in partial index: a $in [ 2 ]
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : [ 2 ] } }, { "c" : 4 } ] } }:Expression not supported in partial index: a $in [ 2 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$ne": 1
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$ne" : 1 } } :: caused by :: unknown top level operator: $ne. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$ne" : 1 } }:unknown top level operator: $ne. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$ne": 1}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$ne" : 1 } } } :: caused by :: Expression not supported in partial index: a $ne 1
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$ne" : 1 } } }:Expression not supported in partial index: a $ne 1
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$nin": [1,2,3]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$nin" : [ 1, 2, 3 ] } } } :: caused by :: Expression not supported in partial index: a $nin [ 1, 2, 3 ]
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$nin" : [ 1, 2, 3 ] } } }:Expression not supported in partial index: a $nin [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
@@ -391,7 +391,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : 2 } }, { "c" : 4 } ] } } :: caused by :: $in needs an array
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : 2 } }, { "c" : 4 } ] } }:$in needs an array
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [
@@ -399,25 +399,25 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } ] } } :: caused by :: $and only supported in partialFilterExpression at top level
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } ] } }:$and only supported in partialFilterExpression at top level
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": 1, "$and": [{"c": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "$and" : [ { "c" : 1 } ] } } :: caused by :: $and only supported in partialFilterExpression at top level
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "$and" : [ { "c" : 1 } ] } }:$and only supported in partialFilterExpression at top level
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": 1, "b": {"$and": [{"d": 1}]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "b" : { "$and" : [ { "d" : 1 } ] } } } :: caused by :: unknown operator: $and
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "b" : { "$and" : [ { "d" : 1 } ] } } }:unknown operator: $and
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$not": {"$eq": [1,2,3]}}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } } :: caused by :: Expression not supported in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } }:Expression not supported in partial index: $not
     a $eq [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -425,7 +425,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$and": [{"a": {"$not": {"$eq": [1,2,3]}}}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } ] } } :: caused by :: Expression not supported in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } ] } }:Expression not supported in partial index: $not
     a $eq [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -436,14 +436,14 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$exists" : true } }, { "a" : { "$size" : 5 } } ] } } :: caused by :: Expression not supported in partial index: a $size 5
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$exists" : true } }, { "a" : { "$size" : 5 } } ] } }:Expression not supported in partial index: a $size 5
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [{"b": 55}, {"a": {"$exists": false}}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 55 }, { "a" : { "$exists" : false } } ] } } :: caused by :: Expression not supported in partial index: a $exists false
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 55 }, { "a" : { "$exists" : false } } ] } }:Expression not supported in partial index: a $exists false
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
@@ -458,7 +458,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "a": {"$and": [{"a": 1}, {"b": 3}]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } } } :: caused by :: unknown operator: $and
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } } }:unknown operator: $and
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [{"p": 1}, {"q": 2}],
@@ -466,7 +466,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$and": [{"p": 1}, {"q": 2}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "p" : 1 }, { "q" : 2 } ], "b" : [ { "z" : 1 }, { "t" : 2 } ] } } :: caused by :: $and only supported in partialFilterExpression at top level
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "p" : 1 }, { "q" : 2 } ], "b" : [ { "z" : 1 }, { "t" : 2 } ] } }:$and only supported in partialFilterExpression at top level
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [
@@ -474,16 +474,16 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : { "$gte" : 1, "$lte" : 3 } } ] } } :: caused by :: $and only supported in partialFilterExpression at top level
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : { "$gte" : 1, "$lte" : 3 } } ] } }:$and only supported in partialFilterExpression at top level
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$unknown_operator": 1}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$unknown_operator" : 1 } } } :: caused by :: unknown operator: $unknown_operator
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$unknown_operator" : 1 } } }:unknown operator: $unknown_operator
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$unknown_operator": [{"a": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$unknown_operator" : [ { "a" : 1 } ] } } :: caused by :: unknown top level operator: $unknown_operator. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$unknown_operator" : [ { "a" : 1 } ] } }:unknown top level operator: $unknown_operator. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.

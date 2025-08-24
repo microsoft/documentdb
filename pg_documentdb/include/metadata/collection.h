@@ -132,7 +132,7 @@ typedef struct
  */
 typedef struct
 {
-	/* The name of the source collection or view */
+	/* The source collection or view for this view definition */
 	const char *viewSource;
 
 	/* An optional pipeline to apply to the view

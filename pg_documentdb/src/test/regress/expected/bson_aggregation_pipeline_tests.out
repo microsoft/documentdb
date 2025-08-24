@@ -648,13 +648,13 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "targetView", "proje
 
 -- $natural negative 
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "projection": { "a.b": 1 }, "sort": { "$natural": "string" }}');
-ERROR:  Invalid sort direction "string"
+ERROR:  Sort direction value "string" is not valid
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "projection": { "a.b": 1 }, "sort": { "$natural": 2.12 }}');
 ERROR:  $natural sort cannot be set to a value other than -1 or 1.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "projection": { "a.b": 1 }, "sort": { "$natural": 3 }}');
 ERROR:  $natural sort cannot be set to a value other than -1 or 1.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "projection": { "a.b": 1 }, "sort": { "$natural": true }}');
-ERROR:  Invalid sort direction true
+ERROR:  Sort direction value true is not valid
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "projection": { "a.b": 1 }, "sort": { "$size":1, "$natural": 1 }}');
 ERROR:  $natural sort cannot be set to a value other than -1 or 1.
 -- $natural EXPLAIN
@@ -951,9 +951,9 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 ERROR:  Unrecognized $search option: unknowType, should be one of: cosmosSearch, knnBeta.
 -- non supported vector index type
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "idx_vector", "cosmosSearchOptions": { "kind": "vector-diskann", "similarity": "COS", "dimensions": 3 } } ] }');
-ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "idx_vector", "cosmosSearchOptions" : { "kind" : "vector-diskann", "similarity" : "COS", "dimensions" : 3 } } :: caused by :: Invalid search index kind vector-diskann
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "idx_vector", "cosmosSearchOptions" : { "kind" : "vector-diskann", "similarity" : "COS", "dimensions" : 3 } }:Invalid search index kind vector-diskann
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "idx_vector", "cosmosSearchOptions": { "kind": "vector-scann", "similarity": "COS", "dimensions": 3 } } ] }');
-ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "idx_vector", "cosmosSearchOptions" : { "kind" : "vector-scann", "similarity" : "COS", "dimensions" : 3 } } :: caused by :: Invalid search index kind vector-scann
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "idx_vector", "cosmosSearchOptions" : { "kind" : "vector-scann", "similarity" : "COS", "dimensions" : 3 } }:Invalid search index kind vector-scann
 -- $lookup
 SELECT documentdb_api.insert_one('db','agg_pipeline_movie_screenings',' { "_id" : 1, "movie_title" : "Interstellar", "ticket_price" : 15, "tickets_sold" : 120 }', NULL);
 NOTICE:  creating collection
@@ -1651,7 +1651,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeli
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": -1.23 } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": null } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": NaN } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": Infinity } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
@@ -1659,11 +1659,11 @@ ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": -Infinity } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": "0.65" } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": 10 } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
 ERROR:  numeric argument to $sampleRate must be in [0, 1]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "agg_pipeline_samplerate", "pipeline": [ { "$match": { "$sampleRate": false } }, { "$limit": 1 }, {"$count": "count"} ], "cursor": {} }');
-ERROR:  argument to $sampleRate must be a numeric type
+ERROR:  The operator $sampleRate requires an argument of numeric data type.
 -- match/find with $comment
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "filter": { "_id": "1", "$comment": "finding id 1" }}');
                                                                document                                                               

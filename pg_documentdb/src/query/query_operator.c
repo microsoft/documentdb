@@ -501,7 +501,7 @@ CreateQualForBsonValueArrayExpression(const bson_value_t *expression)
 	if (expression->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"expression should be an array")));
+							"Expression must be an array type")));
 	}
 
 	Var *var = makeVar(1, 1, INTERNALOID, -1, DEFAULT_COLLATION_OID, 0);
@@ -1366,7 +1366,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"argument to $sampleRate must be a numeric type"),
+								"The operator $sampleRate requires an argument of numeric data type."),
 							errdetail_log("argument to $sampleRate is: %s",
 										  BsonValueToJsonForLogging(sampleRate))));
 		}
@@ -1448,7 +1448,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 								"$text can only be applied to the top-level document")));
 		}
 
-		/* Special case for $text */
+		/* Special handling required for operator text */
 		const char *path = "";
 		BsonValidateTextQuery(bson_iter_value(queryDocIterator));
 		return CreateFuncExprForQueryOperator(context,
@@ -2207,7 +2207,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				if (!bson_iter_next(&checkIterator))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"$not cannot be empty")));
+										"Operator $not must not be left empty")));
 				}
 
 				/*
@@ -2555,11 +2555,11 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Expected a positive number in: %s: %d.0",
+									"A positive number was expected in the following context: %s: %d.0",
 									operator->mongoOperatorName,
 									intVal),
 								errdetail_log(
-									"Expected a positive number in: %s: %d.0",
+									"A positive number was expected in the following context: %s: %d.0",
 									operator->mongoOperatorName,
 									intVal)));
 			}
@@ -2592,7 +2592,7 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			if (intVal < 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-									"Expected a positive number in: %s: %d.0",
+									"A positive number was expected in the following context: %s: %d.0",
 									operator->mongoOperatorName,
 									intVal)));
 			}
@@ -2610,7 +2610,7 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			if (intVal < 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-									"Expected a positive number in: %s: %d.0",
+									"A positive number was expected in the following context: %s: %d.0",
 									operator->mongoOperatorName,
 									intVal)));
 			}
@@ -3494,7 +3494,7 @@ ValidateOrderbyExpressionAndGetIsAscending(pgbson *orderby)
 	if (!BsonValueIsNumber(&orderingElement.bsonValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Invalid sort direction %s",
+						errmsg("Sort direction value %s is not valid",
 							   BsonValueToJsonForLogging(
 								   &orderingElement.bsonValue))));
 	}
@@ -3503,7 +3503,7 @@ ValidateOrderbyExpressionAndGetIsAscending(pgbson *orderby)
 	if (sortOrder != 1 && sortOrder != -1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Invalid sort direction %s",
+						errmsg("Sort direction value %s is not valid",
 							   BsonValueToJsonForLogging(
 								   &orderingElement.bsonValue))));
 	}
@@ -3933,7 +3933,7 @@ ValidateRegexArgument(const bson_value_t *argBsonValue)
 		strlen(argBsonValue->value.v_utf8.str) < argBsonValue->value.v_utf8.len)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"Regular expression cannot contain an embedded null byte")));
+							"A regular expression is not allowed to include an embedded null byte")));
 	}
 }
 

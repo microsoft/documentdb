@@ -36,7 +36,7 @@
 #define AUTH_SERV_SIGN_KEY "ServerSignature" /* Server signature key */
 #define AUTH_SERV_SIGN_KEY_LEN strlen(AUTH_SERV_SIGN_KEY) /* Serv sign length */
 
-/* For test helper functions */
+/* Test helper functions in use */
 #define AUTH_MSG_KEY "AuthMessage"
 #define AUTH_MSG_KEY_LEN strlen(AUTH_MSG_KEY)
 #define AUTH_CLIENT_PROOF_KEY "ClientProof"

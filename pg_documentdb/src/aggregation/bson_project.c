@@ -849,7 +849,7 @@ ProjectReplaceRootDocument(pgbson *document,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40228),
 							errmsg(
-								"'newRoot' expression must evaluate to an object, but resulting value was: : MISSING. Type of resulting value: 'missing'")));
+								"The expression 'newRoot' must result in an object, however the computed value was missing, with type identified as 'missing'.")));
 		}
 
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
@@ -957,7 +957,7 @@ GetBsonValueForReplaceRoot(bson_iter_t *replaceRootIterator, bson_value_t *value
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
 						errmsg(
-							"BSON field '$replaceRoot.newRoot' is missing but a required field")));
+							"The required BSON field '$replaceRoot.newRoot' is not present in the data.")));
 	}
 }
 
@@ -1324,7 +1324,7 @@ EvaluateRedactDocument(pgbson *document, const BsonReplaceRootRedactState *state
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17053),
 								errmsg(
-									"$redact's expression should not return anything aside from the variables $$KEEP, $$DESCEND, and $$PRUNE, but returned '%s'.",
+									"The $redact stage must evaluate to one of the variables $$KEEP, $$DESCEND, or $$PRUNE, but instead it produced '%s'.",
 									BsonValueToJsonForLogging(
 										&(state->expressionData->value)))));
 				break;
@@ -1422,7 +1422,7 @@ EvaluateRedactDocument(pgbson *document, const BsonReplaceRootRedactState *state
 	pfree(parsedValue);
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17053),
 					errmsg(
-						"$redact's expression should not return anything aside from the variables $$KEEP, $$DESCEND, and $$PRUNE, but returned '%s'.",
+						"The $redact stage must evaluate to one of the variables $$KEEP, $$DESCEND, or $$PRUNE, but instead it produced '%s'.",
 						BsonValueToJsonForLogging(&evaluatedResultElement.bsonValue))));
 }
 
@@ -2778,7 +2778,7 @@ ProjectGeonearDocument(const GeonearDistanceState *state, pgbson *document)
 			&parseContext);
 	}
 
-	/* Add distance field */
+	/* Insert distance field value */
 	TraverseDottedPathAndGetOrAddField(
 		&state->distanceField,
 		&distanceValue,

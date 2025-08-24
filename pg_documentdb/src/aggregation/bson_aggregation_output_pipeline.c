@@ -216,9 +216,9 @@ bson_dollar_extract_merge_filter(PG_FUNCTION_ARGS)
 
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51132),
 						errmsg(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array"),
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array"),
 						errdetail_log(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array")));
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array")));
 	}
 
 	pgbsonelement filterElement;
@@ -230,18 +230,18 @@ bson_dollar_extract_merge_filter(PG_FUNCTION_ARGS)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51185),
 						errmsg(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array"),
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array"),
 						errdetail_log(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array")));
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array")));
 	}
 	else if (filterElement.bsonValue.value_type == BSON_TYPE_NULL ||
 			 filterElement.bsonValue.value_type == BSON_TYPE_UNDEFINED)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51132),
 						errmsg(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array"),
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array"),
 						errdetail_log(
-							"$merge write error: 'on' field cannot be missing, null, undefined or an array")));
+							"Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array")));
 	}
 
 	PG_RETURN_POINTER(PgbsonElementToPgbson(&filterElement));

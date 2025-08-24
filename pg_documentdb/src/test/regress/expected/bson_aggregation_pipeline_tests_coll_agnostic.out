@@ -5,7 +5,7 @@ set application_name to 'coll_agnostic_tests';
 set documentdb_api.current_op_application_name to 'coll_agnostic_tests';
 -- this is further tested in isolation tests
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$currentOp": 1 }] }');
-ERROR:  BSON field 'pipeline.$currentOp' is the wrong type 'int', expected type 'object'
+ERROR:  The BSON field 'pipeline.$currentOp' has an incorrect type 'int'; it should be of type 'object'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$match": { } }, { "$currentOp": {} }] }');
 ERROR:  {aggregate: 1} is not valid for '$match'; a collection is required.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$currentOp": {} }] }');

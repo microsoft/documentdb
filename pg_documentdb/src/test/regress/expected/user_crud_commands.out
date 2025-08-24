@@ -91,7 +91,7 @@ SELECT documentdb_api.create_user('{"createUser":"test_user4", "pwd":"test_passw
 
 -- Create a user with an empty password should fail
 SELECT documentdb_api.create_user('{"createUser":"test_user_empty_pwd", "pwd":"", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
-ERROR:  Password cannot be empty.
+ERROR:  The password field must not be left empty.
 -- Create a user with password less than 8 characters and drop it
 SELECT documentdb_api.create_user('{"createUser":"test_user_short_pwd", "pwd":"Short1!", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
             create_user            

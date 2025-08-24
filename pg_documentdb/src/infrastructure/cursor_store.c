@@ -729,7 +729,7 @@ TryCleanUpAndReserveCursor(void)
 		/* Skip if dir doesn't exist appropriate */
 		if (errno == ENOENT)
 		{
-			ereport(ERROR, (errmsg("Cursor directory does not exist")));
+			ereport(ERROR, (errmsg("Specified cursor directory could not be found")));
 		}
 	}
 

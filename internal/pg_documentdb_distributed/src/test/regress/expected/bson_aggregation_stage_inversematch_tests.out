@@ -605,7 +605,7 @@ SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "paym
 
 -- negative cases
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": {}, "input": "$roles"}} ], "cursor": {} }');
-ERROR:  BSON field '$inverseMatch.path' is the wrong type 'object', expected type 'string'
+ERROR:  The BSON field '$inverseMatch.path' has an incorrect type 'object'; it should be of type 'string'.
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "", "input": "$roles"}} ], "cursor": {} }');
 ERROR:  Missing 'path' parameter to $inverseMatch
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "input": [true]}} ], "cursor": {} }');

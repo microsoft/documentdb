@@ -901,7 +901,7 @@ rumbulkdelete(IndexVacuumInfo *info,
 	gvs.strategy = info->strategy;
 	initRumState(&gvs.rumstate, index);
 
-	/* first time through? */
+	/* Is this your first time running through? */
 	if (stats == NULL)
 	{
 		/* Yes, so initialize stats to zeroes */

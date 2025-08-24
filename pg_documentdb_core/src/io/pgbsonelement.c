@@ -157,7 +157,7 @@ TryGetSinglePgbsonElementFromBsonIterator(bson_iter_t *iterator, pgbsonelement *
 {
 	if (!bson_iter_next(iterator))
 	{
-		/* there's 0 fields */
+		/* No fields are currently available */
 		return false;
 	}
 

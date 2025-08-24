@@ -158,18 +158,18 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ {
 ERROR:  Cannot create field '1' in element {1 : 2}
 --Test Set 13 : Positional all operator on non array element
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$[].c": 11 } } }', '{}');
-ERROR:  Cannot apply array updates to non-array element a: { b: [ { "c" : 1, "d" : 2 } ] }
+ERROR:  Array updates cannot be applied to an element that is not an array a: { b: [ { "c" : 1, "d" : 2 } ] }
 --Test Set 14 : Try with $ and $[<identifier>] and Typo with $[] 
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$.c": 11 } } }', '{}');
 ERROR:  The positional operator did not find the match needed from the query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$[element].c": 11 } } }', '{}');
-ERROR:  No array filter found for identifier element
+ERROR:  array filter identifier element must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1.0,2.2,3.2,4.3] }', '{ "": { "$mul": { "a.$[x]": 3 } } }', '{}');
-ERROR:  No array filter found for identifier x
+ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$mul": { "a.$[]abc": 3 } } }', '{}');
 ERROR:  Invalid array index path $[]abc
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"$[]":10} } }', '{}');
-ERROR:  Cannot have array filter identifier (i.e. '$[<id>]') element in the first position in path '$[]'
+ERROR:  Array filter identifier usage (e.g., '$[<id>]') is not permitted at the starting position of the specified path '$[]'
 --Test Set 15 : Complex One
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4],[5,6]] }', '{ "": { "$inc": { "a.$[].$[]": 10 } } }', '{}');
                                                                                               bson_update_document                                                                                              
@@ -262,28 +262,28 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"x":5},{"y
 
 ---Test Set 21 : $[<identifier>] Operator---
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$set": { "a.$[ele]": 30 } } }', '{}');
-ERROR:  No array filter found for identifier ele
+ERROR:  array filter identifier ele must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$mul": { "a.$[ele]": 30 } } }', '{}');
-ERROR:  No array filter found for identifier ele
+ERROR:  array filter identifier ele must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.$[ele]": 30 } } }', '{}');
-ERROR:  No array filter found for identifier ele
+ERROR:  array filter identifier ele must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$min": { "a.$[ele]": 30 } } }', '{}');
-ERROR:  No array filter found for identifier ele
+ERROR:  array filter identifier ele must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [{"x": 5,"c" :11},{"y":10},{"x":10}] }', '{ "": { "$inc": { "a.$[ele].c": 30 } } }', '{}');
-ERROR:  No array filter found for identifier ele
+ERROR:  array filter identifier ele must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"$[]":10} } }', '{}');
-ERROR:  Cannot have array filter identifier (i.e. '$[<id>]') element in the first position in path '$[]'
+ERROR:  Array filter identifier usage (e.g., '$[<id>]') is not permitted at the starting position of the specified path '$[]'
 ---Test Set 22 : Multiple positional operator on same level---
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"a":[1,2,3],"b":[4,5,6]}] }', '{ "": { "$inc": {"a.$[].a.$[]": 10,"a.$[].b.$[x]": 11 } } }', '{}');
-ERROR:  No array filter found for identifier x
+ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"x":5},{"y":10}] }', '{ "": { "$inc": {"a.$[].x": 10,"a.$[x].y": 12 } } }', '{}');
-ERROR:  No array filter found for identifier x
+ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"y":5},{"x":10}] }', '{ "": { "$inc": {"a.$[].x": 10,"a.$[x].y": 12 } } }', '{}');
-ERROR:  No array filter found for identifier x
+ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2,3],[4,5,6]] }', '{ "": { "$inc": { "a.$.$[]": 10} } }', '{}');
 ERROR:  The positional operator did not find the match needed from the query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [ {"a":[ {"x":1},{"y":2} ] ,"b": [ {"x":5},{"y":10} ] } ] }', '{ "": { "$inc": { "a.$[].b.$[].x": 10, "a.$[].b.$[x].y":12} } }', '{}');
-ERROR:  No array filter found for identifier x
+ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 -- Test Set 23: Rename with positional should not work.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$rename": {"a.$[]": "b.$[]" } } }', '{}');
 ERROR:  The source field for $rename may not be dynamic: a.$[]

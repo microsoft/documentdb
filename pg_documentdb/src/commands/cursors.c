@@ -454,7 +454,7 @@ CreateAndDrainPersistedQuery(const char *cursorName, Query *query,
 		}
 		else
 		{
-			elog(LOG, "portal %s was not found", LastOpenPortalName);
+			elog(LOG, "Portal %s could not be located", LastOpenPortalName);
 			LastOpenPortalName[0] = '\0';
 		}
 	}
@@ -1406,7 +1406,7 @@ UpdateCursorInContinuationMapCore(bson_iter_t *singleContinuationDoc, HTAB *curs
 		{
 			if (!BSON_ITER_HOLDS_UTF8(singleContinuationDoc))
 			{
-				ereport(ERROR, (errmsg("Expecting string value for %s",
+				ereport(ERROR, (errmsg("Expecting a valid string value for %s",
 									   CursorContinuationTableName.string)));
 			}
 

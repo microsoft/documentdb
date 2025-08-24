@@ -366,7 +366,7 @@ typedef enum
 	FEATURE_USER_GET,
 	FEATURE_USER_UPDATE,
 
-	/* This must be the last value in the FeatureType. */
+	/* This value must appear at the end in the FeatureType definition. */
 	MAX_FEATURE_INDEX
 } FeatureType;
 

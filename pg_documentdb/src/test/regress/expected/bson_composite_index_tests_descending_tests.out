@@ -71,10 +71,10 @@ set documentdb.enableDescendingCompositeIndex to on;
 -- does not work
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection_desc", "indexes": [ { "name": "comp_index", "key": { "$**": 1 }, "enableCompositeTerm": true } ] }');
-ERROR:  Error in specification { "name" : "comp_index", "key" : { "$**" : 1 }, "enableCompositeTerm" : true } :: caused by :: enableCompositeTerm is not supported with wildcard indexes.
+ERROR:  Error in specification { "name" : "comp_index", "key" : { "$**" : 1 }, "enableCompositeTerm" : true }:enableCompositeTerm is not supported with wildcard indexes.
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection_desc", "indexes": [ { "name": "comp_index", "key": { "a.$**": 1 }, "enableCompositeTerm": true } ] }');
-ERROR:  Error in specification { "name" : "comp_index", "key" : { "a.$**" : 1 }, "enableCompositeTerm" : true } :: caused by :: enableCompositeTerm is not supported with wildcard indexes.
+ERROR:  Error in specification { "name" : "comp_index", "key" : { "a.$**" : 1 }, "enableCompositeTerm" : true }:enableCompositeTerm is not supported with wildcard indexes.
 -- create a regular index
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
     'comp_db', '{ "createIndexes": "comp_collection_desc", "indexes": [ { "name": "comp_index1", "key": { "a": -1, "b": -1 } } ] }');

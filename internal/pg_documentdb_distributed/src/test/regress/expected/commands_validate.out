@@ -129,4 +129,4 @@ SELECT documentdb_api.validate('db', '{"validate" : "validatecoll", "full" : tru
 ERROR:  Running the validate command with { metadata: true } is not supported with any other options
 -- validate field is an object
 SELECT documentdb_api.validate('db','{"validate":{}}');
-ERROR:  collection name has invalid type object
+ERROR:  Collection name contains an invalid object type

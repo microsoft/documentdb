@@ -201,7 +201,7 @@ command_coll_stats_aggregation(PG_FUNCTION_ARGS)
 								errmsg("expected an empty object, but got %s",
 									   BsonValueToJsonForLogging(value)),
 								errdetail_log(
-									"expected an empty object for `count` in $collStats")));
+									"An empty object was expected for `count` within the $collStats.")));
 			}
 			aggregateMode |= CollStatsAggMode_Count;
 		}

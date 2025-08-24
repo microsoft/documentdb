@@ -59,15 +59,15 @@ ERROR:  BSON field '$densify.field' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": [ ] }]}');
 ERROR:  The $densify stage specification must be an object, found array
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": 1 } }]}');
-ERROR:  BSON field '$densify.field' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field '$densify.field' has an incorrect type 'int'; it should be of type 'string'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a" } }]}');
 ERROR:  BSON field '$densify.range' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": "A" } }]}');
-ERROR:  BSON field '$densify.range' is the wrong type 'string', expected type 'object'
+ERROR:  The BSON field '$densify.range' has an incorrect type 'string'; it should be of type 'object'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { } } }]}');
 ERROR:  BSON field '$densify.range.bounds' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : 1 } } }]}');
-ERROR:  the bounds in a range statement must be the string 'full', 'partition', or an ascending array of two numbers or two dates
+ERROR:  Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "na" } } }]}');
 ERROR:  The bounds string value should be either 'full' or 'partition'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full" } } }]}');
@@ -81,9 +81,9 @@ ERROR:  a bounding array in a range statement must have exactly two elements
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, { "$date": { "$numberLong": "1718841600000" } }] } } }]}');
 ERROR:  BSON field '$densify.range.step' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full", "step": "Hello" } } }]}');
-ERROR:  BSON field '$densify.range.step' is the wrong type 'string', expected types '[int, decimal, double, long']
+ERROR:  The BSON field '$densify.range.step' has an incorrect type 'string'; it should be one of the following valid types: [int, decimal, double, long]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "partition", "step": "Hello" } } }]}');
-ERROR:  BSON field '$densify.range.step' is the wrong type 'string', expected types '[int, decimal, double, long']
+ERROR:  The BSON field '$densify.range.step' has an incorrect type 'string'; it should be one of the following valid types: [int, decimal, double, long]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, {"$numberDouble": 2}], "step": 1 } } }]}');
 ERROR:  invalid input syntax JSON for BSON: Code: '2', Message 'Unexpected integer 2 in type "double"'
 LINE 1: ...ECT document FROM bson_aggregation_pipeline('db', '{ "aggreg...
@@ -91,9 +91,9 @@ LINE 1: ...ECT document FROM bson_aggregation_pipeline('db', '{ "aggreg...
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": {"$numberDecimal": "1"} } } }]}');
 ERROR:  Upper bound, lower bound, and step must all have the same type
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 1, "unit": "sec" } } }]}');
-ERROR:  unknown time unit value: sec
+ERROR:  Unrecognized value for time unit: sec
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 1, "unit": "Hour" } } }]}');
-ERROR:  unknown time unit value: Hour
+ERROR:  Unrecognized value for time unit: Hour
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": -1 } } }]}');
 ERROR:  the step parameter in a range statement must be a strictly positive numeric value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 0 } } }]}');
@@ -101,13 +101,13 @@ ERROR:  the step parameter in a range statement must be a strictly positive nume
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": {"$numberDecimal": "-1e1000"} } } }]}');
 ERROR:  the step parameter in a range statement must be a strictly positive numeric value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [2, 1], "step": 1 } } }]}');
-ERROR:  the bounds in a range statement must be the string 'full', 'partition', or an ascending array of two numbers or two dates
+ERROR:  Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "partitionByFields": "a", "range": { "bounds" : "full", "step": 1 } } }]}');
-ERROR:  BSON field '$densify.partitionByFields' is the wrong type 'string', expected type 'array'
+ERROR:  The BSON field '$densify.partitionByFields' has an incorrect type 'string'; it should be of type 'array'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "partitionByFields": ["$a"], "range": { "bounds" : "full", "step": 1 } } }]}');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField.
+ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "$a", "partitionByFields": ["a"], "range": { "bounds" : "full", "step": 1 } } }]}');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField.
+ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.
 -- Valid cases that works
 -- Check an empty table returns value when used with range based partition
 SELECT document FROM bson_aggregation_pipeline('db',

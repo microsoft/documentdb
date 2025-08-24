@@ -542,7 +542,7 @@ GetMongoCollectionShardOidsAndNames(MongoCollection *collection, ArrayType **sha
 Oid
 TryGetCollectionShardTable(MongoCollection *collection, LOCKMODE lockMode)
 {
-	/* If we don't have a local shard, bail. */
+	/* Cannot proceed without a local shard available. */
 	if (collection->shardTableName[0] == '\0')
 	{
 		return InvalidOid;
@@ -1252,7 +1252,7 @@ ValidateCollectionNameForUnauthorizedSystemNs(const char *collectionName,
 	if (strlen(collectionName) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid empty namespace specified")));
+						errmsg("An invalid and empty namespace has been specified")));
 	}
 	for (int i = 0; i < NonWritableSystemCollectionNamesLength; i++)
 	{
@@ -1265,7 +1265,7 @@ ValidateCollectionNameForUnauthorizedSystemNs(const char *collectionName,
 
 			/* Need to disallow user writes on NonWritableSystemCollectionNames */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-							errmsg("cannot write to %.*s.%s",
+							errmsg("Unable to write data to specified location %.*s.%s",
 								   databaseView.length, databaseView.string,
 								   NonWritableSystemCollectionNames[i])));
 		}
@@ -1478,7 +1478,7 @@ CreateCollection(Datum dbNameDatum, Datum collectionNameDatum)
 	if (collectionNameStr != NULL && strlen(collectionNameStr) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid empty namespace specified")));
+						errmsg("An invalid and empty namespace has been specified")));
 	}
 
 	const char *cmdStr = FormatSqlQuery("SELECT %s.create_collection($1, $2)",
@@ -1628,8 +1628,9 @@ ValidateDatabaseCollection(Datum databaseDatum, Datum collectionDatum)
 	if (StringViewStartsWith(&collectionView, '.'))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection names cannot start with '.': %.*s",
-							   collectionView.length, collectionView.string)));
+						errmsg(
+							"Collection names must not begin with the '.' character: %.*s",
+							collectionView.length, collectionView.string)));
 	}
 
 	for (int i = 0; i < CharactersNotAllowedInCollectionNamesLength; i++)
@@ -1681,9 +1682,10 @@ validate_dbname(PG_FUNCTION_ARGS)
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DOCUMENTDB_DBALREADYEXISTS),
-					 errmsg("db already exists with different case already have: "
-							"[%s] trying to create [%.*s]", dbNameInTable,
-							databaseView.length, databaseView.string)));
+					 errmsg(
+						 "Database already exists but with a different case; existing entry: [%s], attempted creation: [%.*s]",
+						 dbNameInTable,
+						 databaseView.length, databaseView.string)));
 		}
 	}
 
@@ -1761,7 +1763,7 @@ CheckSyntaxForValidator(const bson_iter_t *validator)
 	if (bson_iter_type(validator) != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg("$jsonSchema must be an object")));
+						errmsg("$jsonSchema must be of object type")));
 	}
 
 	bson_iter_t schemaIter;

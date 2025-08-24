@@ -11,9 +11,9 @@ select count(*)*0 as count from documentdb_api_internal.command_feature_counter_
 
 -- vector index creation error
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "feature_counter_col", "indexes": [ { "key": { "a": "cosmosSearch"}, "name": "foo_1"  } ] }', true);
-ERROR:  Error in specification { "key" : { "a" : "cosmosSearch" }, "name" : "foo_1" } :: caused by :: Index type 'CosmosSearch' was requested, but the 'cosmosSearch' options were not provided.
+ERROR:  Error in specification { "key" : { "a" : "cosmosSearch" }, "name" : "foo_1" }:Index type 'CosmosSearch' was requested, but the 'cosmosSearch' options were not provided.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "feature_counter_col", "indexes": [ { "key": { "a": 1 }, "name": "foo_1", "cosmosSearchOptions": { } } ] }', true);
-ERROR:  Error in specification { "key" : { "a" : 1 }, "name" : "foo_1", "cosmosSearchOptions" : {  } } :: caused by :: cosmosSearch index kind must be specified
+ERROR:  Error in specification { "key" : { "a" : 1 }, "name" : "foo_1", "cosmosSearchOptions" : {  } }:cosmosSearch index kind must be specified
 -- create collection
 SELECT documentdb_api.create_collection_view('db', '{ "create": "feature_counter_col" }');
 NOTICE:  creating collection
@@ -272,7 +272,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorInde
 
 -- Query on a non-existent collection
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "vectorCollNonExistent", "pipeline": [{ "$vectorSearch": { "queryVector": [8.0, 1.0, 8.0, 7], "limit": 1, "path": "myvector4", "numCandidates": 10 } }, { "$project": { "myvector4": 1, "_id": 0 }} ]}');
-ERROR:  $vectorSearch must be the first stage in the pipeline
+ERROR:  The $vectorSearch needs to appear as the initial stage in the processing pipeline.
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
                                                                                                                                                      get_feature_counter_pretty                                                                                                                                                     
 ---------------------------------------------------------------------

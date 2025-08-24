@@ -1060,11 +1060,11 @@ SELECT * FROM bson_dollar_project('{"date": null}', '{"dateString": {"$dateToStr
 ERROR:  Unrecognized parameter provided for $dateToString: customField
 -- $dateToString an object is required as an argument
 SELECT * FROM bson_dollar_project('{"arg": {"date": null, "format": "%Y", "timezone": "UTC"}}', '{"dateString": {"$dateToString": "$arg"}}');
-ERROR:  $dateToString only supports an object as its argument
+ERROR:  $dateToString requires an object parameter only
 SELECT * FROM bson_dollar_project('{"arg": {"date": null, "format": "%Y", "timezone": "UTC"}}', '{"dateString": {"$dateToString": null}}');
-ERROR:  $dateToString only supports an object as its argument
+ERROR:  $dateToString requires an object parameter only
 SELECT * FROM bson_dollar_project('{"arg": {"date": null, "format": "%Y", "timezone": "UTC"}}', '{"dateString": {"$dateToString": []}}');
-ERROR:  $dateToString only supports an object as its argument
+ERROR:  $dateToString requires an object parameter only
 -- $dateToString invalid format modifier
 SELECT * FROM bson_dollar_project('{"date": {"$date": "2017-07-04T14:56:42.911Z"}}', '{"dateString": {"$dateToString": { "date": "$date", "format": "%Y-%m-%d %i %H:%M:%S %z (%Z minutes)", "timezone": "UTC" }}}');
 ERROR:  Invalid format character '%i' in format string
@@ -1094,9 +1094,9 @@ SELECT * FROM bson_dollar_project('{"date": {"$date": "2017-07-04T14:56:42.911Z"
 ERROR:  unrecognized time zone identifier: "+80000000"
 -- $dateToString date component outside of supported range
 SELECT * FROM bson_dollar_project('{"date": {"$date": "9999-12-31T11:59:59.911Z"}}', '{"dateString": {"$dateToString": { "date": {"$add": ["$date", {"$numberLong": "86400000"}]} }}}');
-ERROR:  Could not convert date to string: date component was outside the supported range of 0-9999: 10000
+ERROR:  Failed to convert date into text because the date value was beyond the supported range of 0 to 9999: 10000
 SELECT * FROM bson_dollar_project('{"date": {"$date": "9999-12-31T11:59:59.911Z"}}', '{"dateString": {"$dateToString": { "date": {"$add": ["$date", {"$numberLong": "86400000"}]}, "format": "%Y" }}}');
-ERROR:  Could not convert date to string: date component was outside the supported range of 0-9999: 10000
+ERROR:  Failed to convert date into text because the date value was beyond the supported range of 0 to 9999: 10000
 -- $dateFromParts null cases
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": null }}');
 ERROR:  $dateFromParts only supports an object as its argument
@@ -1932,7 +1932,7 @@ ERROR:  Invalid argument provided to operator $dateTrunc: abc. Expected paramete
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}}  } }}');
 ERROR:  The 'unit' parameter required by the $dateTrunc is missing.
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": 1 } }}');
-ERROR:  $dateTrunc requires 'unit' to be a string, but got int
+ERROR:  $dateTrunc needs 'unit' as a string, but received int instead
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": "456" } }}');
 ERROR:  The provided 'unit' parameter for $dateTrunc is not recognized as a valid time unit: 456
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": "456" } }}');
@@ -1944,7 +1944,7 @@ ERROR:  $dateTrunc needs 'binSize' as a 64-bit integer, but received value '1.5'
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": "year", "binSize": 1 , "timezone": 123} }}');
 ERROR:  timezone must evaluate to a string, found int
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": "week", "binSize": 1 , "startOfWeek": "Menday"} }}');
-ERROR:  $dateTrunc parameter 'startOfWeek' value cannot be recognized as a day of a week: Menday
+ERROR:  The 'startOfWeek' parameter in $dateTrunc has a value that is not recognized as a valid day of the week: Menday
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": "A" , "unit": "456" } }}');
 ERROR:  $dateTrunc requires 'date' to be a date, but got string
 -- $dateAdd null based cases
@@ -3016,7 +3016,7 @@ ERROR:  Unrecognized parameter provided to $dateDiff: hex
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "ashd",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
 ERROR:  $dateDiff parameter 'unit' value cannot be recognized as a time unit: ashd
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": 1,  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
-ERROR:  $dateDiff requires 'unit' to be a string, but got int
+ERROR:  $dateDiff needs 'unit' as a string, but received int instead
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "week",  "startDate": {"$date": {"$numberLong": "1262304000000"} }, "timezone" : 1 } } }');
 ERROR:  timezone must evaluate to a string, found int
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "week",  "startDate": {"$date": {"$numberLong": "1262304000000"} }, "timezone" : "abcd" } } }');
@@ -3393,9 +3393,9 @@ select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateStr
 
 -- $dateFromString invalid cases
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": "a" } }');
-ERROR:  $dateFromString only supports an object as an argument, found: string
+ERROR:  $dateFromString only supports an object as an argument, found: string",
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": 1 } }');
-ERROR:  $dateFromString only supports an object as an argument, found: int
+ERROR:  $dateFromString only supports an object as an argument, found: int",
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {} } }');
 ERROR:  Required 'dateString' parameter is not provided for $dateFromString
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": 5} } }');
@@ -3421,7 +3421,7 @@ ERROR:  Unrecognized argument to $dateFromString: unknown
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017-07-12T22:23:55 GMT+02:00", "format": "%Y-%m-%dT%H:%M:%S %z", "timezone": "Europe/Paris"} } }');
 ERROR:  you cannot pass in a date/time string with GMT offset together with a timezone argument
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017-07-12T22:23:55 GMT", "format": "%Y-%m-%dT%H:%M:%S %z", "timezone": "Europe/Paris"} } }');
-ERROR:  you cannot pass in a date/time string with time zone information ('GMT') together with a timezone argument
+ERROR:  It is not allowed to provide a date/time string containing time zone details ('GMT') at the same time as specifying a separate timezone argument.
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017-07-12T22:23:55 +02:20", "format": "%Y-%m-%dT%H:%M:%S %z", "timezone": "Europe/Paris"} } }');
 ERROR:  you cannot pass in a date/time string with GMT offset together with a timezone argument
 -- not enough data

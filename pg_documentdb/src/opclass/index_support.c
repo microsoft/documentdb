@@ -3514,7 +3514,7 @@ static void
 ThrowNoTextIndexFound()
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INDEXNOTFOUND),
-					errmsg("text index required for $text query")));
+					errmsg("A text index is necessary to perform a $text query.")));
 }
 
 

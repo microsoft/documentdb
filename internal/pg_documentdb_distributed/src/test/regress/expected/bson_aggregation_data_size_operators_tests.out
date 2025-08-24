@@ -168,7 +168,7 @@ SELECT * FROM bson_dollar_project(('{"input" : "' || LPAD('', 16000000, 'a') || 
 
 -- $binarySize operator , document based tests
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$binarySize": "$a" }}');
-ERROR:  $binarySize requires a string or BinData argument, found: int
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: int
 SELECT * FROM bson_dollar_project('{"a":"temp", "b":{"a":12} }', '{"result": { "$binarySize": "$a" }}');
           bson_dollar_project          
 ---------------------------------------------------------------------
@@ -185,12 +185,12 @@ SELECT * FROM bson_dollar_project('{"a":1, "b":{"a":"world!"} }', '{"result": { 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$binarySize": [1,2] }}');
 ERROR:  Expression $binarySize takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$binarySize": [1] }}');
-ERROR:  $binarySize requires a string or BinData argument, found: int
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$binarySize": 11 }}');
-ERROR:  $binarySize requires a string or BinData argument, found: int
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$binarySize": true }}');
-ERROR:  $binarySize requires a string or BinData argument, found: bool
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: bool
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$binarySize": "$a" }}');
-ERROR:  $binarySize requires a string or BinData argument, found: int
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$binarySize": {"$regex": "a*b", "$options":""} }}');
-ERROR:  $binarySize requires a string or BinData argument, found: regex
+ERROR:  The $binarySize operator expects either a string or BinData argument, but received: regex

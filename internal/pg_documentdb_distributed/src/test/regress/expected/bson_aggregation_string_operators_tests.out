@@ -1496,9 +1496,9 @@ ERROR:  $indexOfBytes expects its second argument to be a string, but received: 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",-1]} }');
 ERROR:  $indexOfBytes needs a nonnegative starting index, but received: -1
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b","x"]} }');
-ERROR:  $indexOfBytes requires an integral starting index, found a value of type: string, with value: "x"
+ERROR:  An integral starting index is required for $indexOfBytes, but the provided value has type: string with actual value: "x"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",1,-3]} }');
-ERROR:  $indexOfBytes requires a nonnegative ending index, found: -3
+ERROR:  $indexOfBytes requires the ending index to be nonnegative, but received: -3
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",1,"z"]} }');
 ERROR:  $indexOfBytes needs an integral ending index but received a value of type string with the value "z"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",1,"$t"]} }');
@@ -1506,9 +1506,9 @@ ERROR:  $indexOfBytes needs an integral ending index but received a value of typ
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",2147483648,7]} }');
 ERROR:  $indexOfBytes needs a nonnegative starting index, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",1,2147483648]} }');
-ERROR:  $indexOfBytes requires a nonnegative ending index, found: -2147483648
+ERROR:  $indexOfBytes requires the ending index to be nonnegative, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",1.2]} }');
-ERROR:  $indexOfBytes requires an integral starting index, found a value of type: double, with value: 1.2
+ERROR:  An integral starting index is required for $indexOfBytes, but the provided value has type: double with actual value: 1.2
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",1,1.3]} }');
 ERROR:  $indexOfBytes needs an integral ending index but received a value of type double with the value 1.3
 --$indexOfCP operator : basic test:
@@ -1683,9 +1683,9 @@ ERROR:  $indexOfCP expects its second argument to be a string, but received: mis
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",-1]} }');
 ERROR:  $indexOfCP needs a nonnegative starting index, but received: -1
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b","x"]} }');
-ERROR:  $indexOfCP requires an integral starting index, found a value of type: string, with value: "x"
+ERROR:  An integral starting index is required for $indexOfCP, but the provided value has type: string with actual value: "x"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",1,-3]} }');
-ERROR:  $indexOfCP requires a nonnegative ending index, found: -3
+ERROR:  $indexOfCP requires the ending index to be nonnegative, but received: -3
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",1,"z"]} }');
 ERROR:  $indexOfCP needs an integral ending index but received a value of type string with the value "z"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",1,"$t"]} }');
@@ -1693,9 +1693,9 @@ ERROR:  $indexOfCP needs an integral ending index but received a value of type m
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",2147483648,7]} }');
 ERROR:  $indexOfCP needs a nonnegative starting index, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",1,2147483648]} }');
-ERROR:  $indexOfCP requires a nonnegative ending index, found: -2147483648
+ERROR:  $indexOfCP requires the ending index to be nonnegative, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",1.2]} }');
-ERROR:  $indexOfCP requires an integral starting index, found a value of type: double, with value: 1.2
+ERROR:  An integral starting index is required for $indexOfCP, but the provided value has type: double with actual value: 1.2
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",1,1.3]} }');
 ERROR:  $indexOfCP needs an integral ending index but received a value of type double with the value 1.3
 -- $toUpper operator: basic test:
@@ -1730,7 +1730,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "I use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                          
+                                                                          bson_dollar_project                                                                           
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "I USE TO EAT ONE APPLE 🍎 A DAY THAT BECAME REASON OF MY BREAKUP 💔 AS ONE APPLE A DAY KEEPS DOCTOR AWAY AND SHE👧🏽 WAS A DOCTOR 🧑🏽‍⚕️" }
 (1 row)
@@ -1940,7 +1940,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "I USE To Eat One aPple 🍎 a dAy That Became rEasOn of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                          
+                                                                          bson_dollar_project                                                                           
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "i use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️" }
 (1 row)

@@ -216,15 +216,15 @@ SELECT * FROM bson_dollar_project('{"a": 100, "b": {"$date": { "$numberLong" : "
 ERROR:  only one date allowed in an $add expression
 -- Should error if date overflows
 SELECT * FROM bson_dollar_project('{"a": 100, "b": {"$date": { "$numberLong" : "9223372036854775807" }}}', '{"result": { "$add": [ "$a", "$b" ]}}');
-ERROR:  date overflow in $add
+ERROR:  Date value overflow detected in operator $add
 SELECT * FROM bson_dollar_project('{"a": -100, "b": {"$date": { "$numberLong" : "-9223372036854775807" }}}', '{"result": { "$add": [ "$a", "$b" ]}}');
-ERROR:  date overflow in $add
+ERROR:  Date value overflow detected in operator $add
 SELECT * FROM bson_dollar_project('{"a": -100, "b": {"$date": { "$numberLong" : "-9223372036854775807" }}}', '{"result": { "$add": [ "$a", "$b", "$c" ]}}');
-ERROR:  date overflow in $add
+ERROR:  Date value overflow detected in operator $add
 SELECT * FROM bson_dollar_project('{"a": {"$numberDouble": "100.58"}, "b": {"$date": { "$numberLong" : "0" }}}', '{"result": { "$add": [ "$a", "$b", {"$numberDouble": "9223372036854775800.22"} ]}}');
-ERROR:  date overflow in $add
+ERROR:  Date value overflow detected in operator $add
 SELECT * FROM bson_dollar_project('{"a": {"$numberDouble": "100.58"}, "b": {"$date": { "$numberLong" : "0" }}}', '{"result": { "$add": [ "$a", "$b", NaN ]}}');
-ERROR:  date overflow in $add
+ERROR:  Date value overflow detected in operator $add
 -- $subtract operator
 -- Returns expected result
 SELECT * FROM bson_dollar_project('{"a":1, "b": 2}', '{"result": { "$subtract": [ "$a", "$b" ]}}');
@@ -1091,13 +1091,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": {"$numberLong": "-
 ERROR:  Cannot compute $abs for minimum long long value
 -- $abs: supports only numerics
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": "str"}}');
-ERROR:  $abs only supports numeric types, not string
+ERROR:  $abs operator only accepts numeric data types, not string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": true}}');
-ERROR:  $abs only supports numeric types, not bool
+ERROR:  $abs operator only accepts numeric data types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": [false]}}');
-ERROR:  $abs only supports numeric types, not bool
+ERROR:  $abs operator only accepts numeric data types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": [{}]}}');
-ERROR:  $abs only supports numeric types, not object
+ERROR:  $abs operator only accepts numeric data types, not object
 -- $abs: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": []}}');
 ERROR:  Expression $abs takes exactly 1 arguments. 0 were passed in.
@@ -1199,13 +1199,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": null}}');
 
 -- $ceil: supports only numerics
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": "str"}}');
-ERROR:  $ceil only supports numeric types, not string
+ERROR:  $ceil can only handle numeric data types, not string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": true}}');
-ERROR:  $ceil only supports numeric types, not bool
+ERROR:  $ceil can only handle numeric data types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": [false]}}');
-ERROR:  $ceil only supports numeric types, not bool
+ERROR:  $ceil can only handle numeric data types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": [{}]}}');
-ERROR:  $ceil only supports numeric types, not object
+ERROR:  $ceil can only handle numeric data types, not object
 -- $ceil: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": []}}');
 ERROR:  Expression $ceil takes exactly 1 arguments. 0 were passed in.
@@ -1476,13 +1476,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": [{}]}}');
 ERROR:  $ln only supports numeric types, not object
 -- $ln: should be positive number greater than 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": {"$numberDouble": "-2"}}}');
-ERROR:  $ln's argument must be a positive number, but is -2
+ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received -2 instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": {"$numberDecimal": "0"}}}');
-ERROR:  $ln's argument must be a positive number, but is 0
+ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received 0 instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": {"$numberLong": "-1"}}}');
-ERROR:  $ln's argument must be a positive number, but is -1
+ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received -1 instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": -100}}');
-ERROR:  $ln's argument must be a positive number, but is -100
+ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received -100 instead.
 -- $ln: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": []}}');
 ERROR:  Expression $ln takes exactly 1 arguments. 0 were passed in.
@@ -1594,7 +1594,7 @@ ERROR:  The base value for the $log must be positive and cannot be 1, but it is 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [[], 1]}}');
 ERROR:  $log requires a numeric argument, but received array instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, "str"]}}');
-ERROR:  $log's base must be numeric, not string
+ERROR:  The base value for the $log operator must be numeric, not string
 -- $log: takes exactly 2 arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": []}}');
 ERROR:  Expression $log takes exactly 2 arguments. 0 were passed in.
@@ -1909,9 +1909,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, "$a"]}}');
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [[], 31]}}');
 ERROR:  $pow requires its base to be numeric, but received array instead
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, "a"]}}');
-ERROR:  $pow's exponent must be numeric, not string
+ERROR:  The operator $pow requires a numeric exponent rather than string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, true]}}');
-ERROR:  $pow's exponent must be numeric, not bool
+ERROR:  The operator $pow requires a numeric exponent rather than bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [false, true]}}');
 ERROR:  $pow requires its base to be numeric, but received bool instead
 -- $pow: exponent can't be negative if base is 0

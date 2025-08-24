@@ -164,7 +164,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": {
 
 -- Missing param input
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": { "field": "a", "value": "newValue" } }]}}');
-ERROR:  $setField requires 'input' to be specified
+ERROR:  $setField needs the 'input' parameter to be explicitly specified
 -- Missing param field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": { "input": "$$ROOT", "value": "newValue" } }]}}');
 ERROR:  $setField requires 'field' to be specified
@@ -173,9 +173,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldA": [{"$setField": {
 ERROR:  The $setField requires that a 'value' parameter be explicitly provided
 -- Wrong type for field, must be a string not null or bool
 SELECT * FROM bson_dollar_project('{ "d1": {"val": "a"}}', '{"result": { "fieldA": [ { "$literal": "b"}, {"$setField": { "field": true, "value": "REMOVE" } }]}}');
-ERROR:  $setField requires 'input' to be specified
+ERROR:  $setField needs the 'input' parameter to be explicitly specified
 SELECT * FROM bson_dollar_project('{ "d1": {"val": "a"}}', '{"result": { "fieldA": [ { "$literal": "b"}, {"$setField": { "field": null, "value": "REMOVE" } }]}}');
-ERROR:  $setField requires 'input' to be specified
+ERROR:  $setField needs the 'input' parameter to be explicitly specified
 -- The next item should add  "$x.y.z" : "newValue" to the input doc {"a":"b"}
 SELECT * FROM bson_dollar_project('{ "d1": {"val": "a"}}', '{"result": { "fieldA": [{"$setField": { "field": {"$literal" : "$x.y.z"}, "input": {"a":"b"}, "value": "newValue" } }]}}');
                           bson_dollar_project                           
@@ -514,7 +514,7 @@ SELECT * FROM bson_dollar_project('{"a": {"b": 1, "c": 2}, "d": [2, 3]}', '{"res
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": 1}}}');
 ERROR:  $unsetField only supports an object as its argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a"}}}}');
-ERROR:  $unsetField requires 'input' to be specified
+ERROR:  $unsetField needs the 'input' parameter to be explicitly specified
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"input": null}}}}');
 ERROR:  $unsetField requires 'field' to be specified
 SELECT * FROM bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": null, "value": 1}}}}');

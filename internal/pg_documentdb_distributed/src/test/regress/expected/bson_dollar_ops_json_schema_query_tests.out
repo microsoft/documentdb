@@ -1359,15 +1359,15 @@ ERROR:  $jsonSchema keyword 'encryptMetadata' cannot be an empty object
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"unknown":"hello"}} }');
 ERROR:  BSON field 'encryptMetadata.unknown' is an unknown field
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId":1}} }');
-ERROR:  BSON field 'encryptMetadata.keyId' is the wrong type 'int', expected type 'array'
+ERROR:  The BSON field 'encryptMetadata.keyId' has an incorrect type 'int'; it should be of type 'array'.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"algorithm":[]}} }');
-ERROR:  BSON field 'encryptMetadata.algorithm' is the wrong type 'array', expected type 'string'
+ERROR:  The BSON field 'encryptMetadata.algorithm' has an incorrect type 'array'; it should be of type 'string'.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"a":1} } } } }');
 ERROR:  BSON field 'encrypt.a' is an unknown field
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"keyId":1} } } } }');
-ERROR:  BSON field 'encrypt.keyId' is the wrong type 'int', expected type 'array'
+ERROR:  The BSON field 'encrypt.keyId' has an incorrect type 'int'; it should be of type 'array'.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"algorithm":[]} } } } }');
-ERROR:  BSON field 'encrypt.algorithm' is the wrong type 'array', expected type 'string'
+ERROR:  The BSON field 'encrypt.algorithm' has an incorrect type 'array'; it should be of type 'string'.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : {"bsonType": 123} } } } }');
 ERROR:  $jsonSchema keyword 'bsonType' must be either a string or an array of strings
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "06" }}}','{ "$jsonSchema": { "properties": { "data" : { "encrypt" : "" } } } }'); 

@@ -881,9 +881,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": {"$numberDouble": 
 
 -- Should error if expression evaluates to Infinity/-Infinity
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $tan to Infinity, value must be in (-inf,inf)
+ERROR:  Unable to use operators tan on Infinity since the value must lie within the range (-inf, inf)
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $tan to -Infinity, value must be in (-inf,inf)
+ERROR:  Unable to use operators tan on -Infinity since the value must lie within the range (-inf, inf)
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": "str"}}');
 ERROR:  $tan works exclusively with numeric data types, not with string

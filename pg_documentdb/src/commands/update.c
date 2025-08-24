@@ -755,7 +755,7 @@ BuildBatchUpdateSpec(bson_iter_t *updateCommandIter, pgbsonsequence *updateDocs)
 			if (updateDocs != NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("Unexpected additional updates")));
+								errmsg("Unexpected further updates required")));
 			}
 
 			updateValue = *bson_iter_value(updateCommandIter);
@@ -1005,23 +1005,22 @@ BuildUpdateSpec(bson_iter_t *updateIter, const bson_value_t *variableSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'update.updates.%s' is an unknown field",
-								   field)));
+							errmsg(
+								"The field 'update.updates.%s' specified is not recognized as a valid field",
+								field)));
 		}
 	}
 
 	if (query == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'update.updates.q' is missing but "
-							   "a required field")));
+						errmsg("The required field 'update.updates.q' is missing")));
 	}
 
 	if (update == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'update.updates.u' is missing but "
-							   "a required field")));
+						errmsg("The required field 'update.updates.u' is missing")));
 	}
 
 	UpdateSpec *updateSpec = palloc0(sizeof(UpdateSpec));

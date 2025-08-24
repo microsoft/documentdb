@@ -65,19 +65,19 @@ SELECT documentdb_api.insert_one('db','pipeline_group_tests','{ "user": "Delta",
 
 /* Negative tests */
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"output": [ "$user", "$points" ]}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
 ERROR:  Unknown argument to $top 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"output": [ "$user", "$points" ]}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
 ERROR:  Unknown argument to $bottom 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n
@@ -93,7 +93,7 @@ ERROR:  'n' must be greater than 0, found -1
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 0.5}}}} ] }'); -- n is not an integer
 ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n

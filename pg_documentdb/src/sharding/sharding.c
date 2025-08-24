@@ -213,9 +213,9 @@ command_reshard_collection(PG_FUNCTION_ARGS)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 							errmsg(
-								"Internal error resharding collection in metadata coordinator"),
+								"Metadata coordinator encountered internal error while resharding the collection"),
 							errdetail_log(
-								"Internal error resharding collection in metadata coordinator via distributed call %s",
+								"Metadata coordinator encountered internal error while resharding the collection via distributed call %s",
 								text_to_cstring(result.response))));
 		}
 
@@ -381,7 +381,7 @@ FindShardKeyFieldValue(bson_iter_t *docIter, const char *path)
 			/* shard key path that contains array is invalid */
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 							errmsg(
-								"Shard key cannot contain array values or array descendants.")));
+								"Shard key is not allowed to include array values or any array-derived elements.")));
 		}
 		else if (BSON_ITER_HOLDS_DOCUMENT(docIter))
 		{

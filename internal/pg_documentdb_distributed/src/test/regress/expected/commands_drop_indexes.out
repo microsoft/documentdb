@@ -17,11 +17,11 @@ ERROR:  dbName cannot be NULL
 CALL documentdb_api.drop_indexes('db', '{}');
 ERROR:  BSON field 'dropIndexes.dropIndexes' is missing but a required field
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": null, "index": ["my_idx_1", "does_not_exist"]}');
-ERROR:  BSON field 'dropIndexes.dropIndexes' is the wrong type 'null', expected type 'string'
+ERROR:  The BSON field 'dropIndexes.dropIndexes' has an incorrect type 'null'; it should be of type 'string'.
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "unknown_field": 1}');
 ERROR:  BSON field 'dropIndexes.unknown_field' is an unknown field
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index": null}');
-ERROR:  BSON field 'dropIndexes.index' is the wrong type 'null', expected type '[string, object]'
+ERROR:  The BSON field 'dropIndexes.index' has an incorrect type 'null'; it should be of type '[string, object]'.
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3"}');
 ERROR:  BSON field 'dropIndexes.index' is missing but a required field
 -- this is ok
@@ -32,9 +32,9 @@ CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index":
 (1 row)
 
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": 1, "index":[]}');
-ERROR:  BSON field 'dropIndexes.dropIndexes' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'dropIndexes.dropIndexes' has an incorrect type 'int'; it should be of type 'string'.
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index": 1}');
-ERROR:  BSON field 'dropIndexes.index' is the wrong type 'int', expected type '[string, object]'
+ERROR:  The BSON field 'dropIndexes.index' has an incorrect type 'int'; it should be of type '[string, object]'.
 ---- dropIndexes - top level - not implemented yet ----
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index": {}}');
 ERROR:  can't find index with key: { }

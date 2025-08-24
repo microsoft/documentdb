@@ -38,7 +38,12 @@ int32 PEC_InternalQueryMaxAllowedDensifyDocs = DEFAULT_MAX_ALLOWED_DOCS_IN_DENSI
 int32 PEC_InternalDocumentSourceDensifyMaxMemoryBytes =
 	BSON_MAX_ALLOWED_SIZE_INTERMEDIATE;
 
-/* Enum to represent the type of Densify */
+/*
+ * DensifyType enumerates the available modes for the $densify aggregation stage,
+ * specifying whether densification is performed over a fixed range, within partitions,
+ * or across the entire dataset. This guides the logic for generating missing documents
+ * based on the densify specification.
+ */
 typedef enum DensifyType
 {
 	DENSIFY_TYPE_INVALID,
@@ -1121,8 +1126,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_LOCATION5733402),
 								errmsg(
-									"the bounds in a range statement must be the string 'full', 'partition',"
-									" or an ascending array of two numbers or two dates")));
+									"Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.")));
 				}
 
 				if (rangeElement.bsonValue.value_type == BSON_TYPE_UTF8)
@@ -1198,7 +1202,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 				if (arguments->timeUnit == DateUnit_Invalid)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-									errmsg("unknown time unit value: %s",
+									errmsg("Unrecognized value for time unit: %s",
 										   rangeElement.bsonValue.value.v_utf8.str)));
 				}
 			}
@@ -1269,8 +1273,8 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733408),
 						errmsg(
-							"one may not specify the bounds as 'partition' without specifying "
-							"a non-empty array of partitionByFields. You may have meant to specify 'full' bounds.")));
+							"Bounds cannot be set as 'partition' unless a non-empty array of partitionByFields is provided; "
+							"perhaps you intended to use 'full' bounds instead.")));
 	}
 
 	if (arguments->densifyType == DENSIFY_TYPE_RANGE)
@@ -1281,8 +1285,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733402),
 							errmsg(
-								"the bounds in a range statement must be the string 'full', 'partition',"
-								" or an ascending array of two numbers or two dates")));
+								"Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.")));
 		}
 		else if (BsonTypeIsNumber(arguments->lowerBound.value_type) &&
 				 arguments->timeUnit != DateUnit_Invalid)
@@ -1295,7 +1298,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733406),
 							errmsg(
-								"a bounding array must contain either both dates or both numeric types")));
+								"A bounding array is required to include either a pair of dates or a pair of numeric values.")));
 		}
 		else if (BsonValueIsNumber(&arguments->upperBound) &&
 				 arguments->lowerBound.value_type == BSON_TYPE_DATE_TIME)
@@ -1716,7 +1719,7 @@ GenerateSelectNullQuery()
 	query->canSetTag = true;
 	query->rtable = NIL;
 
-	/* Create an empty jointree */
+	/* Create an empty jointree structure */
 	query->jointree = makeNode(FromExpr);
 
 	/* Create the projector for NULL::bson */

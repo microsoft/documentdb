@@ -743,7 +743,7 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
 							errmsg(
-								"FieldPath field names may not start with '$'. Consider using $getField or $setField.")));
+								"FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.")));
 		}
 
 		if (output.bsonValue.value_type != BSON_TYPE_DOCUMENT)
@@ -893,7 +893,8 @@ UpdateWindowOperatorAndFrameOptions(const bson_value_t *windowOpValue,
 		if (windowValue.bsonValue.value_type != BSON_TYPE_DOCUMENT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("'window' field must be an object")));
+							errmsg(
+								"The 'window' field is required to be a valid object")));
 		}
 
 		UpdateWindowOptions(&windowValue, windowClause, context, &frameOptions);
@@ -1064,7 +1065,8 @@ EnsureValidUnitOffsetAndGetInterval(const bson_value_t *value, DateUnit dateUnit
 	if (!IsBsonValueFixedInteger(value))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("With 'unit', range-based bounds must be an integer")));
+						errmsg(
+							"When using 'unit', the bounds in a range must be specified as an integer value")));
 	}
 
 	int64 offset = labs(BsonValueAsInt64(value));
@@ -1113,7 +1115,8 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Range-based bounds expression must be a number")));
+							errmsg(
+								"Bounds expression in range must be a numeric value")));
 			}
 		}
 		else if (frameValue->value_type == BSON_TYPE_UTF8)
@@ -1376,7 +1379,7 @@ UpdateWindowOptions(const pgbsonelement *element, WindowClause *windowClause,
 			if (dateUnit == DateUnit_Invalid)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("unknown time unit value: %s",
+								errmsg("Unrecognized value for time unit: %s",
 									   windowValue->value.v_utf8.str)));
 			}
 		}
@@ -1635,9 +1638,9 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 				if (unit == DateUnit_Invalid)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-									errmsg("unknown time unit value: %s",
+									errmsg("Unrecognized value for time unit: %s",
 										   value->value.v_utf8.str),
-									errdetail_log("unknown time unit value: %s",
+									errdetail_log("Unrecognized value for time unit: %s",
 												  value->value.v_utf8.str)));
 				}
 				else if (unit < DateUnit_Week)
@@ -2291,7 +2294,8 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 	if (opValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Argument to $shift must be an object")));
+						errmsg(
+							"The operator $shift requires its argument to be an object")));
 	}
 
 	bson_iter_t docIter;
@@ -2346,7 +2350,7 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 							BsonValueToJsonForLogging(by))));
 	}
 
-	/* by value should be a 32 bit integer */
+	/* The value provided must be a 32-bit integer type */
 	by->value.v_int32 = BsonValueAsInt32WithRoundingMode(by,
 														 ConversionRoundingMode_Floor);
 	by->value_type = BSON_TYPE_INT32;
@@ -2623,8 +2627,10 @@ ValidteForMaxNMinNNAccumulators(const bson_value_t *opValue, const char *opName)
 	if (opValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787900),
-						errmsg("specification must be an object; found %s: %s", opName,
-							   BsonValueToJsonForLogging(opValue)),
+						errmsg(
+							"Specification should be an object type; encountered %s: %s",
+							opName,
+							BsonValueToJsonForLogging(opValue)),
 						errdetail_log(
 							"specification must be an object; opname: %s type found: %s",
 							opName,

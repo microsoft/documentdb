@@ -366,7 +366,7 @@ LegacyPointVisitTopLevelField(pgbsonelement *element, const StringView *filterPa
 	}
 	else if (IsBsonValueEmptyArray(value) || IsBsonValueEmptyDocument(value))
 	{
-		/* Empty array or object */
+		/* Array or object is empty */
 		return false;
 	}
 
@@ -576,10 +576,10 @@ BsonValueAddLegacyPointDatum(const bson_value_t *value,
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_LOCATION13026),
-							errmsg("geo values must be "
-								   "'legacy coordinate pairs' for 2d indexes"),
-							errdetail_log("geo values must be "
-										  "'legacy coordinate pairs' for 2d indexes")));
+							errmsg(
+								"Geo values are required to be in the 'legacy coordinate pairs' format when working with 2D indexes."),
+							errdetail_log(
+								"Geo values are required to be in the 'legacy coordinate pairs' format when working with 2D indexes.")));
 			}
 
 			/* For any other single point validation this error if any invalid point.
@@ -794,9 +794,9 @@ GeographyVisitTopLevelField(pgbsonelement *element, const
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				throwError, (
 					errcode(GEO_ERROR_CODE(processState->errorCtxt)),
-					errmsg("%scan't index geometry with strict winding order",
+					errmsg("%s cannot index geometry due to strict winding order",
 						   GEO_ERROR_PREFIX(processState->errorCtxt)),
-					errdetail_log("%scan't index geometry with strict winding order",
+					errdetail_log("%s cannot index geometry due to strict winding order",
 								  GEO_HINT_PREFIX(processState->errorCtxt))));
 		}
 

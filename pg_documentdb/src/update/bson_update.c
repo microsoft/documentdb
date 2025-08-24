@@ -237,7 +237,7 @@ bson_update_document(PG_FUNCTION_ARGS)
 
 	if (tupleDescriptor->natts != 2)
 	{
-		elog(ERROR, "incorrect number of output arguments");
+		elog(ERROR, "The number of output arguments provided is not correct.");
 	}
 
 	pgbson *document = BsonUpdateDocumentCore(sourceDocument,
@@ -395,7 +395,7 @@ BsonUpdateDocumentCore(pgbson *sourceDocument, const bson_value_t *updateSpec,
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_CHECK_VIOLATION), errmsg(
-								"Unrecognized update type %d",
+								"Update type %d not recognized",
 								updateMetadata->updateType)));
 			break;
 		}

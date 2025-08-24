@@ -520,7 +520,7 @@ WKBBufferGetCollectionByteaWithSRID(StringInfo wkbBuffer, WKBGeometryType collec
 	uint32 sridPos = WKB_BYTE_SIZE_ORDER + WKB_BYTE_SIZE_TYPE;
 	memcpy((wkbData + sridPos), (uint8 *) &srid, WKB_BYTE_SIZE_SRID);
 
-	/* copy number of items */
+	/* Number of items to copy */
 	uint32 totalPos = sridPos + WKB_BYTE_SIZE_TYPE;
 	memcpy((wkbData + totalPos), (uint8 *) &totalNum, WKB_BYTE_SIZE_SRID);
 

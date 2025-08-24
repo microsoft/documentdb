@@ -249,7 +249,7 @@ HandleUpdateDollarInc(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Failed to apply $inc operations to current value (%s) for document {_id: %s}",
+							"Unable to perform $inc operators on the existing value (%s) in the document with identifier {_id: %s}",
 							FormatBsonValueForShellLogging(existingValue),
 							BsonValueToJsonForLogging(&state->documentId)
 							)));
@@ -475,7 +475,8 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"Cannot apply $mul to a value of non-numeric type. { _id: %s } has the field '%.*s' of non-numeric type %s",
+							"Unable to use the $mul operator on values that are not numeric. "
+							"The document { _id: %s } contains the field '%.*s', which has a non-numeric type %s.",
 							BsonValueToJsonForLogging(&state->documentId),
 							setValueState->fieldPath->length,
 							setValueState->fieldPath->string,
@@ -920,7 +921,7 @@ HandleUpdateDollarPush(const bson_value_t *existingValue,
 							BsonTypeName(currentValue.value_type),
 							BsonValueToJsonForLogging(&state->documentId)),
 						errdetail_log(
-							"The field in $push must be an array but is of type %s",
+							"The field specified in the $push operator needs to be an array, but instead it has a type of %s",
 							BsonTypeName(currentValue.value_type))));
 	}
 
@@ -1014,7 +1015,7 @@ HandleUpdateDollarPop(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$pop expects 1 or -1, found: %s",
+							"$pop operator requires either 1 or -1, but received: %s",
 							BsonValueToJsonForLogging(updateValue))));
 	}
 

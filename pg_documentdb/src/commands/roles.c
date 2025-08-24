@@ -143,7 +143,7 @@ create_role(pgbson *createRoleBson)
 							"At least one inherited role must be specified in 'roles' array.")));
 	}
 
-	/* Create the role */
+	/* Create the specified role in the database */
 	StringInfo createRoleInfo = makeStringInfo();
 	appendStringInfo(createRoleInfo, "CREATE ROLE %s", quote_identifier(
 						 createRoleSpec.roleName));

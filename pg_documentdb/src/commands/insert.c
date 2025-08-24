@@ -228,7 +228,7 @@ CreateCollectionForInsert(Datum databaseNameDatum, Datum collectionNameDatum)
 		char *collectionName = TextDatumGetCString(collectionNameDatum);
 
 		ereport(ERROR, (errcode(ERRCODE_UNDEFINED_TABLE),
-						errmsg("collection %s does not exist",
+						errmsg("The collection named %s cannot be found",
 							   quote_literal_cstr(collectionName))));
 	}
 
@@ -352,8 +352,8 @@ BuildBatchInsertionSpec(bson_iter_t *insertCommandIter, pgbsonsequence *insertDo
 	if (collectionName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'insert.insert' is missing but "
-							   "a required field")));
+						errmsg(
+							"The BSON field 'insert.insert' is required but not provided")));
 	}
 
 	if (insertDocs != NULL)
@@ -1424,7 +1424,7 @@ CreateInsertQuery(MongoCollection *collection, Oid shardOid, List *valuesLists)
 
 
 /*
- * Executes the Insert query and returns the number of results processed.
+ * Executes the Insert query and returns the total count of processed results.
  */
 static uint64_t
 RunInsertQuery(Query *insertQuery, ParamListInfo paramListInfo)

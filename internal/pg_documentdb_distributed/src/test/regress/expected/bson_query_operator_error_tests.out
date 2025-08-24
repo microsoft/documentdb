@@ -557,7 +557,7 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 ERROR:  no $ expressions in $all
 -- negative tests for $not operator
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a"  : {"$not" : {} } }';
-ERROR:  $not cannot be empty
+ERROR:  Operator $not must not be left empty
 -- negative tests for comp operators with regex
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a"  : {"$ne" : {"$regex" : "hello", "$options" : ""} } }';
 ERROR:  Can't have regex as arg to $ne.

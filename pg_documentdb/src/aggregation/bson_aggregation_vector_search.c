@@ -330,7 +330,8 @@ HandleNativeVectorSearch(const bson_value_t *existingValue, Query *query,
 	{
 		/* This is incompatible.vector search needs the base relation. */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$vectorSearch must be the first stage in the pipeline")));
+						errmsg(
+							"The $vectorSearch needs to appear as the initial stage in the processing pipeline.")));
 	}
 	ReportFeatureUsage(FEATURE_STAGE_VECTOR_SEARCH_NATIVE);
 
@@ -1295,10 +1296,10 @@ ParseAndValidateNativeVectorSearchSpec(const bson_value_t *nativeVectorSearchSpe
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$vectorSearch.numCandidates must be greater than or equal to %d.",
+									"The vectorSearch.numCandidates should have a value that is not less than %d.",
 									HNSW_MIN_EF_SEARCH),
 								errdetail_log(
-									"$vectorSearch.numCandidates must be greater than or equal to %d.",
+									"The vectorSearch.numCandidates should have a value that is not less than %d.",
 									HNSW_MIN_EF_SEARCH)));
 			}
 
@@ -1440,7 +1441,7 @@ CheckVectorIndexAndGenerateSortExpr(Query *query,
 			if (vectorSearchOptions->vectorIndexDef == NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-								errmsg("Unsupported vector index type")));
+								errmsg("Vector index type not supported")));
 			}
 
 			/* Set the vector compression type */
@@ -1775,7 +1776,7 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$k must be a positive integer.")));
+									"The $k should always be a positive integer value.")));
 			}
 		}
 		else if (strcmp(key, "filter") == 0)

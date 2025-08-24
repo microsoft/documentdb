@@ -258,7 +258,7 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
 								errmsg(
-									"namespaces cannot have embedded null characters")));
+									"Namespaces are not allowed to contain any embedded null characters")));
 			}
 		}
 		else if (strcmp(key, "viewOn") == 0)
@@ -271,13 +271,13 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 				if (strlen(spec->viewOn) == 0)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("'viewOn' cannot be empty")));
+									errmsg("The 'viewOn' field must not be empty")));
 				}
 				else if (strlen(spec->viewOn) != (size_t) strLength)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
 									errmsg(
-										"namespaces cannot have embedded null characters")));
+										"Namespaces are not allowed to contain any embedded null characters")));
 				}
 			}
 		}

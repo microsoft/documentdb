@@ -767,7 +767,7 @@ SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", 
 ERROR:  Maximum one of 'partitionBy' and 'partitionByFields can be specified in '$fill'
 -- partitionByFields element starts with $
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionByFields": ["$a"], "sortBy": { "date": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField.
+ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.
 -- output field is not present in the document
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "sortBy": { "date": 1 }}}]}');
 ERROR:  Required field '$fill.output' is missing

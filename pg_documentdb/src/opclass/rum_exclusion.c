@@ -725,7 +725,7 @@ GetShardKeyAndDocument(HeapTupleHeader input, int64_t *shardKey)
 	Datum documentDatum = GetAttributeByNum(tupleHeader, 2, &isNull);
 	if (isNull)
 	{
-		ereport(ERROR, (errmsg("document should not be null")));
+		ereport(ERROR, (errmsg("The document value must not be null")));
 	}
 
 	*shardKey = DatumGetInt64(shardKeyDatum);

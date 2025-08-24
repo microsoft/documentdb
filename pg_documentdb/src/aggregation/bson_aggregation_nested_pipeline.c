@@ -190,7 +190,7 @@ typedef struct LevelsUpQueryTreeWalkerState
  */
 typedef struct
 {
-	/* the input startWith expression */
+	/* the input expression must start with the specified input */
 	bson_value_t inputExpression;
 
 	/* The target collection */
@@ -1052,7 +1052,7 @@ HandleUnionWith(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_MAXSUBPIPELINEDEPTHEXCEEDED),
 						errmsg(
-							"Maximum number of nested sub-pipelines exceeded. Limit is %d",
+							"The allowed limit for nested sub-pipelines has been surpassed, exceeding the maximum of %d.",
 							MaximumLookupPipelineDepth)));
 	}
 
@@ -1752,7 +1752,7 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40319),
 						errmsg(
-							"the $lookup stage specification must be an object, but found %s",
+							"The $lookup stage must be defined as an object, but instead a %s value was provided.",
 							BsonTypeName(existingValue->value_type))));
 	}
 
@@ -1896,7 +1896,7 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$lookup requires both or neither of 'localField' and 'foreignField' to be specified")));
+							"$lookup needs either both 'localField' and 'foreignField' specified or neither of them provided")));
 	}
 
 	if (args->foreignField.length != 0)
@@ -3130,9 +3130,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40102),
 								errmsg(
-									"graphlookup.maxDepth must be a non-negative integer."),
+									"The value of graphlookup.maxDepth must always be a non‑negative integer number."),
 								errdetail_log(
-									"graphlookup.maxDepth must be a non-negative integer.")));
+									"The value of graphlookup.maxDepth must always be a non‑negative integer number.")));
 			}
 
 			args->maxDepth = BsonValueAsInt32(value);
@@ -3141,9 +3141,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40101),
 								errmsg(
-									"graphlookup.maxDepth must be a non-negative integer."),
+									"The value of graphlookup.maxDepth must always be a non‑negative integer number."),
 								errdetail_log(
-									"graphlookup.maxDepth must be a non-negative integer.")));
+									"The value of graphlookup.maxDepth must always be a non‑negative integer number.")));
 			}
 		}
 		else if (strcmp(key, "depthField") == 0)
@@ -3187,8 +3187,12 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40104),
-							errmsg("unknown argument to $graphlookup: %s", key),
-							errdetail_log("unknown argument to $graphlookup: %s", key)));
+							errmsg(
+								"Unrecognized parameter supplied to stage $graphlookup: %s",
+								key),
+							errdetail_log(
+								"Unrecognized parameter supplied to stage $graphlookup: %s",
+								key)));
 		}
 	}
 
@@ -3971,7 +3975,7 @@ BuildRecursiveGraphLookupQuery(QuerySource parentSource, GraphLookupArgs *args,
 												   true);
 	finalDepthEntry->ressortgroupref = 2;
 
-	/* If there is a depth-field, add it into the original doc */
+	/* If a depthField is specified, merge the depth value into the document. */
 	if (args->depthField.length > 0)
 	{
 		bool overrideArray = true;
@@ -4031,7 +4035,7 @@ HandleLookupCore(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_MAXSUBPIPELINEDEPTHEXCEEDED),
 						errmsg(
-							"Maximum number of nested sub-pipelines exceeded. Limit is %d",
+							"The allowed limit for nested sub-pipelines has been surpassed, exceeding the maximum of %d.",
 							MaximumLookupPipelineDepth)));
 	}
 

@@ -3487,7 +3487,7 @@ beginmerge(Tuplesortstate *state)
 	int activeTapes;
 	int srcTapeIndex;
 
-	/* Heap should be empty here */
+	/* The heap is expected to be completely empty at this point */
 	Assert(state->memtupcount == 0);
 
 	activeTapes = Min(state->nInputTapes, state->nInputRuns);

@@ -131,10 +131,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  PlanExecutor error during aggregation :: caused by :: An expression used to partition cannot evaluate to value of type array
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "partitionBy": 1, "sortBy": { "a" : "asc" }}}]}');
-ERROR:  Invalid sort direction "asc"
+ERROR:  Sort direction value "asc" is not valid
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "partitionBy": 1, "sortBy": "Not an Object"}}]}');
-ERROR:  BSON field '$setWindowFields.sortBy' is the wrong type 'string', expected type 'object'
+ERROR:  The BSON field '$setWindowFields.sortBy' has an incorrect type 'string'; it should be of type 'object'.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": "Not an object" }}}]}');
 ERROR:  Expected 'document' type for 'total'
@@ -143,7 +143,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Unrecognized window function, $unknownOperator
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "$total": {"$sum": 1}}}}]}');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField.
+ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "": {"$unknownOperator": 1}}}}]}');
 ERROR:  FieldPath cannot be constructed with empty string
@@ -152,7 +152,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Expected 'document' type for 'total2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": "Not an object"}}}}]}');
-ERROR:  'window' field must be an object
+ERROR:  The 'window' field is required to be a valid object
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "unknownBound": [1, 2] }}}}}]}');
 ERROR:  'window' field can only contain 'documents' as the only argument or 'range' with an optional 'unit' field
@@ -233,10 +233,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "sortBy": {"a": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "days" }}}}}]}');
-ERROR:  unknown time unit value: days
+ERROR:  Unrecognized value for time unit: days
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "sortBy": {"a": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "Day" }}}}}]}');
-ERROR:  unknown time unit value: Day
+ERROR:  Unrecognized value for time unit: Day
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": {"_id": 1 }}, {"$setWindowFields": { "sortBy": {"date": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "second"}}}}}]}');
 ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was int
@@ -5210,7 +5210,7 @@ ERROR:  specification must be an object; found $topN :[ 1 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": "hello"}}}}] }');  -- spec should be document
 ERROR:  specification must be an object; found $bottomN :"hello"
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$top": {"output": "hello"}}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottom": {"sortBy": {"quantity": 1}}}}}} ] }'); -- missing output field
 ERROR:  Missing value for 'output'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "hello", "sortBy": {"quantity": 1}}}}}} ] }'); -- missing n
@@ -5218,7 +5218,7 @@ ERROR:  Missing value for 'n'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"n": 2, "sortBy": {"quantity": 1}}}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "hello", "n": 2}}}}} ] }'); -- missing sortBy
-ERROR:  Missing value for 'sortBy'
+ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": {"quantity": 1}, "fourth": true}}}}} ] }'); -- extra field
 ERROR:  Unknown argument to $bottomN 'fourth'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": -2, "sortBy": {"quantity": 1}}}}}} ] }'); -- negative n

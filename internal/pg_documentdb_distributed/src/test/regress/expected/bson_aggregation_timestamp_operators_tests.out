@@ -30,19 +30,19 @@ SELECT * FROM bson_dollar_project('{"a": { "$timestamp": { "t": 1622431468, "i":
 
 -- $tsSecond operator negative tests
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": "" }}');
-ERROR:  $tsSecond requires a timestamp argument, found: string
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": [1,2] }}');
 ERROR:  Expression $tsSecond takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": [1] }}');
-ERROR:  $tsSecond requires a timestamp argument, found: int
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": 11 }}');
-ERROR:  $tsSecond requires a timestamp argument, found: int
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": true }}');
-ERROR:  $tsSecond requires a timestamp argument, found: bool
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: bool
 SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$tsSecond": "$a" }}');
-ERROR:  $tsSecond requires a timestamp argument, found: int
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": {"$regex": "a*b", "$options":""} }}');
-ERROR:  $tsSecond requires a timestamp argument, found: regex
+ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: regex
 -- $tsIncrement operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": null }}');
  bson_dollar_project 

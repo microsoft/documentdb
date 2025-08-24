@@ -208,7 +208,7 @@ ERROR:  minDistance must be nonnegative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$minDistance": {"$numberDouble": "NaN"}}}}');
 ERROR:  minDistance must be non-negative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"coordinates": [1, 1]}, "$minDistance": {"$numberDouble": "Infinity"}}}}}');
-ERROR:  minDistance must be non-negative
+ERROR:  The value of minDistance must always be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"coordinates": [1, 1]}, "$maxDistance": {"$numberDouble": "Infinity"}}}}}');
 ERROR:  maxDistance must be non-negative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$maxDistance": {"$numberDouble": "-Infinity"}}}}');
@@ -220,7 +220,7 @@ ERROR:  minDistance must be nonnegative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$minDistance": {"$numberDouble": "NaN"}}}}');
 ERROR:  minDistance must be non-negative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"coordinates": [1, 1]}, "$minDistance": {"$numberDouble": "Infinity"}}}}}');
-ERROR:  minDistance must be non-negative
+ERROR:  The value of minDistance must always be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"coordinates": [1, 1]}, "$maxDistance": {"$numberDouble": "Infinity"}}}}}');
 ERROR:  maxDistance must be non-negative
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$maxDistance": {"$numberDouble": "-Infinity"}}}}');
@@ -241,7 +241,7 @@ SELECT documentdb_api.update('db', '{"update":"near_sphere", "updates":[{"q":{},
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "near_sphere", "indexes": [{"key": {"t": 1}, "name": "my_invalid_idx", "partialFilterExpression": {"geo": {"$near": [1,1]}} }]}', true);
-ERROR:  Error in specification { "key" : { "t" : 1 }, "name" : "my_invalid_idx", "partialFilterExpression" : { "geo" : { "$near" : [ 1, 1 ] } } } :: caused by :: $geoNear, $near, and $nearSphere are not allowed in this context
+ERROR:  Error in specification { "key" : { "t" : 1 }, "name" : "my_invalid_idx", "partialFilterExpression" : { "geo" : { "$near" : [ 1, 1 ] } } }:$geoNear, $near, and $nearSphere are not allowed in this context
 BEGIN;
 -- $near operator
 -- Test with legacy coordinate pair

@@ -892,9 +892,9 @@ ERROR:  $arrayToObject requires an array of key-value pairs, where the key must 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["a", "value"], ["b", "foo"], [2, 2]]]}}');
 ERROR:  $arrayToObject requires an array of key-value pairs, where the key must be of type string. Found key type: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": 1, "v": "value"}]]}}');
-ERROR:  $arrayToObject requires an object with keys 'k' and 'v', where the value of 'k' must be of type string. Found type: int
+ERROR:  $arrayToObject needs an input object containing keys 'k' and 'v', with 'k' specifically required to be a string type. Detected type: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "v": "value"}, {"k": "b", "v": "value"}, {"k": 1, "v": "value"}]]}}');
-ERROR:  $arrayToObject requires an object with keys 'k' and 'v', where the value of 'k' must be of type string. Found type: int
+ERROR:  $arrayToObject needs an input object containing keys 'k' and 'v', with 'k' specifically required to be a string type. Detected type: int
 -- $arrayToObject: array input format must be of length 2
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["value"]]]}}');
 ERROR:  $arrayToObject requires an array of size 2 arrays,found array of size: 1
@@ -914,13 +914,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": 
 ERROR:  $arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: { "blah" : 1, "foo" : 2 }
 -- $arrayToObject: key must not contain embedded null byte
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "fo\u0000os", "v": "value"}]]}}');
-ERROR:  Key field cannot contain an embedded null byte
+ERROR:  Key field must not include an embedded null byte
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "fo\u0000", "v": "value"}]]}}');
-ERROR:  Key field cannot contain an embedded null byte
+ERROR:  Key field must not include an embedded null byte
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["\u0000", "value"]]]}}');
-ERROR:  Key field cannot contain an embedded null byte
+ERROR:  Key field must not include an embedded null byte
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["\u0000hello", "value"]]]}}');
-ERROR:  Key field cannot contain an embedded null byte
+ERROR:  Key field must not include an embedded null byte
 --$slice Operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$slice": [[1,2,3],1,1]}}');
             bson_dollar_project            
@@ -1412,14 +1412,14 @@ SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter"
 
 -- $filter, arg must be an object
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": {"$filter": "$a"}}');
-ERROR:  $filter only supports an object as its argument
+ERROR:  $filter can accept only an object type as its valid argument
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": {"$filter": true}}');
-ERROR:  $filter only supports an object as its argument
+ERROR:  $filter can accept only an object type as its valid argument
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": {"$filter": []}}');
-ERROR:  $filter only supports an object as its argument
+ERROR:  $filter can accept only an object type as its valid argument
 -- $filter, object should have cond and input, as/limit are optional, any other path is invalid
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"input": "$a"}}}');
-ERROR:  Missing 'cond' parameter to $filter
+ERROR:  The 'cond' parameter required by the $filter operator is missing
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"cond": true}}}');
 ERROR:  'Input' parameter is missing for $filter
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"input": "$a", "cond": true, "sort": false}}}');
@@ -1440,15 +1440,15 @@ ERROR:  The variable name '1element' begins with a character that is not valid f
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "Element"}}}');
 ERROR:  The variable name 'Element' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "el@ement"}}}');
-ERROR:  'el@ement' contains an invalid character for a variable name: '@'
+ERROR:  The variable name 'el@ement' contains an invalid character '@'.
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "el-ement"}}}');
-ERROR:  'el-ement' contains an invalid character for a variable name: '-'
+ERROR:  The variable name 'el-ement' contains an invalid character '-'.
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": ""}}}');
-ERROR:  empty variable names are not allowed
+ERROR:  Variable names cannot be left empty
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": null}}}');
-ERROR:  empty variable names are not allowed
+ERROR:  Variable names cannot be left empty
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": true}}}');
-ERROR:  empty variable names are not allowed
+ERROR:  Variable names cannot be left empty
 -- valid
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "element1"}}}');
  bson_dollar_project 
@@ -1470,13 +1470,13 @@ SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input":
 
 -- $filter, limit must be representable as a 32bit integer and > 0
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "1.1"}}} }');
-ERROR:  $filter: limit must be represented as a 32-bit integral value: 1.1
+ERROR:  Operator $filter requires the limit to be specified as a 32-bit integer value: 1.1
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDecimal": "1.1"}}} }');
-ERROR:  $filter: limit must be represented as a 32-bit integral value: 1.1
+ERROR:  Operator $filter requires the limit to be specified as a 32-bit integer value: 1.1
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberLong": "2147483648"}}} }');
-ERROR:  $filter: limit must be represented as a 32-bit integral value: 2147483648
+ERROR:  Operator $filter requires the limit to be specified as a 32-bit integer value: 2147483648
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "2147483648.0"}}} }');
-ERROR:  $filter: limit must be represented as a 32-bit integral value: 2.14748E+09
+ERROR:  Operator $filter requires the limit to be specified as a 32-bit integer value: 2.14748E+09
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "0.0"}}} }');
 ERROR:  $filter: limit value must be strictly greater than zero: 0
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "-1.0"}}} }');
@@ -1919,9 +1919,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,null] } }');
 ERROR:  $range expression needs a numeric ending value, but a value of type null was provided
 -- $range, negative conditions step number
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [21,21471,2147483648] } }');
-ERROR:  $range requires a step value that can be represented as a 32-bit integer, found value: 2147483648
+ERROR:  $range operator needs a step value that fits within a 32-bit integer, but the provided value was: 2147483648
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [-10,15, {"$numberDecimal":"0.35"}] } }');
-ERROR:  $range requires a step value that can be represented as a 32-bit integer, found value: 0.35
+ERROR:  $range operator needs a step value that fits within a 32-bit integer, but the provided value was: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,400,"abvcf"] } }');
 ERROR:  Expression $range needs a numeric step value, but received a value of type: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [5,40,true] } }');
@@ -2206,19 +2206,19 @@ ERROR:  $indexOfArray requires a nonnegative starting index, found: -1
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1, -5] } }');
 ERROR:  $indexOfArray requires a nonnegative ending index, found: -5
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1.1] } }');
-ERROR:  $indexOfArray requires an integral starting index, found a value of type: double, with value: 1.1
+ERROR:  The $indexOfArray operator needs an integer starting index, but encountered a value of type double with the value 1.1.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,5.11] } }');
-ERROR:  $indexOfArray requires an integral ending index, found a value of type: double, with value: 5.11
+ERROR:  The $indexOfArray operator needs an integer ending index, but encountered a value of type double with the value 5.11.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,5.11] } }');
-ERROR:  $indexOfArray requires an integral ending index, found a value of type: double, with value: 5.11
+ERROR:  The $indexOfArray operator needs an integer ending index, but encountered a value of type double with the value 5.11.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,5,4] } }');
 ERROR:  The expression $indexOfArray requires no fewer than 2 arguments and no more than 4 arguments, but 5 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, "1",5] } }');
-ERROR:  $indexOfArray requires an integral starting index, found a value of type: string, with value: "1"
+ERROR:  The $indexOfArray operator needs an integer starting index, but encountered a value of type string with the value "1".
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,"50"] } }');
-ERROR:  $indexOfArray requires an integral ending index, found a value of type: string, with value: "50"
+ERROR:  The $indexOfArray operator needs an integer ending index, but encountered a value of type string with the value "50".
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,90000000000000] } }');
-ERROR:  $indexOfArray requires an integral ending index, found a value of type: long, with value: 90000000000000
+ERROR:  The $indexOfArray operator needs an integer ending index, but encountered a value of type long with the value 90000000000000.
 -- $indexOfArray, search for elements of different type
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,"2",true,{"a":1}], "2"] } }');
           bson_dollar_project          
@@ -2870,7 +2870,7 @@ select *from bson_dollar_project('{"a":[{"fieldA":"abc","fieldB":2,"fieldC":[{"n
 
 -- $map, negative cases
 select *from bson_dollar_project('{"a": 1}', '{"result": {"$map": {"input": "$a", "as": "x", "in": { "$add": ["$$x", 1] } } } }');
-ERROR:  input to $map must be an array not int
+ERROR:  The $map operator requires an array input, but received int instead
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$map": {"input": "$a" }} }');
 ERROR:  Missing 'in' parameter to $map
 -- $reduce
@@ -2958,7 +2958,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "addFieldRe
 select *from bson_dollar_project('{"a": 1}', '{"result": { "$reduce": { "input": "$a", "initialValue": "", "in": { "$concat": ["$$value", "$$this"] } } } }');
 ERROR:  The input provided to $reduce must be an array, not int
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$reduce": {"input": "$a", "initialValue": 0 }} }');
-ERROR:  Missing 'in' parameter to $reduce
+ERROR:  Missing 'in' argument for operator $reduce
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$reduce": {"input": "$a", "in": { "$concat": ["$$value", "$$this"] } }} }');
 ERROR:  The 'initialValue' parameter required by $reduce is missing.
 -- $maxN/minN, n too large
@@ -3222,15 +3222,15 @@ ERROR:  $sortArray requires an object as an argument, found: null
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": " " } }');
 ERROR:  $sortArray requires an object as an argument, found: string
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": "", "sortBy": 1 } } }');
-ERROR:  The input argument to $sortArray must be an array, but was of type: string
+ERROR:  The provided input for the $sortArray operator must be an array, but a value of type string was received instead.
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"sortBy": 1 } } }');
 ERROR:  $sortArray requires 'input' to be specified
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4] } } }');
 ERROR:  The $sortArray needs the 'sortBy' parameter to be explicitly specified
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": "", "sortBy": 1} } }');
-ERROR:  The input argument to $sortArray must be an array, but was of type: string
+ERROR:  The provided input for the $sortArray operator must be an array, but a value of type string was received instead.
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": {}, "sortBy": 1} } }');
-ERROR:  The input argument to $sortArray must be an array, but was of type: object
+ERROR:  The provided input for the $sortArray operator must be an array, but a value of type object was received instead.
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4], "sortByy": 1} } }');
 ERROR:  $sortArray encountered an unrecognized argument: sortByy
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4], "sortBy": 2} } }');

@@ -904,7 +904,7 @@ typedef struct RumEntryAccumulator
 	bool shouldSort;
 	RumItem *list;
 	uint32 maxcount;            /* allocated size of list[] */
-	uint32 count;               /* current number of list[] entries */
+	uint32 count;               /* current count of list[] entries */
 }   RumEntryAccumulator;
 
 typedef struct

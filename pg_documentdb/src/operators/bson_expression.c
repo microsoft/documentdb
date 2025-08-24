@@ -1195,7 +1195,7 @@ ValidateVariableNameCore(StringView name, bool allowStartWithUpper)
 	if (name.length <= 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"empty variable names are not allowed")));
+							"Variable names cannot be left empty")));
 	}
 
 	uint32_t i;
@@ -1214,7 +1214,7 @@ ValidateVariableNameCore(StringView name, bool allowStartWithUpper)
 				 !isupper(current) && current != '_')
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-								"'%s' contains an invalid character for a variable name: '%c'",
+								"The variable name '%s' contains an invalid character '%c'.",
 								name.string, current)));
 		}
 	}
@@ -1300,7 +1300,7 @@ ReportOperatorExpressonSyntaxError(const char *fieldA, bson_iter_t *fieldBIter, 
 	if (bson_iter_key_len(fieldBIter) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"FieldPath cannot be constructed with empty string.")));
+							"A FieldPath object cannot be created when the provided string is empty.")));
 	}
 
 	/* 1. If performOperatorCheck = false, time to throw error already */
@@ -1768,7 +1768,7 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 										errmsg(
-											"$$NOW is not supported in this context.")));
+											"The $$NOW operator cannot be used within this specific context.")));
 					}
 
 					if (dottedSuffix.length == 0)
@@ -1839,7 +1839,8 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17276),
-										errmsg("Use of undefined variable: PRUNE")));
+										errmsg(
+											"Reference to variable PRUNE is not defined")));
 					}
 				}
 				else if (StringViewEqualsCString(&expressionView, "$$KEEP"))
@@ -1854,7 +1855,8 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17276),
-										errmsg("Use of undefined variable: KEEP")));
+										errmsg(
+											"Reference to variable KEEP is not defined")));
 					}
 				}
 				else if (StringViewEqualsCString(&expressionView, "$$SEARCH_META"))
@@ -1891,7 +1893,7 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16411),
 									errmsg(
-										"FieldPath field names may not contain embedded nulls")));
+										"FieldPath field names cannot include embedded null characters")));
 				}
 			}
 		}
@@ -2818,7 +2820,7 @@ ParseDollarLet(const bson_value_t *argument, AggregationExpressionData *data,
 	if (vars.value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION10065), errmsg(
-							"invalid parameter: expected an object (vars)")));
+							"Parameter is invalid: an object type was expected (vars)")));
 	}
 
 	AggregationExpressionData *inData = palloc0(sizeof(AggregationExpressionData));
@@ -3030,7 +3032,7 @@ ParseAndGetTopLevelVariableSpec(const bson_value_t *varSpec,
 	pgbson_writer resultWriter;
 	PgbsonWriterInit(&resultWriter);
 
-	/* Write the time system variables */
+	/* Write time system variables (e.g., $$NOW) to the result writer if required. */
 	if (generateTimeVariables)
 	{
 		bson_value_t nowVariableValue = GetTimeSystemVariables(timeSystemVariables);

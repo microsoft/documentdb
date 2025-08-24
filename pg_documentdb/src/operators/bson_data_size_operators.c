@@ -158,10 +158,10 @@ SetResultValueForDollarBinarySize(bson_value_t *inputArgument, bson_value_t *res
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51276), errmsg(
-							"$binarySize requires a string or BinData argument, found: %s",
+							"The $binarySize operator expects either a string or BinData argument, but received: %s",
 							BsonTypeName(inputArgument->value_type)),
 						errdetail_log(
-							"$binarySize requires a string or BinData argument, found: %s",
+							"The $binarySize operator expects either a string or BinData argument, but received: %s",
 							BsonTypeName(inputArgument->value_type))));
 	}
 }

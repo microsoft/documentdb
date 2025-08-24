@@ -1264,7 +1264,7 @@ SELECT documentdb_api.insert_one('db','setWindowFields','{ "_id": 3, "a": "abc",
 (1 row)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db','{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"sortBy": { "date": 1 }, "output": {"quantity": { "$linearFill": "$quantity"}}}}]}');
-ERROR:  The sortBy field must be either numeric or a date, but not both
+ERROR:  The sortBy field should contain either numeric values or dates, but cannot include both types simultaneously
 -- sortBy with repeated value in one partition
 SELECT documentdb_api.drop_collection('db','setWindowFields');
  drop_collection 

@@ -34,7 +34,7 @@ typedef struct
 	/* represents database name*/
 	const char *databaseName;
 
-	/* represents collection name*/
+	/* Indicates the name of a collection*/
 	const char *collectionName;
 
 	/* if full validation is required, currently a no-op*/
@@ -113,7 +113,8 @@ command_validate(PG_FUNCTION_ARGS)
 			if (bson_iter_type(&validateIter) == BSON_TYPE_DOCUMENT)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-								errmsg("collection name has invalid type object")));
+								errmsg(
+									"Collection name contains an invalid object type")));
 			}
 			EnsureTopLevelFieldType("validate", &validateIter, BSON_TYPE_UTF8);
 			validateSpec.collectionName = value->value.v_utf8.str;

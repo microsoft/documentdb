@@ -79,11 +79,11 @@ SELECT * FROM documentdb_api_internal.bson_dollar_merge_join('{"a" : [1,2,3], "c
 (1 row)
 
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_join('{"a" : 1, "b" : 2}', documentdb_api_internal.bson_dollar_extract_merge_filter('{"a" : [1,2,3], "b" : 3}','a'::TEXT), 'a'::TEXT);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_join('{"a" : 1, "b" : 2}',  documentdb_api_internal.bson_dollar_extract_merge_filter('{"b" : 3}', 'a'::TEXT), 'a'::TEXT);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_join('{"a" : 1, "b" : 2}',  documentdb_api_internal.bson_dollar_extract_merge_filter('{"a" : null}','a' ::TEXT), 'a'::TEXT);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM documentdb_api_internal.bson_dollar_merge_fail_when_not_matched('{"a" : "this is a dummy bson"}', 'this is dummy text'::TEXT);
 ERROR:  $merge could not find a matching document in the target collection for at least one document in the source collection
 --  Merge with default option
@@ -1563,9 +1563,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataMissing", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" : "a" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataMissing", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" : ["a"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT documentdb_api.insert('db', '{"insert":"sourceDataArray", "documents":[{ "_id" : 3, "a" : [1,2,3], "b": "c" }]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -1574,9 +1574,9 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataArray", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" : "a" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataArray", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" :  ["a"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT documentdb_api.insert('db', '{"insert":"sourceDataNull", "documents":[{ "_id" : 3, "a" : null , "b": "c" }]}');
 NOTICE:  creating collection
                                          insert                                         
@@ -1585,9 +1585,9 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataNull", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" : "a" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "sourceDataNull", "pipeline": [  {"$merge" : { "into": "targetDataMissingTest", "on" :  ["a"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge write error: 'on' field cannot be missing, null, undefined or an array
+ERROR:  Write operation for $merge failed: the 'on' field must be provided and cannot be null, undefined, or an array
 -- Negative test when non-Immutable function present in query
 -- As in below query we call empty_data_table() which is non-Immutable function because targetcollection in lookup stage is empty.
 SELECT documentdb_api.create_collection('db', 'nonImmutable');

@@ -247,7 +247,8 @@ UpdateRunDataForVariableBounds(CompositeQueryRunData *runData,
 
 		if (scanKeyIndex == -1 || set == NULL)
 		{
-			ereport(ERROR, (errmsg("Could not find scan key for term")));
+			ereport(ERROR, (errmsg(
+								"Unable to locate scan key associated with the specified term")));
 		}
 
 		/* Track the current term in the scan key */

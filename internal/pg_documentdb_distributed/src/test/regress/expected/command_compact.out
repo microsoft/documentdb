@@ -15,11 +15,11 @@ ERROR:  The BSON field compact.noIdea is not recognized as a known field
 SELECT documentdb_api.compact('{"compact": "non_existing_collection"}');
 ERROR:  Invalid command compact specification, missing database or collection name
 SELECT documentdb_api.compact('{"compact": 1 }');
-ERROR:  BSON field 'compact' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'compact' has an incorrect type 'int'; it should be of type 'string'.
 SELECT documentdb_api.compact('{"compact": true }');
-ERROR:  BSON field 'compact' is the wrong type 'bool', expected type 'string'
+ERROR:  The BSON field 'compact' has an incorrect type 'bool'; it should be of type 'string'.
 SELECT documentdb_api.compact('{"compact": ["coll"]}');
-ERROR:  BSON field 'compact' is the wrong type 'array', expected type 'string'
+ERROR:  The BSON field 'compact' has an incorrect type 'array'; it should be of type 'string'.
 SELECT documentdb_api.create_collection('commands_compact_db','compact_test');
 NOTICE:  creating collection
  create_collection 
@@ -28,7 +28,7 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT documentdb_api.compact('{"compact": "compact_test", "dryRun": "invalid"}');
-ERROR:  BSON field 'dryRun' is the wrong type 'string', expected type 'bool'
+ERROR:  The BSON field 'dryRun' has an incorrect type 'string'; it should be of type 'bool'.
 SELECT documentdb_api.compact('{"compact": "compact_test", "comment": "test comment"}');
 ERROR:  Invalid command compact specification, missing database or collection name
 SELECT documentdb_api.compact('{"compact": "compact_test", "force": false}');

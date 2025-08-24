@@ -132,9 +132,9 @@ ParseBsonValueAsLegacyPointInternal(const bson_value_t *pointValue,
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			throwError, (
 				errcode(GEO_ERROR_CODE(errCtxt)),
-				errmsg("%sPoint must be an array or object",
+				errmsg("%sPoint must be either an array or an object",
 					   GEO_ERROR_PREFIX(errCtxt)),
-				errdetail_log("%sPoint must be an array or object",
+				errdetail_log("%sPoint must be either an array or an object",
 							  GEO_HINT_PREFIX(errCtxt))));
 	}
 
@@ -216,7 +216,7 @@ ParseBsonValueAsLegacyPointInternal(const bson_value_t *pointValue,
 					errmsg("%slongitude/latitude is out of bounds, lng: %g lat: %g",
 						   GEO_ERROR_PREFIX(errCtxt),
 						   outPoint->x, outPoint->y),
-					errdetail_log("%slongitude/latitude is out of bounds.",
+					errdetail_log("%s longitude/latitude value exceeds valid range.",
 								  GEO_HINT_PREFIX(errCtxt))));
 		}
 	}

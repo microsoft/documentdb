@@ -673,7 +673,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 						if (IsBsonValueInfinity(distValue))
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg("minDistance must be non-negative")));
+											errmsg(
+												"The value of minDistance must always be zero or greater")));
 						}
 
 						PgbsonWriterAppendValue(&writer, "minDistance", 11, distValue);
@@ -1027,12 +1028,13 @@ EvaluateGeoNearConstExpression(const bson_value_t *geoNearSpecValue, Expr *varia
 			}
 			else
 			{
-				/* not const, error */
+				/* Value is not constant, compilation error */
 				if (StringViewEqualsCString(&key, "near"))
 				{
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_LOCATION5860402),
-								errmsg("$geoNear requires a constant near argument")));
+								errmsg(
+									"The $geoNear operator must be provided with a fixed and constant near argument")));
 				}
 				else if (StringViewEqualsCString(&key, "minDistance"))
 				{
@@ -1046,7 +1048,7 @@ EvaluateGeoNearConstExpression(const bson_value_t *geoNearSpecValue, Expr *varia
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_LOCATION7555702),
 								errmsg(
-									"$geoNear requires $maxDistance to evaluate to a constant number")));
+									"The $geoNear operator needs the $maxDistance operator to resolve to a constant numeric value.")));
 				}
 			}
 		}

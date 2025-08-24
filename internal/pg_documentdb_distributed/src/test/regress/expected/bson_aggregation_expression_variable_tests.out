@@ -317,13 +317,13 @@ FROM documentdb_api.collection('db', 'dollar_let_test');
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": [1, 2, 3]}}');
 ERROR:  $let only supports an object as its argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": true, "in": "a"}}}');
-ERROR:  invalid parameter: expected an object (vars)
+ERROR:  Parameter is invalid: an object type was expected (vars)
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {}}}}');
 ERROR:  Missing 'in' parameter to $let
 SELECT * FROM bson_dollar_project('{"a": 10}', '{"result": {"$let": {"in": "$a"}}}');
 ERROR:  Missing 'vars' parameter to $let
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": [], "in": "$$123"}}}');
-ERROR:  invalid parameter: expected an object (vars)
+ERROR:  Parameter is invalid: an object type was expected (vars)
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"123": "123 variable"}, "in": "$$123"}}}');
 ERROR:  The variable name '123' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"ROOT": "new root"}, "in": "$$ROOT"}}}');
@@ -335,23 +335,23 @@ ERROR:  The variable name 'MyVariable' begins with a character that is not valid
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"_variable": "_variable"}, "in": "$$_variable"}}}');
 ERROR:  The variable name '_variable' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"with space": "with space"}, "in": "$$with space"}}}');
-ERROR:  'with space' contains an invalid character for a variable name: ' '
+ERROR:  The variable name 'with space' contains an invalid character ' '.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"hello!": "with space"}, "in": "$$FOO"}}}');
-ERROR:  'hello!' contains an invalid character for a variable name: '!'
+ERROR:  The variable name 'hello!' contains an invalid character '!'.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$_variable"}}}');
 ERROR:  The variable name '_variable' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$with spaces"}}}');
-ERROR:  'with spaces' contains an invalid character for a variable name: ' '
+ERROR:  The variable name 'with spaces' contains an invalid character ' '.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$hello!"}}}');
-ERROR:  'hello!' contains an invalid character for a variable name: '!'
+ERROR:  The variable name 'hello!' contains an invalid character '!'.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$FOO"}}}');
 ERROR:  Attempting to use an undefined variable: FOO
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$.a"}}}');
-ERROR:  empty variable names are not allowed
+ERROR:  Variable names cannot be left empty
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"variable": "with space"}, "in": "$$variable."}}}');
 ERROR:  The FieldPath cannot terminate with a '.' character.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"a.b": "a.b"}, "in": "$$a.b"}}}');
-ERROR:  'a.b' contains an invalid character for a variable name: '.'
+ERROR:  The variable name 'a.b' contains an invalid character '.'.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"foo": "this is my foo variable"}, "in": {"$let": {"vars": {"foo": "$$foo2"}, "in": {"a": "$$foo"}}}}}}');
 ERROR:  Attempting to use an undefined variable: foo2
 -- $$NOW

@@ -218,8 +218,8 @@ HandleDistributedColocation(MongoCollection *collection, const
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Unknown field colocation.%s", key),
-							errdetail_log("Unknown field colocation.%s", key)));
+							errmsg("Unrecognized field in colocation.%s", key),
+							errdetail_log("Unrecognized field in colocation.%s", key)));
 		}
 	}
 
@@ -267,10 +267,10 @@ HandleDistributedColocation(MongoCollection *collection, const
 		if (targetCollection == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-							errmsg("ns %s.%s does not exist",
+							errmsg("Namespace %s.%s cannot be found",
 								   collection->name.databaseName,
 								   targetCollectionName),
-							errdetail_log("ns %s.%s does not exist",
+							errdetail_log("Namespace %s.%s cannot be found",
 										  collection->name.databaseName,
 										  targetCollectionName)));
 		}

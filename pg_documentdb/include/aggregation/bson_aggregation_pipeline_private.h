@@ -126,7 +126,7 @@ typedef struct
 	/* The number of nested levels (incremented by MigrateSubQuery) */
 	int numNestedLevels;
 
-	/* The database associated with this request */
+	/* The database name associated with this request */
 	text *databaseNameDatum;
 
 	/* The collection name associated with this request (if applicable) */

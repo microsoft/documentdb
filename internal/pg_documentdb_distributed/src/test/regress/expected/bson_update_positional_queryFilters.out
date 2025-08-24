@@ -171,7 +171,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 ERROR:  The positional operator did not find the match needed from the query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 3, "a": { "b": [ { "c": 1, "d": 2 } ] } }', '{ "": { "$set": { "a.$.c": 11 } }}', '{ "a.b.c": 1 }');
-ERROR:  Cannot apply array updates to non-array element a: { b: [ { "c" : 1, "d" : 2 } ] }
+ERROR:  Array updates cannot be applied to an element that is not an array a: { b: [ { "c" : 1, "d" : 2 } ] }
 -- miscellenous cases
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{ "_id": 1, "a" : [1,2,3,4], "b" : [5,6,7,8] }', '{ "": { "$set": { "a.$": "new" } }}', '{ "b": 6 }');
                                                                                                          bson_update_document                                                                                                          

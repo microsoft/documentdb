@@ -910,7 +910,7 @@ SELECT * from bson_dollar_project('{"tt": "binData", "f": "hex"}', '{"result": {
 
 -- error: $convert to BinData with no format
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": "binData"}}}');
-ERROR:   Format must be speficied when converting from string to 'binData'
+ERROR:  A specific format must be provided when attempting to convert from string into 'binData'.
 -- error: $convert to BinData with non-string input
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": 123, "to": "binData", "format": "base64"}}}');
 ERROR:  Unsupported conversion from int to binData in $convert with no onError value
@@ -1607,7 +1607,7 @@ ERROR:  'to' parameter is missing for $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"to": 1, "onError": "There was an error"}}}');
 ERROR:  Missing 'input' parameter to $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"myCustomInput": 1, "onError": "There was an error"}}}');
-ERROR:  $convert found an unknown argument: myCustomInput
+ERROR:  $convert encountered an unrecognized argument: myCustomInput
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": "someType", "onError": "There was an error"}}}');
 ERROR:  Unknown type name alias: someType
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "1.1"}, "onError": "There was an error"}}}');
@@ -1896,11 +1896,11 @@ ERROR:  Unable to interpret number '1.8E309' within $convert, as no onError valu
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "-1.8E309" }}');
 ERROR:  Unable to interpret number '-1.8E309' within $convert, as no onError value was specified: Out of range
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "This contains a number: 324423.23" }}');
-ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "    324423.0" }}');
-ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "324423.00001     " }}');
-ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "0x01" }}');
 ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "" }}');
@@ -1912,15 +1912,15 @@ ERROR:  Unsupported conversion from object to decimal in $convert with no onErro
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": []}}');
 ERROR:  Expression $toDecimal takes exactly 1 arguments. 0 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "123423.8E6145" }}');
-ERROR:  Unable to interpret number '123423.8E6145' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '123423.8E6145' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "-123423.8E6145" }}');
-ERROR:  Unable to interpret number '-123423.8E6145' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '-123423.8E6145' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "This contains a number: 324423.23" }}');
-ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "    324423.0" }}');
-ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "324423.00001     " }}');
-ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Failed to parse string to decimal
+ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "0x01" }}');
 ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "" }}');

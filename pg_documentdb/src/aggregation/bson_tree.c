@@ -405,7 +405,8 @@ EnsureValidFieldPathString(const StringView *fieldPath)
 	if (fieldPath->length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("FieldPath cannot be constructed with empty string.")));
+						errmsg(
+							"A FieldPath object cannot be created when the provided string is empty.")));
 	}
 	else if (StringViewEndsWith(fieldPath, '.'))
 	{

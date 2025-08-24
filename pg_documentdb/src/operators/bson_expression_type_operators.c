@@ -519,7 +519,7 @@ ParseDollarConvert(const bson_value_t *argument, AggregationExpressionData *data
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-								"$convert found an unknown argument: %s",
+								"$convert encountered an unrecognized argument: %s",
 								key)));
 		}
 	}
@@ -1645,7 +1645,7 @@ ProcessDollarToUUID(const bson_value_t *currentValue, bson_value_t *result)
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
 							"Failed to parse BinData %s in $convert with no onError value: Invalid UUID string: %s",
 							uuidStr, uuidStr), errdetail_log(
-							"Failed to parse BinData as UUID with error: %s",
+							"Could not interpret BinData as a valid UUID due to error: %s",
 							edata->message)));
 	}
 	PG_END_TRY();
@@ -1690,7 +1690,7 @@ ProcessDollarToBinData(const bson_value_t *currentValue, const bson_type_t *toTy
 			if (IsExpressionResultNullOrUndefined(format))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-									" Format must be speficied when converting from %s to 'binData'",
+									"A specific format must be provided when attempting to convert from %s into 'binData'.",
 									BsonTypeName(currentValueType))));
 			}
 
@@ -2101,7 +2101,8 @@ ConvertStringToDecimal128(const bson_value_t *value)
 	bson_decimal128_t dec128;
 	if (!bson_decimal128_from_string_w_len(str, len, &dec128))
 	{
-		ThrowFailedToParseNumberError(str, "Failed to parse string to decimal");
+		ThrowFailedToParseNumberError(str,
+									  "Unable to convert the provided string into a valid decimal format");
 	}
 
 	return dec128;

@@ -88,7 +88,7 @@ GenerateBaseAgnosticQuery(text *databaseDatum, AggregationPipelineBuildContext *
 
 	query->rtable = NIL;
 
-	/* Create an empty jointree */
+	/* Create an empty jointree structure */
 	query->jointree = makeNode(FromExpr);
 
 	/* Create the projector. We only project the NULL::bson in this type of query */
@@ -652,7 +652,7 @@ HandleIndexStats(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28803),
 						errmsg(
-							"The $indexStats stage specification must be an empty object")));
+							"The $indexStats stage specification is required to be provided as an empty object.")));
 	}
 
 	if (context->stageNum != 0)

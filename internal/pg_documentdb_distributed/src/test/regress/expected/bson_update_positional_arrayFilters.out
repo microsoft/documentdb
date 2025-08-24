@@ -31,7 +31,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 -- arrayFilters with update fails - missing array filter
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": { "$set": { "arrayA.$[itemA]": 60 }}}', '{}', '{ "": [] }');
-ERROR:  No array filter found for identifier itemA
+ERROR:  array filter identifier itemA must match an entry in arrayFilters (no match found)
 -- arrayFilters with update fails - invalid array filters
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": { "$set": { "arrayA.$[itemA]": 70 }}}', '{}', '{ "": [ 2 ] }');
@@ -206,7 +206,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [0], [1] ] }',
     '{ "": { "$mul": { "matrix.$[row]": 2 }} }', '{}', '{ "": [{ "row": 0 }] }');
-ERROR:  Cannot apply $mul to a value of non-numeric type. { _id: 1 } has the field '0' of non-numeric type array
+ERROR:  Unable to use the $mul operator on values that are not numeric. The document { _id: 1 } contains the field '0', which has a non-numeric type array.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [0], [1] ] }',
     '{ "": { "$rename": { "matrix.$[row]": "arrayA.3" }} }', '{}', '{ "": [{ "row": 0 }] }');

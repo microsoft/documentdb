@@ -1101,7 +1101,7 @@ HandleRenameUpdateTree(BsonIntermediatePathNode *tree, bson_iter_t *updateSpec,
 		if (value->value_type != BSON_TYPE_UTF8)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"Rename target should be a string")));
+								"The rename destination must be provided as a string value")));
 		}
 
 		/* For the rename target, we map the "value" to the path of the rename source */
@@ -1266,7 +1266,8 @@ ValidateSpecPathForUpdateTree(const StringView *updatePath)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"Cannot have array filter identifier (i.e. '$[<id>]') element in the first position in path '%s'",
+								"Array filter identifier usage (e.g., '$[<id>]') "
+								"is not permitted at the starting position of the specified path '%s'",
 								updatePath->string)));
 		}
 		else if (StringViewEquals(&path, &PositionalFilterString))
@@ -1388,8 +1389,9 @@ GetNodePositionalDataFromPath(const StringView *path,
 		if (!found || hashEntry == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("No array filter found for identifier %.*s",
-								   identifier.length, identifier.string)));
+							errmsg(
+								"array filter identifier %.*s must match an entry in arrayFilters (no match found)",
+								identifier.length, identifier.string)));
 		}
 
 		/* Mark the filter as used in the query */
@@ -1834,7 +1836,7 @@ ThrowPositionalOnNonArrayPathError(const BsonPathNode * node,
 {
 	const char *elementValue = BsonValueToJsonForLogging(currentValue);
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-						"Cannot apply array updates to non-array element %.*s: { %.*s: %s }",
+						"Array updates cannot be applied to an element that is not an array %.*s: { %.*s: %s }",
 						node->parent->baseNode.field.length,
 						node->parent->baseNode.field.string,
 						fieldPath->length,

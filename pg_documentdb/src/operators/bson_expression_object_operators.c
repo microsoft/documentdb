@@ -509,7 +509,8 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION4161109),
 						errmsg(
-							"%s requires 'input' to be specified", operatorName)));
+							"%s needs the 'input' parameter to be explicitly specified",
+							operatorName)));
 	}
 
 	DollarSetFieldArguments *arguments = palloc0(sizeof(DollarSetFieldArguments));

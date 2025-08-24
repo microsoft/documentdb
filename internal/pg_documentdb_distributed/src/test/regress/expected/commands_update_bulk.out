@@ -76,27 +76,27 @@ ERROR:  BSON field 'update.updates' is missing but is a required field
 CALL documentdb_api.update_bulk('bulkdb', '{"update":["updateme"], "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
 ERROR:  collection name has invalid type array
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":{"q":{},"u":{"$set":{"b":0}},"multi":true}}');
-ERROR:  BSON field 'update.updates' is the wrong type 'object', expected type 'array'
+ERROR:  The BSON field 'update.updates' has an incorrect type 'object'; it should be of type 'array'.
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}], "extra":1}');
 ERROR:  BSON field 'update.extra' is an unknown field
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{}}]}');
-ERROR:  BSON field 'update.updates.u' is missing but a required field
+ERROR:  The required field 'update.updates.u' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"multi":true}]}');
-ERROR:  BSON field 'update.updates.u' is missing but a required field
+ERROR:  The required field 'update.updates.u' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"multi":true}]}');
-ERROR:  BSON field 'update.updates.q' is missing but a required field
+ERROR:  The required field 'update.updates.q' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"u":{"$set":{"b":0}}}]}');
-ERROR:  BSON field 'update.updates.q' is missing but a required field
+ERROR:  The required field 'update.updates.q' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":"text"}]}');
 ERROR:  BSON field 'update.updates.u' is the wrong type 'string', expected type 'object' or 'array'
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":[],"u":{"$set":{"b":0}},"multi":true}]}');
-ERROR:  BSON field 'update.updates.q' is the wrong type 'array', expected type 'object'
+ERROR:  The BSON field 'update.updates.q' has an incorrect type 'array'; it should be of type 'object'.
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":1}]}');
-ERROR:  BSON field 'update.updates.multi' is the wrong type 'int', expected type 'bool'
+ERROR:  The BSON field 'update.updates.multi' has an incorrect type 'int'; it should be of type 'bool'.
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true,"extra":1}]}');
-ERROR:  BSON field 'update.updates.extra' is an unknown field
+ERROR:  The field 'update.updates.extra' specified is not recognized as a valid field
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}],"ordered":1}');
-ERROR:  BSON field 'update.ordered' is the wrong type 'int', expected type 'bool'
+ERROR:  The BSON field 'update.ordered' has an incorrect type 'int'; it should be of type 'bool'.
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$bork":{"b":0}},"multi":true}]}');
                                                                                                                                                               p_result                                                                                                                                                               | p_success 
 ---------------------------------------------------------------------
@@ -104,10 +104,10 @@ CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q"
 (1 row)
 
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"upsert":[]}]}');
-ERROR:  BSON field 'update.updates.upsert' is the wrong type 'array', expected type 'bool'
+ERROR:  The BSON field 'update.updates.upsert' has an incorrect type 'array'; it should be of type 'bool'.
 -- Disallow writes to system.views
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"system.views", "updates":[{"q":{},"u":{"$set":{"b":0}}}]}');
-ERROR:  cannot write to bulkdb.system.views
+ERROR:  Unable to write data to specified location bulkdb.system.views
 -- update all
 set search_path TO '';
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
@@ -923,7 +923,7 @@ select count(*) from documentdb_api.collection('bulkdb', 'updateme') where docum
 
 -- update with docs specified on both
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme",  "updates":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":2}},"multi":true,"upsert":true}]}', '{ "":[{"q":{"_id":33, "a": 10 },"u":{"$set":{"b":1}},"multi":false,"upsert":true}] }');
-ERROR:  Unexpected additional updates
+ERROR:  Unexpected further updates required
 select documentdb_api.drop_collection('bulkdb','updateme');
  drop_collection 
 ---------------------------------------------------------------------

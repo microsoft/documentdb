@@ -677,7 +677,7 @@ UpdatePathsWithExtensionStreamingCursorPlans(PlannerInfo *root, RelOptInfo *rel,
 			}
 		}
 
-		/* store the continuation data */
+		/* Save the continuation data into storage */
 		InputContinuation *inputContinuation = palloc0(sizeof(InputContinuation));
 		inputContinuation->extensible.type = T_ExtensibleNode;
 		inputContinuation->extensible.extnodename = InputContinuationNodeName;
@@ -1175,7 +1175,7 @@ static void
 ExtensionScanBeginCustomScan(CustomScanState *node, EState *estate,
 							 int eflags)
 {
-	/* Initialize the actual state of the plan */
+	/* Initialize the current state of the plan */
 	ExtensionScanState *extensionScanState = (ExtensionScanState *) node;
 	extensionScanState->innerScanState = (ScanState *) ExecInitNode(
 		extensionScanState->innerPlan, estate, eflags);
@@ -1476,7 +1476,7 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 		{
 			if (!BSON_ITER_HOLDS_NUMBER(&continuationIterator))
 			{
-				ereport(ERROR, (errmsg("batchSizeHint must be a number.")));
+				ereport(ERROR, (errmsg("batchSizeHint value must be numeric.")));
 			}
 			else if (extensionScanState->batchSizeHintBytes > 0)
 			{
@@ -1516,8 +1516,9 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 					{
 						if (!BSON_ITER_HOLDS_UTF8(&singleContinuationDoc))
 						{
-							ereport(ERROR, (errmsg("Expecting string value for %s",
-												   CursorContinuationTableName.string)));
+							ereport(ERROR, (errmsg(
+												"Expecting a valid string value for %s",
+												CursorContinuationTableName.string)));
 						}
 
 						tableName = bson_iter_utf8(&singleContinuationDoc, NULL);

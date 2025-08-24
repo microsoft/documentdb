@@ -339,7 +339,7 @@ GenerateTermsForDollarIn(pgbsonelement *queryElement, int *nentries)
 	if (queryElement->bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$in expects an array")));
+							"$in operator requires an array")));
 	}
 
 	bson_iter_t queryInIterator;

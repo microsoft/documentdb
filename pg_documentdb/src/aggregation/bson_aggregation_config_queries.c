@@ -93,7 +93,7 @@ GenerateVersionQuery(AggregationPipelineBuildContext *context)
 
 	query->rtable = NIL;
 
-	/* Create an empty jointree */
+	/* Create an empty jointree structure */
 	query->jointree = makeNode(FromExpr);
 
 	/* Create the projector. We only project the NULL::bson in this type of query */
@@ -410,7 +410,7 @@ GenerateShardsQuery(AggregationPipelineBuildContext *context)
 
 	query->rtable = NIL;
 
-	/* Create an empty jointree */
+	/* Create an empty jointree structure */
 	query->jointree = makeNode(FromExpr);
 
 	/* Create the projector. We only project the NULL::bson in this type of query */

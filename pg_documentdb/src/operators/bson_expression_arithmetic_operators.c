@@ -1015,7 +1015,7 @@ ProcessDollarAddAccumulatedResult(void *state, bson_value_t *result)
 		if (CheckForDateOverflow(result))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OVERFLOW), errmsg(
-								"date overflow in $add")));
+								"Date value overflow detected in operator $add")));
 		}
 		else if (!addState->foundUndefined &&
 				 result->value_type != BSON_TYPE_DATE_TIME)
@@ -1268,7 +1268,7 @@ ProcessDollarCeil(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$ceil only supports numeric types, not %s",
+							"$ceil can only handle numeric data types, not %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1476,7 +1476,7 @@ ProcessDollarLn(const bson_value_t *currentValue, bson_value_t *result)
 	if (isComparisonValid && cmp != 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLNMUSTBEPOSITIVENUMBER), errmsg(
-							"$ln's argument must be a positive number, but is %s",
+							"The argument provided to the $ln operator must be a positive numeric value, but received %s instead.",
 							BsonValueToJsonForLogging(currentValue))));
 	}
 
@@ -1523,7 +1523,7 @@ ProcessDollarLog(void *state, bson_value_t *result)
 	if (!BsonValueIsNumber(&baseValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLOGBASEMUSTBENUMERIC), errmsg(
-							"$log's base must be numeric, not %s",
+							"The base value for the $log operator must be numeric, not %s",
 							BsonTypeName(baseValue.value_type))));
 	}
 
@@ -1640,7 +1640,7 @@ ProcessDollarPow(void *state, bson_value_t *result)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARPOWEXPONENTMUSTBENUMERIC),
 						errmsg(
-							"$pow's exponent must be numeric, not %s",
+							"The operator $pow requires a numeric exponent rather than %s",
 							BsonTypeName(exponentValue.value_type))));
 	}
 
@@ -1854,7 +1854,7 @@ ProcessDollarAbs(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$abs only supports numeric types, not %s",
+							"$abs operator only accepts numeric data types, not %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 

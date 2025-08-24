@@ -43,31 +43,31 @@ ERROR:  collection name cannot be NULL
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "hello": 1}'); -- Unknown field
 ERROR:  The BSON field 'collMod.hello' is not recognized as a valid field.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": 1}'); -- Type mismatch
-ERROR:  BSON field 'collMod.index' is the wrong type 'int', expected type 'object'
+ERROR:  The BSON field 'collMod.index' has an incorrect type 'int'; it should be of type 'object'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {}}');
 ERROR:  Must specify either index name or key pattern.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": []}');
-ERROR:  BSON field 'collMod.index' is the wrong type 'array', expected type 'object'
+ERROR:  The BSON field 'collMod.index' has an incorrect type 'array'; it should be of type 'object'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": "c_1"}}');
 ERROR:  no expireAfterSeconds or hidden field
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": 1}}');
-ERROR:  BSON field 'collMod.index.name' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it should be of type 'string'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": 1}}');
-ERROR:  BSON field 'collMod.index.keyPattern' is the wrong type 'int', expected type 'object'
+ERROR:  The BSON field 'collMod.index.keyPattern' has an incorrect type 'int'; it should be of type 'object'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": {"c": 1}, "name": 1}}');
-ERROR:  BSON field 'collMod.index.name' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it should be of type 'string'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": 1, "name": "c_1"}}');
-ERROR:  BSON field 'collMod.index.keyPattern' is the wrong type 'int', expected type 'object'
+ERROR:  The BSON field 'collMod.index.keyPattern' has an incorrect type 'int'; it should be of type 'object'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": {"c": 1}, "name": "c_1"}}');
 ERROR:  Cannot specify both key pattern and name.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": {"c": 1}}}');
 ERROR:  no expireAfterSeconds or hidden field
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": 1, "expireAfterSeconds": true}}');
-ERROR:  BSON field 'collMod.index.name' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it should be of type 'string'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": 1, "expireAfterSeconds": {}}}');
-ERROR:  BSON field 'collMod.index.name' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it should be of type 'string'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": 1, "expireAfterSeconds": "expire"}}');
-ERROR:  BSON field 'collMod.index.name' is the wrong type 'int', expected type 'string'
+ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it should be of type 'string'.
 -- Inserting some documents
 SELECT documentdb_api.insert_one('commands','collModTest', '{ "_id" : 0, "b": { "$date": { "$numberLong": "-1000" } } }', NULL);
                               insert_one                              
