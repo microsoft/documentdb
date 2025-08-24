@@ -339,10 +339,11 @@ BsonValueGetPolygon(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 		shapeValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("unknown geo specifier: $polygon: %s",
-							   BsonValueToJsonForLogging(shapeValue)),
+						errmsg(
+							"Invalid specifier $polygon: %s",
+							BsonValueToJsonForLogging(shapeValue)),
 						errdetail_log(
-							"unknown geo specifier: $polygon with argument type %s",
+							"Invalid specified $polygon with type %s",
 							BsonTypeName(shapeValue->value_type))));
 	}
 
@@ -407,7 +408,7 @@ BsonValueGetPolygon(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 		/* If 3 points are not given, the polygon is not defined
 		 */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Polygon must have at least 3 points")));
+						errmsg("A polygon shape requires a minimum of three points")));
 	}
 
 	/* Check if last and first points are not same then add first point implicitly,
@@ -607,9 +608,11 @@ BsonValueGetGeometry(const bson_value_t *value, ShapeOperatorInfo *opInfo)
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("$geoWithin not supported with provided geometry: %s",
-						   BsonValueToJsonForLogging(value)),
-					errdetail_log("$geoWithin not supported with provided geometry.")));
+					errmsg(
+						"$geoWithin is not supported for the specified geometry: %s",
+						BsonValueToJsonForLogging(value)),
+					errdetail_log(
+						"$geoWithin is not supported for the specified geometry.")));
 	}
 
 	if (IsGeoWithinQueryOperator(opInfo->queryOperatorType) &&
@@ -668,10 +671,11 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 		shapeValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("unknown geo specifier: $centerSphere: %s",
-							   BsonValueToJsonForLogging(shapeValue)),
+						errmsg(
+							"Invalid specifier $centerSphere: %s",
+							BsonValueToJsonForLogging(shapeValue)),
 						errdetail_log(
-							"unknown geo specifier: $centerSphere with argument type %s",
+							"Invalid specified $centerSphere with type %s",
 							BsonTypeName(shapeValue->value_type))));
 	}
 

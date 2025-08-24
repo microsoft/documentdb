@@ -1330,7 +1330,7 @@ ERROR:  BSON field '$merge.into' is missing but a required field
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "xman" : 1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  BSON field '$merge.xman' is an unknown field
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : 1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge 'into' field  must be either a string or an object, but found int
+ERROR:  $merge 'into' field must contain either a string value or an object, but was given int instead
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : "apple"}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  $merge 'into' field must specify a 'coll' that is not empty, null or undefined
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : 1}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
@@ -1352,10 +1352,10 @@ ERROR:  BSON field '$merge.whenNotMatched' is the wrong type 'int', expected typ
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "whenNotMatched" : "falsevalue"   }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  Enumeration value 'falsevalue' for field '$merge.whenNotMatched' is not a valid value
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl" }}, {} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  A pipeline stage specification object must contain exactly one field.
+ERROR:  A pipeline stage specification object is required to have one and only one field.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl" }}, {"project" : {"a" : 1}
 } ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge can only be the final stage in the pipeline
+ERROR:  $merge must appear exclusively as the last stage in the pipeline
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into": "targetNotExists", "on" : [] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  If explicitly specifying $merge 'on', must include at least one field
 -- Negative test cases when on fields value are not unique index.
@@ -1540,7 +1540,7 @@ SELECT documentdb_api.insert('db', '{"insert":"targetCollForView", "documents":[
 SELECT documentdb_api.create_collection_view('db', '{ "create": "targetView", "viewOn": "targetCollForView", "pipeline": [ { "$sort": { "a": 1 } } ] }');
 ERROR:  ns: db.targetView already exists with different options: { "viewOn" : "aggregation_pipeline", "pipeline" : [ { "$project" : { "_id" : 1, "a" : 1 } } ] }
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "targetCollForView", "pipeline": [  {"$merge" : { "into" : "targetView" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  Namespace db.targetView is a view, not a collection
+ERROR:  The namespace db.targetView refers to a view object rather than a collection
 --Negative tests : when on field is missing/array in source document
 SELECT documentdb_api.insert('db', '{"insert":"sourceDataMissing", "documents":[{ "_id" : 3, "b": "c" }]}');
 NOTICE:  creating collection
@@ -1615,7 +1615,7 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "insideTransaction", "pipeline": [  {"$merge" : { "into": "targetTransaction", "on" : "a" }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge cannot be used in a transaction
+ERROR:  $merge is not permitted within an active transaction
 END;
 -- Option not supported failures
 SELECT documentdb_api.create_collection('db', 'optionNotSupported');

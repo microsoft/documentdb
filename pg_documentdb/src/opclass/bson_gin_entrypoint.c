@@ -931,7 +931,7 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 				if (StringViewEndsWith(&fieldPathName, '.'))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOTTEDFIELDNAME), errmsg(
-										"FieldPath must not end with a '.'.")));
+										"The FieldPath cannot terminate with a '.' character.")));
 				}
 			}
 
@@ -1002,7 +1002,8 @@ ValidateIndexForQualifierValue(bytea *indexOptions, Datum queryValue, BsonIndexS
 
 		default:
 		{
-			ereport(ERROR, (errmsg("Unrecognized index options type %d", options->type)));
+			ereport(ERROR, (errmsg("Index options type %d not recognized",
+								   options->type)));
 			break;
 		}
 	}
@@ -1054,7 +1055,7 @@ ValidateIndexForQualifierPathForDollarIn(bytea *indexOptions, const StringView *
 				if (StringViewEndsWith(queryPath, '.'))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOTTEDFIELDNAME), errmsg(
-										"FieldPath must not end with a '.'.")));
+										"The FieldPath cannot terminate with a '.' character.")));
 				}
 			}
 
@@ -1098,7 +1099,8 @@ ValidateIndexForQualifierPathForDollarIn(bytea *indexOptions, const StringView *
 
 		default:
 		{
-			ereport(ERROR, (errmsg("Unrecognized index options type %d", options->type)));
+			ereport(ERROR, (errmsg("Index options type %d not recognized",
+								   options->type)));
 			break;
 		}
 	}

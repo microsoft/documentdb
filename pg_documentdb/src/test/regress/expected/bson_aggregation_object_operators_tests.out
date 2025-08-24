@@ -230,7 +230,7 @@ ERROR:  $unsetField requires 'input' to be specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"input": null}}}}');
 ERROR:  $unsetField requires 'field' to be specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": null, "value": 1}}}}');
-ERROR:  $unsetField found an unknown argument: value
+ERROR:  $unsetField encountered an unrecognized argument value: value
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": {"$add": [2, 3]}, "input": null}}}}');
 ERROR:  The $unsetField needs the 'field' value to be constant, but a non-constant value was provided instead.
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "$a", "input": null}}}}');

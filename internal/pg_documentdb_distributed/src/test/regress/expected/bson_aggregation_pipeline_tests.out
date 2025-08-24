@@ -403,7 +403,7 @@ EXPLAIN (COSTS OFF, VERBOSE ON ) SELECT document FROM bson_aggregation_pipeline(
 
 -- error scenarios for $project
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$project": { "a": 0, "boolean": 1 } }, { "$addFields": { "a": 1, "xyz": "$_id" } } ], "cursor": {} }');
-ERROR:  Cannot do exclusion on field boolean in inclusion projection.
+ERROR:  exclusion cannot be applied to field boolean within the inclusion projection.
 -- replaceRoot
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$addFields": { "e": {  "f": "$a.b" } } }, { "$replaceRoot": { "newRoot": "$e" } } ], "cursor": {} }');
                                    document                                   
@@ -802,9 +802,9 @@ SELECT document FROM bson_aggregation_pipeline('db',
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ "hello" ] } } ], "cursor": {} }');
 ERROR:  Pipeline stage for facet a must be a document
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ { } ] } } ], "cursor": {} }');
-ERROR:  A pipeline stage specification object must contain exactly one field.
+ERROR:  Pipeline stage must have a single field.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$facet": { "a" : [ { "$count": "d", "$unset": "b" } ] } } ], "cursor": {} }');
-ERROR:  A pipeline stage specification object must contain exactly one field.
+ERROR:  A pipeline stage specification object is required to have one and only one field.
 -- FIND
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline", "filter": { "_id": { "$gt": "1" } }, "projection": { "a.b": 1 }, "sort": { "_id": 1 }, "skip": 1, "limit": 2 }');
     document     
@@ -872,9 +872,9 @@ SELECT document FROM bson_aggregation_count('db', '{ "count": "aggregation_pipel
 (1 row)
 
 SELECT document FROM bson_aggregation_count('db', '{ "count": "aggregation_pipeline", "query": {}, "skip": -3.14159 }');
-ERROR:  BSON field 'skip' value must be >=0, actual value '-3'
+ERROR:  The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '-3'.
 SELECT document FROM bson_aggregation_count('db', '{ "count": "aggregation_pipeline", "query": {}, "skip": -9223372036854775808 }');
-ERROR:  BSON field 'skip' value must be >=0, actual value '-9223372036854775808'
+ERROR:  The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '-9223372036854775808'.
 SELECT document FROM bson_aggregation_count('db', '{ "count": "non_existent_coll" }');
                                document                               
 ---------------------------------------------------------------------
@@ -900,9 +900,9 @@ SELECT document FROM documentdb_api.count_query('db', '{ "count": "aggregation_p
 (1 row)
 
 SELECT document FROM documentdb_api.count_query('db', '{ "count": "aggregation_pipeline", "query": {}, "skip": -3.14159 }');
-ERROR:  BSON field 'skip' value must be >=0, actual value '-3'
+ERROR:  The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '-3'.
 SELECT document FROM documentdb_api.count_query('db', '{ "count": "aggregation_pipeline", "query": {}, "skip": -9223372036854775808 }');
-ERROR:  BSON field 'skip' value must be >=0, actual value '-9223372036854775808'
+ERROR:  The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '-9223372036854775808'.
 -- handling of skip as an aggregation stage; this is different from skip in a count query
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": 0 }], "cursor": {}}');
                                                                document                                                               
@@ -920,7 +920,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 (2 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": null }], "cursor": {}}');
-ERROR:  Argument to $skip must be a number
+ERROR:  $skip requires a numeric argument
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": -3.14159 }], "cursor": {}}');
 ERROR:  Invalid parameter provided to $skip stage: value cannot be expressed as a 64-bit integer $skip: -3.141590
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [{ "$match": {}}, { "$skip": -9223372036854775808 }], "cursor": {}}');
@@ -1488,10 +1488,10 @@ SELECT document FROM bson_aggregation_pipeline('db',
 ERROR:  Pipeline stage for lookup pipeline must be a document
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { } ], "as": "c" } } ], "cursor": {} }');
-ERROR:  A pipeline stage specification object must contain exactly one field.
+ERROR:  Pipeline stage must have a single field.
 SELECT document FROM bson_aggregation_pipeline('db', 
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { "$count": "efe", "$match": { "year": 2018 } } ], "as": "c" } } ], "cursor": {} }');
-ERROR:  A pipeline stage specification object must contain exactly one field.
+ERROR:  A pipeline stage specification object is required to have one and only one field.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
 ERROR:  {aggregate: 1} is not valid for '$addFields'; a collection is required.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$match": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');

@@ -246,9 +246,9 @@ rollback;
 -- update 1 with a replace that tries to change the _id
 begin;
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{"a":3},"u":{"_id":0,"b":0},"multi":false}]}');
-                                                                                                                                                                           update                                                                                                                                                                            
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""486539293"" }, ""errmsg"" : ""After applying the update, the (immutable) field '_id' was found to have been altered"" } ] }",f)
+                                                                                                                                                          update                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""486539293"" }, ""errmsg"" : ""Cannot modify '_id' field as part of the operation"" } ] }",f)
 (1 row)
 
 rollback;
@@ -1420,9 +1420,9 @@ select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"x"
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id.b": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
-                                                                                                                                                                     update                                                                                                                                                                     
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""603979805"" }, ""errmsg"" : ""field at '_id' must be exactly specified, field at sub-path '_id.b'found"" } ] }",f)
+                                                                                                                                                                           update                                                                                                                                                                            
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""603979805"" }, ""errmsg"" : ""Invalid path '_id.b'. Please specify the full '_id' field value instead of a sub-path"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_idab.b": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
@@ -1432,9 +1432,9 @@ select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_i
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id.c": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
-                                                                                                                                                                     update                                                                                                                                                                     
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""603979805"" }, ""errmsg"" : ""field at '_id' must be exactly specified, field at sub-path '_id.c'found"" } ] }",f)
+                                                                                                                                                                           update                                                                                                                                                                            
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""603979805"" }, ""errmsg"" : ""Invalid path '_id.c'. Please specify the full '_id' field value instead of a sub-path"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id": 2},"u":{"_id":3},"upsert":true}]}');

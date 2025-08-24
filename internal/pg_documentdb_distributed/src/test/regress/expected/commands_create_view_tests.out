@@ -79,7 +79,7 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests_view_np", "viewOn": null, "pipeline": [] }');
-ERROR:  'pipeline' requires 'viewOn' to also be specified
+ERROR:  'viewOn' needs to be specified.
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests_view_u",  "viewOn": {"$undefined": true} }');
 NOTICE:  creating collection
          create_collection_view         
@@ -88,7 +88,7 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests_view_up", "viewOn": {"$undefined": true}, "pipeline": [] }');
-ERROR:  'pipeline' requires 'viewOn' to also be specified
+ERROR:  'viewOn' needs to be specified.
 -- create a view against it (no pipeline): succeeds
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests_view_1", "viewOn": "create_view_tests" }');
          create_collection_view         
@@ -199,7 +199,7 @@ SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tes
 ERROR:  ns: db.create_view_tests already exists with different options: {}
 -- Can't write to views
 SELECT documentdb_api.insert_one('db', 'create_view_tests_view_1', '{ "_id": 5, "a": 60 }');
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 CONTEXT:  SQL statement "SELECT p_result                   FROM documentdb_api.insert(
       p_database_name,
       v_insert,
@@ -207,16 +207,16 @@ CONTEXT:  SQL statement "SELECT p_result                   FROM documentdb_api.i
       p_transaction_id)"
 PL/pgSQL function documentdb_api.insert_one(text,text,bson,text) line 7 at SQL statement
 SELECT documentdb_api.update('db', '{ "update": "create_view_tests_view_1", "updates": [ { "q": {}, "u": {} } ] }');
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 SELECT documentdb_api.delete('db', '{ "delete": "create_view_tests_view_1", "deletes": [ { "q": {}, "limit": 1 } ] }');
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 SELECT documentdb_api.shard_collection('db', 'create_view_tests_view_1', '{ "_id": "hashed" }', false);
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 SELECT documentdb_api.shard_collection('db', 'create_view_tests_view_1', '{ "_id": "hashed" }', true);
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 -- can drop/rename a view
 SELECT documentdb_api.rename_collection('db', 'create_view_tests_view_1', 'create_view_tests_view_4');
-ERROR:  Namespace db.create_view_tests_view_1 is a view, not a collection
+ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection
 SELECT document FROM bson_aggregation_find('db', '{ "find": "create_view_tests_view_1" }');
                               document                              
 ---------------------------------------------------------------------

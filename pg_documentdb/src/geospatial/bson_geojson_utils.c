@@ -501,12 +501,13 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-					errmsg("%sunknown GeoJSON type: %s",
+					errmsg("%sAn unknown type of GeoJSON object has been detected: %s",
 						   GEO_ERROR_PREFIX(parseState->errorCtxt),
 						   BsonValueToJsonForLogging(coordinatesValue)),
-					errdetail_log("%sunknown GeoJSON type found: %d",
-								  GEO_HINT_PREFIX(parseState->errorCtxt),
-								  geoJsonType)));
+					errdetail_log(
+						"%sAn unknown type of GeoJSON object has been detected: %d",
+						GEO_HINT_PREFIX(parseState->errorCtxt),
+						geoJsonType)));
 		}
 	}
 	return true;
@@ -687,10 +688,10 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(state->errorCtxt)),
-					errmsg("%sLoop is not closed: %s",
+					errmsg("Loop for %s remains unclosed.: %s",
 						   GEO_ERROR_PREFIX(state->errorCtxt),
 						   BsonValueToJsonForLogging(multiPointValue)),
-					errdetail_log("%sLoop is not closed.",
+					errdetail_log("Loop for %s remains unclosed.",
 								  GEO_HINT_PREFIX(state->errorCtxt))));
 		}
 
@@ -819,10 +820,11 @@ ValidateCoordinatesNotArray(const bson_value_t *coordinatesValue, GeoJsonType ge
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-					errmsg("%sGeometryCollection geometries must be an array",
+					errmsg("%sGeometryCollection requires geometries in an array format",
 						   GEO_ERROR_PREFIX(parseState->errorCtxt)),
-					errdetail_log("%sGeometryCollection geometries must be an array",
-								  GEO_HINT_PREFIX(parseState->errorCtxt))));
+					errdetail_log(
+						"%sGeometryCollection requires geometries in an array format",
+						GEO_HINT_PREFIX(parseState->errorCtxt))));
 		}
 		else if ((geoJsonType & (GeoJsonType_POLYGON | GeoJsonType_MULTILINESTRING |
 								 GeoJsonType_MULTIPOLYGON)) > 1)
@@ -1455,10 +1457,11 @@ WriteBufferGeoJsonCore(const bson_value_t *value, bool insideGeoJsonGeometryColl
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-					errmsg("%sCRS must have field \"properties\" which is an object",
-						   GEO_ERROR_PREFIX(parseState->errorCtxt)),
+					errmsg(
+						"%sCRS must include a field named \"properties\", and this field needs to be an object.",
+						GEO_ERROR_PREFIX(parseState->errorCtxt)),
 					errdetail_log(
-						"%sCRS must have field \"properties\" which is an object",
+						"%sCRS must include a field named \"properties\", and this field needs to be an object.",
 						GEO_HINT_PREFIX(parseState->errorCtxt))));
 		}
 	}
@@ -1470,10 +1473,10 @@ WriteBufferGeoJsonCore(const bson_value_t *value, bool insideGeoJsonGeometryColl
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			shouldThrowError, (
 				errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-				errmsg("%sUnknwown GeoJSON type: %s",
+				errmsg("%sUnknown GeoJSON data type: %s",
 					   GEO_ERROR_PREFIX(parseState->errorCtxt),
 					   BsonValueToJsonForLogging(value)),
-				errdetail_log("%sUnknwown GeoJSON type",
+				errdetail_log("%sUnknown GeoJSON data type",
 							  GEO_HINT_PREFIX(parseState->errorCtxt))));
 	}
 	else
@@ -1485,10 +1488,10 @@ WriteBufferGeoJsonCore(const bson_value_t *value, bool insideGeoJsonGeometryColl
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-					errmsg("%sUnknwown GeoJSON type: %s",
+					errmsg("%sUnknown GeoJSON data type: %s",
 						   GEO_ERROR_PREFIX(parseState->errorCtxt),
 						   BsonValueToJsonForLogging(value)),
-					errdetail_log("%sUnknwown GeoJSON type",
+					errdetail_log("%s Unknown GeoJSON data type",
 								  GEO_HINT_PREFIX(parseState->errorCtxt))));
 		}
 
@@ -1499,11 +1502,12 @@ WriteBufferGeoJsonCore(const bson_value_t *value, bool insideGeoJsonGeometryColl
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-					errmsg("%sunknown GeoJSON type: %s",
+					errmsg("%s Unknown GeoJSON data type: %s",
 						   GEO_ERROR_PREFIX(parseState->errorCtxt),
 						   BsonValueToJsonForLogging(value)),
-					errdetail_log("%sunknown GeoJSON type found",
-								  GEO_HINT_PREFIX(parseState->errorCtxt))));
+					errdetail_log(
+						"An unknown type of GeoJSON object has been detected %s",
+						GEO_HINT_PREFIX(parseState->errorCtxt))));
 		}
 
 		/* Not an expected type */

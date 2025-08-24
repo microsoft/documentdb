@@ -735,7 +735,7 @@ VerifyClientProof(ScramState *state)
 	/* H(ClientSignature ^ ClientProof) = StoredKey */
 	if (memcmp(clientStoredKey, state->storedKey, state->keyLength) != 0)
 	{
-		ereport(LOG, (errmsg("Client proof verification failed.")));
+		ereport(LOG, (errmsg("Failed to verify the provided client proof.")));
 		return false;
 	}
 

@@ -486,9 +486,12 @@ BsonValueAddLegacyPointDatum(const bson_value_t *value,
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			throwError, (
 				errcode(ERRCODE_DOCUMENTDB_LOCATION16804),
-				errmsg("location object expected, location array not in correct format"),
+				errmsg(
+					"Expected 'array' or 'document' type but found '%s' type",
+					BsonTypeName(value->value_type)),
 				errdetail_log(
-					"location object expected, location array not in correct format")));
+					"Expected 'array' or 'document' type but found '%s' type",
+					BsonTypeName(value->value_type))));
 	}
 
 	if (IsBsonValueEmptyArray(value) || IsBsonValueEmptyDocument(value))
@@ -889,7 +892,7 @@ _2dsphereIndexErrorPrefix(const pgbson *document)
 {
 	bson_iter_t iterator;
 	StringInfo prependErrorMsg = makeStringInfo();
-	appendStringInfo(prependErrorMsg, "Can't extract geo keys ");
+	appendStringInfo(prependErrorMsg, "Failed to retrieve geo keys ");
 	if (PgbsonInitIteratorAtPath(document, "_id", &iterator))
 	{
 		/* Append only the _id so that in case of failure, clients can identify the errorneous documents */
@@ -907,7 +910,7 @@ _2dsphereIndexErrorPrefix(const pgbson *document)
 static const char *
 _2dsphereIndexErrorHintPrefix(const pgbson *ignore)
 {
-	return pstrdup("Can't extract geo keys ");
+	return pstrdup("Failed to retrieve geo keys ");
 }
 
 

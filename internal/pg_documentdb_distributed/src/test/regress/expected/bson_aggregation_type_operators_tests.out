@@ -1599,11 +1599,11 @@ SELECT bson_dollar_project(document, '{"output": {"$convert": { "input": "$value
 
 -- $convert errors in parsing should be honored even if onError is set
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": { "input": {"$divide": [1, 0]}, "to": "string", "onError": "There was an error in $convert"}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": "$myField"}}');
 ERROR:  $convert expects an object of named arguments but found: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "onError": "There was an error"}}}');
-ERROR:  Missing 'to' parameter to $convert
+ERROR:  'to' parameter is missing for $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"to": 1, "onError": "There was an error"}}}');
 ERROR:  Missing 'input' parameter to $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"myCustomInput": 1, "onError": "There was an error"}}}');
@@ -1613,11 +1613,11 @@ ERROR:  Unknown type name alias: someType
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "1.1"}, "onError": "There was an error"}}}');
 ERROR:  In $convert, numeric 'to' argument is not an integer
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "255"}, "onError": "There was an error"}}}');
-ERROR:  In $convert, numeric value for 'to' does not correspond to a BSON type: 255
+ERROR:  During $convert, the numeric value provided for 'to' is not a valid BSON type: 255
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "-2.0"}, "onError": "There was an error"}}}');
-ERROR:  In $convert, numeric value for 'to' does not correspond to a BSON type: -2
+ERROR:  During $convert, the numeric value provided for 'to' is not a valid BSON type: -2
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": [], "onError": "There was an error"}}}');
-ERROR:  $convert's 'to' argument must be a string or number, but is array
+ERROR:  The 'to' parameter in $convert must contain either a string value or a numeric value, but it currently holds array
 -- $convert identifies the target types with numbers
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": {}, "to": -1}}}');
 ERROR:  Unsupported conversion from object to minKey in $convert with no onError value
@@ -1832,19 +1832,19 @@ ERROR:  Conversion would overflow target type in $convert with no onError value:
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": {"$numberLong": "-2147483649"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: -2147483649
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "-2147483649" }}');
-ERROR:  Failed to parse number '-2147483649' in $convert with no onError value: Overflow
+ERROR:  Unable to interpret number '-2147483649' within $convert, as no onError value was specified: Overflow
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "2147483648" }}');
-ERROR:  Failed to parse number '2147483648' in $convert with no onError value: Overflow
+ERROR:  Unable to interpret number '2147483648' within $convert, as no onError value was specified: Overflow
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "This contains a number: 324423" }}');
-ERROR:  Failed to parse number 'This contains a number: 324423' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number 'This contains a number: 324423' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "    324423" }}');
-ERROR:  Failed to parse number '    324423' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number '    324423' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "324423     " }}');
-ERROR:  Failed to parse number '324423     ' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number '324423     ' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "0x01" }}');
-ERROR:  Illegal hexadecimal input in $convert with no onError value: 0x01
+ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": "" }}');
-ERROR:  Failed to parse number '' in $convert with no onError value: No digits
+ERROR:  Unable to interpret number '' within $convert, as no onError value was specified: No digits
 -- $toLong negative tests
 -- only support numeric, date, bool or string, must not overflow/underflow. Takes exactly 1 argument.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": {"input": ""}}}');
@@ -1868,19 +1868,19 @@ ERROR:  Attempt to convert NaN value to integer type in $convert with no onError
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": {"$numberDecimal": "-9223372036854775809"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: -9223372036854775809
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "-9223372036854775809" }}');
-ERROR:  Failed to parse number '-9223372036854775809' in $convert with no onError value: Overflow
+ERROR:  Unable to interpret number '-9223372036854775809' within $convert, as no onError value was specified: Overflow
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "9223372036854775808" }}');
-ERROR:  Failed to parse number '9223372036854775808' in $convert with no onError value: Overflow
+ERROR:  Unable to interpret number '9223372036854775808' within $convert, as no onError value was specified: Overflow
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "This contains a number: 324423" }}');
-ERROR:  Failed to parse number 'This contains a number: 324423' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number 'This contains a number: 324423' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "    324423" }}');
-ERROR:  Failed to parse number '    324423' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number '    324423' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "324423     " }}');
-ERROR:  Failed to parse number '324423     ' in $convert with no onError value: Did not consume whole string.
+ERROR:  Unable to interpret number '324423     ' within $convert, as no onError value was specified: Failed to process the entire string.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "0x01" }}');
-ERROR:  Illegal hexadecimal input in $convert with no onError value: 0x01
+ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": "" }}');
-ERROR:  Failed to parse number '' in $convert with no onError value: No digits
+ERROR:  Unable to interpret number '' within $convert, as no onError value was specified: No digits
 -- $toDouble negative tests
 -- only support numeric, date, bool or string, must not overflow/underflow. Takes exactly 1 argument.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"input": ""}}}');
@@ -1892,19 +1892,19 @@ ERROR:  Conversion would overflow target type in $convert with no onError value:
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"$numberDecimal": "-1.8E309"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: -1.8E+309
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "1.8E309" }}');
-ERROR:  Failed to parse number '1.8E309' in $convert with no onError value: Out of range
+ERROR:  Unable to interpret number '1.8E309' within $convert, as no onError value was specified: Out of range
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "-1.8E309" }}');
-ERROR:  Failed to parse number '-1.8E309' in $convert with no onError value: Out of range
+ERROR:  Unable to interpret number '-1.8E309' within $convert, as no onError value was specified: Out of range
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "This contains a number: 324423.23" }}');
-ERROR:  Failed to parse number 'This contains a number: 324423.23' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "    324423.0" }}');
-ERROR:  Failed to parse number '    324423.0' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "324423.00001     " }}');
-ERROR:  Failed to parse number '324423.00001     ' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "0x01" }}');
-ERROR:  Illegal hexadecimal input in $convert with no onError value: 0x01
+ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "" }}');
-ERROR:  Failed to parse number '' in $convert with no onError value: Empty string
+ERROR:  Unable to interpret number '' within $convert, as no onError value was specified: Empty string
 -- $toDecimal negative tests
 -- only support numeric, date, bool or string, must not overflow/underflow. Takes exactly 1 argument.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": {"input": ""}}}');
@@ -1912,19 +1912,19 @@ ERROR:  Unsupported conversion from object to decimal in $convert with no onErro
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": []}}');
 ERROR:  Expression $toDecimal takes exactly 1 arguments. 0 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "123423.8E6145" }}');
-ERROR:  Failed to parse number '123423.8E6145' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '123423.8E6145' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "-123423.8E6145" }}');
-ERROR:  Failed to parse number '-123423.8E6145' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '-123423.8E6145' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "This contains a number: 324423.23" }}');
-ERROR:  Failed to parse number 'This contains a number: 324423.23' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "    324423.0" }}');
-ERROR:  Failed to parse number '    324423.0' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '    324423.0' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "324423.00001     " }}');
-ERROR:  Failed to parse number '324423.00001     ' in $convert with no onError value: Failed to parse string to decimal
+ERROR:  Unable to interpret number '324423.00001     ' within $convert, as no onError value was specified: Failed to parse string to decimal
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "0x01" }}');
-ERROR:  Illegal hexadecimal input in $convert with no onError value: 0x01
+ERROR:  Invalid hexadecimal input detected in $convert without a specified onError handler: 0x01
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "" }}');
-ERROR:  Failed to parse number '' in $convert with no onError value: Empty string
+ERROR:  Unable to interpret number '' within $convert, as no onError value was specified: Empty string
 -- $toString negative tests
 -- only support numeric, date, bool, string, objectId. Takes exactly 1 argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": {"input": ""}}}');

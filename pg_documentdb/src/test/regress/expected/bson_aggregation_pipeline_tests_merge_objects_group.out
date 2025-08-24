@@ -143,7 +143,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 (2 rows)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "mergeObjectsGroupColl2", "pipeline": [ { "$group": { "_id": "$group", "mergedObj": { "$mergeObjects": "$obj.x" } } } ] }');
-ERROR:  $mergeObjects requires object inputs, but input 2 is of type int
+ERROR:  $mergeObjects needs both inputs to be objects, but the provided input 2 has the type int
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "mergeObjectsGroupColl2", "pipeline": [ { "$group": { "_id": "$group", "mergedObj": { "$mergeObjects": { "result": "$obj.y" } } } } ] }');
                                         document                                         
 -----------------------------------------------------------------------------------------
@@ -260,7 +260,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 (2 rows)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "mergeObjectsGroupColl", "pipeline": [ { "$sort": { "category": 1 } }, { "$group": { "_id": "$year", "shouldFail": { "$mergeObjects": "$category" } } } ] }');
-ERROR:  $mergeObjects requires object inputs, but input "X" is of type string
+ERROR:  $mergeObjects needs both inputs to be objects, but the provided input "X" has the type string
 select documentdb_api.drop_collection('db','mergeObjectsGroupColl');
  drop_collection 
 -----------------

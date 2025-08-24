@@ -1906,17 +1906,17 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": {"$numberDouble":
 
 -- Should error if expression lies outside [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": 1.0000000001 }}');
-ERROR:  cannot apply $acos to 1, value must be in [-1,1]
+ERROR:  $acos cannot be applied to 1 because its value must fall within the range [-1,1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": -1.0000000001 }}');
-ERROR:  cannot apply $acos to -1, value must be in [-1,1]
+ERROR:  $acos cannot be applied to -1 because its value must fall within the range [-1,1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": 10 }}');
-ERROR:  cannot apply $acos to 10, value must be in [-1,1]
+ERROR:  $acos cannot be applied to 10 because its value must fall within the range [-1,1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": -10.9999999999 }}');
-ERROR:  cannot apply $acos to -11, value must be in [-1,1]
+ERROR:  $acos cannot be applied to -11 because its value must fall within the range [-1,1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $acos to Infinity, value must be in [-1,1]
+ERROR:  $acos cannot be applied to Infinity because its value must fall within the range [-1,1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $acos to -Infinity, value must be in [-1,1]
+ERROR:  $acos cannot be applied to -Infinity because its value must fall within the range [-1,1]
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": "str"}}');
 ERROR:  $acos works exclusively with numeric data types, not with string

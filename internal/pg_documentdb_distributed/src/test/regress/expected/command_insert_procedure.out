@@ -21,7 +21,7 @@ ERROR:  collection name has invalid type array
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":{"a":1}}');
 ERROR:  BSON field 'insert.documents' is the wrong type 'object', expected type 'array'
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":[{"a":1}], "extra":1}');
-ERROR:  BSON field 'insert.extra' is an unknown field
+ERROR:  The BSON field 'insert.extra' is not recognized as a valid field.
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":[4]}');
 ERROR:  BSON field 'insert.documents.0' is the wrong type 'int', expected type 'object'
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":[{"a":1}],"ordered":1}');
@@ -329,7 +329,7 @@ select document from documentdb_api.collection('db','collection7') where documen
 
 -- insert with both docs specified.
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection9", "documents":[{"_id":1,"a":1},{"_id":2,"a":2}]}', '{ "": [{"_id":1,"a":1},{"_id":2,"a":2}] }');
-ERROR:  Unexpected additional documents
+ERROR:  Both 'documents' and 'insert.documents' cannot be specified.
 -- insert with id undefined skips
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection9", "documents":[{"_id":{ "$undefined": true } }]}');
                                p_result                               | p_success 
@@ -349,7 +349,7 @@ ERROR:  Database Invalid Database Name has an invalid character
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 CALL documentdb_api.insert_bulk('db', '{"insert":"system.othercoll", "documents":[{"_id":1,"a":1}]}');
-ERROR:  Invalid system namespace: db.system.othercoll
+ERROR:  System namespace provided is invalid: db.system.othercoll
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 CALL documentdb_api.insert_bulk('db', '{"insert":"random$name", "documents":[{"_id":1,"a":1}]}');

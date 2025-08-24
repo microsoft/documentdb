@@ -52,15 +52,15 @@ END;
 $$ LANGUAGE plpgsql;
 -- all fields specified in wildcardProjection must be included or excluded, except _id field
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": 1, "b": 0}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": 1, "b.c": 0}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b.c in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b.c within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"b.c": 1, "a": 0}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "b.c" : 1, "a" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field a in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "b.c" : 1, "a" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field a within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"x": 1, "y.t": 0}, "b.c": 0}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y.t" : 0 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field y.t in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y.t" : 0 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field y.t within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"x": 1, "y": 1}, "b.c": 0}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y" : 1 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b.c in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y" : 1 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b.c within the inclusion projection.
 -- wildcardProjection cannot be empty
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{}'), true);
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : {  } } :: caused by :: The 'wildcardProjection' field can't be an empty object
@@ -75,11 +75,11 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : { "c" : 1, "d" : [  ], "e" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Bad projection specification, cannot use computed fields when parsing a spec in kBanComputedFields mode
 -- show that we throw an error for invalid paths used in wildcardProjection document
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a..b": 1}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a..b" : 1 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names may not be empty strings.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a..b" : 1 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names cannot be completely empty strings.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"a..b": 1}}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a..b" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names may not be empty strings.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a..b" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names cannot be completely empty strings.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"a.b.": 1}}'), true);
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a.b." : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath must not end with a '.'.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a.b." : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: The FieldPath cannot terminate with a '.' character.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"": 1}}'), true);
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath cannot be constructed with empty string.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"$aa": 1}}'), true);

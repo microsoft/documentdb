@@ -3147,13 +3147,13 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 ANALYZE;
 -- error cases
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_ivf_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 1, "exact": {}  }  } } ], "cursor": {} }');
-ERROR:  $exact must be a boolean value.
+ERROR:  $exact must represent a valid boolean value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_ivf_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 1, "exact": 123  }  } } ], "cursor": {} }');
-ERROR:  $exact must be a boolean value.
+ERROR:  $exact must represent a valid boolean value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_ivf_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 1, "exact": "abc"  }  } } ], "cursor": {} }');
-ERROR:  $exact must be a boolean value.
+ERROR:  $exact must represent a valid boolean value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector_ivf_exact", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 1, "exact": [1,2,3]  }  } } ], "cursor": {} }');
-ERROR:  $exact must be a boolean value.
+ERROR:  $exact must represent a valid boolean value.
 -- COS
 BEGIN;
 SET LOCAL enable_seqscan = off;

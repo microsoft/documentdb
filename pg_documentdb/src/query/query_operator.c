@@ -1656,7 +1656,7 @@ ValidateIfIteratorValueUndefined(bson_iter_t *iter, bool isInMatchExpression)
 								"InMatchExpression equality cannot be undefined")));
 		}
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"cannot compare to undefined")));
+							"Comparison with undefined value is not allowed")));
 	}
 }
 
@@ -2040,8 +2040,9 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				if (!IsDoubleAFixedInteger(doubleValue))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Invalid numerical type code %s",
-										   BsonValueToJsonForLogging(typeIdValue))));
+									errmsg(
+										"Unsupported or invalid numerical type code %s",
+										BsonValueToJsonForLogging(typeIdValue))));
 				}
 
 				/* try to resolve the type */
@@ -2070,9 +2071,10 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 						if (!IsDoubleAFixedInteger(doubleValue))
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg("Invalid numerical type code %s",
-												   BsonValueToJsonForLogging(
-													   typeIdArrayValue))));
+											errmsg(
+												"Unsupported or invalid numerical type code %s",
+												BsonValueToJsonForLogging(
+													typeIdArrayValue))));
 						}
 
 						/* try to resolve the type */
@@ -2281,7 +2283,10 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			if (!BSON_ITER_HOLDS_DOCUMENT(operatorDocIterator))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("geometry must be an object")));
+								errmsg(
+									"Expected 'document' type for Geometry but found '%s' instead",
+									BsonTypeName(
+										bson_iter_type(operatorDocIterator)))));
 			}
 
 			const bson_value_t *value = bson_iter_value(operatorDocIterator);
@@ -2307,7 +2312,10 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			if (!BSON_ITER_HOLDS_DOCUMENT(operatorDocIterator))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("geometry must be an object")));
+								errmsg(
+									"Expected 'document' type for Geometry but found '%s' instead",
+									BsonTypeName(
+										bson_iter_type(operatorDocIterator)))));
 			}
 
 			const bson_value_t *value = bson_iter_value(operatorDocIterator);
@@ -2351,7 +2359,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$%s is not allowed in this context",
+									"%s cannot be used in this particular context",
 									mongoOperatorName)));
 			}
 
@@ -2925,7 +2933,7 @@ ExpandExprForDollarAll(const char *path,
 
 	if (list_length(allElements) == 1)
 	{
-		/* If there is only one element, return it directly */
+		/* If there is a single element remaining, return it immediately without further processing */
 		return (Expr *) linitial(allElements);
 	}
 
@@ -3680,7 +3688,7 @@ CreateExprForDollarMod(bson_iter_t *operatorDocIterator,
 			if (divisor == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"divisor cannot be 0")));
+									"divide by 0 is not allowed")));
 			}
 		}
 	}
@@ -3784,10 +3792,11 @@ SortAndWriteInt32BsonTypeArray(const bson_value_t *bsonArray, pgbson_writer *wri
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 									errmsg(
-										"bit positions cannot be represented as a 32-bit signed integer: %s.0",
+										"Expected an integer but got '%s' type for element %s.0",
+										BsonTypeName(element->value_type),
 										BsonValueToJsonForLogging(element)),
 									errdetail_log(
-										"bit positions of type %s cannot be represented as a 32-bit signed integer",
+										"Expected an integer but got '%s' type",
 										BsonTypeName(element->value_type))));
 					break;
 				}

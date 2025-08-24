@@ -492,9 +492,10 @@ GetMongoCollectionByNameDatum(Datum databaseNameDatum, Datum collectionNameDatum
 	if (collection != NULL && collection->viewDefinition != NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-						errmsg("Namespace %s.%s is a view, not a collection",
-							   collection->name.databaseName,
-							   collection->name.collectionName)));
+						errmsg(
+							"The namespace %s.%s refers to a view object rather than a collection",
+							collection->name.databaseName,
+							collection->name.collectionName)));
 	}
 
 	return collection;
@@ -624,7 +625,7 @@ GetMongoCollectionByNameDatumCore(Datum databaseNameDatum, Datum collectionNameD
 	if (collectionNameLength >= MAX_COLLECTION_NAME_LENGTH)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE), errmsg(
-							"collection name is too long")));
+							"The specified collection name exceeds the allowed length")));
 	}
 
 	MongoCollectionName qualifiedName;
@@ -805,7 +806,7 @@ GetTempMongoCollectionByNameDatum(Datum databaseNameDatum, Datum collectionNameD
 	if (collectionNameLength >= MAX_COLLECTION_NAME_LENGTH)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"collection name is too long")));
+							"The specified collection name exceeds the allowed length")));
 	}
 
 	/* copy text bytes directly, buffers are already 0-initialized above */
@@ -903,7 +904,7 @@ GetMongoCollectionFromCatalogById(uint64 collectionId, Oid relationId,
 		memcpy(collection->name.collectionName, VARDATA_ANY(collectionNameDatum),
 			   VARSIZE_ANY_EXHDR(collectionNameDatum));
 
-		/* Attr 3 is the collection_id */
+		/* Attribute 3 refers to the collection_id */
 		collection->collectionId = collectionId;
 
 		Datum shardKeyDatum = heap_getattr(tuple, 4, tupleDescriptor, &isNull);
@@ -1247,7 +1248,7 @@ void
 ValidateCollectionNameForUnauthorizedSystemNs(const char *collectionName,
 											  Datum databaseNameDatum)
 {
-	/* Empty collection name*/
+	/* Collection name cannot be empty*/
 	if (strlen(collectionName) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
@@ -1301,7 +1302,7 @@ ValidateCollectionNameForValidSystemNamespace(StringView *collectionView,
 				.string = VARDATA_ANY(databaseNameDatum)
 			};
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-							errmsg("Invalid system namespace: %.*s.%.*s",
+							errmsg("System namespace provided is invalid: %.*s.%.*s",
 								   databaseView.length, databaseView.string,
 								   collectionView->length, collectionView->string)));
 		}
@@ -1449,9 +1450,10 @@ GetCollectionOrViewCore(PG_FUNCTION_ARGS, bool allowViews)
 		if (!allowViews && resultTupDesc->natts > 5 && !resultIsNulls[5])
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-							errmsg("Namespace %s.%s is a view, not a collection",
-								   TextDatumGetCString(databaseDatum),
-								   TextDatumGetCString(collectionName))));
+							errmsg(
+								"The namespace %s.%s refers to a view object rather than a collection",
+								TextDatumGetCString(databaseDatum),
+								TextDatumGetCString(collectionName))));
 		}
 
 		HeapTuple resultTup = heap_form_tuple(resultTupDesc, resultValues, resultIsNulls);

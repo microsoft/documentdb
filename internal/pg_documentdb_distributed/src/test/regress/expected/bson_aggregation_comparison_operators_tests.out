@@ -1689,7 +1689,7 @@ ERROR:  Expression $lte takes exactly 2 arguments. 1 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cmp": [2, {"$subtract": [1, {"$date": { "$numberLong": "1" }}]}]}}');
 ERROR:  can't $subtract date from int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$eq": [{"$divide": [1, 0]}, 2]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ne": [{"$not": []}, 3]}}');
 ERROR:  Expression $not takes exactly 1 arguments. 0 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$gt": [{"$in": [1, 2]}, 2]}}');

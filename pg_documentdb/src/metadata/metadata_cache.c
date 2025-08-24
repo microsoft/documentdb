@@ -49,7 +49,7 @@ typedef enum CacheValidityValue
 	/* cache was not succesfully initialized */
 	CACHE_INVALID,
 
-	/* extension does not exist, nothing to cache */
+	/* The specified extension is missing, so there is nothing available to cache. */
 	CACHE_VALID_NO_EXTENSION,
 
 	/* extension exist, cache is valid */

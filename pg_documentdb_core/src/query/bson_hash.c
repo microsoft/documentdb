@@ -437,7 +437,7 @@ BsonValueHashUint32(const bson_value_t *bsonValue)
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("unknown BSON type code %d",
+							errmsg("Unrecognized BSON data type code %d",
 								   bsonValue->value_type)));
 		}
 	}

@@ -148,7 +148,7 @@ SELECT * FROM bson_dollar_project_find(
     '{ "e": 1, "b": {"$elemMatch": {"$gt": 45} }, "a": {"$elemMatch": {"$lt": 25}}, "d": 0 }',
     '{}'
 );
-ERROR:  Cannot do exclusion on field d in inclusion projection.
+ERROR:  exclusion cannot be applied to field d within the inclusion projection.
 -- various predicates
 SELECT * FROM bson_dollar_project_find(
     '{"x": [{"a": 1}, {"a": 180}, {"a": 4}]}', 
@@ -203,13 +203,13 @@ SELECT * FROM bson_dollar_project_find(
     '{ "a": {"$elemMatch": {"$gt": 15} }, "b.$": 1 }',
     '{ "a": {"$elemMatch": {"$gt": 15} } }'
 );
-ERROR:  Cannot specify positional operator and $elemMatch.
+ERROR:  Positional operator cannot be used together with $elemMatch.
 SELECT * FROM bson_dollar_project_find(
     '{ "_id": 2, "a": [ 11, 21, 31 ], "b": [41, 51, 61], "d": 71, "e": {"f": "good"} }', 
     '{ "b.$": 1, "a": {"$elemMatch": {"$gt": 15} } }',
     '{ "a": {"$elemMatch": {"$gt": 15} } }'
 );
-ERROR:  Cannot specify positional operator and $elemMatch.
+ERROR:  Positional operator cannot be used together with $elemMatch.
 -- $jsonSchema doesn't work with projection $elemMatch
 SELECT * FROM bson_dollar_project_find(
     '{ "_id": 2, "a": [ 11, 21, 31 ], "b": [41, 51, 61], "d": 71, "e": {"f": "good"} }', 

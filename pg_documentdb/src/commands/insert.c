@@ -293,7 +293,8 @@ BuildBatchInsertionSpec(bson_iter_t *insertCommandIter, pgbsonsequence *insertDo
 			if (insertDocs != NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("Unexpected additional documents")));
+								errmsg(
+									"Both 'documents' and 'insert.documents' cannot be specified.")));
 			}
 
 			bson_iter_t insertArrayIter;
@@ -342,8 +343,9 @@ BuildBatchInsertionSpec(bson_iter_t *insertCommandIter, pgbsonsequence *insertDo
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'insert.%s' is an unknown field",
-								   field)));
+							errmsg(
+								"The BSON field 'insert.%s' is not recognized as a valid field.",
+								field)));
 		}
 	}
 
@@ -994,7 +996,7 @@ CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocCon
 	MemoryContextSwitchTo(oldContext);
 	if (list_length(batchSpec->documents) == 0)
 	{
-		/* If there's no documents to insert exit and don't create the collection */
+		/* Don't create the collection if there are no documents to insert */
 		batchResult.rowsInserted = 0;
 		batchResult.ok = 1;
 		batchResult.writeErrors = NIL;

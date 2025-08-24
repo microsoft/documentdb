@@ -764,7 +764,7 @@ GetJsonTypeEnumFromJsonTypeString(const char *jsonTypeStr)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$jsonSchema type 'integer' is not currently supported.")));
+							"The 'integer' type in $jsonSchema is not supported at this time.")));
 	}
 	else if (strcmp(jsonTypeStr, "number") == 0)
 	{
@@ -867,7 +867,7 @@ GetBsonTypeEnumFromBsonTypeString(const char *bsonTypeStr)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$jsonSchema type 'integer' is not currently supported.")));
+							"The 'integer' type in $jsonSchema is not supported at this time.")));
 	}
 	else if (strcmp(bsonTypeStr, "timestamp") == 0)
 	{
@@ -1114,11 +1114,11 @@ GetValidatedBsonIntValue(const bson_value_t *value, const char *nonPIIfield)
 	if (!IsBsonValue64BitInteger(value, false))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Cannot represent as a 64-bit integer: %s: %s",
+						errmsg("Unable to store value as a 64-bit integer: %s: %s",
 							   nonPIIfield,
 							   BsonValueToJsonForLogging(value)),
 						errdetail_log(
-							"Cannot represent as a 64-bit integer: %s: input type: %s",
+							"Unable to store value as a 64-bit integer: %s, input type is %s",
 							nonPIIfield,
 							BsonTypeName(value->value_type))));
 	}
@@ -1135,9 +1135,11 @@ GetValidatedBsonIntValue(const bson_value_t *value, const char *nonPIIfield)
 	if (intValue < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Expected a positive number in: %s: %s", nonPIIfield,
+						errmsg("A positive number is required in %s but got %s",
+							   nonPIIfield,
 							   BsonValueToJsonForLogging(value)),
-						errdetail_log("Expected a positive number in: %s", nonPIIfield)));
+						errdetail_log("A positive number is required in %s",
+									  nonPIIfield)));
 	}
 	return intValue;
 }

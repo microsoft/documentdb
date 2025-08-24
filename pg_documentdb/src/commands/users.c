@@ -817,7 +817,7 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 	if (PG_ARGISNULL(0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("'dropUser' is a required field.")));
+						errmsg("The field 'dropUser' is mandatory.")));
 	}
 
 	if (!IsMetadataCoordinator())
@@ -902,7 +902,7 @@ ParseDropUserSpec(pgbson *dropSpec)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"'dropUser' is a required field.")));
+									"The field 'dropUser' is mandatory.")));
 			}
 
 			if (IsUserNameInvalid(dropUser))
@@ -925,7 +925,7 @@ ParseDropUserSpec(pgbson *dropSpec)
 	if (dropUser == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("'dropUser' is a required field.")));
+						errmsg("The field 'dropUser' is mandatory.")));
 	}
 
 	return dropUser;
@@ -980,8 +980,9 @@ documentdb_extension_update_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("UpdateUser command is not supported."),
-						errdetail_log("UpdateUser command is not supported.")));
+						errmsg("The UpdateUser command is currently unsupported."),
+						errdetail_log(
+							"The UpdateUser command is currently unsupported.")));
 	}
 
 	if (PG_ARGISNULL(0))
@@ -1368,7 +1369,8 @@ connection_status(pgbson *showPrivilegesSpec)
 	if (parentRole == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Could not find role for user")));
+						errmsg(
+							"Unable to locate appropriate role for the specified user")));
 	}
 
 	/*

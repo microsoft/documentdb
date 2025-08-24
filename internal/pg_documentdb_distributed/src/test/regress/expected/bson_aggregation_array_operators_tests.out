@@ -199,15 +199,15 @@ SELECT * FROM bson_dollar_project('{"a": [1, 2, 3, 4]}', '{"result": { "$size": 
 
 -- should error if no array is passed in
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [null]}}');
-ERROR:  The argument to $size must be an array, but was of type: null
+ERROR:  $size requires an array argument, but received a value of type: null
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": null}}');
-ERROR:  The argument to $size must be an array, but was of type: null
+ERROR:  $size requires an array argument, but received a value of type: null
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": "$b"}}');
-ERROR:  The argument to $size must be an array, but was of type: missing
+ERROR:  $size requires an array argument, but received a value of type: missing
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [{ }]}}');
-ERROR:  The argument to $size must be an array, but was of type: object
+ERROR:  $size requires an array argument, but received a value of type: object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [true]}}');
-ERROR:  The argument to $size must be an array, but was of type: bool
+ERROR:  $size requires an array argument, but received a value of type: bool
 -- should error if wrong number of args
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [null, 2]}}');
 ERROR:  Expression $size takes exactly 1 arguments. 2 were passed in.
@@ -217,11 +217,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [{"$divide": [1, 
 ERROR:  Expression $size takes exactly 1 arguments. 2 were passed in.
 -- should honor nested expression errors
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [{"$divide": [1, 0]}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- nested mongo evaluates expressions in array eventhough they are not needed for $size calculation
 -- for error validation. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$size": [[{"$divide": [1, 0]}, 2]]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $arrayElemAt
 -- returns expected element positive idx
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[1], 0]}}');
@@ -499,9 +499,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[7], {"$n
 ERROR:  The second argument of $arrayElemAt must be a valid 32-bit integer value: 1.0003
 -- should honor nested expression errors even second arg is not a 32-bit integer or if the value is found (even if the index points to an expression that doesn't produce an error).
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[{"$divide": [1, 0]}], {"$numberDecimal": "1.0003"}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [[1, {"$divide": [1, 0]}], 0]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- should error if wrong number of args is provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayElemAt": [7]}}');
 ERROR:  Expression $arrayElemAt takes exactly 2 arguments. 1 were passed in.
@@ -569,7 +569,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [{"$divide": [1,
 ERROR:  Expression $first takes exactly 1 arguments. 2 were passed in.
 -- should honor nested expression errors
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [[1, 2, 3, 4, {"$divide": [1, 0]}]]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $last operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [[1]]}}');
           bson_dollar_project          
@@ -630,7 +630,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [{"$divide": [1, 
 ERROR:  Expression $last takes exactly 1 arguments. 2 were passed in.
 -- should honor nested expression errors
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [[{"$divide": [1, 0]}, 1, 2, 3, 4]]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $objectToArray: returns expected array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$objectToArray": { }}}');
  bson_dollar_project 
@@ -907,11 +907,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": 
 ERROR:  $arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:1
 -- $arrayToObject: document input must have a 'k' and a 'v' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "foo": "value"}]]}}');
-ERROR:  $arrayToObject requires an object with keys 'k' and 'v'. Missing either or both keys from: { "k" : "a", "foo" : "value" }
+ERROR:  $arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: { "k" : "a", "foo" : "value" }
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "v": "b"}, {"v": "a", "blah": "k"}]]}}');
-ERROR:  $arrayToObject requires an object with keys 'k' and 'v'. Missing either or both keys from: { "v" : "a", "blah" : "k" }
+ERROR:  $arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: { "v" : "a", "blah" : "k" }
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "v": "b"}, {"v": "a", "k": "k"}, {"blah": 1, "foo": 2}]]}}');
-ERROR:  $arrayToObject requires an object with keys 'k' and 'v'. Missing either or both keys from: { "blah" : 1, "foo" : 2 }
+ERROR:  $arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: { "blah" : 1, "foo" : 2 }
 -- $arrayToObject: key must not contain embedded null byte
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "fo\u0000os", "v": "value"}]]}}');
 ERROR:  Key field cannot contain an embedded null byte
@@ -1003,7 +1003,7 @@ select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice
 (1 row)
 
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : ["$a",-1,2]} }');
-ERROR:  First argument to $slice must be an array, but is of type: int
+ERROR:  The first parameter provided to $slice must be an array, but a value of type int was received instead.
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : [[1,2,3,4,5],1,0]} }');
 ERROR:  Third argument to $slice must be positive: 0
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : [[1,2,3,4,5],2,-1]} }');
@@ -1041,9 +1041,9 @@ select bson_dollar_project('{"_id":"1", "a" : [1,2,3], "b" : 22, "c" : [1,2,3], 
 (1 row)
 
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3], "b" : 22, "c" : [1,2,3], "d":4  }', '{"a" : { "$slice" : ["$a",1,2]} , "b":0}');
-ERROR:  Cannot do exclusion on field b in inclusion projection.
+ERROR:  exclusion cannot be applied to field b within the inclusion projection.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3], "b" : 22, "c" : [1,2,3], "d":4  }', '{"a" : { "$slice" : ["$a",1,2]} , "b":0, "d":1}');
-ERROR:  Cannot do exclusion on field b in inclusion projection.
+ERROR:  exclusion cannot be applied to field b within the inclusion projection.
 --$slice has NULL input
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"a" : { "$slice" : [null,1,2]} }');
      bson_dollar_project     
@@ -1065,9 +1065,9 @@ select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"a" : { "$slice
 
 --Invalid Input Negative cases $slice projection
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : "str"}}');
-ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 1 were passed in.
+ERROR:  The expression $slice requires no fewer than 2 arguments and no more than 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["hello",1,2]}}');
-ERROR:  First argument to $slice must be an array, but is of type: string
+ERROR:  The first parameter provided to $slice must be an array, but a value of type string was received instead.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a","str",2]}}');
 ERROR:  The Second argument for the $slice needs to be a numeric value; however, it is currently of type: string
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,"str"]}}');
@@ -1079,9 +1079,9 @@ ERROR:  Third argument to $slice must be positive: -1
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,0]}}');
 ERROR:  Third argument to $slice must be positive: 0
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a"]}}');
-ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 1 were passed in.
+ERROR:  The expression $slice requires no fewer than 2 arguments and no more than 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,2,4]}}');
-ERROR:  Expression $slice takes at least 2 arguments, and at most 3, but 4 were passed in.
+ERROR:  The expression $slice requires no fewer than 2 arguments and no more than 3 arguments, but 4 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "NaN"}]}}');
 ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: NaN
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "Infinity"}]}}');
@@ -1421,7 +1421,7 @@ ERROR:  $filter only supports an object as its argument
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"input": "$a"}}}');
 ERROR:  Missing 'cond' parameter to $filter
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"cond": true}}}');
-ERROR:  Missing 'input' parameter to $filter
+ERROR:  'Input' parameter is missing for $filter
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"input": "$a", "cond": true, "sort": false}}}');
 ERROR:  Unrecognized parameter to $filter: sort
 -- $filter, input should be an array
@@ -1434,11 +1434,11 @@ ERROR:  input to $filter must be an array not bool
 -- $filter, as variable name should be valid
 -- invalid
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "_element"}}}');
-ERROR:  '_element' starts with an invalid character for a user variable name
+ERROR:  The variable name '_element' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "1element"}}}');
-ERROR:  '1element' starts with an invalid character for a user variable name
+ERROR:  The variable name '1element' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "Element"}}}');
-ERROR:  'Element' starts with an invalid character for a user variable name
+ERROR:  The variable name 'Element' begins with a character that is not valid for user-defined variables
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "el@ement"}}}');
 ERROR:  'el@ement' contains an invalid character for a variable name: '@'
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "el-ement"}}}');
@@ -1478,20 +1478,20 @@ ERROR:  $filter: limit must be represented as a 32-bit integral value: 214748364
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "2147483648.0"}}} }');
 ERROR:  $filter: limit must be represented as a 32-bit integral value: 2.14748E+09
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "0.0"}}} }');
-ERROR:  $filter: limit must be greater than 0: 0
+ERROR:  $filter: limit value must be strictly greater than zero: 0
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": {"$numberDouble": "-1.0"}}} }');
-ERROR:  $filter: limit must be greater than 0: -1
+ERROR:  $filter: limit value must be strictly greater than zero: -1
 SELECT * FROM bson_dollar_project('{"a": [1, 2]}', '{"result": {"$filter": {"input": "$a", "cond": true, "limit": -100}} }');
-ERROR:  $filter: limit must be greater than 0: -100
+ERROR:  $filter: limit value must be strictly greater than zero: -100
 -- $filter, undefined variable
 SELECT * FROM bson_dollar_project('{"a": [1, 2, 3, 4, 5, 6]}', '{"result": {"$filter": {"input": "$a", "as":"element", "cond": {"$gt": ["$$this", 3]}}} }');
-ERROR:  Use of undefined variable: this
+ERROR:  Attempting to use an undefined variable: this
 SELECT * FROM bson_dollar_project('{"a": [1, 2, 3, 4, 5, 6]}', '{"result": {"$filter": {"input": "$a", "cond": {"$gt": ["$$element", 3]}}} }');
-ERROR:  Use of undefined variable: element
+ERROR:  Attempting to use an undefined variable: element
 SELECT * FROM bson_dollar_project('{"a": [1, 2, 3, 4, 5, 6]}', '{"result": {"$filter": {"input": "$a", "cond": {"$gt": ["$$this", "$$filterValue"]}}} }');
-ERROR:  Use of undefined variable: filterValue
+ERROR:  Attempting to use an undefined variable: filterValue
 SELECT * FROM bson_dollar_project('{"a": [1, 2, 3, 4, 5, 6]}', '{"result": {"$filter": {"input": "$a", "cond": {"$gt": ["$$this", "$$filterValue.name.last"]}}} }');
-ERROR:  Use of undefined variable: filterValue
+ERROR:  Attempting to use an undefined variable: filterValue
 -- $firstN, operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,45,12,null,"asdhkas",12890.8912,{"$numberDecimal": "223.234823904823904823041212233"},{"$date": { "$numberLong" : "0" }},"\ud0008"], "n":3} }}');
                                     bson_dollar_project                                    
@@ -1666,7 +1666,7 @@ ERROR:  $firstN requires an 'n' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"n": 5} }}');
 ERROR:  $firstN needs to have an 'input' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"n": 5, "input": [1,2,3], "abc":1} }}');
-ERROR:  $firstN found an unknown argument: abc
+ERROR:  $firstN encountered an unrecognized argument value: abc
 -- $lastN, operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,45,12,null,"asdhkas",12890.8912,{"$numberDecimal": "223.234823904823904823041212233"},{"$date": { "$numberLong" : "0" }},"\ud0008"], "n":3} }}');
                                                     bson_dollar_project                                                    
@@ -1748,7 +1748,7 @@ ERROR:  $lastN requires an 'n' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"n": 5} }}');
 ERROR:  $lastN needs to have an 'input' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"n": 5, "input": [1,2,3], "abc":1} }}');
-ERROR:  $lastN found an unknown argument: abc
+ERROR:  $lastN encountered an unrecognized argument value: abc
 -- $range, simple condition asc
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [1,10] } }');
                                                                                                             bson_dollar_project                                                                                                            
@@ -1905,7 +1905,7 @@ ERROR:  $range expression requires a numeric start value but encountered a value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [null,400,40] } }');
 ERROR:  $range expression requires a numeric start value but encountered a value of type: null
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [null,400,40,400] } }');
-ERROR:  Expression $range takes at least 2 arguments, and at most 3, but 4 were passed in.
+ERROR:  The expression $range requires no fewer than 2 arguments and no more than 3 arguments, but 4 arguments were actually provided.
 -- $range, negative conditions ending number
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [2147648,214748364121,40] } }');
 ERROR:  $range requires a ending value that can be represented as a 32-bit integer, found value: 214748364121
@@ -1987,13 +1987,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$arrayElemAt":[{"$range": 
 
 -- $range, tests memory limit exceed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [200,65535960] } }');
-ERROR:  $range would use too much memory (906389542 bytes) and cannot spill to disk. Memory limit: 104857600 bytes
+ERROR:  $range requires excessive memory (906389542 bytes) and cannot be offloaded to disk, exceeding the memory limit of 104857600 bytes.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [50000,65535960] } }');
-ERROR:  $range would use too much memory (905692342 bytes) and cannot spill to disk. Memory limit: 104857600 bytes
+ERROR:  $range requires excessive memory (905692342 bytes) and cannot be offloaded to disk, exceeding the memory limit of 104857600 bytes.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [0,1073741924] } }');
-ERROR:  $range would use too much memory (16068759686 bytes) and cannot spill to disk. Memory limit: 104857600 bytes
+ERROR:  $range requires excessive memory (16068759686 bytes) and cannot be offloaded to disk, exceeding the memory limit of 104857600 bytes.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [0,6505360] } }');
-ERROR:  $range: the size of buffer to store output exceeded the 64MB limit
+ERROR:  $range: The buffer size required to store the output has gone beyond the allowed 64MB maximum limit.
 -- $reverseArray, simple case
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$reverseArray": {"$literal": [1] } } }');
             bson_dollar_project            
@@ -2212,7 +2212,7 @@ ERROR:  $indexOfArray requires an integral ending index, found a value of type: 
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,5.11] } }');
 ERROR:  $indexOfArray requires an integral ending index, found a value of type: double, with value: 5.11
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,5,4] } }');
-ERROR:  Expression $indexOfArray takes at least 2 arguments, and at most 4, but 5 were passed in.
+ERROR:  The expression $indexOfArray requires no fewer than 2 arguments and no more than 4 arguments, but 5 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, "1",5] } }');
 ERROR:  $indexOfArray requires an integral starting index, found a value of type: string, with value: "1"
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 1,"50"] } }');
@@ -2956,11 +2956,11 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "addFieldRe
 
 -- $reduce, negative cases
 select *from bson_dollar_project('{"a": 1}', '{"result": { "$reduce": { "input": "$a", "initialValue": "", "in": { "$concat": ["$$value", "$$this"] } } } }');
-ERROR:  input to $reduce must be an array not int
+ERROR:  The input provided to $reduce must be an array, not int
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$reduce": {"input": "$a", "initialValue": 0 }} }');
 ERROR:  Missing 'in' parameter to $reduce
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$reduce": {"input": "$a", "in": { "$concat": ["$$value", "$$this"] } }} }');
-ERROR:  Missing 'initialValue' parameter to $reduce
+ERROR:  The 'initialValue' parameter required by $reduce is missing.
 -- $maxN/minN, n too large
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": {"input": [1.1,2.2,"3"], "n": 23 }   }}');
                                                  bson_dollar_project                                                  
@@ -3016,9 +3016,9 @@ SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$minN"
 ERROR:  Missing value for 'input'
 -- $maxN/minN, n and input missing
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": { "x": 1 }   }}');
-ERROR:  Unknown argument for 'n' operator: x
+ERROR:  Unrecognized parameter supplied for 'n' operator: x
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$minN": { "x": 1 }   }}');
-ERROR:  Unknown argument for 'n' operator: x
+ERROR:  Unrecognized parameter supplied for 'n' operator: x
 -- $maxN/minN, use input from $d1
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": {"input": "$d1", "n": 23 }   }}');
                                                                       bson_dollar_project                                                                       
@@ -3232,7 +3232,7 @@ ERROR:  The input argument to $sortArray must be an array, but was of type: stri
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": {}, "sortBy": 1} } }');
 ERROR:  The input argument to $sortArray must be an array, but was of type: object
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4], "sortByy": 1} } }');
-ERROR:  $sortArray found an unknown argument: sortByy
+ERROR:  $sortArray encountered an unrecognized argument: sortByy
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4], "sortBy": 2} } }');
 ERROR:  The $sort element value must be either 1 or -1
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4], "sortBy": ""} } }');

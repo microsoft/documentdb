@@ -2388,7 +2388,8 @@ GinBsonExtractQueryNotIn(BsonExtractQueryArgs *args)
 	if (queryElement.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$in needs an array")));
+							"Expected 'array' type for $in but found '%s' type",
+							BsonTypeName(queryElement.bsonValue.value_type))));
 	}
 
 	bson_iter_t arrayIter;

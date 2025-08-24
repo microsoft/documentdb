@@ -105,10 +105,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  $geoNear requires a 'distanceField' option as a String
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": "value" } ]}');
-ERROR:  invalid parameter: expected an object ($geoNear)
+ERROR:  Invalid parameter: an object was expected for $geoNear.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": true, "distanceField": "dist.calculated", "key": "a" } } ]}');
-ERROR:  $geoNear requires near argument to be a GeoJSON object or a legacy point(array)
+ERROR:  Expected 'document' or 'array' type for $geoNear 'near' field but found 'bool' type
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a", "query": { "$text": { "$search": "cat" } } } } ]}');
 ERROR:  text and geoNear not allowed in same query

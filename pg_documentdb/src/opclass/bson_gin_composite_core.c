@@ -1704,7 +1704,8 @@ AddMultiBoundaryForDollarType(int32_t indexAttribute, pgbsonelement *queryElemen
 	if (queryElement->bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$type should have an array of values")));
+							"Expected 'array' type for $type but found '%s' type",
+							BsonTypeName(queryElement->bsonValue.value_type))));
 	}
 
 	bson_iter_t arrayIter;

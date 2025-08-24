@@ -343,7 +343,7 @@ ERROR:  CreateUser command is not supported.
 SELECT documentdb_api.users_info('{"usersInfo":1}');
 ERROR:  UsersInfo command is not supported.
 SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password"}');
-ERROR:  UpdateUser command is not supported.
+ERROR:  The UpdateUser command is currently unsupported.
 SELECT documentdb_api.drop_user('{"dropUser":"test_user5"}');
 ERROR:  DropUser command is not supported.
 -- switch back to original user

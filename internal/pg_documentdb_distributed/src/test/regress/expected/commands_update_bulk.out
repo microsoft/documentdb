@@ -1293,9 +1293,9 @@ CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"_id": 1, "_id.b": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
-                                                                                                                                               p_result                                                                                                                                               | p_success 
+                                                                                                                                                     p_result                                                                                                                                                      | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "603979805" }, "errmsg" : "field at '_id' must be exactly specified, field at sub-path '_id.b'found" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "603979805" }, "errmsg" : "Invalid path '_id.b'. Please specify the full '_id' field value instead of a sub-path" } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"_idab.b": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
@@ -1305,9 +1305,9 @@ CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"_id.c": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
-                                                                                                                                               p_result                                                                                                                                               | p_success 
+                                                                                                                                                     p_result                                                                                                                                                      | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "603979805" }, "errmsg" : "field at '_id' must be exactly specified, field at sub-path '_id.c'found" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "603979805" }, "errmsg" : "Invalid path '_id.c'. Please specify the full '_id' field value instead of a sub-path" } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"_id": 1, "_id": 2},"u":{"_id":3},"upsert":true}]}');

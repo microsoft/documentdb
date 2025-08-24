@@ -147,7 +147,7 @@ SELECT rolname FROM pg_roles WHERE rolname = 'abcdefghijklmnopqrstuvwxyzabcdefgh
 -- Test createRole when feature is disabled
 SET documentdb.enableRoleCrud TO OFF;
 SELECT documentdb_api.create_role('{"createRole":"disabledFeatureRole", "roles":["documentdb_readonly_role"]}');
-ERROR:  CreateRole command is not supported.
+ERROR:  The CreateRole command is currently unsupported.
 SET documentdb.enableRoleCrud TO ON;
 -- Test special characters in role names
 SELECT documentdb_api.create_role('{"createRole":"role_with_underscores", "roles":["documentdb_readonly_role"]}');

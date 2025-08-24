@@ -470,7 +470,7 @@ ValidateHashedPathSpec(const char *prefix)
 	if (stringLength == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"Hashed index path must not be empty")));
+							"The hashed index path cannot be left empty")));
 	}
 
 	if (prefix[stringLength - 1] == '.')

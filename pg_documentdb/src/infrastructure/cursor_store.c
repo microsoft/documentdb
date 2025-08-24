@@ -273,7 +273,8 @@ CreateCursorFile(const char *cursorName)
 
 	if (strlen(cursorName) + strlen(cursor_directory) >= (NAMEDATALEN - 5))
 	{
-		ereport(ERROR, (errmsg("Cursor name is too long")));
+		ereport(ERROR, (errmsg(
+							"Cursor name exceeds the max allowed length.")));
 	}
 
 	CursorFileState *fileState = palloc0(sizeof(CursorFileState));

@@ -1580,7 +1580,7 @@ ProcessDollarConcatElement(const bson_value_t *currentValue, void *state,
 	if (currentValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16702), errmsg(
-							"$concat supports only string values, not %s",
+							"Expected 'string' type for $concat but found '%s' type",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1734,7 +1734,7 @@ ProcessDollarStrLenBytes(const bson_value_t *currentValue, bson_value_t *result)
 	if (currentValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34473), errmsg(
-							"$strLenBytes needs a string input, but received: %s",
+							"Expected 'string' type for $strLenBytes but found '%s' type",
 							currentValue->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentValue->value_type))));
@@ -2012,7 +2012,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		int errorCode = isIndexOfBytesOp ? ERRCODE_DOCUMENTDB_LOCATION40091 :
 						ERRCODE_DOCUMENTDB_LOCATION40093;
 		ereport(ERROR, (errcode(errorCode), errmsg(
-							"%s needs the first argument to be a string, but received: %s",
+							"Expected 'string' type for the first argument of %s but found '%s' type",
 							opName,
 							BsonTypeName(input->firstArgument.value_type))));
 	}
@@ -2054,7 +2054,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 		if (*startIndex < 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40097), errmsg(
-								"%s needs a nonnegative starting index but received: %d",
+								"%s needs a nonnegative starting index, but received: %d",
 								opName,
 								*startIndex)));
 		}
@@ -2460,7 +2460,7 @@ ProcessDollarSubstrBytes(void *state, bson_value_t *result)
 	if (!BsonValueIsNumber(&secondValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16034), errmsg(
-							"$substrBytes: the starting index must be a numeric value type (currently BSON type %s)",
+							"The starting index for $substrBytes must be of a numeric data type, but the current BSON type is %s",
 							BsonTypeName(secondValue.value_type))));
 	}
 	else if (!BsonValueIsNumber(&thirdValue))
@@ -2589,7 +2589,7 @@ ProcessDollarSubstrCP(void *state, bson_value_t *result)
 	else if (offset < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34455), errmsg(
-							"$substrCP: starting index needs to be a non-negative integer."
+							"The starting index value for $substrCP must be a nonnegative integer."
 							)));
 	}
 
@@ -2664,11 +2664,11 @@ ProcessDollarTrim(const bson_value_t *inputValue, const bson_value_t *charsValue
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50699),
 						errmsg(
-							"The %s expects its input parameter to be a string, but it received %s, which is of type %s instead.",
+							"Expected 'string' type for %s but value %s has '%s' type",
 							opName, BsonValueToJsonForLogging(inputValue), BsonTypeName(
 								inputValue->value_type)),
 						errdetail_log(
-							"The %s expects its input parameter to be a string, but got of type %s instead.",
+							"Expected 'string' type for %s but found '%s' type",
 							opName, BsonTypeName(inputValue->value_type))));
 	}
 
@@ -2885,7 +2885,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 		if (BsonValueStringHasNullCharcter(regex))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51109), errmsg(
-								"%s: regular expressions are not allowed to include an embedded null byte",
+								"%s: regular expression cannot include an embedded null character",
 								opName)));
 		}
 
@@ -3079,7 +3079,7 @@ WriteOutputOfDollarRegexFindAll(bson_value_t *input, RegexData *regexData,
 		if (PgbsonArrayWriterGetSize(&arrayWriter) > MAX_REGEX_OUTPUT_BUFFER_SIZE)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51151), errmsg(
-								"$regexFindAll: buffer size for storing the output has surpassed the allowable 64MB limit")));
+								"$regexFindAll: buffer size for storing output has exceeded the maximum allowed limit of 64MB")));
 		}
 	}
 

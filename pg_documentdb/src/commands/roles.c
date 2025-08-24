@@ -97,8 +97,9 @@ create_role(pgbson *createRoleBson)
 	if (!EnableRoleCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("CreateRole command is not supported."),
-						errdetail_log("CreateRole command is not supported.")));
+						errmsg("The CreateRole command is currently unsupported."),
+						errdetail_log(
+							"The CreateRole command is currently unsupported.")));
 	}
 
 	ReportFeatureUsage(FEATURE_ROLE_CREATE);
@@ -187,8 +188,8 @@ Datum
 drop_role(pgbson *dropRoleBson)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-					errmsg("DropRole command is not supported."),
-					errdetail_log("DropRole command is not supported.")));
+					errmsg("The DropRole command is currently unsupported."),
+					errdetail_log("The DropRole command is currently unsupported.")));
 }
 
 

@@ -564,8 +564,9 @@ BuildDeletionSpec(bson_iter_t *deletionIter, const bson_value_t *variableSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'delete.deletes.%s' is an unknown field",
-								   field)));
+							errmsg(
+								"The BSON field 'delete.deletes.%s' is not recognized as a valid field.",
+								field)));
 		}
 	}
 

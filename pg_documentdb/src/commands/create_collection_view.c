@@ -316,7 +316,8 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 		else if (strcmp(key, "changeStreamPreAndPostImages") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("changeStreamPreAndPostImages not supported yet")));
+							errmsg(
+								"changeStreamPreAndPostImages is currently unsupported")));
 		}
 		else if (strcmp(key, "autoIndexId") == 0)
 		{
@@ -400,7 +401,8 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 	if (spec->viewOn == NULL && spec->pipeline.value_type != BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
-						errmsg("'pipeline' requires 'viewOn' to also be specified")));
+						errmsg(
+							"'viewOn' needs to be specified.")));
 	}
 
 	if (spec->viewOn != NULL && spec->idIndex.value_type != BSON_TYPE_EOD)

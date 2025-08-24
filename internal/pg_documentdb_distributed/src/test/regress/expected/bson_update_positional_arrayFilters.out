@@ -19,7 +19,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": [ { "$addFields": { "fieldA.fieldB": 10 } }]}', '{}', '{ "": [ { "filterX": 30 }]}');
-ERROR:  arrayFilters may not be specified for pipeline-style updates
+ERROR:  Specifying arrayFilters is not allowed when performing pipeline-style updates
 -- arrayFilters ignored on replace
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": { "fieldC": 40 } }', '{}', '{ "": [ { "filterX": 50 }]}');
@@ -65,7 +65,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": { "$set": { "numbers.$[numElem]": 300 }}}', '{}', '{ "": [{ "numElem": 100 }] }');
-ERROR:  The path 'numbers' must exist in the document in order to apply array updates.
+ERROR:  The specified path 'numbers' does not exist within the document. Cannot apply array update operations.
 -- updates on $gte condition
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "scores" : [ 150, 120, 110 ], "age": 15 }','{ "": { "$set": { "scores.$[scoreElem]": 200 }}}', '{}', '{ "": [{ "scoreElem": { "$gte": 200 } }] }');

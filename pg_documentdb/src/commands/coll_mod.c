@@ -124,7 +124,7 @@ command_coll_mod(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 
 	if (PG_ARGISNULL(1))
@@ -184,7 +184,7 @@ command_coll_mod(PG_FUNCTION_ARGS)
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
-						errmsg("ns does not exist")));
+						errmsg("The specified namespace does not exist")));
 	}
 
 	pgbson_writer writer;
@@ -206,9 +206,10 @@ command_coll_mod(PG_FUNCTION_ARGS)
 	else if (collection->viewDefinition != NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-						errmsg("Namespace %s.%s is a view, not a collection",
-							   collection->name.databaseName,
-							   collection->name.collectionName)));
+						errmsg(
+							"The namespace %s.%s refers to a view object rather than a collection",
+							collection->name.databaseName,
+							collection->name.collectionName)));
 	}
 
 	if (specFlags & HAS_INDEX_OPTION)
@@ -348,7 +349,9 @@ ParseSpecSetCollModOptions(const pgbson *collModSpec,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'collMod.%s' is an unknown field.", key)));
+							errmsg(
+								"The BSON field 'collMod.%s' is not recognized as a valid field.",
+								key)));
 		}
 	}
 
@@ -615,7 +618,7 @@ ModifyViewDefinition(Datum databaseDatum,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
 						errmsg(
-							"Must specify both 'viewOn' and 'pipeline' when modifying a view and auth is enabled")));
+							"Both 'viewOn' and 'pipeline' must be specified when altering a view while authorization is active")));
 	}
 
 	ValidateViewDefinition(

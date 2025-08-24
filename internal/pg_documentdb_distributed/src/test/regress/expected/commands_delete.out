@@ -99,7 +99,7 @@ select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":[],"li
 ERROR:  BSON field 'delete.deletes.q' is the wrong type 'array', expected type 'object'
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0,"extra":1}]}');
-ERROR:  BSON field 'delete.deletes.extra' is an unknown field
+ERROR:  The BSON field 'delete.deletes.extra' is not recognized as a valid field.
 CONTEXT:  SQL statement "SELECT documentdb_api_internal.delete_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6390 WHERE shard_key_value = 6390"
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}],"ordered":1}');
 ERROR:  BSON field 'delete.ordered' is the wrong type 'int', expected type 'bool'

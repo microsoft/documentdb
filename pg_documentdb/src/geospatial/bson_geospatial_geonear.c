@@ -333,10 +333,10 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"$geoNear parameter 'key' must be of type string but found type: %s",
+								"Expected 'string' type for $geoNear 'key' but found '%s' type",
 								BsonTypeName(value->value_type)),
 							errdetail_log(
-								"$geoNear parameter 'key' must be of type string but found type: %s",
+								"Expected 'string' type for $geoNear 'key' but found '%s' type",
 								BsonTypeName(value->value_type))));
 			}
 
@@ -345,7 +345,7 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"$geoNear parameter 'key' cannot be the empty string")));
+								"'key' parameter for $geoNear is empty")));
 			}
 
 			request->key = value->value.v_utf8.str;
@@ -357,7 +357,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"$geoNear requires that 'includeLocs' option is a String")));
+								"Expected 'string' type for $geoNear 'includeLocs' but found '%s' type",
+								BsonTypeName(value->value_type))));
 			}
 
 			request->includeLocs = value->value.v_utf8.str;
@@ -413,7 +414,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"$geoNear requires near argument to be a GeoJSON object or a legacy point(array)")));
+								"Expected 'document' or 'array' type for $geoNear 'near' field but found '%s' type",
+								BsonTypeName(value->value_type))));
 			}
 
 			bson_iter_t valueIter, pointsIter;

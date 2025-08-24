@@ -1076,7 +1076,7 @@ ERROR:  findAndModify.collation is not implemented yet
 SELECT documentdb_api.update('update', '{"update":"ci_search2", "updates":[{"q":{"_id": 134111, "b": [ 5, 2, 4 ] },"u":{"$set" : {"b.$[a]":3} },"upsert":true, "collation" : {"locale" : "en", "strength": 1}, "arrayFilters": [ { "a": 2 } ]}]}');
 ERROR:  BSON field 'update.updates.collation' is not yet supported
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ci_search2", "indexes": [{"key": {"asparse": 1}, "name": "my_sparse_idx1", "sparse": true, "collation" : {"locale" : "en", "strength": 1}}]}', TRUE);
-ERROR:  Error in specification { "key" : { "asparse" : 1 }, "name" : "my_sparse_idx1", "sparse" : true, "collation" : { "locale" : "en", "strength" : 1 } } :: caused by :: createIndex.collation is not implemented yet
+ERROR:  Error in specification { "key" : { "asparse" : 1 }, "name" : "my_sparse_idx1", "sparse" : true, "collation" : { "locale" : "en", "strength" : 1 } } :: caused by :: createIndex.collation has not been implemented yet
 -- (12) Test Id filters respect collation
 SELECT documentdb_api.insert_one('db', 'ci_search3', '{ "_id": "Cat" }');
 NOTICE:  creating collection
@@ -1316,7 +1316,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    TRUE
 );
-ERROR:  Error in specification { "key" : { "a.b" : 1 }, "name" : "my_idx_1", "partialFilterExpression" : { "a.b" : { "$eq" : "dog" } }, "collation" : { "locale" : "en", "strength" : 2 } } :: caused by :: createIndex.collation is not implemented yet
+ERROR:  Error in specification { "key" : { "a.b" : 1 }, "name" : "my_idx_1", "partialFilterExpression" : { "a.b" : { "$eq" : "dog" } }, "collation" : { "locale" : "en", "strength" : 2 } } :: caused by :: createIndex.collation has not been implemented yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
   'db',
   '{
@@ -1499,7 +1499,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently(
    }',
    TRUE
 );
-ERROR:  Error in specification { "key" : { "a.b" : 1 }, "name" : "my_idx_1", "collation" : { "locale" : "en", "strength" : 2 } } :: caused by :: createIndex.collation is not implemented yet
+ERROR:  Error in specification { "key" : { "a.b" : 1 }, "name" : "my_idx_1", "collation" : { "locale" : "en", "strength" : 2 } } :: caused by :: createIndex.collation has not been implemented yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
   'db',
   '{

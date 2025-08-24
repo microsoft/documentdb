@@ -111,7 +111,7 @@ SELECT document FROM documentdb_api.collection('db', 'col_bson_dollar_ops_json_s
 
 -- Unsupported: "integer" type
 SELECT document FROM documentdb_api.collection('db', 'col_bson_dollar_ops_json_schema_query') WHERE documentdb_api_catalog.bson_dollar_json_schema(document,'{ "$jsonSchema": { "properties": { "count" : { "type" : "integer" } } } }');
-ERROR:  $jsonSchema type 'integer' is not currently supported.
+ERROR:  The 'integer' type in $jsonSchema is not supported at this time.
 ---------------------------- "bsonType" -------------------------------------------
 -- All docs Match, as none of docs have given field
 SELECT document FROM documentdb_api.collection('db', 'col_bson_dollar_ops_json_schema_query') WHERE documentdb_api_catalog.bson_dollar_json_schema(document,'{ "$jsonSchema": { "properties": { "cosmosdb" : { "bsonType" : "string" } } } }');
@@ -185,7 +185,7 @@ SELECT document FROM documentdb_api.collection('db', 'col_bson_dollar_ops_json_s
 
 -- Unsupported: "integer" type
 SELECT document FROM documentdb_api.collection('db', 'col_bson_dollar_ops_json_schema_query') WHERE documentdb_api_catalog.bson_dollar_json_schema(document,'{ "$jsonSchema": { "properties": { "count" : { "type" : "integer" } } } }');
-ERROR:  $jsonSchema type 'integer' is not currently supported.
+ERROR:  The 'integer' type in $jsonSchema is not supported at this time.
 ---------------------------------------------------------------------
 --                         Numeric Validations                               --
 ---------------------------------------------------------------------

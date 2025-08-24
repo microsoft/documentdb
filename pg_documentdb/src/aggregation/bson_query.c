@@ -232,7 +232,9 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 						if (opValue->value_type != BSON_TYPE_ARRAY)
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg("$in needs an array")));
+											errmsg(
+												"Expected 'array' type for $in but found '%s' type",
+												BsonTypeName(opValue->value_type))));
 						}
 
 						BsonValueInitIterator(opValue, &inIterator);

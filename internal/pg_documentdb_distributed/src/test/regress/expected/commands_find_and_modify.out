@@ -3,7 +3,7 @@ SET documentdb.next_collection_id TO 5400;
 SET documentdb.next_collection_index_id TO 5400;
 -- null db name
 SELECT documentdb_api.find_and_modify(NULL, '{}');
-ERROR:  p_database_name cannot be NULL
+ERROR:  The parameter p_database_name must not be NULL
 -- null message
 SELECT documentdb_api.find_and_modify('db', NULL);
 ERROR:  p_message cannot be NULL
@@ -840,11 +840,11 @@ SELECT document from documentdb_api.collection('db', 'find_and_modify_let') ORDE
 ROLLBACK;
 -- undefined variables
 SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$_id", "$$varRef"] } }, "sort": {"a": 1}, "update": {"c": "ant"}}');
-ERROR:  Use of undefined variable: varRef
+ERROR:  Attempting to use an undefined variable: varRef
 CONTEXT:  SQL statement "SELECT ctid, object_id, document FROM documentdb_data.documents_5412_540063 WHERE shard_key_value = $1 AND documentdb_api_internal.bson_query_match(document, $2::documentdb_core.bson, $3::documentdb_core.bson, $4::text) ORDER BY documentdb_api_catalog.bson_orderby(document, $5::documentdb_core.bson) ASC LIMIT 1 FOR UPDATE"
 SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_5412 WHERE shard_key_value = 5412"
 SELECT documentdb_api.find_and_modify('db', '{"findAndModify": "find_and_modify_let", "query": {"$expr": {"$lt": ["$_id", "$$varRef2"] } }, "sort": {"a": 1}, "update": {"c": "ant"}, "let": {"varRef1": 3}}');
-ERROR:  Use of undefined variable: varRef2
+ERROR:  Attempting to use an undefined variable: varRef2
 CONTEXT:  SQL statement "SELECT ctid, object_id, document FROM documentdb_data.documents_5412_540063 WHERE shard_key_value = $1 AND documentdb_api_internal.bson_query_match(document, $2::documentdb_core.bson, $3::documentdb_core.bson, $4::text) ORDER BY documentdb_api_catalog.bson_orderby(document, $5::documentdb_core.bson) ASC LIMIT 1 FOR UPDATE"
 SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_5412 WHERE shard_key_value = 5412"
 --- sharded collection

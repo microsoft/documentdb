@@ -37,11 +37,11 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('commands', '{"cr
 
 -- Top level validations for collMod index options
 SELECT documentdb_api.coll_mod(NULL, 'collModTest', '{"collMod": "collModTest", "index": {}}');
-ERROR:  db name cannot be NULL
+ERROR:  Database name must not be NULL
 SELECT documentdb_api.coll_mod('commands', NULL, '{"collMod": "collModTest", "index": {}}');
 ERROR:  collection name cannot be NULL
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "hello": 1}'); -- Unknown field
-ERROR:  BSON field 'collMod.hello' is an unknown field.
+ERROR:  The BSON field 'collMod.hello' is not recognized as a valid field.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": 1}'); -- Type mismatch
 ERROR:  BSON field 'collMod.index' is the wrong type 'int', expected type 'object'
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {}}');

@@ -2045,10 +2045,10 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51024)),
 							errmsg(
-								"BSON field 'skip' value must be >=0, actual value '%ld'",
+								"The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '%ld'.",
 								skipValue),
 							errdetail_log(
-								"BSON field 'skip' value must be >=0, actual value '%ld'",
+								"The BSON field 'skip' requires a value greater than or equal to 0, but the given value is '%ld'.",
 								skipValue));
 				}
 
@@ -2413,7 +2413,8 @@ HandleSimpleProjectionStage(const bson_value_t *existingValue, Query *query,
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40272),
-						errmsg("%s specification stage must be an object", stageName)));
+						errmsg("The %s specification stage must correspond to an object",
+							   stageName)));
 	}
 
 	/* The first projector is the document */
@@ -2525,9 +2526,10 @@ ParseInputForNGroupAccumulators(const bson_value_t *inputDocument,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787901),
-							errmsg("%s found an unknown argument: %s", opName, key),
+							errmsg("%s encountered an unrecognized argument value: %s",
+								   opName, key),
 							errdetail_log(
-								"%s found an unknown argument", opName)));
+								"%s encountered an unrecognized argument", opName)));
 		}
 	}
 
@@ -2641,10 +2643,11 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788604),
 						errmsg(
-							"expected 'sortBy' to already be an object in the arguments to %s",
+							"Expected 'sortBy' parameter to already contain an object within the provided arguments to %s",
 							opName),
 						errdetail_log(
-							"'sortBy' field in %s is not an object", opName)));
+							"Expected 'sortBy' parameter to already contain an object within the provided arguments to %s",
+							opName)));
 	}
 }
 
@@ -2716,7 +2719,7 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 	if (method->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH), errmsg(
-							"BSON field '$%s.method' is the wrong type %s, expected type 'string'",
+							"BSON field %s.method has an incorrect type %s; it should be of type 'string'",
 							opName, BsonTypeName(method->value_type)),
 						errdetail_log(
 							"BSON field '$%s.method' expects type 'string'", opName)));
@@ -3476,7 +3479,7 @@ HandleSkip(const bson_value_t *existingValue, Query *query,
 	if (!BsonValueIsNumber(existingValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15972),
-						errmsg("Argument to $skip must be a number")));
+						errmsg("$skip requires a numeric argument")));
 	}
 
 	bool checkFixedInteger = true;
@@ -3796,6 +3799,11 @@ PreCheckChangeStreamPipelineStages(const bson_value_t *pipelineValue,
 									  COMPATIBLE_CHANGE_STREAM_STAGES_COUNT,
 									  stageName))
 		{
+			/*
+			 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output
+			 * to maintain compatibility with existing tools and scripts that rely on specific error message formats.
+			 * Modifying this text may cause unexpected behavior in dependent systems.
+			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_ILLEGALOPERATION),
 							errmsg(
 								"Stage %s is not permitted in a $changeStream pipeline",
@@ -3845,7 +3853,7 @@ HandleChangeStream(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40602),
 						errmsg(
-							"$changeStream is only valid as the first stage in the pipeline.")));
+							"$changeStream can only be used as the initial stage in the pipeline.")));
 	}
 
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,
@@ -4369,7 +4377,8 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_LOCATION10065),
-					errmsg("invalid parameter: expected an object ($geoNear)")));
+					errmsg(
+						"Invalid parameter: an object was expected for $geoNear.")));
 	}
 
 	pgbson *geoNearQueryDoc = EvaluateGeoNearConstExpression(existingValue,
@@ -4516,7 +4525,8 @@ HandleCount(const bson_value_t *existingValue, Query *query,
 	if (StringViewContains(&countField, '.'))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40160),
-						errmsg("the count field cannot contain '.'")));
+						errmsg(
+							"The count field is not allowed to contain '.'.")));
 	}
 
 	/* Count requires the existing query to move to subquery */
@@ -5993,10 +6003,11 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 			if (accumulatorElement.bsonValue.value_type == BSON_TYPE_ARRAY)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40237), errmsg(
-									"The %s accumulator is a unary operator",
+									"The %s accumulator functions as a single-operand operator",
 									accumulatorName.string)),
-						errdetail_log("The %s accumulator is a unary operator",
-									  accumulatorName.string));
+						errdetail_log(
+							"The %s accumulator functions as a single-operand operator",
+							accumulatorName.string));
 			}
 
 			repathArgs = AddSimpleGroupAccumulator(query,
@@ -6013,10 +6024,11 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 			if (accumulatorElement.bsonValue.value_type == BSON_TYPE_ARRAY)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40237), errmsg(
-									"The %s accumulator is a unary operator",
+									"The %s accumulator functions as a single-operand operator",
 									accumulatorName.string)),
-						errdetail_log("The %s accumulator is a unary operator",
-									  accumulatorName.string));
+						errdetail_log(
+							"The %s accumulator functions as a single-operand operator",
+							accumulatorName.string));
 			}
 
 			repathArgs = AddSimpleGroupAccumulator(query,
@@ -6140,9 +6152,9 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15952),
-							errmsg("Unknown group operator %s",
+							errmsg("Unrecognized group operator %s",
 								   accumulatorElement.path),
-							errdetail_log("Unknown group operator %s",
+							errdetail_log("Unrecognized group operator %s",
 										  accumulatorElement.path)));
 		}
 	}
@@ -6507,7 +6519,7 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40323),
 							errmsg(
-								"A pipeline stage specification object must contain exactly one field.")));
+								"A pipeline stage specification object is required to have one and only one field.")));
 		}
 
 		/* If lastEncounteredOutputStage isn't NULL, it means we've seen an output stage like $out or $merge before this.
@@ -6515,10 +6527,11 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
 		if (lastEncounteredOutputStage != NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40601),
-							errmsg("%s can only be the final stage in the pipeline",
-								   lastEncounteredOutputStage),
+							errmsg(
+								"%s must appear exclusively as the last stage in the pipeline",
+								lastEncounteredOutputStage),
 							errdetail_log(
-								"%s can only be the final stage in the pipeline",
+								"%s must appear exclusively as the last stage in the pipeline",
 								lastEncounteredOutputStage)));
 		}
 
@@ -7033,7 +7046,8 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28745),
-						errmsg("The $sample stage specification must be an object.")));
+						errmsg(
+							"The $sample stage specification is required to be provided as an object.")));
 	}
 
 	bson_iter_t sampleIter;
@@ -7062,7 +7076,8 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 	if (!BsonValueIsNumber(&sizeValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28746),
-						errmsg("size argument to $sample must be a number")));
+						errmsg(
+							"The size parameter provided to $sample must be a valid numeric value")));
 	}
 
 	double sizeDouble = BsonValueAsDouble(&sizeValue);
@@ -7070,7 +7085,8 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 	if (sizeDouble < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28747),
-						errmsg("size argument to $sample must be a number")));
+						errmsg(
+							"The size parameter provided to $sample must be a valid numeric value")));
 	}
 
 	/* If the sample is against the base RTE - convert to a sample CTE */

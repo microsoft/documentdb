@@ -331,7 +331,7 @@ SELECT bson_repath_and_build('e.f'::text, BSONSUM(bson_expression_get(document, 
 (2 rows)
 
 SELECT bson_repath_and_build('$e'::text, BSONSUM(bson_expression_get(document, '{ "": "$_id.b" }'))) FROM documentdb_api.collection('db', 'testAggregates') GROUP BY bson_expression_get(document, '{ "": "$_id.a" }');
-ERROR:  The field name $e cannot be an operator name
+ERROR:  Cannot use $e as a field name. Dollar prefixed paths are not allowed.
 SELECT documentdb_api.insert_one('db', 'testAggregatesWithIndex', '{ "_id": 1, "a": 1 }');
 NOTICE:  creating collection
                               insert_one                              

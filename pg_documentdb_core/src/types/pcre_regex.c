@@ -97,7 +97,7 @@ RegexCompileDuringPlanning(char *regexPatternStr, char *options)
 						  REGEX_MAX_PATTERN_LENGTH, PCRE2_NO_AUTO_CAPTURE))
 	{
 		InvalidRegexError(ERRCODE_DOCUMENTDB_LOCATION51091,
-						  "Regular expression is invalid",
+						  "The provided regular expression format is invalid",
 						  pcreErrorCode, pcreData);
 	}
 	pcre2_compile_context_free(pcreData->compileContext);
@@ -116,7 +116,7 @@ RegexCompile(char *regexPatternStr, char *options)
 						  REGEX_MAX_PATTERN_LENGTH, PCRE2_NO_AUTO_CAPTURE))
 	{
 		InvalidRegexError(ERRCODE_DOCUMENTDB_LOCATION51091,
-						  "Regular expression is invalid",
+						  "The provided regular expression format is invalid",
 						  pcreErrorCode, pcreData);
 	}
 
@@ -236,7 +236,7 @@ PcreRegexExecute(char *regexPatternStr, char *options,
 	if (returnCode == PCRE2_ERROR_RECURSIONLIMIT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51156), errmsg(
-							"Error occurred while executing the regular expression. Result code: -21")));
+							"An error was encountered during the execution of the regular expression, result code: -21")));
 	}
 
 	if (returnCode < 0)

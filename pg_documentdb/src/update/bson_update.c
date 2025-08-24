@@ -126,7 +126,7 @@ ThrowIdPathModifiedError(void)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_IMMUTABLEFIELD),
 					errmsg(
-						"After applying the update, the (immutable) field '_id' was found to have been altered")));
+						"Cannot modify '_id' field as part of the operation")));
 }
 
 
@@ -140,8 +140,7 @@ ValidateIdForUpdateTypeReplacement(const bson_value_t *idValue)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTSINGLEVALUEFIELD),
 						errmsg(
-							"After applying the update to the document, the (immutable) field"
-							" '_id' was found to be an array or array descendant.")));
+							"Cannot modify '_id' field to an array or array descendent as part of the operation.")));
 	}
 	ValidateIdField(idValue);
 }
@@ -202,7 +201,7 @@ bson_update_document(PG_FUNCTION_ARGS)
 		arrayFilters = &arrayFiltersBase.bsonValue;
 	}
 
-	/* an empty document is treated as an upsert. */
+	/* An empty document will be processed as an upsert operation. */
 	bool buildSourceDocOnUpsert = IsPgbsonEmptyDocument(sourceDocument);
 
 	/* Build any cacheable state for processing updates */
@@ -303,7 +302,7 @@ BsonUpdateDocument(pgbson *sourceDocument, const bson_value_t *updateSpec,
 {
 	BsonUpdateMetadata metadata = { 0 };
 
-	/* an empty document is treated as an upsert. */
+	/* An empty document will be processed as an upsert operation. */
 	bool buildSourceDocOnUpsert = IsPgbsonEmptyDocument(sourceDocument);
 
 	BuildBsonUpdateMetadata(&metadata, updateSpec, querySpec, arrayFilters,
@@ -329,7 +328,7 @@ BsonUpdateDocumentCore(pgbson *sourceDocument, const bson_value_t *updateSpec,
 	bson_iter_t sourceDocumentIterator;
 	PgbsonInitIterator(sourceDocument, &sourceDocumentIterator);
 
-	/* an empty document is treated as an upsert. */
+	/* An empty document will be processed as an upsert operation. */
 	bool isUpsert = !bson_iter_next(&sourceDocumentIterator);
 
 	if (isUpsert)
@@ -450,7 +449,7 @@ BuildBsonUpdateMetadata(BsonUpdateMetadata *metadata, const bson_value_t *update
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 									errmsg(
-										"arrayFilters may not be specified for pipeline-style updates")));
+										"Specifying arrayFilters is not allowed when performing pipeline-style updates")));
 				}
 			}
 
@@ -473,7 +472,8 @@ BuildBsonUpdateMetadata(BsonUpdateMetadata *metadata, const bson_value_t *update
 			if (updateSpec->value_type != BSON_TYPE_DOCUMENT)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"Replace should be a document")));
+									"Expected value to contain 'document' type but found '%s' type",
+									BsonTypeName(updateSpec->value_type))));
 			}
 			break;
 		}
@@ -522,8 +522,8 @@ DetermineUpdateType(const bson_value_t *updateSpec)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARPREFIXEDFIELDNAME),
 									errmsg(
-										"The dollar ($) prefixed field '%s' in '%s' is not allowed in the context of an update's"
-										" replacement document. Consider using an aggregation pipeline with $replaceWith.",
+										"Field '%s' in path '%s' is not allowed when doing a replace operation. "
+										"Use $replaceWith aggregation stage instead",
 										path, path)));
 				}
 			}
@@ -560,7 +560,8 @@ ProcessReplaceDocument(pgbson *sourceDoc, const bson_value_t *updateSpec,
 	if (updateSpec->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"Replace should be a document")));
+							"Expected value to contain 'document' type but found '%s' type",
+							BsonTypeName(updateSpec->value_type))));
 	}
 
 	uint32_t documentLength = updateSpec->value.v_doc.data_len;
@@ -745,7 +746,7 @@ ProcessQueryProjectionValue(void *context, const char *path, const bson_value_t 
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTEXACTVALUEFIELD),
 						errmsg(
-							"field at '_id' must be exactly specified, field at sub-path '%s'found",
+							"Invalid path '%s'. Please specify the full '_id' field value instead of a sub-path",
 							path)));
 	}
 

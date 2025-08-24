@@ -1250,7 +1250,7 @@ ValidateSpecPathForUpdateTree(const StringView *updatePath)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_EMPTYFIELDNAME),
 						errmsg(
-							"An update path '%s' contains an empty field name, which is not allowed.",
+							"Empty field name detected at path '%s'",
 							updatePath->string)));
 	}
 
@@ -1273,7 +1273,7 @@ ValidateSpecPathForUpdateTree(const StringView *updatePath)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"Cannot have positional (i.e. '$') element in the first position in path '%s'",
+								"Positional element (i.e. '$') cannot appear at the beginning of the path '%s'.",
 								updatePath->string)));
 		}
 	}
@@ -1971,7 +1971,7 @@ HandleUnresolvedDocumentFields(const BsonUpdateIntermediatePathNode *tree,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"The path '%.*s' must exist in the document in order to apply array updates.",
+							"The specified path '%.*s' does not exist within the document. Cannot apply array update operations.",
 							tree->base.baseNode.field.length,
 							tree->base.baseNode.field.string)));
 	}

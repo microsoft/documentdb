@@ -269,7 +269,7 @@ InitializeSystemConfigurations(const char *prefix, const char *newGucPrefix)
 	DefineCustomIntVariable(
 		psprintf("%s.maxIndexesPerCollection", prefix),
 		gettext_noop(
-			"Max number of indexes per collection."),
+			"Maximum allowed indexes for a given collection."),
 		NULL, &MaxIndexesPerCollection, DEFAULT_MAX_INDEXES_PER_COLLECTION, 0, 300,
 		PGC_USERSET, 0, NULL, NULL, NULL);
 

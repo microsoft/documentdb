@@ -486,7 +486,8 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSETFIELDUNKNOWNARGUMENT),
 							errmsg(
-								"%s found an unknown argument: %s", operatorName, key)));
+								"%s encountered an unrecognized argument value: %s",
+								operatorName, key)));
 		}
 	}
 
@@ -854,11 +855,12 @@ AppendDocumentForMergeObjects(const bson_value_t *currentValue, bool isConstant,
 	{
 		ereport(ERROR,
 				errcode(ERRCODE_DOCUMENTDB_DOLLARMERGEOBJECTSINVALIDTYPE),
-				errmsg("$mergeObjects requires object inputs, but input %s is of type %s",
-					   BsonValueToJsonForLogging(currentValue),
-					   BsonTypeName(currentValue->value_type)),
+				errmsg(
+					"Expected 'document' type for $mergeObjects but value %s has '%s' type",
+					BsonValueToJsonForLogging(currentValue),
+					BsonTypeName(currentValue->value_type)),
 				errdetail_log(
-					"$mergeObjects requires object inputs, but input is of type %s",
+					"Expected 'document' type for $mergeObjects but found '%s' type",
 					BsonTypeName(currentValue->value_type)));
 	}
 

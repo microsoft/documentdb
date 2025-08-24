@@ -623,7 +623,8 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 	if (IsInTransactionBlock(isTopLevel))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OPERATIONNOTSUPPORTEDINTRANSACTION),
-						errmsg("$merge cannot be used in a transaction")));
+						errmsg(
+							"$merge is not permitted within an active transaction")));
 	}
 
 	/* if source table does not exist do not modify query */
@@ -663,12 +664,14 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 		if (targetCollection->viewDefinition != NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-							errmsg("Namespace %s.%s is a view, not a collection",
-								   targetCollection->name.databaseName,
-								   targetCollection->name.collectionName),
-							errdetail_log("Namespace %s.%s is a view, not a collection",
-										  targetCollection->name.databaseName,
-										  targetCollection->name.collectionName)));
+							errmsg(
+								"The namespace %s.%s refers to a view object rather than a collection",
+								targetCollection->name.databaseName,
+								targetCollection->name.collectionName),
+							errdetail_log(
+								"The namespace %s.%s refers to a view object rather than a collection",
+								targetCollection->name.databaseName,
+								targetCollection->name.collectionName)));
 		}
 		else if (targetCollection->shardKey != NULL)
 		{
@@ -1018,10 +1021,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51178),
 								errmsg(
-									"$merge 'into' field  must be either a string or an object, but found %s",
+									"$merge 'into' field must contain either a string value or an object, but was given %s instead",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"$merge 'into' field  must be either a string or an object, but found %s",
+									"$merge 'into' field must contain either a string value or an object, but was given %s instead",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -1450,10 +1453,10 @@ WriteJoinConditionToQueryDollarMerge(Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"on field in $merge stage must be either a string or an array of strings, but found %s",
+							"The on field specified in the $merge stage should be a string or an array containing strings, but a value of type %s was provided instead.",
 							BsonTypeName(mergeArgs.on.value_type)),
 						errdetail_log(
-							"on field in $merge stage must be either a string or an array of strings, but found %s",
+							"The on field specified in the $merge stage should be a string or an array containing strings, but a value of type %s was provided instead.",
 							BsonTypeName(mergeArgs.on.value_type))));
 	}
 
@@ -1962,12 +1965,14 @@ HandleOut(const bson_value_t *existingValue, Query *query,
 		if (targetCollection->viewDefinition != NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-							errmsg("Namespace %s.%s is a view, not a collection",
-								   targetCollection->name.databaseName,
-								   targetCollection->name.collectionName),
-							errdetail_log("Namespace %s.%s is a view, not a collection",
-										  targetCollection->name.databaseName,
-										  targetCollection->name.collectionName)));
+							errmsg(
+								"The namespace %s.%s refers to a view object rather than a collection",
+								targetCollection->name.databaseName,
+								targetCollection->name.collectionName),
+							errdetail_log(
+								"The namespace %s.%s refers to a view object rather than a collection",
+								targetCollection->name.databaseName,
+								targetCollection->name.collectionName)));
 		}
 		else if (targetCollection && targetCollection->shardKey != NULL)
 		{

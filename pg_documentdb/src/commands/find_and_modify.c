@@ -140,7 +140,7 @@ command_find_and_modify(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("p_database_name cannot be NULL")));
+		ereport(ERROR, (errmsg("The parameter p_database_name must not be NULL")));
 	}
 	Datum databaseNameDatum = PG_GETARG_DATUM(0);
 
@@ -340,7 +340,7 @@ ParseFindAndModifyMessage(pgbson *message)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Invalid parameter. expected an object (arrayFilters)")));
+									"Parameter provided is invalid; an object (arrayFilters) was expected.")));
 			}
 
 			EnsureTopLevelFieldType("findAndModify.arrayFields", &messageIter,

@@ -410,7 +410,7 @@ EnsureValidFieldPathString(const StringView *fieldPath)
 	else if (StringViewEndsWith(fieldPath, '.'))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("FieldPath must not end with a '.'.")));
+						errmsg("The FieldPath cannot terminate with a '.' character.")));
 	}
 
 	StringView fieldPathView = *fieldPath;
@@ -434,7 +434,8 @@ EnsureValidFieldPathString(const StringView *fieldPath)
 		if (currentFieldPath.length == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("FieldPath field names may not be empty strings.")));
+							errmsg(
+								"FieldPath field names cannot be completely empty strings.")));
 		}
 		else if (StringViewStartsWith(&currentFieldPath, '$') &&
 				 !StringViewContainsDbRefsField(&currentFieldPath))

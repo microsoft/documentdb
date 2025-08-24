@@ -259,7 +259,7 @@ DivideBsonValueNumbers(bson_value_t *dividend, const bson_value_t *divisor)
 		if (IsDecimal128Zero(&divisor128))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("can't $divide by zero")));
+							errmsg("$divide by zero is not allowed")));
 		}
 
 		dividend->value_type = BSON_TYPE_DECIMAL128;
@@ -273,7 +273,7 @@ DivideBsonValueNumbers(bson_value_t *dividend, const bson_value_t *divisor)
 		if (divisorDouble == 0.0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("can't $divide by zero")));
+							errmsg("$divide by zero is not allowed")));
 		}
 
 		dividend->value_type = BSON_TYPE_DOUBLE;
@@ -699,7 +699,7 @@ BsonTypeName(bson_type_t type)
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("unknown BSON type code %d", type)));
+							errmsg("Unrecognized BSON data type code %d", type)));
 		}
 	}
 }

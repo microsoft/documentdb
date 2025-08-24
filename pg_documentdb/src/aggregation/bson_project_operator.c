@@ -644,7 +644,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31308),
 							errmsg(
-								"positional projection cannot be used with a literal")));
+								"Positional projection is not applicable when working with a literal value")));
 		}
 		else if (BsonValueAsDouble(pathSpecValue) == 0)
 		{
@@ -656,7 +656,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31256),
 							errmsg(
-								"Cannot specify positional operator and $elemMatch.")));
+								"Positional operator cannot be used together with $elemMatch.")));
 		}
 
 		ProjectionOpHandlerContext *projectionOpHandlerContext = palloc0(
@@ -701,7 +701,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31256),
 								errmsg(
-									"Cannot specify positional operator and $elemMatch.")));
+									"Positional operator cannot be used together with $elemMatch.")));
 			}
 
 			bson_iter_t elemMatchValueIter, jsonSchemaIter;

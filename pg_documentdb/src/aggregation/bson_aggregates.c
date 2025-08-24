@@ -1391,11 +1391,12 @@ ValidateMergeObjectsInput(pgbson *input)
 	{
 		ereport(ERROR,
 				errcode(ERRCODE_DOCUMENTDB_DOLLARMERGEOBJECTSINVALIDTYPE),
-				errmsg("$mergeObjects requires object inputs, but input %s is of type %s",
-					   BsonValueToJsonForLogging(&singleBsonElement.bsonValue),
-					   BsonTypeName(singleBsonElement.bsonValue.value_type)),
+				errmsg(
+					"$mergeObjects needs both inputs to be objects, but the provided input %s has the type %s",
+					BsonValueToJsonForLogging(&singleBsonElement.bsonValue),
+					BsonTypeName(singleBsonElement.bsonValue.value_type)),
 				errdetail_log(
-					"$mergeObjects requires object inputs, but input is of type %s",
+					"$mergeObjects needs both inputs to be objects, but the provided input has the type %s",
 					BsonTypeName(singleBsonElement.bsonValue.value_type)));
 	}
 }

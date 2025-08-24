@@ -92,7 +92,7 @@ ERROR:  BSON field 'delete.deletes.q' is missing but a required field
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":[],"limit":0}]}');
 ERROR:  BSON field 'delete.deletes.q' is the wrong type 'array', expected type 'object'
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0,"extra":1}]}');
-ERROR:  BSON field 'delete.deletes.extra' is an unknown field
+ERROR:  The BSON field 'delete.deletes.extra' is not recognized as a valid field.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}],"ordered":1}');
 ERROR:  BSON field 'delete.ordered' is the wrong type 'int', expected type 'bool'
 -- Disallow writes to system.views

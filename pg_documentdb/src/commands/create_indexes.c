@@ -951,7 +951,8 @@ create_indexes_non_concurrently(Datum dbNameDatum, CreateIndexesArg createIndexe
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
-						errmsg("collection does not exist.")));
+						errmsg("The specified collection '%s' cannot be found.",
+							   createIndexesArg.collectionName)));
 	}
 
 	uint64 collectionId = collection->collectionId;
@@ -1084,7 +1085,9 @@ reindex_concurrently(Datum dbNameDatum, Datum collectionNameDatum)
 	if (!collection)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
-						errmsg("collection does not exist.")));
+						errmsg("The specified collection '%s.%s' cannot be found.",
+							   TextDatumGetCString(dbNameDatum),
+							   TextDatumGetCString(collectionNameDatum))));
 	}
 
 	uint64 collectionId = collection->collectionId;
@@ -1686,7 +1689,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"The field 'textIndexVersion' must be a number, but got %s",
+									"The field 'textIndexVersion' should contain a numeric value, but a different type was provided: %s",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -1810,7 +1813,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"The field '2dsphereIndexVersion' must be a number, but got %s.",
+									"The '2dsphereIndexVersion' field is expected to be numeric, but instead received %s.",
 									BsonIterTypeName(&indexDefDocIter))));
 			}
 			int32_t sphereIndexVersion = BsonValueAsInt32(bson_iter_value(
@@ -1880,7 +1883,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		else if (!SkipFailOnCollation && strcmp(indexDefDocKey, "collation") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("createIndex.collation is not implemented yet")));
+							errmsg(
+								"createIndex.collation has not been implemented yet")));
 		}
 		else if (strcmp(indexDefDocKey, "storageEngine") == 0)
 		{
@@ -1940,7 +1944,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			!indexDef->key->hasTextIndexes)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-							errmsg("Index keys cannot be an empty field")));
+							errmsg(
+								"Index keys are not allowed to be completely empty fields.")));
 		}
 		else if (indexDef->wildcardProjectionTree)
 		{
@@ -2204,7 +2209,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_LOCATION16747),
 						errmsg(
-							"coarsestIndexedLevel must be greater than or equal to zero")));
+							"coarsestIndexedLevel must be greater than or equal to 0")));
 		}
 
 		if (finest > 30)
@@ -2335,7 +2340,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg(
-								"TTL indexes are single-field indexes, compound indexes do not support TTL.")));
+								"TTL indexes work only on single fields, and compound indexes are incompatible with TTL functionality.")));
 		}
 
 		if (indexDef->key->isWildcard)
@@ -2409,9 +2414,10 @@ EnsureIndexDefDocFieldType(const bson_iter_t *indexDefDocIter,
 	if (bsonType != expectedType)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg("The field '%s' must be an %s, but got %s",
-							   bson_iter_key(indexDefDocIter), BsonTypeName(expectedType),
-							   BsonTypeName(bsonType))));
+						errmsg(
+							"The field '%s' is required to be an %s type, however, it received a %s instead.",
+							bson_iter_key(indexDefDocIter), BsonTypeName(expectedType),
+							BsonTypeName(bsonType))));
 	}
 }
 
@@ -2614,7 +2620,8 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 		if (!wildcardOnWholeDocument && keyPath == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-							errmsg("Index keys cannot be an empty field")));
+							errmsg(
+								"Index keys are not allowed to be completely empty fields.")));
 		}
 
 		/*
@@ -2697,7 +2704,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			/* All other data types can't be specified as key spec value */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg(
-								"Values in v:2 index key pattern cannot be of type %s. Only numbers > 0, numbers < 0, and strings are allowed.",
+								"Values in v:2 index key pattern must not be of type %s; acceptable types include numbers greater than zero, numbers less than zero, and strings.",
 								BsonTypeName(keyValue->value_type))));
 		}
 
@@ -2928,8 +2935,9 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 			if (!BSON_ITER_HOLDS_UTF8(&cosmosSearchIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("search index kind must be a string not %s",
-									   BsonTypeName(bson_iter_type(&cosmosSearchIter)))));
+								errmsg(
+									"The search index type must be provided as a string, but a %s was given instead.",
+									BsonTypeName(bson_iter_type(&cosmosSearchIter)))));
 			}
 
 			StringView kindStr = {
@@ -3001,7 +3009,7 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"vector index dimensions must be less than or equal to %d",
+									"Vector index dimensions cannot exceed the allowed value of %d",
 									VECTOR_MAX_DIMENSIONS)));
 			}
 		}
@@ -3034,7 +3042,7 @@ ParseCosmosSearchOptionsDoc(const bson_iter_t *indexDefDocIter)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 									errmsg(
-										"Compression type 'half' is not supported."),
+										"The compression type 'half' is currently unsupported."),
 									errdetail_log(
 										"The half vector is not supported by pgvector, please check the version of pgvector")));
 				}
@@ -3704,7 +3712,7 @@ static void
 ThrowUnsupportedPartFilterExprError(Node *node)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-					errmsg("unsupported expression in partial index: %s",
+					errmsg("Expression not supported in partial index: %s",
 						   GetPartFilterExprNodeRepr(node))));
 }
 
@@ -5636,7 +5644,8 @@ GenerateIndexExprStr(const char *indexAmSuffix,
 					{
 						/* This should have been validated but do one more sanity check */
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-										errmsg("Cannot create unique hashed indexes")));
+										errmsg(
+											"Failed to generate unique hashed indexes")));
 					}
 
 					appendStringInfo(indexExprStr,
@@ -6331,7 +6340,7 @@ GenerateUniqueProjectionSpec(IndexDefKey *indexDefKey)
 			{
 				/* This should have been validated but do one more sanity check */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("Cannot create unique hashed indexes")));
+								errmsg("Failed to generate unique hashed indexes")));
 				break;
 			}
 

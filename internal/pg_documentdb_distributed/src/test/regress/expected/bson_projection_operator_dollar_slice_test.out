@@ -370,7 +370,7 @@ select bson_dollar_project_find('{"_id":"1", "a" : [1,2,3], "b" : 22, "c" : [1,2
 (1 row)
 
 select bson_dollar_project_find('{"_id":"1", "a" : [1,2,3], "b" : 22, "c" : [1,2,3], "d":4  }', '{"a" : { "$slice" : 1}, "c": 1, "d" : 0 }',NULL);
-ERROR:  Cannot do exclusion on field d in inclusion projection.
+ERROR:  exclusion cannot be applied to field d within the inclusion projection.
 --Nested array inside document & array
 select bson_dollar_project_find('{"_id":"1", "a" : {"x": [1,2,3], "y":5 }, "b":10}', '{"a.x" : { "$slice" : 1}, "b" :0 }',NULL);
                                  bson_dollar_project_find                                  

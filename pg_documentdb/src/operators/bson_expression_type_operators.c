@@ -533,7 +533,7 @@ ParseDollarConvert(const bson_value_t *argument, AggregationExpressionData *data
 	if (toExpression.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"Missing 'to' parameter to $convert")));
+							"'to' parameter is missing for $convert")));
 	}
 
 	ConvertToTypeArguments *arguments = palloc0(sizeof(ConvertToTypeArguments));
@@ -1404,7 +1404,7 @@ ProcessDollarToString(const bson_value_t *currentValue, const bson_value_t *form
 			if (IsExpressionResultNullOrUndefined(format))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-									" Format must be speficied when converting from %s to 'string'",
+									" A format must be specified when performing a conversion from %s to the string type.",
 									BsonTypeName(currentValue->value_type))));
 				break;
 			}
@@ -1930,7 +1930,7 @@ ValidateAndGetConvertToType(const bson_value_t *toValue, bson_type_t *toType)
 		if (!TryGetTypeFromInt64(typeCode, toType))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-								"In $convert, numeric value for 'to' does not correspond to a BSON type: %lld",
+								"During $convert, the numeric value provided for 'to' is not a valid BSON type: %lld",
 								(long long int) typeCode)));
 		}
 	}
@@ -1940,7 +1940,7 @@ ValidateAndGetConvertToType(const bson_value_t *toValue, bson_type_t *toType)
 		 * however, we can't do it here yet, as if the 'input' expression evaluates to null and onNull is specified,
 		 * we must return that instead. */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"$convert's 'to' argument must be a string or number, but is %s",
+							"The 'to' parameter in $convert must contain either a string value or a numeric value, but it currently holds %s",
 							BsonTypeName(toValue->value_type))));
 	}
 }
@@ -1960,7 +1960,7 @@ ValidateConvertToTypeFormat(const bson_value_t formatValue)
 	if (formatValue.value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-							"Invalid format value for $convert: %s",
+							"Invalid format value provided for $convert: %s",
 							BsonTypeName(formatValue.value_type))));
 	}
 
@@ -1970,7 +1970,7 @@ ValidateConvertToTypeFormat(const bson_value_t formatValue)
 		strcmp(format, "utf8") != 0 && strcmp(format, "auto") != 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-							"Invalid format value for $convert: %s",
+							"Invalid format value provided for $convert: %s",
 							format)));
 	}
 }
@@ -2039,7 +2039,7 @@ ConvertStringToInt64(const bson_value_t *value)
 
 	if (*str == ' ')
 	{
-		ThrowFailedToParseNumberError(str, "Did not consume whole string.");
+		ThrowFailedToParseNumberError(str, "Failed to process the entire string.");
 	}
 
 	ValidateStringIsNotHexBase(value);
@@ -2050,7 +2050,7 @@ ConvertStringToInt64(const bson_value_t *value)
 
 	if (endptr != (str + len))
 	{
-		ThrowFailedToParseNumberError(str, "Did not consume whole string.");
+		ThrowFailedToParseNumberError(str, "Failed to process the entire string.");
 	}
 
 	if ((result == INT64_MAX || result == INT64_MIN) && errno == ERANGE)
@@ -2121,7 +2121,7 @@ ValidateStringIsNotHexBase(const bson_value_t *value)
 		value->value.v_utf8.str[1] == 'x')
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-							"Illegal hexadecimal input in $convert with no onError value: %s",
+							"Invalid hexadecimal input detected in $convert without a specified onError handler: %s",
 							value->value.v_utf8.str)));
 	}
 }
@@ -2218,7 +2218,7 @@ pg_attribute_noreturn()
 ThrowFailedToParseNumberError(const char * value, const char * reason)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-						"Failed to parse number '%s' in $convert with no onError value: %s",
+						"Unable to interpret number '%s' within $convert, as no onError value was specified: %s",
 						value, reason)));
 }
 

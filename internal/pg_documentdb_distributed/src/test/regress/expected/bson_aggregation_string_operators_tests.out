@@ -147,19 +147,19 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : ["Copyright
 
 -- $concat operator: Negative test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : 1} }');
-ERROR:  $concat supports only string values, not int
+ERROR:  Expected 'string' type for $concat but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : true} }');
-ERROR:  $concat supports only string values, not bool
+ERROR:  Expected 'string' type for $concat but found 'bool' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : 1.2} }');
-ERROR:  $concat supports only string values, not double
+ERROR:  Expected 'string' type for $concat but found 'double' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : [1]} }');
-ERROR:  $concat supports only string values, not int
+ERROR:  Expected 'string' type for $concat but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : [{"$numberDecimal": "10"}]} }');
-ERROR:  $concat supports only string values, not decimal
+ERROR:  Expected 'string' type for $concat but found 'decimal' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$concat" : ["apple", "is", 1, "fruit"]} }');
-ERROR:  $concat supports only string values, not int
+ERROR:  Expected 'string' type for $concat but found 'int' type
 select bson_dollar_project('{"_id":"1", "x": ["hello ","this ","is ","test"]}', '{"result" : { "$concat" : "$x"} }');
-ERROR:  $concat supports only string values, not array
+ERROR:  Expected 'string' type for $concat but found 'array' type
 -- $split operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : ["hello, this is a test case"," "]} }');
                              bson_dollar_project                             
@@ -443,11 +443,11 @@ select bson_dollar_project('{"_id":"1", "a" : "One apple a day, keeps doctor awa
 
 -- $strLenBytes operator: Negative test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : 1} }');
-ERROR:  $strLenBytes needs a string input, but received: int
+ERROR:  Expected 'string' type for $strLenBytes but found 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$strLenBytes" : "$a"} }');
-ERROR:  $strLenBytes needs a string input, but received: int
+ERROR:  Expected 'string' type for $strLenBytes but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [1]} }');
-ERROR:  $strLenBytes needs a string input, but received: int
+ERROR:  Expected 'string' type for $strLenBytes but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ["apple","cat"]} }');
 ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [1,"cat"]} }');
@@ -455,15 +455,15 @@ ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ["cat",1]} }');
 ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : null} }');
-ERROR:  $strLenBytes needs a string input, but received: null
+ERROR:  Expected 'string' type for $strLenBytes but found 'null' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [null]} }');
-ERROR:  $strLenBytes needs a string input, but received: null
+ERROR:  Expected 'string' type for $strLenBytes but found 'null' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : {"$undefined": true}} }');
-ERROR:  $strLenBytes needs a string input, but received: undefined
+ERROR:  Expected 'string' type for $strLenBytes but found 'undefined' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [{"$undefined": true}]} }');
-ERROR:  $strLenBytes needs a string input, but received: undefined
+ERROR:  Expected 'string' type for $strLenBytes but found 'undefined' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ["$a"]} }');
-ERROR:  $strLenBytes needs a string input, but received: missing
+ERROR:  Expected 'string' type for $strLenBytes but found 'missing' type
 -- $strLenCP operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : ""} }');
                 bson_dollar_project                 
@@ -837,13 +837,13 @@ ERROR:  $trim can only accept an object as its argument, but received int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {}} }');
 ERROR:  $trim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1}} }');
-ERROR:  The $trim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $trim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $trim found an unknown argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $trim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$trim" : {"input": "$a"}} }');
-ERROR:  The $trim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $trim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$trim" : {"input": "apple", "chars" : "$a"}} }');
 ERROR:   $trim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
 --$ltrim operator : basic test:
@@ -1073,13 +1073,13 @@ ERROR:  $ltrim can only accept an object as its argument, but received int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {}} }');
 ERROR:  $ltrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1}} }');
-ERROR:  The $ltrim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $ltrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $ltrim found an unknown argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $ltrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$ltrim" : {"input": "$a"}} }');
-ERROR:  The $ltrim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $ltrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$ltrim" : {"input": "apple", "chars" : "$a"}} }');
 ERROR:   $ltrim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
 --$rtrim operator : basic test:
@@ -1309,13 +1309,13 @@ ERROR:  $rtrim can only accept an object as its argument, but received int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {}} }');
 ERROR:  $rtrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1}} }');
-ERROR:  The $rtrim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $rtrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $rtrim found an unknown argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $rtrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$rtrim" : {"input": "$a"}} }');
-ERROR:  The $rtrim expects its input parameter to be a string, but it received 1, which is of type int instead.
+ERROR:  Expected 'string' type for $rtrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$rtrim" : {"input": "apple", "chars" : "$a"}} }');
 ERROR:   $rtrim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
 --$indexOfBytes operator : basic test:
@@ -1480,13 +1480,13 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["$x"
 
 -- $indexOfBytes operator: Negative test :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : 1} }');
-ERROR:  Expression $indexOfBytes takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfBytes requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : []} }');
-ERROR:  Expression $indexOfBytes takes at least 2 arguments, and at most 4, but 0 were passed in.
+ERROR:  The expression $indexOfBytes requires no fewer than 2 arguments and no more than 4 arguments, but 0 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a"]} }');
-ERROR:  Expression $indexOfBytes takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfBytes requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : [1]} }');
-ERROR:  Expression $indexOfBytes takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfBytes requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a",1]} }');
 ERROR:  $indexOfBytes expects its second argument to be a string, but received: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a",null]} }');
@@ -1494,7 +1494,7 @@ ERROR:  $indexOfBytes expects its second argument to be a string, but received: 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","$x"]} }');
 ERROR:  $indexOfBytes expects its second argument to be a string, but received: missing
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",-1]} }');
-ERROR:  $indexOfBytes needs a nonnegative starting index but received: -1
+ERROR:  $indexOfBytes needs a nonnegative starting index, but received: -1
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b","x"]} }');
 ERROR:  $indexOfBytes requires an integral starting index, found a value of type: string, with value: "x"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",1,-3]} }');
@@ -1504,7 +1504,7 @@ ERROR:  $indexOfBytes needs an integral ending index but received a value of typ
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["a","b",1,"$t"]} }');
 ERROR:  $indexOfBytes needs an integral ending index but received a value of type missing with the value MISSING
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",2147483648,7]} }');
-ERROR:  $indexOfBytes needs a nonnegative starting index but received: -2147483648
+ERROR:  $indexOfBytes needs a nonnegative starting index, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",1,2147483648]} }');
 ERROR:  $indexOfBytes requires a nonnegative ending index, found: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["appleple","ple",1.2]} }');
@@ -1667,13 +1667,13 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["$x","y
 
 -- $indexOfCP operator: Negative test :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : 1} }');
-ERROR:  Expression $indexOfCP takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfCP requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : []} }');
-ERROR:  Expression $indexOfCP takes at least 2 arguments, and at most 4, but 0 were passed in.
+ERROR:  The expression $indexOfCP requires no fewer than 2 arguments and no more than 4 arguments, but 0 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a"]} }');
-ERROR:  Expression $indexOfCP takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfCP requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : [1]} }');
-ERROR:  Expression $indexOfCP takes at least 2 arguments, and at most 4, but 1 were passed in.
+ERROR:  The expression $indexOfCP requires no fewer than 2 arguments and no more than 4 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a",1]} }');
 ERROR:  $indexOfCP expects its second argument to be a string, but received: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a",null]} }');
@@ -1681,7 +1681,7 @@ ERROR:  $indexOfCP expects its second argument to be a string, but received: nul
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","$x"]} }');
 ERROR:  $indexOfCP expects its second argument to be a string, but received: missing
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",-1]} }');
-ERROR:  $indexOfCP needs a nonnegative starting index but received: -1
+ERROR:  $indexOfCP needs a nonnegative starting index, but received: -1
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b","x"]} }');
 ERROR:  $indexOfCP requires an integral starting index, found a value of type: string, with value: "x"
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",1,-3]} }');
@@ -1691,7 +1691,7 @@ ERROR:  $indexOfCP needs an integral ending index but received a value of type s
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["a","b",1,"$t"]} }');
 ERROR:  $indexOfCP needs an integral ending index but received a value of type missing with the value MISSING
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",2147483648,7]} }');
-ERROR:  $indexOfCP needs a nonnegative starting index but received: -2147483648
+ERROR:  $indexOfCP needs a nonnegative starting index, but received: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",1,2147483648]} }');
 ERROR:  $indexOfCP requires a nonnegative ending index, found: -2147483648
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfCP" : ["appleple","ple",1.2]} }');
@@ -1730,7 +1730,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : "I use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                           
+                                                                          bson_dollar_project                                                                          
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "I USE TO EAT ONE APPLE 🍎 A DAY THAT BECAME REASON OF MY BREAKUP 💔 AS ONE APPLE A DAY KEEPS DOCTOR AWAY AND SHE👧🏽 WAS A DOCTOR 🧑🏽‍⚕️" }
 (1 row)
@@ -1940,7 +1940,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "🙈"} }'
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : "I USE To Eat One aPple 🍎 a dAy That Became rEasOn of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️"} }');
-                                                                          bson_dollar_project                                                                           
+                                                                          bson_dollar_project                                                                          
 ---------------------------------------------------------------------
  { "_id" : "1", "result" : "i use to eat one apple 🍎 a day that became reason of my breakup 💔 as one apple a day keeps doctor away and she👧🏽 was a doctor 🧑🏽‍⚕️" }
 (1 row)
@@ -2449,7 +2449,7 @@ ERROR:  Unable to convert from BSON type binData into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : [{"$regex": "/ab/cdsd/abc", "$options" : ""}, 0, -1] } }');
 ERROR:  Unable to convert from BSON type regex into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["hello", null, -1] } }');
-ERROR:  $substrBytes: the starting index must be a numeric value type (currently BSON type null)
+ERROR:  The starting index for $substrBytes must be of a numeric data type, but the current BSON type is null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["hello", 1, null] } }');
 ERROR:  $substrBytes: the length must be a numeric value (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : {"a" : "b"} } }');
@@ -2681,7 +2681,7 @@ ERROR:  Unable to convert from BSON type binData into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : [{"$regex": "/ab/cdsd/abc", "$options" : ""}, 0, -1] } }');
 ERROR:  Unable to convert from BSON type regex into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["hello", null, -1] } }');
-ERROR:  $substrBytes: the starting index must be a numeric value type (currently BSON type null)
+ERROR:  The starting index for $substrBytes must be of a numeric data type, but the current BSON type is null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["hello", 1, null] } }');
 ERROR:  $substrBytes: the length must be a numeric value (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : {"a" : "b"} } }');
@@ -2917,7 +2917,7 @@ select bson_dollar_project('{"_id":"2"}', '{"output":{"$substrCP" : ["∫aƒ",0,
 
 -- $substrCP negative test cases:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", -1, 1]}}');
-ERROR:  $substrCP: starting index needs to be a non-negative integer.
+ERROR:  The starting index value for $substrCP must be a nonnegative integer.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [[1, 2], 1, 1]}}');
 ERROR:  Unable to convert from BSON type array into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [{"a" : "b"}, -1, 1]}}');
@@ -2925,7 +2925,7 @@ ERROR:  Unable to convert from BSON type object into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [{"$oid" : "639926cee6bda3127f153bf1"}, -1, 1]}}');
 ERROR:  Unable to convert from BSON type objectId into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [NaN, -1, 1]}}');
-ERROR:  $substrCP: starting index needs to be a non-negative integer.
+ERROR:  The starting index value for $substrCP must be a nonnegative integer.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [{"$binary": {"base64": "ww==", "subType": "01"}}, 0, -1] } }');
 ERROR:  Unable to convert from BSON type binData into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [{"$regex": "/ab/cdsd/abc", "$options" : ""}, 0, -1] } }');
@@ -2947,7 +2947,7 @@ ERROR:  $substrCP: starting index is not representable as a valid 32-bit integer
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", 1, 1.1] } }');
 ERROR:  $substrCP: length value is not representable as a valid 32-bit integer value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", -1, 1] } }');
-ERROR:  $substrCP: starting index needs to be a non-negative integer.
+ERROR:  The starting index value for $substrCP must be a nonnegative integer.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", 1, -1] } }');
 ERROR:  $substrCP: length needs to be a valid non-negative integer.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", 1, NaN] } }');
@@ -3265,7 +3265,7 @@ ERROR:  $regexMatch requires an object containing named arguments, but encounter
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
 ERROR:  $regexMatch:  regular expression options cannot contain an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
-ERROR:  $regexMatch: regular expressions are not allowed to include an embedded null byte
+ERROR:  $regexMatch: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"(m(p)"} } }');
 ERROR:  Invalid Regex in $regexMatch: missing closing parenthesis
 -- $regexFind operator: basic test:
@@ -3559,7 +3559,7 @@ ERROR:  $regexFind requires an object containing named arguments, but encountere
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
 ERROR:  $regexFind:  regular expression options cannot contain an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
-ERROR:  $regexFind: regular expressions are not allowed to include an embedded null byte
+ERROR:  $regexFind: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"(m(p)"} } }');
 ERROR:  Invalid Regex in $regexFind: missing closing parenthesis
 -- $regexFindAll operator: basic test:
@@ -3889,11 +3889,11 @@ ERROR:  $regexFindAll requires an object containing named arguments, but encount
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
 ERROR:  $regexFindAll:  regular expression options cannot contain an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
-ERROR:  $regexFindAll: regular expressions are not allowed to include an embedded null byte
+ERROR:  $regexFindAll: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"(m(p)"} } }');
 ERROR:  Invalid Regex in $regexFindAll: missing closing parenthesis
 select bson_dollar_project('{"_id":"1"}', ('{"result" : { "$regexFindAll" : {"input" : "' || LPAD('',100000, 'a') || '", "regex": "(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((())))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"}} }')::bson);
-ERROR:  $regexFindAll: buffer size for storing the output has surpassed the allowable 64MB limit
+ERROR:  $regexFindAll: buffer size for storing output has exceeded the maximum allowed limit of 64MB
 select bson_dollar_project('{"_id":"1"}', ('{"result" : { "$regexFindAll" : {"input" : "' || LPAD('', 50000, 'c') || LPAD('', 50000, 'd') ||  'e", "regex": "' || LPAD('',2728*3,'(d)') || 'e"}} }')::bson);
 ERROR:  There isn't enough available memory to perform the evaluation of the regular expression.
 --regex Operators : with multiple document in collection

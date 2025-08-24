@@ -312,7 +312,7 @@ DocumentDBBackgroundWorkerMain(Datum main_arg)
 	}
 
 	/* when sigterm comes, try cancel all currently open connections */
-	ereport(LOG, (errmsg("%s is shutting down.",
+	ereport(LOG, (errmsg("%s is currently shutting down.",
 						 ExtensionBackgroundWorkerLeaderName)));
 }
 

@@ -760,7 +760,7 @@ ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28648), errmsg(
-							"Missing 'input' parameter to $filter")));
+							"'Input' parameter is missing for $filter")));
 	}
 
 	if (cond.value_type == BSON_TYPE_EOD)
@@ -854,7 +854,7 @@ HandlePreParsedDollarFilter(pgbson *doc, void *arguments,
 		if (limit < 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION327392), errmsg(
-								"$filter: limit must be greater than 0: %d",
+								"$filter: limit value must be strictly greater than zero: %d",
 								limit)));
 		}
 	}
@@ -1849,7 +1849,7 @@ ParseDollarReduce(const bson_value_t *argument, AggregationExpressionData *data,
 	if (initialValue.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40078), errmsg(
-							"Missing 'initialValue' parameter to $reduce")));
+							"The 'initialValue' parameter required by $reduce is missing.")));
 	}
 
 	DollarReduceArguments *arguments = palloc0(sizeof(DollarReduceArguments));
@@ -1896,10 +1896,12 @@ HandlePreParsedDollarReduce(pgbson *doc, void *arguments,
 	if (evaluatedInputArg.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40080), errmsg(
-							"input to $reduce must be an array not %s", BsonTypeName(
+							"The input provided to $reduce must be an array, not %s",
+							BsonTypeName(
 								evaluatedInputArg.value_type)),
-						errdetail_log("input to $reduce must be an array not %s",
-									  BsonTypeName(evaluatedInputArg.value_type))));
+						errdetail_log(
+							"The input provided to $reduce must be an array, not %s",
+							BsonTypeName(evaluatedInputArg.value_type))));
 	}
 
 	ExpressionResultReset(&childExpression);
@@ -1993,9 +1995,11 @@ ParseDollarSortArray(const bson_value_t *argument, AggregationExpressionData *da
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION2942501), errmsg(
-								"$sortArray found an unknown argument: %s", key),
+								"$sortArray encountered an unrecognized argument: %s",
+								key),
 							errdetail_log(
-								"$sortArray found an unknown argument: %s", key)));
+								"$sortArray encountered an unrecognized argument: %s",
+								key)));
 		}
 	}
 
@@ -2304,10 +2308,10 @@ ParseElementFromObjectForArrayToObject(const bson_value_t *element)
 			ereport(ERROR, (errcode(
 								ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTREQUIRESOBJECTWITHKANDV),
 							errmsg(
-								"$arrayToObject requires an object with keys 'k' and 'v'. Missing either or both keys from: %s",
+								"$arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: %s",
 								BsonValueToJsonForLogging(element)),
 							errdetail_log(
-								"$arrayToObject requires an object with keys 'k' and 'v'. Missing either or both keys")));
+								"$arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing.")));
 		}
 	}
 
@@ -2428,10 +2432,11 @@ ParseDollarMaxMinN(const bson_value_t *argument, AggregationExpressionData *data
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787900), errmsg(
-							"specification must be an object; found %s: %s", operatorName,
+							"Specification requires an object type, but received %s: %s",
+							operatorName,
 							BsonValueToJsonForLogging(argument)),
 						errdetail_log(
-							"specification must be an object; found opname:%s input type:%s",
+							"Specification requires an object type, but received opname:%s with input type:%s",
 							operatorName, BsonTypeName(argument->value_type))));
 	}
 
@@ -2456,9 +2461,11 @@ ParseDollarMaxMinN(const bson_value_t *argument, AggregationExpressionData *data
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787901), errmsg(
-								"Unknown argument for 'n' operator: %s", key),
+								"Unrecognized parameter supplied for 'n' operator: %s",
+								key),
 							errdetail_log(
-								"Unknown argument for 'n' operator: %s", key)));
+								"Unrecognized parameter supplied for 'n' operator: %s",
+								key)));
 		}
 	}
 
@@ -2880,10 +2887,10 @@ ProcessDollarSlice(void *state, bson_value_t *result)
 	if (sourceArray->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDINPUT), errmsg(
-							"First argument to $slice must be an array, but is of type: %s",
+							"The first parameter provided to $slice must be an array, but a value of type %s was received instead.",
 							BsonTypeName(sourceArray->value_type)),
 						errdetail_log(
-							"First argument to $slice must be an array, but is of type: %s",
+							"The first parameter provided to $slice must be an array, but a value of type %s was received instead.",
 							BsonTypeName(sourceArray->value_type))));
 	}
 
@@ -3089,12 +3096,12 @@ ProcessDollarSize(const bson_value_t *currentValue, bson_value_t *result)
 	{
 		bool isUndefined = IsExpressionResultUndefined(currentValue);
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSIZEREQUIRESARRAY), errmsg(
-							"The argument to $size must be an array, but was of type: %s",
+							"$size requires an array argument, but received a value of type: %s",
 							isUndefined ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentValue->value_type)),
 						errdetail_log(
-							"The argument to $size must be an array, but was of type: %s",
+							"$size requires an array argument, but received a value of type: %s",
 							isUndefined ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(currentValue->value_type))));
@@ -3928,17 +3935,17 @@ ValidateArraySizeLimit(int32_t startValue, int32_t endValue, int32_t stepValue)
 	if (totalSizeOfArray > BSON_MAX_ALLOWED_SIZE_INTERMEDIATE)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_EXCEEDEDMEMORYLIMIT), errmsg(
-							"$range would use too much memory (%ld bytes) and cannot spill to disk. Memory limit: 104857600 bytes",
+							"$range requires excessive memory (%ld bytes) and cannot be offloaded to disk, exceeding the memory limit of 104857600 bytes.",
 							totalSizeOfArray),
 						errdetail_log(
-							"$range would use too much memory (%ld bytes) and cannot spill to disk. Memory limit: 104857600 bytes",
+							"$range requires excessive memory (%ld bytes) and cannot be offloaded to disk, exceeding the memory limit of 104857600 bytes.",
 							totalSizeOfArray)));
 	}
 
 	if (totalSizeOfArray > MAX_BUFFER_SIZE_DOLLAR_RANGE)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION13548), errmsg(
-							"$range: the size of buffer to store output exceeded the 64MB limit")));
+							"$range: The buffer size required to store the output has gone beyond the allowed 64MB maximum limit.")));
 	}
 }
 
@@ -4315,7 +4322,7 @@ SetResultValueForDollarSumAvg(const bson_value_t *inputArgument, bson_value_t *r
 
 		if (!BsonValueIsNumber(arrayElem))
 		{
-			/* Skip non-numeric values */
+			/* Ignore any values that are not numeric */
 			continue;
 		}
 

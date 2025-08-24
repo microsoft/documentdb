@@ -27,9 +27,9 @@ ERROR:  BSON field 'createIndexes.indexes' is the wrong type 'int', expected typ
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [1,2]}');
 ERROR:  BSON field 'createIndexes.indexes.0' is the wrong type 'int', expected type 'object'
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": 1}]}');
-ERROR:  Error in specification { "key" : 1 } :: caused by :: The field 'key' must be an object, but got int
+ERROR:  Error in specification { "key" : 1 } :: caused by :: The field 'key' is required to be an object type, however, it received a int instead.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": 1}]}');
-ERROR:  Error in specification { "name" : 1 } :: caused by :: The field 'name' must be an string, but got int
+ERROR:  Error in specification { "name" : 1 } :: caused by :: The field 'name' is required to be an string type, however, it received a int instead.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"unique": "1"}]}');
 ERROR:  Error in specification { "unique" : "1" } :: caused by :: The field 'unique' has value unique: "1", which is not convertible to bool
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a": 1}}]}');
@@ -42,9 +42,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 ERROR:  Error in specification { "name" : "_name_", "unknown_field" : "111" } :: caused by :: The field 'unknown_field' is not valid for an index specification. Specification: { "name" : "_name_", "unknown_field" : "111" }
 ---- createIndexes - indexes.key - parse error ----
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"": 1}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { "" : 1 }, "name" : "my_idx" } :: caused by :: Index keys cannot be an empty field
+ERROR:  Error in specification { "key" : { "" : 1 }, "name" : "my_idx" } :: caused by :: Index keys are not allowed to be completely empty fields.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a": 1, "": -1}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { "a" : 1, "" : -1 }, "name" : "my_idx" } :: caused by :: Index keys cannot be an empty field
+ERROR:  Error in specification { "key" : { "a" : 1, "" : -1 }, "name" : "my_idx" } :: caused by :: Index keys are not allowed to be completely empty fields.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": 1, "b": -1}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "a.$**" : 1, "b" : -1 }, "name" : "my_idx" } :: caused by :: wildcard indexes do not allow compounding
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {".$**": 1}, "name": "my_idx"}]}');
@@ -56,7 +56,7 @@ ERROR:  Error in specification { "key" : { "a.$**" : 0 }, "name" : "my_idx" } ::
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": ""}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "a.$**" : "" }, "name" : "my_idx" } :: caused by :: Values in the index key pattern cannot be empty strings
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": {"a": 1}}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { "a.$**" : { "a" : 1 } }, "name" : "my_idx" } :: caused by :: Values in v:2 index key pattern cannot be of type object. Only numbers > 0, numbers < 0, and strings are allowed.
+ERROR:  Error in specification { "key" : { "a.$**" : { "a" : 1 } }, "name" : "my_idx" } :: caused by :: Values in v:2 index key pattern must not be of type object; acceptable types include numbers greater than zero, numbers less than zero, and strings.
 -- note that those are valid ..
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a$**foo": 1}, "name": "my_idx_1"}]}');
 NOTICE:  creating collection
@@ -278,7 +278,7 @@ ERROR:  Error in specification { "key" : { "a.$**.foo" : 1 }, "name" : "my_idx" 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"b": -1, "a.$**": 1}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "b" : -1, "a.$**" : 1 }, "name" : "my_idx" } :: caused by :: wildcard indexes do not allow compounding
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : {  }, "name" : "my_idx" } :: caused by :: Index keys cannot be an empty field
+ERROR:  Error in specification { "key" : {  }, "name" : "my_idx" } :: caused by :: Index keys are not allowed to be completely empty fields.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": "my_idx"}]}');
 ERROR:  Error in specification { "name" : "my_idx" } :: caused by :: The 'key' field is a required property of an index specification
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"$**foo": 1}, "name": "my_idx_13"}]}');
@@ -400,15 +400,15 @@ END;
 $$ LANGUAGE plpgsql;
 -- all fields specified in wildcardProjection must be included or excluded, except _id field
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": 1, "b": 0}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": 1, "b.c": 0}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b.c in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b.c within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"b.c": 1, "a": 0}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "b.c" : 1, "a" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field a in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "b.c" : 1, "a" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field a within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"x": 1, "y.t": 0}, "b.c": 0}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y.t" : 0 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field y.t in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y.t" : 0 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field y.t within the inclusion projection.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"x": 1, "y": 1}, "b.c": 0}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y" : 1 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Cannot do exclusion on field b.c in inclusion projection.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "x" : 1, "y" : 1 }, "b.c" : 0 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: exclusion cannot be applied to field b.c within the inclusion projection.
 -- wildcardProjection cannot be empty
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{}'));
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : {  } } :: caused by :: The 'wildcardProjection' field can't be an empty object
@@ -423,11 +423,11 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "b" : { "c" : 1, "d" : [  ], "e" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: Bad projection specification, cannot use computed fields when parsing a spec in kBanComputedFields mode
 -- show that we throw an error for invalid paths used in wildcardProjection document
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a..b": 1}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a..b" : 1 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names may not be empty strings.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a..b" : 1 } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names cannot be completely empty strings.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"a..b": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a..b" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names may not be empty strings.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a..b" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath field names cannot be completely empty strings.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"a.b.": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a.b." : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath must not end with a '.'.
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "a.b." : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: The FieldPath cannot terminate with a '.' character.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"": 1}}'));
 ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : -1, "b" : { "" : 1 } } } :: caused by :: Failed to parse: wildcardProjection :: caused by :: FieldPath cannot be constructed with empty string.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": -1, "b": {"$aa": 1}}'));

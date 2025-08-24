@@ -2161,8 +2161,8 @@ RunTimeCheckForIntegralAndDerivative(bson_value_t *xBsonValue, bson_value_t *yBs
 							ERRCODE_DOCUMENTDB_LOCATION5624901;
 			const char *errorMsg = isIntegralOperator
 								   ?
-								   "%s (without specifying 'unit') requires the sortBy field to be numeric values"
-								   : "%s where the sortBy is a Date requires an 'unit'";
+								   "%s (with no 'unit') expects the sortBy field to be numeric"
+								   : "%s with sortBy set to Date needs a specified 'unit'";
 			ereport(ERROR, errcode(errorCode),
 					errmsg(errorMsg, opName),
 					errdetail_log(errorMsg, opName));
@@ -2197,7 +2197,7 @@ RunTimeCheckForIntegralAndDerivative(bson_value_t *xBsonValue, bson_value_t *yBs
 	else if (!timeUnitInt64 && xBsonValue->value_type == BSON_TYPE_DATE_TIME)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5429413), errmsg(
-							"For windows that involve date or time ranges, a unit must be provided.")));
+							"When specifying windows that cover a range of dates or times, it is necessary to include a corresponding unit.")));
 	}
 
 	/* y must be a number or valid date time*/
@@ -2396,7 +2396,7 @@ HandleArithmeticOperationError(const char *opName, bson_value_t *state, const
 							   bson_value_t *number, ArithmeticOperationErrorSource
 							   errSource)
 {
-	char *errMsg = "Internal error while calculating %s.";
+	char *errMsg = "An internal error occurred during the calculation of %s.";
 	char *errMsgSource = "variance/covariance";
 	char *errMsgDetails =
 		"Failed while calculating %s result: opName = %s, state = %s, number = %s.";

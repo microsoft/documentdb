@@ -350,7 +350,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSWITCHBADARGUMENT), errmsg(
-								"$switch found an unknown argument: %s", key)));
+								"Unknown argument: %s", key)));
 		}
 	}
 

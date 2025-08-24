@@ -1522,7 +1522,7 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 	if (isMulti && updateSpec->updateOneParams.sort != NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Cannot specify sort with multi=true")));
+						errmsg("sort option can not be set when multi=true")));
 	}
 
 	/* determine whether query filters by a single shard key value */

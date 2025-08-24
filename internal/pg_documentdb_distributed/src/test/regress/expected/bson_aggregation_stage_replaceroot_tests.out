@@ -109,7 +109,7 @@ SELECT bson_dollar_replace_root(document, '{ "newRoot": { "$mergeObjects":  [ { 
 
 -- 
 SELECT bson_dollar_replace_root(document, '{ "newRoot": { "$mergeObjects":  [ ["dogs", "cats", "birds", "fish"], "$a.b" ] } }') FROM documentdb_api.collection('db', 'replaceRootOps');
-ERROR:  $mergeObjects requires object inputs, but input [ "dogs", "cats", "birds", "fish" ] is of type array
+ERROR:  Expected 'document' type for $mergeObjects but value [ "dogs", "cats", "birds", "fish" ] has 'array' type
 -- negative
 SELECT bson_dollar_replace_root('{}', '{ "newRoot": 1 }') FROM documentdb_api.collection('db', 'replaceRootOps');
 ERROR:  'newRoot' expression must evaluate to an object, but resulting value was: 1. Type of resulting value: 'int'.

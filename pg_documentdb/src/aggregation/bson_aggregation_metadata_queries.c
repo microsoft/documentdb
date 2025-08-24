@@ -176,10 +176,11 @@ GenerateListCollectionsQuery(text *databaseDatum, pgbson *listCollectionsSpec,
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field listCollections.%.*s is an unknown field",
-								   keyView.length, keyView.string),
+							errmsg(
+								"The BSON field listCollections.%.*s is not recognized as a valid field",
+								keyView.length, keyView.string),
 							errdetail_log(
-								"BSON field listCollections.%.*s is an unknown field",
+								"The BSON field listCollections.%.*s is not recognized as a valid field",
 								keyView.length, keyView.string)));
 		}
 	}
@@ -665,7 +666,8 @@ HandleIndexStats(const bson_value_t *existingValue, Query *query,
 	if (IsInTransactionBlock(isTopLevel))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OPERATIONNOTSUPPORTEDINTRANSACTION),
-						errmsg("$indexStats cannot be used in a transaction")));
+						errmsg(
+							"$indexStats is not permitted for use within a transaction")));
 	}
 
 	Const *databaseConst = makeConst(TEXTOID, -1, InvalidOid, -1,

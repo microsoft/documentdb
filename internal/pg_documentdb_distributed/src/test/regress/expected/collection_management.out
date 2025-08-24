@@ -58,7 +58,7 @@ NOTICE:  creating collection
 (1 row)
 
 SELECT documentdb_api.rename_collection('collection_management','originalname', 'newname');
-ERROR:  collection collection_management.newname already exists
+ERROR:  The collection collection_management.newname is already present in the system
 -- Disallow system.views, system.profile etc as the target collection names
 SELECT documentdb_api.rename_collection('collection_management','originalname', 'system.views');
 ERROR:  cannot write to collection_management.system.views

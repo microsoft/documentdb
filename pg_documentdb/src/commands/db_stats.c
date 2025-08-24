@@ -83,7 +83,7 @@ command_db_stats(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 	Datum databaseName = PG_GETARG_DATUM(0);
 

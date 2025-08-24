@@ -699,10 +699,10 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
 							errmsg(
-								"BSON field '$setWindowFields.%s' is an unknown field.",
+								"The BSON field '$setWindowFields.%s' is not recognized as a valid field.",
 								key),
 							errdetail_log(
-								"BSON field '$setWindowFields.%s' is an unknown field.",
+								"The BSON field '$setWindowFields.%s' is not recognized as a valid field.",
 								key)));
 		}
 	}
@@ -752,7 +752,7 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 							errmsg("Expected 'document' type for '%s'",
 								   output.path),
 							errdetail_log(
-								"$setWindowField output field must be an object")));
+								"The $setWindowField output field is required to be an object type.")));
 		}
 
 		winRef++;
@@ -870,8 +870,11 @@ UpdateWindowOperatorAndFrameOptions(const bson_value_t *windowOpValue,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Window function found an unknown argument: %s", key),
-							errdetail_log("Window function found an unknown argument")));
+							errmsg(
+								"The window function detected an unrecognized argument: %s",
+								key),
+							errdetail_log(
+								"The window function detected an unrecognized argument")));
 		}
 	}
 
@@ -1422,10 +1425,11 @@ UpdateWindowAggregationOperator(const pgbsonelement *element,
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("Window operator %s is not supported yet",
+							errmsg("The window operator %s is currently unsupported",
 								   element->path),
-							errdetail_log("Window operator %s is not supported yet",
-										  element->path)));
+							errdetail_log(
+								"The window operator %s is currently unsupported",
+								element->path)));
 			}
 
 			knownOperator = true;
@@ -2645,8 +2649,10 @@ ValidteForMaxNMinNNAccumulators(const bson_value_t *opValue, const char *opName)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787901),
-							errmsg("%s found an unknown argument: %s", opName, key),
-							errdetail_log("%s found an unknown argument", opName)));
+							errmsg("%s encountered an unrecognized argument value: %s",
+								   opName, key),
+							errdetail_log("%s encountered an unrecognized argument",
+										  opName)));
 		}
 	}
 
@@ -2907,7 +2913,8 @@ HandleDollarConstFillWindowOperator(const bson_value_t *opValue,
 	if (!context->enableInternalWindowOperator)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Unrecognized window function, $_internal_constFill.")));
+						errmsg(
+							"Unrecognized window function called: $_internal_constFill.")));
 	}
 	WindowFunc *windowFunc = makeNode(WindowFunc);
 	windowFunc->winfnoid = BsonConstFillFunctionOid();

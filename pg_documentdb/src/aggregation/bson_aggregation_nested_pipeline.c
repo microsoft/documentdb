@@ -317,7 +317,7 @@ GetPipelineStage(bson_iter_t *pipelineIter, const char *parentStage, const
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40323),
 						errmsg(
-							"A pipeline stage specification object must contain exactly one field.")));
+							"Pipeline stage must have a single field.")));
 	}
 
 	return stageElement;
@@ -925,7 +925,9 @@ ParseInverseMatchSpec(const bson_value_t *spec, InverseMatchArgs *args)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("unrecognized argument to $inverseMatch: '%s'", key)));
+							errmsg(
+								"Unrecognized parameter supplied to $inverseMatch: '%s'",
+								key)));
 		}
 	}
 
@@ -1170,7 +1172,9 @@ ValidateFacet(const bson_value_t *facetValue)
 	if (facetValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15947),
-						errmsg("a facet's fields must be specified in an object")));
+						errmsg(
+							"Expected 'document' type for $facet but found '%s' type",
+							BsonTypeName(facetValue->value_type))));
 	}
 
 	bson_iter_t facetIter;
@@ -1217,7 +1221,8 @@ ValidateFacet(const bson_value_t *facetValue)
 	if (numStages == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40169),
-						errmsg("$facet requires a non-empty object specification.")));
+						errmsg(
+							"No stages are specified for $facet")));
 	}
 
 	return numStages;
@@ -1884,7 +1889,7 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$lookup requires either 'pipeline' or both 'localField' and 'foreignField' to be specified")));
+							"$lookup needs to be provided with either a 'pipeline' definition or both 'localField' and 'foreignField' parameters explicitly")));
 	}
 
 	if ((args->foreignField.length == 0) ^ (args->localField.length == 0))
@@ -2972,7 +2977,7 @@ ValidateUnionWithPipeline(const bson_value_t *pipeline, bool hasCollection)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31441),
 							errmsg(
-								"$changeStream is not allowed within a $unionWith's sub-pipeline")));
+								"The use of $changeStream is prohibited inside the sub-pipeline of $unionWith.")));
 		}
 	}
 }
@@ -2989,10 +2994,10 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"the $graphLookup stage specification must be an object, but found %s",
+							"The $graphLookup stage specification is expected to be provided as an object, however, the system encountered %s instead.",
 							BsonTypeName(existingValue->value_type)),
 						errdetail_log(
-							"the $graphLookup stage specification must be an object, but found %s",
+							"The $graphLookup stage specification is expected to be provided as an object, however, the system encountered %s instead.",
 							BsonTypeName(existingValue->value_type))));
 	}
 
@@ -3027,9 +3032,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
 								errmsg(
-									"as: FieldPath field names may not start with '$'"),
+									"'as' field name cannot begin with '$'"),
 								errdetail_log(
-									"as: FieldPath field names may not start with '$'")));
+									"'as' field name cannot begin with '$'")));
 			}
 		}
 		else if (strcmp(key, "startWith") == 0)
@@ -3095,10 +3100,10 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"graphlookup argument 'from' must be a string, is type %s",
+									"The 'from' parameter in graphlookup must be provided as a string, but a value of type %s was received instead.",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"graphlookup argument 'from' must be a string, is type %s",
+									"The 'from' parameter in graphlookup must be provided as a string, but a value of type %s was received instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -4154,7 +4159,7 @@ ValidateLetHasNoVariables(AggregationExpressionData *parsedExpression)
 	{
 		const char *nameWithoutPrefix = parsedExpression->value.value.v_utf8.str + 2;
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17276),
-						errmsg("Use of undefined variable: %s",
+						errmsg("Attempting to use an undefined variable: %s",
 							   nameWithoutPrefix)));
 	}
 }

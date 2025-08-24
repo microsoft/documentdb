@@ -101,9 +101,9 @@ SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chin
 
 -- Validate errors
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"pathRule": "policy", "input": {"flight_type": "domestic"} }}]}');
-ERROR:  unrecognized argument to $inverseMatch: 'pathRule'
+ERROR:  Unrecognized parameter supplied to $inverseMatch: 'pathRule'
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "policy", "inputValue": {"flight_type": "domestic"} }}]}');
-ERROR:  unrecognized argument to $inverseMatch: 'inputValue'
+ERROR:  Unrecognized parameter supplied to $inverseMatch: 'inputValue'
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "", "input": {"flight_type": "domestic"} }}]}');
 ERROR:  Missing 'path' parameter to $inverseMatch
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "policy", "input": ["flight_type", "domestic"] }}]}');
@@ -623,6 +623,6 @@ ERROR:  'input' and 'from' can't be used together in an $inverseMatch stage.
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "collection"}} ], "cursor": {} }');
 ERROR:  'pipeline' argument is required when 'from' is specified in an $inverseMatch stage.
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"rule": "rule"}} ], "cursor": {} }');
-ERROR:  unrecognized argument to $inverseMatch: 'rule'
+ERROR:  Unrecognized parameter supplied to $inverseMatch: 'rule'
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "mycoll", "pipeline": []}} ], "cursor": {} }');
 ERROR:  'from' collection: 'invmatch.mycoll' doesn't exist.

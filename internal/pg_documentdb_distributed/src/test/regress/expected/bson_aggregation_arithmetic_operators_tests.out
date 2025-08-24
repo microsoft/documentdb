@@ -680,15 +680,15 @@ SELECT * FROM bson_dollar_project('{"a":1 }', '{"result": { "$divide": [ "$a", "
 
 -- Divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [2, 0]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [2, {"$numberLong": "0"}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [2, {"$numberDecimal": "0"}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [2, 0.0]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{"a": 0.0}', '{"result": { "$divide": [2, "$a"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- Number or args should be 2
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": {}}}');
 ERROR:  Expression $divide takes exactly 2 arguments. 1 were passed in.
@@ -1572,13 +1572,13 @@ SELECT * FROM bson_dollar_project('{"$a": null}', '{"result": { "$log": ["$a", 2
 
 -- $log: number must be positive number greater than 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [-1, 10]}}');
-ERROR:  $log's argument must be a positive number, but is -1
+ERROR:  $log requires its argument to be a positive number, but the provided value is -1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [0, 10]}}');
-ERROR:  $log's argument must be a positive number, but is 0
+ERROR:  $log requires its argument to be a positive number, but the provided value is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [{"$numberDecimal": "0"}, 10]}}');
-ERROR:  $log's argument must be a positive number, but is 0
+ERROR:  $log requires its argument to be a positive number, but the provided value is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [{"$numberDouble": "-3"}, 10]}}');
-ERROR:  $log's argument must be a positive number, but is -3
+ERROR:  $log requires its argument to be a positive number, but the provided value is -3
 -- $log: base must be positive number greater than 1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [1, 1]}}');
 ERROR:  The base value for the $log must be positive and cannot be 1, but it is 1.
@@ -1592,7 +1592,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, { "$numberDoub
 ERROR:  The base value for the $log must be positive and cannot be 1, but it is 0.
 -- $log: arguments must be numbers
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [[], 1]}}');
-ERROR:  $log's argument must be numeric, not array
+ERROR:  $log requires a numeric argument, but received array instead.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, "str"]}}');
 ERROR:  $log's base must be numeric, not string
 -- $log: takes exactly 2 arguments
@@ -1907,13 +1907,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, "$a"]}}');
 
 -- $pow: arguments must be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [[], 31]}}');
-ERROR:  $pow's base must be numeric, not array
+ERROR:  $pow requires its base to be numeric, but received array instead
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, "a"]}}');
 ERROR:  $pow's exponent must be numeric, not string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, true]}}');
 ERROR:  $pow's exponent must be numeric, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [false, true]}}');
-ERROR:  $pow's base must be numeric, not bool
+ERROR:  $pow requires its base to be numeric, but received bool instead
 -- $pow: exponent can't be negative if base is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -31]}}');
 ERROR:  A base of 0 and a negative exponent can't be taken by $pow
@@ -2315,11 +2315,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [{"$numberLong":
 ERROR:  Invalid conversion from Decimal128 leading to $round, caused by provided arguments: [9223372036854775806, -1]
 -- $round: num args should be either 1 or 2.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [2147483647, -1, 4]}}');
-ERROR:  Expression $round takes at least 1 arguments, and at most 2, but 3 were passed in.
+ERROR:  The expression $round requires no fewer than 1 arguments and no more than 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [2147483647, -1, 4, 5]}}');
-ERROR:  Expression $round takes at least 1 arguments, and at most 2, but 4 were passed in.
+ERROR:  The expression $round requires no fewer than 1 arguments and no more than 2 arguments, but 4 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": []}}');
-ERROR:  Expression $round takes at least 1 arguments, and at most 2, but 0 were passed in.
+ERROR:  The expression $round requires no fewer than 1 arguments and no more than 2 arguments, but 0 arguments were actually provided.
 -- $round: args should be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [{}]}}');
 ERROR:  $round works exclusively with numeric data types, not with object
@@ -2622,11 +2622,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [343, "$a"]}}');
 
 -- $trunc: num args should be either 1 or 2.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [2147483647, -1, 4]}}');
-ERROR:  Expression $trunc takes at least 1 arguments, and at most 2, but 3 were passed in.
+ERROR:  The expression $trunc requires no fewer than 1 arguments and no more than 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [2147483647, -1, 4, 5]}}');
-ERROR:  Expression $trunc takes at least 1 arguments, and at most 2, but 4 were passed in.
+ERROR:  The expression $trunc requires no fewer than 1 arguments and no more than 2 arguments, but 4 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": []}}');
-ERROR:  Expression $trunc takes at least 1 arguments, and at most 2, but 0 were passed in.
+ERROR:  The expression $trunc requires no fewer than 1 arguments and no more than 2 arguments, but 0 arguments were actually provided.
 -- $trunc: args should be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [{}]}}');
 ERROR:  $trunc works exclusively with numeric data types, not with object

@@ -376,9 +376,9 @@ ERROR:  Error in specification { "key" : { "_id" : 1 }, "name" : "ttl_idx", "exp
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"_id": 1, "_id" : 1}, "name": "ttl_idx", "expireAfterSeconds": 100}]}', true);
 ERROR:  Error in specification { "key" : { "_id" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: The field 'expireAfterSeconds' is not valid for an _id index specification.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"_id": 1, "non_id" : 1}, "name": "ttl_idx", "expireAfterSeconds": 100}]}', true);
-ERROR:  Error in specification { "key" : { "_id" : 1, "non_id" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: TTL indexes are single-field indexes, compound indexes do not support TTL.
+ERROR:  Error in specification { "key" : { "_id" : 1, "non_id" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: TTL indexes work only on single fields, and compound indexes are incompatible with TTL functionality.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"non_id1": 1, "non_id2" : 1}, "name": "ttl_idx", "expireAfterSeconds": 100}]}', true);
-ERROR:  Error in specification { "key" : { "non_id1" : 1, "non_id2" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: TTL indexes are single-field indexes, compound indexes do not support TTL.
+ERROR:  Error in specification { "key" : { "non_id1" : 1, "non_id2" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: TTL indexes work only on single fields, and compound indexes are incompatible with TTL functionality.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "ttlcoll", "indexes": [{"key": {"non_id1.$**": 1}, "name": "ttl_idx", "expireAfterSeconds": 100}]}', true);
 ERROR:  Error in specification { "key" : { "non_id1.$**" : 1 }, "name" : "ttl_idx", "expireAfterSeconds" : 100 } :: caused by :: Index type 'wildcard' cannot be a TTL index.
 -- 15. Unsupported ttl index scenarios

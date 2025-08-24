@@ -1183,7 +1183,7 @@ ProcessDollarDivide(void *state, bson_value_t *result)
 		if (IsDecimal128Zero(&divisor))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"can't $divide by zero")));
+								"$divide by zero is not allowed")));
 		}
 
 		result->value_type = BSON_TYPE_DECIMAL128;
@@ -1198,7 +1198,7 @@ ProcessDollarDivide(void *state, bson_value_t *result)
 		if (divisor == 0.0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"can't $divide by zero")));
+								"$divide by zero is not allowed")));
 		}
 
 		result->value_type = BSON_TYPE_DOUBLE;
@@ -1516,7 +1516,7 @@ ProcessDollarLog(void *state, bson_value_t *result)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLOGARGUMENTMUSTBENUMERIC),
 						errmsg(
-							"$log's argument must be numeric, not %s",
+							"$log requires a numeric argument, but received %s instead.",
 							BsonTypeName(numberValue.value_type))));
 	}
 
@@ -1555,7 +1555,7 @@ ProcessDollarLog(void *state, bson_value_t *result)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLOGNUMBERMUSTBEPOSITIVE),
 							errmsg(
-								"$log's argument must be a positive number, but is %s",
+								"$log requires its argument to be a positive number, but the provided value is %s",
 								BsonValueToJsonForLogging(&numberValue))));
 		}
 
@@ -1594,7 +1594,7 @@ ProcessDollarLog(void *state, bson_value_t *result)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLOGNUMBERMUSTBEPOSITIVE),
 							errmsg(
-								"$log's argument must be a positive number, but is %s",
+								"$log requires its argument to be a positive number, but the provided value is %s",
 								BsonValueToJsonForLogging(&numberValue))));
 		}
 
@@ -1632,7 +1632,7 @@ ProcessDollarPow(void *state, bson_value_t *result)
 	if (!BsonValueIsNumber(&baseValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARPOWBASEMUSTBENUMERIC), errmsg(
-							"$pow's base must be numeric, not %s",
+							"$pow requires its base to be numeric, but received %s instead",
 							BsonTypeName(baseValue.value_type))));
 	}
 
@@ -1937,7 +1937,7 @@ ThrowIfNotNumeric(const bson_value_t *value, const char *operatorName)
 }
 
 
-/* Throws if the value is not numeric or a date value. */
+/* This error occurs when the provided value is neither numeric nor a valid date. */
 static void
 ThrowIfNotNumericOrDate(const bson_value_t *value, const char *operatorName)
 {

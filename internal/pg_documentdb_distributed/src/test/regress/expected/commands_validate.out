@@ -15,7 +15,7 @@ SELECT documentdb_api.validate('db', '{"validate" : ""}');
 ERROR:  Invalid namespace specified 'db.'
 -- Collection does not exist
 SELECT documentdb_api.validate('db', '{"validate" : "missingcoll"}');
-ERROR:  Collection 'db.missingcoll' does not exist to validate.
+ERROR:  The collection 'db.missingcoll' cannot be validated because it does not exist.
 -- Create Collection
 SELECT documentdb_api.create_collection('db', 'validatecoll');
 NOTICE:  creating collection

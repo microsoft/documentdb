@@ -114,7 +114,7 @@ index_spec_options_are_equivalent(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("index specs cannot be null")));
+		ereport(ERROR, (errmsg("Index specifications must not be null")));
 	}
 
 	IndexOptionsEquivalency equivalence = IndexSpecOptionsAreEquivalent(
@@ -166,7 +166,7 @@ get_index_spec_as_current_op_command(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 	char *databaseName = text_to_cstring(PG_GETARG_TEXT_P(0));
 

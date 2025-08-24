@@ -449,8 +449,9 @@ bson_repath_and_build(PG_FUNCTION_ARGS)
 		{
 			/* We don't support dollar prefixed-paths here */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40236),
-							errmsg("The field name %.*s cannot be an operator name",
-								   len, path)));
+							errmsg(
+								"Cannot use %.*s as a field name. Dollar prefixed paths are not allowed.",
+								len, path)));
 		}
 
 		if (nulls[i + 1])

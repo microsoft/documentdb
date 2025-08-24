@@ -286,20 +286,20 @@ ParseIVFCreationSpec(bson_iter_t *vectorOptionsIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"%s must be greater than or equal to %d not %d",
+									"Current value of %s is %d, which is lower than the min value of %d",
 									VECTOR_PARAMETER_NAME_IVF_NLISTS,
-									IVFFLAT_MIN_LISTS,
-									vectorIndexOptions->numLists)));
+									vectorIndexOptions->numLists,
+									IVFFLAT_MIN_LISTS)));
 			}
 
 			if (vectorIndexOptions->numLists > IVFFLAT_MAX_LISTS)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"%s must be less or equal than or equal to %d not %d",
+									"Current value of %s is %d, which exceeds the max value of %d",
 									VECTOR_PARAMETER_NAME_IVF_NLISTS,
-									IVFFLAT_MAX_LISTS,
-									vectorIndexOptions->numLists)));
+									vectorIndexOptions->numLists,
+									IVFFLAT_MAX_LISTS)));
 			}
 		}
 	}

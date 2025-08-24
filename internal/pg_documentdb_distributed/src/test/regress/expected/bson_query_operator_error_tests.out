@@ -571,24 +571,24 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 ERROR:  Can't have RegEx as arg to predicate over field 'a'.
 -- type undefined, no-operator
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : {"$undefined" : true } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : 1, "b" : { "$undefined" : true } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b" : { "$undefined" : true } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 -- type undefined, comparison query operators
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$eq" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$ne" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$gt" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$gte" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$lt" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$lte" : { "$undefined" : true } } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$in" : [ { "$undefined" : true } ] } }';
 ERROR:  InMatchExpression equality cannot be undefined
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$in" : [ { "$undefined" : true }, 2, 3, 4 ] } }';
@@ -599,9 +599,9 @@ SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator')
 ERROR:  InMatchExpression equality cannot be undefined
 -- type undefined, array query operators
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$all" : [ { "$undefined" : true } ] } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a" : { "$all" : [ { "$undefined" : true }, 2 ] } }';
-ERROR:  cannot compare to undefined
+ERROR:  Comparison with undefined value is not allowed
 --type undefined, bitwise query operators
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{"a": {"$bitsAllClear": {"$undefined": true}}}';
 ERROR:  a takes an Array, a number, or a BinData but received: $bitsAllClear: \{ "$undefined" : true }\

@@ -79,7 +79,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [{"$divide": [1,
 ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 -- $ifNull: should honor nested expression errors, even if a not null expression is found
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null, "not null", {"$divide": [1, 0]}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$ifNull": [null, "not null", {"$ifNull": [1]}]}}');
 ERROR:  Expression $ifNull requires at least two provided arguments, but received only 1.
 -- $cond: returns then when condition is true
@@ -287,13 +287,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": true}}');
 ERROR:  Expression $cond takes exactly 3 arguments. 1 were passed in.
 -- $cond: nested expression errors honored even if result is not affected by it
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [false, {"$divide": [1, 0]}, "else"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [true, "then", {"$divide": [1, 0]}]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"if": false, "then": {"$divide": [1, 0]}, "else": "else"}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"if": true, "then": "then", "else": {"$divide": [1, 0]}}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $switch: returns expected branch
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}]}}}');
           bson_dollar_project          
@@ -379,9 +379,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": fal
 ERROR:  $switch requires an array for 'branches', but received: bool
 -- $switch: found an unknown argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [], "foo": "blah"}}}');
-ERROR:  $switch found an unknown argument: foo
+ERROR:  Unknown argument: foo
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"foo": "blah", "branches": {}}}}');
-ERROR:  $switch found an unknown argument: foo
+ERROR:  Unknown argument: foo
 -- $switch: requires at least one branch
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": []}}}');
 ERROR:  $switch requires at least one branch.
@@ -411,12 +411,12 @@ ERROR:  Expression $ifNull requires at least two provided arguments, but receive
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "first branch is true"}, {"case": false, "then": "false"}], "default": {"$ifNull": []}}}}');
 ERROR:  Expression $ifNull requires at least two provided arguments, but received only 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}, {"case": {"$divide": [1, 0]}, "then": "false"}], "default": {"$ifNull": []}}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "first branch is true"}, {"case": {"$divide": [1, 0]}, "then": "false"}], "default": {"$ifNull": []}}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- Fail for non-constant error branch expressions (eg: paths) if that branch is matched
 SELECT * FROM bson_dollar_project('{"a": 0}', '{"result": {"$switch": {"branches": [{"case": false, "then": "first branch is true"}, {"case": true, "then": {"$divide": [1, "$a"]}}]}}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- Does not fail for non-constant error expressions (eg: paths) if a valid branch is found 
 SELECT * FROM bson_dollar_project('{"a": 0}', '{"result": {"$switch": {"branches": [{"case": true, "then": "first branch is true"}, {"case": false, "then": {"$divide": [1, "$a"]}}]}}}');
           bson_dollar_project          

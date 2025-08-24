@@ -876,7 +876,7 @@ ThrowExpressionNumOfArgsOutsideRange(const char * expression, int minRequiredArg
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_RANGEARGUMENTEXPRESSIONARGSOUTOFRANGE),
 					errmsg(
-						"Expression %s takes at least %d arguments, and at most %d, but %d were passed in.",
+						"The expression %s requires no fewer than %d arguments and no more than %d arguments, but %d arguments were actually provided.",
 						expression, minRequiredArgs, maxRequiredArgs, numArgs)));
 }
 

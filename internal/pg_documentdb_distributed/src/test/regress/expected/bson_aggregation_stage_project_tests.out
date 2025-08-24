@@ -316,9 +316,9 @@ SELECT bson_dollar_project(document, '{ "a.b" : 0 }') FROM documentdb_api.collec
 
 -- basic a.b and a.c with mixed inclusion (error path) query with id excluded and included
 SELECT bson_dollar_project(document, '{ "a.b" : 1, "a.c": 0, "_id": 0 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Cannot do exclusion on field a.c in inclusion projection.
+ERROR:  exclusion cannot be applied to field a.c within the inclusion projection.
 SELECT bson_dollar_project(document, '{ "a.b" : 1, "a.c": 0 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Cannot do exclusion on field a.c in inclusion projection.
+ERROR:  exclusion cannot be applied to field a.c within the inclusion projection.
 -- special case projections
 SELECT bson_dollar_project(document, '{ "_id" : 1 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
  bson_dollar_project 
@@ -919,7 +919,7 @@ SELECT documentdb_api.insert_one('db','projectops','{"_id":"12", "a" : { "_id" :
 (1 row)
 
 SELECT bson_dollar_project(document, '{"_id" : 1, "a" : {"_id" : 1}, "a.b" : { "c" : {"_id" : 0}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Cannot do exclusion on field _id in inclusion projection.
+ERROR:  exclusion cannot be applied to field _id within the inclusion projection.
 -- Test nested array projections 
 SELECT bson_dollar_project('{"_id":"1", "a" : [1, {"d":1}, [3, 4], "x"] }', '{"a" : { "c" : { "d": "1"}}}');
                                                                     bson_dollar_project                                                                     

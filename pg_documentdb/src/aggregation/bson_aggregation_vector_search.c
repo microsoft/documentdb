@@ -227,7 +227,8 @@ HandleSearch(const bson_value_t *existingValue, Query *query,
 	{
 		/* This is incompatible.vector search needs the base relation. */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$search must be the first stage in the pipeline")));
+						errmsg(
+							"$search must appear as the initial stage in the pipeline sequence.")));
 	}
 
 	ReportFeatureUsage(FEATURE_STAGE_SEARCH);
@@ -1336,7 +1337,7 @@ ParseAndValidateNativeVectorSearchSpec(const bson_value_t *nativeVectorSearchSpe
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$vectorSearch.limit must be a positive integer.")));
+									"$vectorSearch.limit must be provided as a positive integer value.")));
 			}
 			PgbsonWriterAppendInt32(&writer, "k", 1,
 									value->value.v_int32);
@@ -1803,7 +1804,7 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$exact must be a boolean value.")));
+									"$exact must represent a valid boolean value.")));
 			}
 
 			vectorSearchOptions->exactSearch = BsonValueAsBool(value);

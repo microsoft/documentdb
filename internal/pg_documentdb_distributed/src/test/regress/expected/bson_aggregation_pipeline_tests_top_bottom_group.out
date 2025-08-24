@@ -109,7 +109,7 @@ ERROR:  'n' must be greater than 0, found -1
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": 0.5}}}} ] }'); -- n is not an integer
 ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": 1, "n": 1}}}} ] }'); -- sortBy is not an object
-ERROR:  expected 'sortBy' to already be an object in the arguments to $bottomN
+ERROR:  Expected 'sortBy' parameter to already contain an object within the provided arguments to $bottomN
 /* $top operator with $group */
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }');
                     document                    

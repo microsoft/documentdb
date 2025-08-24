@@ -175,7 +175,7 @@ SELECT * FROM bson_dollar_project('{"a": { "c": true}}', '{"result": { "$and": [
 
 -- If nested expression parses to a constant that evaluates to an error, the error from the nested expression will be thrown. 
 SELECT * FROM bson_dollar_project('{"a": { "c": true}}', '{"result": { "$and": [false, {"$divide": [1, 0]}, "$a.c"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{"a": { "c": true}}', '{"result": { "$and": [false, "$a.c", {"$subtract": [1, {"$date": {"$numberLong": "11232"}}]}]}}');
 ERROR:  can't $subtract date from int
 SELECT * FROM bson_dollar_project('{"a": { "c": false}}', '{"result": { "$and": [{"$add": [0, 1]}, "$a.c", {"$not": [1,2]}]}}');
@@ -188,7 +188,7 @@ SELECT * FROM bson_dollar_project('{"a": { "c": 0}}', '{"result": { "$and": [fal
 (1 row)
 
 SELECT * FROM bson_dollar_project('{"a": { "c": 0}}', '{"result": { "$and": [true, {"$divide": [1, "$a.c"]}, "$a.c"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $or operator
 -- should return true
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$or": true}}');
@@ -412,7 +412,7 @@ SELECT * FROM bson_dollar_project('{"a": { "c": false}}', '{"result": { "$or": [
 SELECT * FROM bson_dollar_project('{"a": false, "b": false, "c": false}', '{"result": { "$or": ["$a", "$b", "$c", {"$divide": []}]}}');
 ERROR:  Expression $divide takes exactly 2 arguments. 0 were passed in.
 SELECT * FROM bson_dollar_project('{"a": { "c": true}}', '{"result": { "$or": [false, {"$divide": [1, 0]}, "$a.c"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{"a": { "c": true}}', '{"result": { "$or": [false, "$a.c", {"$subtract": [1, {"$date": {"$numberLong": "11232"}}]}]}}');
 ERROR:  can't $subtract date from int
 SELECT * FROM bson_dollar_project('{"a": { "c": false}}', '{"result": { "$or": [{"$add": [0, 1]}, "$a.c", {"$not": [1,2]}]}}');
@@ -425,7 +425,7 @@ SELECT * FROM bson_dollar_project('{"a": { "c": 0}}', '{"result": { "$or": [true
 (1 row)
 
 SELECT * FROM bson_dollar_project('{"a": { "c": 0}}', '{"result": { "$or": [false, {"$divide": [1, "$a.c"]}, "$a.c"]}}');
-ERROR:  can't $divide by zero
+ERROR:  $divide by zero is not allowed
 -- $not operator
 -- should return true
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$not": false}}');

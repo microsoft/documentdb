@@ -333,7 +333,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } } :: caused by :: unsupported expression in partial index: $or
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "$or" : [ { "a" : 1 } ] } ] } } :: caused by :: Expression not supported in partial index: $or
     a $eq 1
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -341,7 +341,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$nor": [{"a": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 } ] } } :: caused by :: unsupported expression in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 } ] } } :: caused by :: Expression not supported in partial index: $not
     $or
         a $eq 1
 
@@ -350,7 +350,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$nor": [{"a": 1}, {"b": 1}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 }, { "b" : 1 } ] } } :: caused by :: unsupported expression in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$nor" : [ { "a" : 1 }, { "b" : 1 } ] } } :: caused by :: Expression not supported in partial index: $not
     $or
         a $eq 1
         b $eq 1
@@ -362,7 +362,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : [ 2 ] } }, { "c" : 4 } ] } } :: caused by :: unsupported expression in partial index: a $in [ 2 ]
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : [ 2 ] } }, { "c" : 4 } ] } } :: caused by :: Expression not supported in partial index: a $in [ 2 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
@@ -375,14 +375,14 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "a": {"$ne": 1}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$ne" : 1 } } } :: caused by :: unsupported expression in partial index: a $ne 1
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$ne" : 1 } } } :: caused by :: Expression not supported in partial index: a $ne 1
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$nin": [1,2,3]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$nin" : [ 1, 2, 3 ] } } } :: caused by :: unsupported expression in partial index: a $nin [ 1, 2, 3 ]
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$nin" : [ 1, 2, 3 ] } } } :: caused by :: Expression not supported in partial index: a $nin [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
@@ -417,7 +417,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "a": {"$not": {"$eq": [1,2,3]}}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } } :: caused by :: unsupported expression in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } } :: caused by :: Expression not supported in partial index: $not
     a $eq [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -425,7 +425,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "$and": [{"a": {"$not": {"$eq": [1,2,3]}}}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } ] } } :: caused by :: unsupported expression in partial index: $not
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$not" : { "$eq" : [ 1, 2, 3 ] } } } ] } } :: caused by :: Expression not supported in partial index: $not
     a $eq [ 1, 2, 3 ]
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
@@ -436,14 +436,14 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$exists" : true } }, { "a" : { "$size" : 5 } } ] } } :: caused by :: unsupported expression in partial index: a $size 5
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "a" : { "$exists" : true } }, { "a" : { "$size" : 5 } } ] } } :: caused by :: Expression not supported in partial index: a $size 5
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [{"b": 55}, {"a": {"$exists": false}}]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 55 }, { "a" : { "$exists" : false } } ] } } :: caused by :: unsupported expression in partial index: a $exists false
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 55 }, { "a" : { "$exists" : false } } ] } } :: caused by :: Expression not supported in partial index: a $exists false
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {

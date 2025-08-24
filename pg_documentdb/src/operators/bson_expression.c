@@ -1207,7 +1207,7 @@ ValidateVariableNameCore(StringView name, bool allowStartWithUpper)
 			(!isupper(current) || !allowStartWithUpper))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-								"'%s' starts with an invalid character for a user variable name",
+								"The variable name '%s' begins with a character that is not valid for user-defined variables",
 								name.string)));
 		}
 		else if (isascii(current) && !isdigit(current) && !islower(current) &&
@@ -1756,7 +1756,8 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 				{
 					/* We got a $$var. expression which is invalid. */
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-									errmsg("FieldPath must not end with a '.'.")));
+									errmsg(
+										"The FieldPath cannot terminate with a '.' character.")));
 				}
 
 				if (StringViewEqualsCString(&expressionView, "$$NOW"))
@@ -1822,7 +1823,8 @@ ParseAggregationExpressionData(AggregationExpressionData *expressionData,
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17276),
-										errmsg("Use of undefined variable: DESCEND")));
+										errmsg(
+											"Usage of an undefined variable detected: DESCEND")));
 					}
 				}
 				else if (StringViewEqualsCString(&expressionView, "$$PRUNE"))
@@ -2243,7 +2245,7 @@ EvaluateAggregationExpressionVariable(const AggregationExpressionData *data,
 	if (!ExpressionResultGetVariable(varName, expressionResult, document, &variableValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION17276),
-						errmsg("Use of undefined variable: %s",
+						errmsg("Attempting to use an undefined variable: %s",
 							   CreateStringFromStringView(&varName))));
 	}
 
@@ -2512,9 +2514,9 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("Operator %s not implemented yet",
+							errmsg("Operator %s is currently not supported",
 								   searchKey.operatorName),
-							errdetail_log("Operator %s not implemented yet",
+							errdetail_log("Operator %s is currently not supported",
 										  searchKey.operatorName)));
 		}
 
@@ -2794,9 +2796,10 @@ ParseDollarLet(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16875), errmsg(
-								"Unrecognized parameter to $let: %s", key),
+								"Unrecognized argument supplied to $let: %s",
+								key),
 							errdetail_log(
-								"Unrecognized parameter to $let, unexpected key")));
+								"Unrecognized argument supplied to $let, unexpected key")));
 		}
 	}
 

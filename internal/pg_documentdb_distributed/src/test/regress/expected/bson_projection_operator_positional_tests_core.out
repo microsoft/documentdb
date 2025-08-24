@@ -6,15 +6,15 @@ SET documentdb.next_collection_index_id TO 2700;
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": 1, "b.$": 1}', '{}');
 ERROR:  Cannot specify more than one positional projection per query.
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a..$": 1}', '{}');
-ERROR:  FieldPath must not end with a '.'.
+ERROR:  The FieldPath cannot terminate with a '.' character.
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$slice": 1}}', '{}');
 ERROR:  positional projection cannot be used with an expression or sub object
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": 0}', '{}');
 ERROR:  Exclusion is not compatible with positional projection usage
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": [1,2,3]}', '{}');
-ERROR:  positional projection cannot be used with a literal
+ERROR:  Positional projection is not applicable when working with a literal value
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": "Hello"}', '{}');
-ERROR:  positional projection cannot be used with a literal
+ERROR:  Positional projection is not applicable when working with a literal value
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$numberDecimal": "0"}}', '{}');
 ERROR:  Exclusion is not compatible with positional projection usage
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a": 1, "a.$": 1 }', '{}');

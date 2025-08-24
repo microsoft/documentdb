@@ -489,7 +489,7 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Failed to apply $mul operations to current (%s) value for document { _id: %s }",
+							"Unable to perform $mul on the existing (%s) value for the document with _id: %s",
 							FormatBsonValueForShellLogging(existingValue),
 							BsonValueToJsonForLogging(&state->documentId))));
 	}
@@ -534,7 +534,7 @@ HandleUpdateDollarPull(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Cannot apply $pull to a non-array value")));
+							"$pull cannot be used on values that are not arrays")));
 	}
 
 	/* Run the match and get all matching indices */
@@ -834,7 +834,7 @@ HandleUpdateDollarPullAll(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Cannot apply $pullAll to a non-array value")));
+							"Unable to use $pullAll on a value that is not an array")));
 	}
 
 	bson_iter_t currentArrayIter;
@@ -989,11 +989,11 @@ HandleUpdateDollarPop(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"Expected a number in: %s: %s",
+							"Expected numeric value in: %s: %s",
 							setValueState->relativePath,
 							BsonValueToJsonForLogging(updateValue)),
 						errdetail_log(
-							"Expected a number in $pop, found: %s",
+							"Expected numeric value in $pop, but encountered: %s",
 							BsonTypeName(updateValue->value_type))));
 	}
 
@@ -1002,11 +1002,11 @@ HandleUpdateDollarPop(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"Expected an integer: %s: %s",
+							"Expected numeric value: %s: %s",
 							setValueState->relativePath,
 							BsonValueToJsonForLogging(updateValue)),
 						errdetail_log(
-							"Expected a number in $pop, found: %s",
+							"Expected numeric value in $pop, but encountered: %s",
 							BsonTypeName(updateValue->value_type))));
 	}
 

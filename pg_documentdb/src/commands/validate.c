@@ -89,7 +89,7 @@ command_validate(PG_FUNCTION_ARGS)
 
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 	validateSpec.databaseName = text_to_cstring(PG_GETARG_TEXT_P(0));
 
@@ -164,7 +164,7 @@ command_validate(PG_FUNCTION_ARGS)
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND), errmsg(
-							"Collection '%s.%s' does not exist to validate.",
+							"The collection '%s.%s' cannot be validated because it does not exist.",
 							validateSpec.databaseName, validateSpec.collectionName)));
 	}
 

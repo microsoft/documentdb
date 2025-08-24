@@ -36,7 +36,9 @@ ParseDollarRand(const bson_value_t *argument, AggregationExpressionData *data,
 		argument->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION10065),
-						errmsg("invalid parameter: expected an object ($rand)")));
+						errmsg(
+							"Expected 'array' or 'document' type for $rand but found '%s' type",
+							BsonTypeName(argument->value_type))));
 	}
 	else if ((argument->value_type == BSON_TYPE_DOCUMENT &&
 			  !IsBsonValueEmptyDocument(argument)) ||

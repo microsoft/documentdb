@@ -1335,7 +1335,8 @@ AddIndexBuilds(TupleDesc descriptor, Tuplestorestate *tupleStore)
 		}
 		else if (status == IndexCmdStatus_Queued)
 		{
-			msg = "Index build is queued";
+			msg =
+				"The index build is currently queued";
 		}
 
 		pgbson_writer finalWriter;

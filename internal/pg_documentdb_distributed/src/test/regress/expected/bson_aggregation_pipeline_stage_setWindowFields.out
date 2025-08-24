@@ -122,7 +122,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  BSON field '$setWindowFields.output' is missing but a required field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "unknownField": {} } }]}');
-ERROR:  BSON field '$setWindowFields.unknownField' is an unknown field.
+ERROR:  The BSON field '$setWindowFields.unknownField' is not recognized as a valid field.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "partitionBy": [1] } }]}');
 ERROR:  An expression used to partition cannot evaluate to value of type array
@@ -3577,13 +3577,13 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  $integral got unexpected argument: unknown
 -- $integral (with no 'unit')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts" }, "window": { "range": [ "unbounded", "current" ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  $integral (without specifying 'unit') requires the sortBy field to be numeric values
+ERROR:  $integral (with no 'unit') expects the sortBy field to be numeric
 -- $integral (with no 'sortBy')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts", "unit": "hour" }, "window": { "range": [ "unbounded", "current" ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
 ERROR:  $integral requires a sortBy
 -- $integral sort by unknown field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "unknown": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts" }, "window": { "range": [ "unbounded", "current" ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  $integral (without specifying 'unit') requires the sortBy field to be numeric values
+ERROR:  $integral (with no 'unit') expects the sortBy field to be numeric
 -- $integral with invalid 'unit'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts", "unit": "year" }, "window": { "range": [ -1, 2 ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
 ERROR:  The specified unit must be 'week' or a smaller time interval
@@ -3828,7 +3828,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"a
 -- Negative tests
 -- $derivative (with no 'unit')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  $derivative where the sortBy is a Date requires an 'unit'
+ERROR:  $derivative with sortBy set to Date needs a specified 'unit'
 -- $derivative with invalid 'unit'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "month" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
 ERROR:  The specified unit must be 'week' or a smaller time interval
@@ -5232,7 +5232,7 @@ ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$und
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": {"$numberDecimal": "Infinity"}, "sortBy": {"quantity": 1}}}}}} ] }'); -- undefined  n
 ERROR:  Can't coerce out of range value Infinity to long
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": 1}}}}} ] }'); -- sortBy is not an object
-ERROR:  expected 'sortBy' to already be an object in the arguments to $bottomN
+ERROR:  Expected 'sortBy' parameter to already contain an object within the provided arguments to $bottomN
 ---------------------------------------------------------------------
 -- $stdDevPop & $stdDevSamp accumulator tests
 ---------------------------------------------------------------------
@@ -6829,7 +6829,7 @@ ERROR:  $firstN requires an 'n' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$lastN": {"n": 2}}}}} ] }'); -- missing input
 ERROR:  $lastN needs to have an 'input' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$lastN": {"input": "$quantity", "n": 2, "third": true}}}}} ] }'); -- extra field
-ERROR:  $lastN found an unknown argument: third
+ERROR:  $lastN encountered an unrecognized argument value: third
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": -2}}}}} ] }'); -- negative n
 ERROR:  'n' must be greater than 0, found -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": 2.2}}}}} ] }'); -- non-integer n

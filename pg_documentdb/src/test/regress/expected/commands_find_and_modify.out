@@ -2,7 +2,7 @@ SET documentdb.next_collection_id TO 3000;
 SET documentdb.next_collection_index_id TO 3000;
 -- null db name
 SELECT documentdb_api.find_and_modify(NULL, '{}');
-ERROR:  p_database_name cannot be NULL
+ERROR:  The parameter p_database_name must not be NULL
 -- null message
 SELECT documentdb_api.find_and_modify('db', NULL);
 ERROR:  p_message cannot be NULL

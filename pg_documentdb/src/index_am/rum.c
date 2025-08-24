@@ -157,7 +157,7 @@ RegisterIndexArrayStateFuncs(const RumIndexArrayStateFuncs *funcs)
 {
 	if (IndexArrayStateFuncs != NULL && IndexArrayStateFuncs != &RoaringStateFuncs)
 	{
-		/* This should not happen, as we should only register once */
+		/* Fail as register should only happen once */
 		ereport(ERROR, (errmsg("Index array state functions already registered")));
 	}
 

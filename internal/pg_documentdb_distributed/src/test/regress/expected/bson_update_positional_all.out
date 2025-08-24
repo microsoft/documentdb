@@ -253,7 +253,7 @@ ERROR:  The positional operator did not find the match needed from the query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [{"x": 5},{"y":10}] }', '{ "": { "$inc": { "a.$.c": 30 } } }', '{}');
 ERROR:  The positional operator did not find the match needed from the query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"$":10} } }', '{}');
-ERROR:  Cannot have positional (i.e. '$') element in the first position in path '$'
+ERROR:  Positional element (i.e. '$') cannot appear at the beginning of the path '$'.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"x":5},{"y":10}] }', '{ "": { "$inc": {"a.$[].x": 10,"a.$.y": 12 } } }', '{}');
                                                                                bson_update_document                                                                               
 ---------------------------------------------------------------------
@@ -291,6 +291,6 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } 
 ERROR:  The destination field for $rename may not be dynamic: b.$[]
 -- Test Set 24: $positional with adding new fields
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"a.c.$[]": 1 } } }', '{}');
-ERROR:  The path 'c' must exist in the document in order to apply array updates.
+ERROR:  The specified path 'c' does not exist within the document. Cannot apply array update operations.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"c.$[]": 1 } } }', '{}');
-ERROR:  The path 'c' must exist in the document in order to apply array updates.
+ERROR:  The specified path 'c' does not exist within the document. Cannot apply array update operations.

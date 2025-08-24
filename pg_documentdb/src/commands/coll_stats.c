@@ -102,7 +102,7 @@ command_coll_stats(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 	Datum databaseName = PG_GETARG_DATUM(0);
 
@@ -245,8 +245,9 @@ command_coll_stats_aggregation(PG_FUNCTION_ARGS)
 	{
 		/* storageStats & count not supported on views */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTEDONVIEW),
-						errmsg("Namespace %s is a view, not a collection",
-							   namespaceString->data)));
+						errmsg(
+							"The namespace %s is identified as a view rather than being recognized as a collection.",
+							namespaceString->data)));
 	}
 
 	CollStatsResult result = { 0 };
@@ -284,7 +285,7 @@ command_coll_stats_worker(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("db name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL")));
 	}
 
 	if (PG_ARGISNULL(1))
@@ -658,7 +659,7 @@ CollStatsWorker(void *fcinfoPointer)
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection not found")));
+						errmsg("Collection could not be found")));
 	}
 
 	/* First step, get the relevant shards on this node (We're already in the query worker) */
