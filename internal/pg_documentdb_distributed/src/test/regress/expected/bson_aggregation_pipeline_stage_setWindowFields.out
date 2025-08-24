@@ -194,7 +194,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Missing sortBy field for document-based window
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": ["" , ""] }}}}}]}');
-ERROR:  Window bounds must be 'unbounded', 'current', or a number.
+ERROR:  The window boundaries value must be either 'unbounded', 'current', or a specific numeric value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "range": ["unbounded" , "unbounded"] }}}}}]}');
 ERROR:  Expected a single sort by field for range-based window
@@ -212,25 +212,25 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Window bounds must be a 2-element array: documents: [ 1, 2, 3 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1, "text"] }}}}}]}');
-ERROR:  Window bounds must be 'unbounded', 'current', or a number.
+ERROR:  The window boundaries value must be either 'unbounded', 'current', or a specific numeric value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1, {"a": 1}] }}}}}]}');
-ERROR:  Numeric document-based bounds must be an integer
+ERROR:  The numeric boundaries specified for the document must be provided as an integer value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1, -1] }}}}}]}');
-ERROR:  Lower bound must not exceed upper bound: [ 1, -1 ]
+ERROR:  The lower boundary should never be greater than the specified upper boundary: [ 1, -1 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "range": [1, "current"] }}}}}]}');
-ERROR:  Lower bound must not exceed upper bound: [ 1, "current" ]
+ERROR:  The lower boundary should never be greater than the specified upper boundary: [ 1, "current" ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "range": ["current", -2] }}}}}]}');
-ERROR:  Lower bound must not exceed upper bound: [ "current", -2 ]
+ERROR:  The lower boundary should never be greater than the specified upper boundary: [ "current", -2 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "sortBy": {"date": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2] }}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a number, but it was date
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (date) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "sortBy": {"a": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "day" }}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was string
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (string) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "sortBy": {"a": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "days" }}}}}]}');
 ERROR:  Unrecognized value for time unit: days
@@ -239,13 +239,13 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Unrecognized value for time unit: Day
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": {"_id": 1 }}, {"$setWindowFields": { "sortBy": {"date": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "second"}}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was int
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (int) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": { "_id": 2 }}, {"$setWindowFields": { "sortBy": {"date": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2], "unit": "second"}}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was undefined
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (undefined) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": { "_id": 3 }}, {"$setWindowFields": { "sortBy": {"cost": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2]}}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a number, but it was string
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (string) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": { "_id": 4 }}, {"$setWindowFields": { "sortBy": {"cost": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2]}}}}}]}');
 ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a number, but it was undefined
@@ -1238,19 +1238,19 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 -- Should error since $count take no argument
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"countInGroup": { "$count": 1}}}}]}');
-ERROR:  $count only accepts an empty object as input
+ERROR:  $count can only receive an empty object as its valid input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"countInGroup": { "$count": "str"}}}}]}');
-ERROR:  $count only accepts an empty object as input
+ERROR:  $count can only receive an empty object as its valid input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"countInGroup": { "$count": true }}}}]}');
-ERROR:  $count only accepts an empty object as input
+ERROR:  $count can only receive an empty object as its valid input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"countInGroup": { "$count": {"fst": 1} }}}}]}');
-ERROR:  $count only accepts an empty object as input
+ERROR:  $count can only receive an empty object as its valid input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"countInGroup": { "$count": [1, "$a"] }}}}]}');
-ERROR:  $count only accepts an empty object as input
+ERROR:  $count can only receive an empty object as its valid input
 -- test on shard collection
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_sharded", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"totalCount": { "$count": {}}}}}]}');
@@ -3595,7 +3595,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  The input value of $integral window function must be a vector of 2 value, the first value must be numeric or date type and the second must be numeric.
 -- $integral with invalid window range
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts", "unit": "hour" }, "window": { "range": [ -1, "current" ] } } } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a number, but it was date
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (date) was provided.
 -- $integral input is str
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$str", "unit": "hour" }, "window": { "range": [ -1, 2 ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
 ERROR:  The input value of $integral window function must be a vector of 2 value, the first value must be numeric or date type and the second must be numeric.
@@ -3837,10 +3837,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"a
 ERROR:  Window bounds can only specify 'unit' with range-based bounds.
 -- $derivative (with invalid str 'sortBy')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "str": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was undefined
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (undefined) was provided.
 -- $derivative sort by unknown field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "unknown": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was undefined
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (undefined) was provided.
 -- $derivative with no window
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
 ERROR:  $derivative requires explicit window bounds
@@ -3887,7 +3887,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  $derivative with 'unit' requires that the sortBy field needs to be a Date value
 -- $derivative (window is with date range)
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "collNumeric", "pipeline": [ { "$setWindowFields": { "partitionBy": "$partitionID", "sortBy": { "x": 1 }, "output": { "derivative": { "$derivative": { "input": "$y" }, "window": { "range": [ -1, 1 ], "unit": "second"} } } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was int
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (int) was provided.
 -- test integral and derivative with shard
 SELECT documentdb_api.shard_collection('db', 'collNumeric', '{ "type": "hashed" }', false);
  shard_collection 
@@ -4120,10 +4120,10 @@ SELECT documentdb_api.insert_one('db', 'IntegralInvalid', '{"truckID": "3", "tim
 
 -- derivative failed
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "IntegralInvalid", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was int
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (int) was provided.
 -- integral failed
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "IntegralInvalid", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$integral": { "input": "$miles", "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a Date, but it was int
+ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (int) was provided.
 -- test integral and derivative with infinity/null/NaN mixed types
 SELECT documentdb_api.insert_one('db', 'collNaN', '{"partitionID": 1, "x": 0, "y":  {"$numberDecimal": "NaN" }}', NULL);
 NOTICE:  creating collection
@@ -4355,16 +4355,16 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  $shift requires an 'output' expression.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity" }}}}}]}'); -- missing by field in $shift
-ERROR:  $shift requires 'by' as an integer value.
+ERROR:  The shift operator requires the 'by' parameter to be provided as an integer value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1.1 }}}}}]}'); -- non-integer by field in $shift
-ERROR:  '$shift:by' field must be an integer, but found by: 1.1
+ERROR:  The parameter $shift:by requires an integer value, but received: 1.1
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": {"t": 1} }}}}}]}'); -- non-integer by field in $shift
-ERROR:  '$shift:by' field must be an integer, but found by: { "t" : 1 }
+ERROR:  The parameter $shift:by requires an integer value, but received: { "t" : 1 }
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": {"undefined": true} }}}}}]}'); -- non-integer by field in $shift
-ERROR:  '$shift:by' field must be an integer, but found by: { "undefined" : true }
+ERROR:  The parameter $shift:by requires an integer value, but received: { "undefined" : true }
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1, "default": "$quantity" }}}}}]}'); -- non-constant default expression in $shift
 ERROR:  '$shift:default' expression must yield a constant value.
@@ -4373,7 +4373,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  '$shift:default' expression must yield a constant value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 2147483649}}}}}]}'); -- by value greater than int32 max value
-ERROR:  '$shift:by' field must be an integer, but found by: 2147483649
+ERROR:  The parameter $shift:by requires an integer value, but received: 2147483649
 ---------------------------------------------------------------------
 -- Valid tests
 ---------------------------------------------------------------------
@@ -5206,15 +5206,15 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 
 /* Negative tests FOR $top(N)/$bottom(N) */
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": [1]}}}}] }'); -- spec should be document
-ERROR:  specification must be an object; found $topN :[ 1 ]
+ERROR:  specification must be defined as an object, but the provided input was $topN :[ 1 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": "hello"}}}}] }');  -- spec should be document
-ERROR:  specification must be an object; found $bottomN :"hello"
+ERROR:  specification must be defined as an object, but the provided input was $bottomN :"hello"
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$top": {"output": "hello"}}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottom": {"sortBy": {"quantity": 1}}}}}} ] }'); -- missing output field
 ERROR:  Missing value for 'output'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "hello", "sortBy": {"quantity": 1}}}}}} ] }'); -- missing n
-ERROR:  Missing value for 'n'
+ERROR:  Required value for 'n' is not provided
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"n": 2, "sortBy": {"quantity": 1}}}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "hello", "n": 2}}}}} ] }'); -- missing sortBy
@@ -5222,7 +5222,7 @@ ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": {"quantity": 1}, "fourth": true}}}}} ] }'); -- extra field
 ERROR:  Unknown argument to $bottomN 'fourth'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": -2, "sortBy": {"quantity": 1}}}}}} ] }'); -- negative n
-ERROR:  'n' must be greater than 0, found -2
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": 2.2, "sortBy": {"quantity": 1}}}}}} ] }'); -- non-integer n
 ERROR:  Expected 'integer' type for 'n' but found 'double' for value '2.2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": "a", "sortBy": {"quantity": 1}}}}}} ] }'); -- non-integer n
@@ -5230,7 +5230,7 @@ ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": {"$undefined": true}, "sortBy": {"quantity": 1}}}}}} ] }'); -- undefined  n
 ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": {"$numberDecimal": "Infinity"}, "sortBy": {"quantity": 1}}}}}} ] }'); -- undefined  n
-ERROR:  Can't coerce out of range value Infinity to long
+ERROR:  Unable to convert out-of-range value Infinity into a long type
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": 1}}}}} ] }'); -- sortBy is not an object
 ERROR:  Expected 'sortBy' parameter to already contain an object within the provided arguments to $bottomN
 ---------------------------------------------------------------------
@@ -6821,9 +6821,9 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 
 /* Negative tests for $firstN/$lastN */
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": [1]}}}}] }'); -- spec should be document
-ERROR:  specification must be an object; found $firstN :[ 1 ]
+ERROR:  specification must be defined as an object, but the provided input was $firstN :[ 1 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$lastN": "hello"}}}}] }');  -- spec should be document
-ERROR:  specification must be an object; found $lastN :"hello"
+ERROR:  specification must be defined as an object, but the provided input was $lastN :"hello"
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "hello"}}}}} ] }'); -- missing n
 ERROR:  $firstN requires an 'n' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$lastN": {"n": 2}}}}} ] }'); -- missing input
@@ -6831,7 +6831,7 @@ ERROR:  $lastN needs to have an 'input' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$lastN": {"input": "$quantity", "n": 2, "third": true}}}}} ] }'); -- extra field
 ERROR:  $lastN encountered an unrecognized argument value: third
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": -2}}}}} ] }'); -- negative n
-ERROR:  'n' must be greater than 0, found -2
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": 2.2}}}}} ] }'); -- non-integer n
 ERROR:  Expected 'integer' type for 'n' but found 'double' for value '2.2'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": "a"}}}}} ] }'); -- non-integer n
@@ -6839,7 +6839,7 @@ ERROR:  Expected 'integer' type for 'n' but found 'string' for value '"a"'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": {"$undefined": true}}}}}} ] }'); -- undefined  n
 ERROR:  Expected 'integer' type for 'n' but found 'undefined' for value '{ "$undefined" : true }'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$firstN": {"input": "$quantity", "n": {"$numberDecimal": "Infinity"}}}}}} ] }'); -- undefined  n
-ERROR:  Can't coerce out of range value Infinity to long
+ERROR:  Unable to convert out-of-range value Infinity into a long type
 /* Test $first, $last, $firstN, $lastN with $group stage as code path is common with $setWindowFields */
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "setWindowFields", "pipeline": [{"$group": {"_id": "$a", "res": {"$firstN": {"input": "$quantity", "n": 3 }}}}] }');
                                                   document                                                   

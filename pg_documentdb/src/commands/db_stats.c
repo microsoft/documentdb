@@ -166,7 +166,7 @@ command_list_databases(PG_FUNCTION_ARGS)
 		else if (!IsCommonSpecIgnoredField(key))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("%s is an unknown field", key)));
+							errmsg("%s is an unrecognized field name", key)));
 		}
 	}
 

@@ -58,7 +58,7 @@ typedef struct tdigest_t
 	int32 flags;                /* reserved for future use (versioning, ...) */
 	int64 count;                /* number of items added to the t-digest */
 	int compression;            /* compression used to build the digest */
-	int ncentroids;             /* number of cetroids in the array */
+	int ncentroids;             /* Number of centroids in the array */
 	centroid_t centroids[FLEXIBLE_ARRAY_MEMBER];
 } tdigest_t;
 
@@ -663,7 +663,7 @@ check_compression(int compression)
 {
 	if (compression < MIN_COMPRESSION || compression > MAX_COMPRESSION)
 	{
-		elog(ERROR, "invalid compression value %d", compression);
+		elog(ERROR, "Compression value %d is invalid", compression);
 	}
 }
 

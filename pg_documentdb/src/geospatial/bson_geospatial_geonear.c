@@ -381,7 +381,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-							errmsg("distanceMultiplier must be a number")));
+							errmsg(
+								"The value of distanceMultiplier must be a numeric type")));
 			}
 
 			request->distanceMultiplier = BsonValueAsDoubleQuiet(value);
@@ -481,7 +482,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 			if (index == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-								errmsg("$geometry is required for geo near query")));
+								errmsg(
+									"A geo near query requires the $geometry to be specified.")));
 			}
 
 			if (index == 1)
@@ -509,7 +511,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-					errmsg("$geoNear requires a 'distanceField' option as a String")));
+					errmsg(
+						"$geoNear needs a 'distanceField' option specified as a String value")));
 	}
 
 	if (request->spherical && (request->referencePoint.x < -180.0 ||
@@ -609,7 +612,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 		if (!bson_iter_next(&valueIter))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("$geometry is required for geo near query")));
+							errmsg(
+								"A geo near query requires the $geometry to be specified.")));
 		}
 
 		/* Write the array as is it to be parsed later, and extract min and max distance from iterator. */
@@ -744,7 +748,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("$geometry is required for geo near query")));
+							errmsg(
+								"A geo near query requires the $geometry to be specified.")));
 		}
 	}
 	else
@@ -868,7 +873,7 @@ CreateExprForGeonearAndNearSphere(const pgbson *queryDoc, Expr *docExpr,
 								 (Expr *) queryConst,
 								 InvalidOid, InvalidOid);
 
-	/* Update the resno later */
+	/* Postpone updating the resno value */
 	TargetEntry *tle = makeTargetEntry(opExpr, 0, "distance", true);
 	*targetEntry = tle;
 
@@ -1268,16 +1273,17 @@ GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-					errmsg("%s must be a number", opName),
-					errdetail_log("%s must be a number", opName)));
+					errmsg("The value for %s must be a valid numeric type", opName),
+					errdetail_log("The value for %s must be a valid numeric type",
+								  opName)));
 	}
 
 	double distValue = BsonValueAsDouble(value);
 	if (isnan(distValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("%s must be non-negative", opName),
-						errdetail_log("%s must be non-negative", opName)));
+						errmsg("%s must be positive or zero", opName),
+						errdetail_log("%s must be positive or zero", opName)));
 	}
 	else if (distValue < 0.0)
 	{
@@ -1299,7 +1305,7 @@ ValidateGeoNearWithIndexBounds(const Bson2dGeometryPathOptions *options,
 		referencePoint.y < options->minBound || referencePoint.y > options->maxBound)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16433),
-						errmsg("point not in interval of [ %g, %g ]",
+						errmsg("Point lies outside the specified interval range [%g, %g]",
 							   options->minBound, options->maxBound)));
 	}
 }

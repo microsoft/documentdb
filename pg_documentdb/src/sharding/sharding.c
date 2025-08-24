@@ -364,7 +364,8 @@ FindShardKeyFieldValue(bson_iter_t *docIter, const char *path)
 			else if (BSON_ITER_HOLDS_REGEX(docIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-								errmsg("Shard key cannot contain a regex.")));
+								errmsg(
+									"A shard key is not allowed to include any regular expression pattern.")));
 			}
 			else if (BSON_ITER_HOLDS_UNDEFINED(docIter))
 			{
@@ -429,7 +430,7 @@ ValidateShardKey(const pgbson *shardKeyDoc)
 			if (strcmp("hashed", value->value.v_utf8.str) != 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-								errmsg("invalid value for shard key: %s",
+								errmsg("Shard key value provided is invalid: %s",
 									   value->value.v_utf8.str)));
 			}
 		}

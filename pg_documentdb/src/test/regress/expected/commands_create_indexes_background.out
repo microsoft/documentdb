@@ -358,9 +358,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a": 1 }, "name": "name\u0000field"}]}');
-                                                                                                                                          retval                                                                                                                                           | ok | requests 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a\" : 1 }, \"name\" : \"name\\u0000field\" }:The index name cannot contain embedded nulls", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                  retval                                                                                                                                                   | ok | requests 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a\" : 1 }, \"name\" : \"name\\u0000field\" }:The index name must not include any embedded null characters", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 -- For the next test, show the commands that we internally execute to build
@@ -390,15 +390,15 @@ DEBUG:  executing "SELECT index_id, index_spec, documentdb_api_internal.index_bu
 RESET client_min_messages;
 --
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$**foo": 1}, "name": "my_idx"}]}');
-                                                                                                                                       retval                                                                                                                                       | ok | requests 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**foo\" : 1 }, \"name\" : \"my_idx\" }:Index key contains an illegal field name", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                              retval                                                                                                                                              | ok | requests 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**foo\" : 1 }, \"name\" : \"my_idx\" }:Index key includes an invalid or prohibited field name", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$**.foo": 1}, "name": "my_idx"}]}');
-                                                                                                                                       retval                                                                                                                                        | ok | requests 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**.foo\" : 1 }, \"name\" : \"my_idx\" }:Index key contains an illegal field name", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                              retval                                                                                                                                               | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**.foo\" : 1 }, \"name\" : \"my_idx\" }:Index key includes an invalid or prohibited field name", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"b": -1, "a.$**": 1}, "name": "my_idx"}]}');
@@ -807,9 +807,9 @@ INSERT INTO documentdb_api_catalog.documentdb_index_queue (index_cmd, cmd_type, 
 VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32105, 2, 32000, 4);
 -- this should return finish : 1, ok : 0 and error message due to one attempt is failed "Index creation attempt failed"
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101,32102,32103,32104,32105,32106]}}');
-                                                                                     retval                                                                                      | ok | complete 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Index creation attempt failed", "code" : { "$numberInt" : "29" } } }, "ok" : { "$numberInt" : "0" } } | f  | t
+                                                                                  retval                                                                                  | ok | complete 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Failed to create index", "code" : { "$numberInt" : "29" } } }, "ok" : { "$numberInt" : "0" } } | f  | t
 (1 row)
 
 DELETE FROM documentdb_api_catalog.documentdb_index_queue;

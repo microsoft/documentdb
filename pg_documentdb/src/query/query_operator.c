@@ -1348,7 +1348,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 		if (!BsonValueIsNumberOrBool(value) || BsonValueAsInt32(value) != 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("%s must be an integer value of 1",
+							errmsg("%s must always be an integer value of exactly 1",
 								   operatorType == QUERY_OPERATOR_ALWAYS_TRUE ?
 								   "$alwaysTrue" : "$alwaysFalse")));
 		}
@@ -1438,7 +1438,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"$text is not allowed in this context")));
+								"$text cannot be used in this specific context")));
 		}
 
 		if (context->inputType != MongoQueryOperatorInputType_Bson)
@@ -2085,13 +2085,18 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 										errmsg(
-											"type must be represented as a number or a string")));
+											"The specified type must be expressed either in numerical form or as a textual string.")));
 					}
 				}
 
 				if (!typeArrayHasElements)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
+
+					                /* Compatibility Notice: The text in this error string is copied verbatim
+					                 * from MongoDB output to maintain compatibility with
+					                 * existing tools and scripts that rely on specific error message formats.
+					                 * Modifying this text may cause unexpected behavior in dependent systems. */
 									errmsg("%s must match at least one type", path)));
 				}
 			}
@@ -2099,7 +2104,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"type must be represented as a number or a string")));
+									"The specified type must be expressed either in numerical form or as a textual string.")));
 			}
 
 			return CreateFuncExprForSimpleQueryOperator(operatorDocIterator,
@@ -2332,10 +2337,10 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"$geoIntersect not supported with provided geometry: %s",
+								"$geoIntersect is not supported with the given geometry input: %s",
 								BsonValueToJsonForLogging(value)),
 							errdetail_log(
-								"$geoIntersect not supported with provided geometry.")));
+								"$geoIntersect is not supported with the given geometry input.")));
 			}
 
 			ShapeOperatorInfo *opInfo = palloc0(sizeof(ShapeOperatorInfo));
@@ -2577,12 +2582,12 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Expected an integer: %s: %s",
+									"Expected value of integer type: %s: %s",
 									operator->mongoOperatorName,
 									BsonValueToJsonForLogging(
 										operatorDocValue)),
 								errdetail_log(
-									"Expected an integer: %s: %s",
+									"Expected value of integer type: %s: %s",
 									operator->mongoOperatorName,
 									BsonTypeName(operatorDocValue->value_type))));
 			}
@@ -3778,10 +3783,10 @@ SortAndWriteInt32BsonTypeArray(const bson_value_t *bsonArray, pgbson_writer *wri
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 									errmsg(
-										"Expected an integer: %s: %s", opName,
+										"Expected value of integer type: %s: %s", opName,
 										BsonValueToJsonForLogging(element)),
 									errdetail_log(
-										"Expected an integer in operator: %s, found:%s",
+										"Expected value of integer type in operator: %s, found:%s",
 										opName,
 										BsonTypeName(element->value_type))));
 					break;
@@ -3906,7 +3911,7 @@ ValidateRegexArgument(const bson_value_t *argBsonValue)
 		argBsonValue->value_type != BSON_TYPE_REGEX)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$regex has to be a string")));
+							"$regex must be provided with a string value")));
 	}
 
 	/* Validate options when input type is BSON_TYPE_REGEX. */

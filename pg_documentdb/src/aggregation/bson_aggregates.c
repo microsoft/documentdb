@@ -1794,7 +1794,7 @@ bson_maxminn_combine(PG_FUNCTION_ARGS)
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
 		ereport(ERROR, errmsg(
-					"aggregate function maxN/minN combine called in non-aggregate context"));
+					"Aggregate functions maxN or minN have been invoked within a non-aggregation context."));
 	}
 
 	if (PG_ARGISNULL(0))

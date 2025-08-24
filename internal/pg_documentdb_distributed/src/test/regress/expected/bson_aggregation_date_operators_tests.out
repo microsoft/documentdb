@@ -1099,9 +1099,9 @@ SELECT * FROM bson_dollar_project('{"date": {"$date": "9999-12-31T11:59:59.911Z"
 ERROR:  Failed to convert date into text because the date value was beyond the supported range of 0 to 9999: 10000
 -- $dateFromParts null cases
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": null }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"$undefined":true} }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"year": null} }}');
  bson_dollar_project 
 ---------------------------------------------------------------------
@@ -1435,9 +1435,9 @@ select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"year" :
 
 -- $dateFromParts cases negative cases
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": 1 }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": "abc" }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {} }}');
 ERROR:  $dateFromParts needs to include either 'year' or 'isoWeekYear' in order to function properly
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"year":2017, "isoWeekYear": 2012} }}');
@@ -1445,9 +1445,9 @@ ERROR:  $dateFromParts cannot be used when combining natural date formats with I
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"year": {"$numberDecimal": "2014.5"} } }}');
 ERROR:  'year' must evaluate to an integer, but found decimal with the actual value :2014.5
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": 1 }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": "abc" }}');
-ERROR:  $dateFromParts only supports an object as its argument
+ERROR:  $dateFromParts only accepts an object type as its provided argument
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {} }}');
 ERROR:  $dateFromParts needs to include either 'year' or 'isoWeekYear' in order to function properly
 select * from bson_dollar_project('{}', '{"result": {"$dateFromParts": {"year":2017, "isoWeekYear": 2012} }}');
@@ -1946,7 +1946,7 @@ ERROR:  timezone must evaluate to a string, found int
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": {"$date" : {"$numberLong": "1707123355381"}} , "unit": "week", "binSize": 1 , "startOfWeek": "Menday"} }}');
 ERROR:  The 'startOfWeek' parameter in $dateTrunc has a value that is not recognized as a valid day of the week: Menday
 select * from bson_dollar_project('{}', '{"result": {"$dateTrunc": {"date": "A" , "unit": "456" } }}');
-ERROR:  $dateTrunc requires 'date' to be a date, but got string
+ERROR:  $dateTrunc expects the 'date' parameter to be a valid date type, but received string instead.
 -- $dateAdd null based cases
 select * from bson_dollar_project('{}','{"result": {"$dateAdd": null } }');
 ERROR:  $dateAdd requires an object type argument, but received input type: null
@@ -3014,7 +3014,7 @@ ERROR:  $dateDiff expects 'endDate' to be in date format, but received int
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"hex":1, "endDate": 1 , "unit": "month",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
 ERROR:  Unrecognized parameter provided to $dateDiff: hex
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "ashd",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
-ERROR:  $dateDiff parameter 'unit' value cannot be recognized as a time unit: ashd
+ERROR:  The 'unit' parameter in $dateDiff has an unrecognized time unit value: ashd
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": 1,  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
 ERROR:  $dateDiff needs 'unit' as a string, but received int instead
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "week",  "startDate": {"$date": {"$numberLong": "1262304000000"} }, "timezone" : 1 } } }');

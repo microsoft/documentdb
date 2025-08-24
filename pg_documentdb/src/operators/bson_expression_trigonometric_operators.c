@@ -678,7 +678,7 @@ ProcessDollarCos(const bson_value_t *currentValue, bson_value_t *result)
 	if (IsBsonValueInfinity(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $cos to %s, value must be in (-inf,inf)",
+							"Cannot use $cos with %s; the value must lie within the range (-inf, inf).",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}
@@ -774,7 +774,7 @@ ProcessDollarAsin(const bson_value_t *currentValue, bson_value_t *result)
 	if (BsonValueAsDouble(currentValue) < -1.0 || BsonValueAsDouble(currentValue) > 1.0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $asin to %s, value must be in [-1,1]",
+							"Unable to apply $asin to %s because the provided value must fall within the range [-1, 1]",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}

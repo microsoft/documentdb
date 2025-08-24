@@ -213,9 +213,12 @@ command_coll_stats_aggregation(PG_FUNCTION_ARGS)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field $collStats.%s is an unknown field", key),
-							errdetail_log("BSON field $collStats.%s is an unknown field",
-										  key)));
+							errmsg(
+								"The BSON field $collStats.%s is not recognized as a valid field",
+								key),
+							errdetail_log(
+								"The BSON field $collStats.%s is not recognized as a valid field",
+								key)));
 		}
 	}
 

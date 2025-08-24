@@ -315,13 +315,13 @@ FROM documentdb_api.collection('db', 'dollar_let_test');
 
 -- negative cases
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": [1, 2, 3]}}');
-ERROR:  $let only supports an object as its argument
+ERROR:  $let can accept only an object type as its argument.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": true, "in": "a"}}}');
 ERROR:  Parameter is invalid: an object type was expected (vars)
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {}}}}');
-ERROR:  Missing 'in' parameter to $let
+ERROR:  'in' parameter is missing for $let
 SELECT * FROM bson_dollar_project('{"a": 10}', '{"result": {"$let": {"in": "$a"}}}');
-ERROR:  Missing 'vars' parameter to $let
+ERROR:  'vars' parameter for $let is missing
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": [], "in": "$$123"}}}');
 ERROR:  Parameter is invalid: an object type was expected (vars)
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$let": {"vars": {"123": "123 variable"}, "in": "$$123"}}}');

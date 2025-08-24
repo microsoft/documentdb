@@ -286,7 +286,7 @@ HandleBucketAuto(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40240),
 						errmsg(
-							"The argument to $bucketAuto must be an object, but found type: %s",
+							"$bucketAuto requires an object argument, but a value of type %s was provided instead.",
 							BsonTypeName(
 								existingValue->value_type))));
 	}
@@ -345,7 +345,7 @@ HandleBucketAuto(const bson_value_t *existingValue, Query *query,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40244),
 								errmsg(
-									"The $bucketAuto 'output' field must be an object, but found type: %s",
+									"The 'output' field in $bucketAuto must be an object, but a different type was provided: %s",
 									BsonTypeName(value->value_type))));
 			}
 			output = *value;
@@ -815,7 +815,7 @@ ValidateGranularityType(const char *granularity)
 		}
 	}
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40257),
-					errmsg("Unknown rounding granularity: %s", granularity)));
+					errmsg("Rounding granularity not recognized: %s", granularity)));
 }
 
 
@@ -860,7 +860,7 @@ FindClosestPowersOf2(double n, bool findLarger)
 		}
 		if (findLarger)
 		{
-			return base * 2.0; /* Closest power of 2 strictly greater than n */
+			return base * 2.0; /* Smallest power of 2 that is strictly larger than n */
 		}
 		else
 		{
@@ -1082,7 +1082,7 @@ FindClosestRenardOrEseries(double n, bool findLarger, const char *seriesType)
 	double base = 1.0;
 
 	/* Scale the base up or down to find the appropriate range where n fits */
-	const double MIN_BASE = 5e-324; /* Smallest positive double */
+	const double MIN_BASE = 5e-324; /* Minimum positive double value */
 	const double MAX_BASE = 1.79769e308; /* Largest positive double */
 
 	/* let base <= n */

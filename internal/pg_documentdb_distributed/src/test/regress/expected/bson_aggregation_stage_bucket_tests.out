@@ -176,7 +176,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "dollarBuck
 ERROR:  The $bucket stage requires both 'groupBy' and 'boundaries' fields to be explicitly defined.
 -- groupBy must be a path with prefix $ or expression
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucket", "pipeline": [ { "$bucket": { "groupBy": "year", "boundaries": [2020, 2021, 2022, 2023] } } ] }');
-ERROR:  $bucket could not find a bucket for an input value "year", and no default was specified.
+ERROR:  $bucket was unable to locate a matching bucket for the provided input value "year", and no default bucket was defined.
 -- boundaries is acsending constant array, more than one element, same type.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucket", "pipeline": [ { "$bucket": { "groupBy": "$year", "boundaries": 2020 } } ] }');
 ERROR:  The $bucket 'boundaries' field is required to be an array containing values, but instead it was found to be: int
@@ -204,7 +204,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "dollarBuck
 ERROR:  Unrecognized option to $bucket: unknown
 -- document cannot fall into any bucket with no default being set.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucket", "pipeline": [ { "$bucket": { "groupBy": "$year", "boundaries": [2020, 2021] } } ] }');
-ERROR:  $bucket could not find a bucket for an input value 2021, and no default was specified.
+ERROR:  $bucket was unable to locate a matching bucket for the provided input value 2021, and no default bucket was defined.
 -- sharded collection
 SELECT documentdb_api.shard_collection('db', 'dollarBucket', '{ "_id": "hashed" }', false);
  shard_collection 

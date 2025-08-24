@@ -491,11 +491,11 @@ ERROR:  geo query doesn't have any geometry
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": [{ "$geometry": {} }] }}';
 ERROR:  Expected 'document' type for Geometry but found 'array' instead
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": {"$box": [[10, 20], [30, 40]] }}}';
-ERROR:  $geoIntersect not supported with provided geometry: { "$box" : [ [ 10, 20 ], [ 30, 40 ] ] }
+ERROR:  $geoIntersect is not supported with the given geometry input: { "$box" : [ [ 10, 20 ], [ 30, 40 ] ] }
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": {"$polygon": [[10, 20], [30, 40]] }}}';
-ERROR:  $geoIntersect not supported with provided geometry: { "$polygon" : [ [ 10, 20 ], [ 30, 40 ] ] }
+ERROR:  $geoIntersect is not supported with the given geometry input: { "$polygon" : [ [ 10, 20 ], [ 30, 40 ] ] }
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": {"$centerSphere": [[10, 20], [30, 40]] }}}';
-ERROR:  $geoIntersect not supported with provided geometry: { "$centerSphere" : [ [ 10, 20 ], [ 30, 40 ] ] }
+ERROR:  $geoIntersect is not supported with the given geometry input: { "$centerSphere" : [ [ 10, 20 ], [ 30, 40 ] ] }
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": 1 }}}';
 ERROR:  unknown geo specifier: $geometry: 1
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": {} }}}';
@@ -521,13 +521,13 @@ ERROR:  Point must be either an array or an object
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "LineString" } }}}';
 ERROR:  GeoJSON coordinates should always be provided as an array format containing coordinate values
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon" } }}}';
-ERROR:  Polygon coordinates must be an array
+ERROR:  Coordinates for Polygon must be provided as an array
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiPoint" } }}}';
 ERROR:  GeoJSON coordinates should always be provided as an array format containing coordinate values
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiLineString" } }}}';
-ERROR:  MultiLineString coordinates must be an array
+ERROR:  Coordinates for MultiLineString must be provided as an array
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiPolygon" } }}}';
-ERROR:  MultiPolygon coordinates must be an array
+ERROR:  Coordinates for MultiPolygon must be provided as an array
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "GeometryCollection" } }}}';
 ERROR:  GeometryCollection requires geometries in an array format
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "Coordinates": [10, 10] } }}}';
@@ -543,7 +543,7 @@ ERROR:  Point must only contain numeric elements
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "LineString", "coordinates": [1, 2] } }}}';
 ERROR:  GeoJSON coordinates must be an array
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "LineString", "coordinates": [[1, 2]] } }}}';
-ERROR:  GeoJSON LineString must have at least 2 vertices: [ [ 1, 2 ] ]
+ERROR:  GeoJSON LineString requires a minimum of two vertices: [ [ 1, 2 ] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "LineString", "coordinates": [[1, 2], [3, "text"]] } }}}';
 ERROR:  Point must only contain numeric elements
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "LineString", "coordinates": [[1, 2], {"x": 10, "y": 10}] } }}}';
@@ -570,19 +570,19 @@ ERROR:   Loop is not valid: [ [0.000000, 0.000000], [-2.000000, -1.000000], [1.0
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[1, 0], [0, 10], [10, 10], [0, 0], [1, 0]]]}}}}'; -- Edges of polygon intersect, 2d area is not 0
 ERROR:   Loop is not valid: [ [1.000000, 0.000000], [0.000000, 10.000000], [10.000000, 10.000000], [0.000000, 0.000000], [1.000000, 0.000000] ] - Edges cross
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[0, 0], [0, 80], [80, 80], [80, 0], [0, 0]],[[0, 10], [0, 70], [75, 75], [75, 25], [0, 10]]]}}}}'; -- Polygon with hole edge part of (overlapping) outer ring
-ERROR:   Secondary loops not contained by first exterior loop - secondary loops must be holes: [ [0.000000, 10.000000], [75.000000, 25.000000], [75.000000, 75.000000], [0.000000, 70.000000], [0.000000, 10.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 80.000000], [80.000000, 80.000000], [80.000000, 0.000000], [0.000000, 0.000000] ]
+ERROR:  Secondary loops are outside the boundaries of the primary exterior loop - all secondary loops are required to be holes: [ [0.000000, 10.000000], [75.000000, 25.000000], [75.000000, 75.000000], [0.000000, 70.000000], [0.000000, 10.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 80.000000], [80.000000, 80.000000], [80.000000, 0.000000], [0.000000, 0.000000] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[0, 0], [0, 80], [80, 80], [80, 0], [0, 0]],[[0, 0], [0, 80], [75, 75], [75, 25], [0, 0]]]}}}}'; -- Polygon with hole having 1 edge common with outer ring
-ERROR:   Secondary loops not contained by first exterior loop - secondary loops must be holes: [ [0.000000, 0.000000], [75.000000, 25.000000], [75.000000, 75.000000], [0.000000, 80.000000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 80.000000], [80.000000, 80.000000], [80.000000, 0.000000], [0.000000, 0.000000] ]
+ERROR:  Secondary loops are outside the boundaries of the primary exterior loop - all secondary loops are required to be holes: [ [0.000000, 0.000000], [75.000000, 25.000000], [75.000000, 75.000000], [0.000000, 80.000000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 80.000000], [80.000000, 80.000000], [80.000000, 0.000000], [0.000000, 0.000000] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[0, 2], [2, 0], [2, 2], [0, 0], [1, 2], [3, 2], [4, 2], [0, 2]]]}}}}'; -- Combination polygon - both intersection and overlap
 ERROR:   Loop is not valid: [ [0.000000, 2.000000], [4.000000, 2.000000], [3.000000, 2.000000], [1.000000, 2.000000], [0.000000, 0.000000], [2.000000, 2.000000], [2.000000, 0.000000], [0.000000, 2.000000] ] - Edges cross
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[1, 1], [1, 5], [5, 5], [5, 1], [1, 1]], []] }}}}';
 ERROR:  Loop contains no vertices: []
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[1, 1], [1, 5], [5, 5], [5, 1], [1, 1]], [[0, 0], [0, 6], [6, 6], [6, 0], [0, 0]]] }}}}';
-ERROR:  Secondary loops not contained by first exterior loop - secondary loops must be holes
+ERROR:  Secondary loops are outside the first exterior loop and must instead represent holes
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]], [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] }}}}'; --Holes covering the polygon
-ERROR:   Secondary loops not contained by first exterior loop - secondary loops must be holes: [ [0.000000, 0.000000], [1.000000, 0.000000], [1.000000, 1.000000], [0.000000, 1.000000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 1.000000], [1.000000, 1.000000], [1.000000, 0.000000], [0.000000, 0.000000] ]
+ERROR:  Secondary loops are outside the boundaries of the primary exterior loop - all secondary loops are required to be holes: [ [0.000000, 0.000000], [1.000000, 0.000000], [1.000000, 1.000000], [0.000000, 1.000000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 1.000000], [1.000000, 1.000000], [1.000000, 0.000000], [0.000000, 0.000000] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [ [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]], [[0, 0], [0, 0.5], [1, 0.5], [1, 0], [0, 0]], [[0, 0.5], [0, 1], [1, 1], [1, 0.5], [0, 0.5]] ] }}}}'; -- Multi holes covering the polygon
-ERROR:   Secondary loops not contained by first exterior loop - secondary loops must be holes: [ [0.000000, 0.000000], [1.000000, 0.000000], [1.000000, 0.500000], [0.000000, 0.500000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 1.000000], [1.000000, 1.000000], [1.000000, 0.000000], [0.000000, 0.000000] ]
+ERROR:  Secondary loops are outside the boundaries of the primary exterior loop - all secondary loops are required to be holes: [ [0.000000, 0.000000], [1.000000, 0.000000], [1.000000, 0.500000], [0.000000, 0.500000], [0.000000, 0.000000] ] first loop: [ [0.000000, 0.000000], [0.000000, 1.000000], [1.000000, 1.000000], [1.000000, 0.000000], [0.000000, 0.000000] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[1, 2], [2, 3], [1, 2], [3, 4], [1, 2]]] }}}}'; -- Duplicate non adjacent vertices
 ERROR:  Loop is not valid: [ [ 1, 2 ], [ 2, 3 ], [ 1, 2 ], [ 3, 4 ], [ 1, 2 ] ] Duplicate vertices: 0 and 2
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiPoint", "coordinates": [1, 2] } }}}';
@@ -602,9 +602,9 @@ ERROR:  Loop must have at least 3 different vertices: [ [ 1, 2 ], [ 3, 4 ], [ 1,
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiPolygon", "coordinates": [ [[[1, 1], [1, 5], [5, 5], [5, 1], [1, 1]], []], []] } }}}';
 ERROR:  Loop contains no vertices: []
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiPolygon", "coordinates": [ [[[1, 1], [1, 5], [5, 5], [5, 1], [1, 1]]], [[[1, 1], [1, 5], [5, 5], [5, 1], [1, 1]], [[0, 0], [0, 6], [6, 6], [6, 0], [0, 0]]]] } }}}';
-ERROR:  Secondary loops not contained by first exterior loop - secondary loops must be holes
+ERROR:  Secondary loops are outside the first exterior loop and must instead represent holes
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "MultiLineString", "coordinates": [[[1, 1], [1, 5], [3, 4], [0, 3], [1, 1]], [[1, 2]]] }}}}';
-ERROR:  GeoJSON LineString must have at least 2 vertices: [ [ 1, 2 ] ]
+ERROR:  GeoJSON LineString requires a minimum of two vertices: [ [ 1, 2 ] ]
 -- Geometry Collections
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "GeometryCollection", "geometries": {} }}}}';
 ERROR:  GeometryCollection requires geometries in an array format
@@ -617,12 +617,12 @@ ERROR:   Unknown GeoJSON data type: { "type" : "unknownPoint", "coords" : [ 10, 
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "GeometryCollection", "geometries": [{ "type": "Point", "coordinates": [10, "text"] }] }}}}';
 ERROR:  Point must only contain numeric elements
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "GeometryCollection", "geometries": [{ "type": "Point", "coordinates": [10, 10] }, {"type": "LineString", "coordinates": [[1, 2], [2, 3]]}, {"type": "Polygon", "coordinates": [[[1, 1], [5, 5], [2, 6], [1, 1]]]}, {"type": "LineString", "coordinates": [[10, 10]]}] }}}}';
-ERROR:  GeoJSON LineString must have at least 2 vertices: [ [ 10, 10 ] ]
+ERROR:  GeoJSON LineString requires a minimum of two vertices: [ [ 10, 10 ] ]
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "GeometryCollection", "geometries": [{ "type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 10]}]}] }}}}';
-ERROR:  GeometryCollections cannot be nested: [ { "type" : "Point", "coordinates" : [ 10, 10 ] } ]
+ERROR:  GeometryCollections nesting is not allowed: [ { "type" : "Point", "coordinates" : [ 10, 10 ] } ]
 --CRS checks
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": [], "coordinates": [1, 2] } }}}';
-ERROR:  GeoJSON CRS must be an object.
+ERROR:  The  GeoJSON CRS value must be provided as an object.
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {}, "coordinates": [1, 2] } }}}';
 ERROR:  GeoJSON CRS must have field "type": "name"
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": 1, "name": 1}, "coordinates": [1, 2] } }}}';
@@ -630,15 +630,15 @@ ERROR:  GeoJSON CRS must have field "type": "name"
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": "name"}, "coordinates": [1, 2] } }}}';
 ERROR:  CRS must include a field named "properties", and this field needs to be an object.
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": "name", "properties": {}}, "coordinates": [1, 2] } }}}';
-ERROR:  In CRS, "properties.name" must be a string
+ERROR:  In CRS, the field "properties.name" is required to be of string type
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": "name", "properties": { "name": 2 }}, "coordinates": [1, 2] } }}}';
-ERROR:  In CRS, "properties.name" must be a string
+ERROR:  In CRS, the field "properties.name" is required to be of string type
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": "name", "properties": {"name": "UnknownCRS"}}, "coordinates": [1, 2] } }}}';
 ERROR:  Unrecognized CRS name provided: UnknownCRS
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"type": "name", "properties": {"name": "urn:x-mongodb:crs:STRICTWINDING:EPSG:4326" } }, "coordinates": [1, 2] } }}}';
 ERROR:  Unrecognized CRS name provided: urn:x-mongodb:crs:STRICTWINDING:EPSG:4326
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": {"properties": {}, "type": "name"}, "coordinates": [1, 2] } }}}';
-ERROR:  In CRS, "properties.name" must be a string
+ERROR:  In CRS, the field "properties.name" is required to be of string type
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:x-mongodb:crs:strictwinding:EPSG:4326" } }, "coordinates": [1, 2] } }}}';
 ERROR:  Polygon supports strict winding order exclusively.
 SELECT document FROM documentdb_api.collection('db', 'geoquerytest') WHERE document @@ '{"a": {"$geoIntersects": { "$geometry": { "type": "Polygon", "coordinates": [[[1, 1], [5, 5], [2, 6], [1, 1]]], "crs": { "type": "name", "properties": { "name": "urn:x-mongodb:crs:strictwinding:EPSG:4326" } }} }}}';

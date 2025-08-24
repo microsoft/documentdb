@@ -65,7 +65,7 @@ typedef enum PositionalType
 	/* Corresponds to the $[] path */
 	PositionalType_All,
 
-	/* Corresponds to the $ path */
+	/* Matches the specified value $ path */
 	PositionalType_QueryFilter,
 
 	/* Corresponds to the $[identifier] path */
@@ -309,7 +309,7 @@ static HTAB * BuildExpressionForArrayFilters(const bson_value_t *arrayFilters);
 static void PostValidateArrayFilters(HTAB *arrayFiltersHash, const
 									 bson_value_t *updateSpec);
 
-/* Value writer functions */
+/* Functions for writing values */
 static bool HandleUpdateDocumentId(pgbson_writer *writer,
 								   const BsonUpdateIntermediatePathNode *root,
 								   const CurrentDocumentState *state);
@@ -879,15 +879,13 @@ ReadUpdateSpecAndUpdateTree(bson_iter_t *updateIterator,
 				const bson_value_t *updateItrVal = bson_iter_value(updateIterator);
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Modifiers operate on fields but we found type %s instead. "
-									"For example: {$mod: {<field>: ...}} not {%s: %s}",
+									"Modifiers work only with fields, but the provided value is of type %s. Expected format: {$mod: {<field>: ...}}, but received: {%s: %s}.",
 									BsonTypeName(updateItrVal->value_type),
 									MongoUpdateOperators[i].operatorName,
 									BsonValueToJsonForLogging(
 										updateItrVal)),
 								errdetail_log(
-									"Modifiers operate on fields but we found type %s instead "
-									"for operator name: %s",
+									"Modifiers work only with fields, but the provided value is of type %s. Expected $mod but received operator name: %s.",
 									BsonTypeName(updateItrVal->value_type),
 									MongoUpdateOperators[i].operatorName)));
 			}
@@ -1243,7 +1241,7 @@ ValidateSpecPathForUpdateTree(const StringView *updatePath)
 	if (updatePath->length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_EMPTYFIELDNAME), errmsg(
-							"An empty update path is not valid")));
+							"The update path cannot be empty and is therefore invalid")));
 	}
 
 	if (updatePath->string[updatePath->length - 1] == '.')
@@ -1501,7 +1499,7 @@ HandleUpdateDocumentId(pgbson_writer *writer,
 		case NodeType_Intermediate:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"_id cannot be an object/array")));
+								"_id value cannot be an object or array")));
 		}
 
 		case NodeType_LeafIncluded:
@@ -1523,7 +1521,8 @@ HandleUpdateDocumentId(pgbson_writer *writer,
 
 		default:
 		{
-			ereport(ERROR, (errmsg("Unexpected node type for _id: %d", node->nodeType)));
+			ereport(ERROR, (errmsg("Encountered an unsupported node type for _id: %d",
+								   node->nodeType)));
 		}
 	}
 }
@@ -1869,7 +1868,7 @@ IsNodeMatchForIteratorPath(const BsonPathNode *node,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 									errmsg(
-										"The positional operator did not find the match needed from the query.")));
+										"The positional operator failed to locate the required match within the provided query.")));
 				}
 
 				state->indexOfPositionalTypeQueryFilter = matchedIndex;
@@ -2435,7 +2434,7 @@ BuildExpressionForArrayFilters(const bson_value_t *arrayFilters)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Found multiple array filters with the same top-level field name %.*s",
+								"Multiple array filters detected using identical top-level field name %.*s",
 								topLevelKey.length, topLevelKey.string)));
 		}
 

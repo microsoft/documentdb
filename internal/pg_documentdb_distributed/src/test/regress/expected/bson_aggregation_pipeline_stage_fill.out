@@ -761,7 +761,7 @@ SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", 
 ERROR:  sortBy value must be numeric or a date, but found string
 -- sortBy with repeated value in one partition
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "sortBy": { "cost": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
-ERROR:  There can be no repeated values in the sort field
+ERROR:  The sort field must not contain any duplicate values
 -- partionBy and partitionByFields both are present
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "partitionByFields": ["a"], "sortBy": { "date": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
 ERROR:  Maximum one of 'partitionBy' and 'partitionByFields can be specified in '$fill'

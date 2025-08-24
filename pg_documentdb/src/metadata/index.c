@@ -93,7 +93,7 @@ command_record_id_index(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("collectionId cannot be NULL")));
+		ereport(ERROR, (errmsg("Collection ID must not be NULL")));
 	}
 	uint64 collectionId = DatumGetUInt64(PG_GETARG_DATUM(0));
 
@@ -611,7 +611,7 @@ CollectionIdGetIndexNames(uint64 collectionId, bool excludeIdIndex, bool inProgr
 													SPI_OK_SELECT, &isNull);
 	if (isNull)
 	{
-		/* collection has no indexes */
+		/* This collection does not contain any indexes */
 		return NIL;
 	}
 
@@ -704,7 +704,7 @@ CollectionIdGetIndexesCore(uint64 collectionId, bool excludeIdIndex,
 
 	if (isNull[0])
 	{
-		/* collection has no indexes */
+		/* This collection does not contain any indexes */
 		return NIL;
 	}
 

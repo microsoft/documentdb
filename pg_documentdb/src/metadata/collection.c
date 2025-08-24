@@ -1638,7 +1638,7 @@ ValidateDatabaseCollection(Datum databaseDatum, Datum collectionDatum)
 		if (StringViewContains(&collectionView, CharactersNotAllowedInCollectionNames[i]))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-							errmsg("Invalid collection name: %.*s",
+							errmsg("Collection name provided is invalid: %.*s",
 								   collectionView.length, collectionView.string)));
 		}
 	}

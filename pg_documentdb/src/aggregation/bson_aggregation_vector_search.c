@@ -1825,7 +1825,7 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$oversampling should be greater than or equal to 1.")));
+									"$oversampling must be set to a value that is greater or equal to 1.")));
 			}
 		}
 		else if (strcmp(key, "score") == 0)

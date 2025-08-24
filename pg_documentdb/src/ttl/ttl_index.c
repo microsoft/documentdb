@@ -194,7 +194,7 @@ delete_expired_rows(PG_FUNCTION_ARGS)
 
 	StringInfo cmdGetIndexes = makeStringInfo();
 
-	/* Get TTL indexes and their collections */
+	/* Retrieve TTL indexes along with their associated collections */
 	appendStringInfo(cmdGetIndexes,
 					 "SELECT index_id, collection_id, (index_spec).index_key, "
 					 "(index_spec).index_pfe, (index_spec).index_expire_after_seconds,"

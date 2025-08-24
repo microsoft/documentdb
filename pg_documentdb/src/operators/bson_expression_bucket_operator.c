@@ -58,11 +58,11 @@ RewriteBucketGroupSpec(const bson_value_t *bucketSpec, bson_value_t *groupSpec)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40201),
 						errmsg(
-							"Argument to $bucket stage must be an object, but found type: %s",
+							"The $bucket stage requires an object argument, but a value of type %s was provided instead.",
 							BsonTypeName(
 								bucketSpec->value_type)),
 						errdetail_log(
-							"Argument to $bucket stage must be an object, but found type: %s",
+							"The $bucket stage requires an object argument, but a value of type %s was provided instead.",
 							BsonTypeName(
 								bucketSpec->value_type))));
 	}
@@ -290,7 +290,7 @@ HandlePreParsedDollarBucketInternal(pgbson *doc, void *arguments,
 		if (parsedData->defaultBucket.kind == AggregationExpressionKind_Invalid)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"$bucket could not find a bucket for an input value %s, and no default was specified.",
+								"$bucket was unable to locate a matching bucket for the provided input value %s, and no default bucket was defined.",
 								BsonValueToJsonForLogging(&evaluatedGroupByField)),
 							errdetail_log(
 								"The input value must fall into one of the bucket boundaries, or specify a default value.")));

@@ -1446,7 +1446,8 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 		{
 			if (!BSON_ITER_HOLDS_NUMBER(&continuationIterator))
 			{
-				ereport(ERROR, (errmsg("batchCount must be a number.")));
+				ereport(ERROR, (errmsg(
+									"The value for batchCount must be provided as a numeric type.")));
 			}
 			else if (extensionScanState->batchCount > 0)
 			{
@@ -1601,7 +1602,8 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 		}
 		else
 		{
-			ereport(ERROR, (errmsg("Unknown continuation field %s", currentField)));
+			ereport(ERROR, (errmsg("Unrecognized continuation field value %s",
+								   currentField)));
 		}
 	}
 }

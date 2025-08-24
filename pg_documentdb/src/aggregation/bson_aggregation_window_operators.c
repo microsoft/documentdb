@@ -1109,7 +1109,8 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Numeric document-based bounds must be an integer")));
+							errmsg(
+								"The numeric boundaries specified for the document must be provided as an integer value.")));
 			}
 			else
 			{
@@ -1144,7 +1145,7 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Window bounds must be 'unbounded', 'current', or a number.")));
+								"The window boundaries value must be either 'unbounded', 'current', or a specific numeric value.")));
 			}
 		}
 		else
@@ -1161,7 +1162,7 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Numeric document-based bounds must be an integer")));
+									"The numeric boundaries specified for the document must be provided as an integer value.")));
 				}
 
 				/* Make the frame value positive, we set the `isPreceding` based on negative value
@@ -1237,8 +1238,9 @@ ParseAndSetFrameOption(const bson_value_t *value, WindowClause *windowClause,
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_LOCATION5339900),
-					errmsg("Lower bound must not exceed upper bound: %s",
-						   BsonValueToJsonForLogging(value)),
+					errmsg(
+						"The lower boundary should never be greater than the specified upper boundary: %s",
+						BsonValueToJsonForLogging(value)),
 					errdetail_log("Lower bound must not exceed upper bound.")));
 	}
 
@@ -1600,7 +1602,8 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 	if (!list_length(context->sortOptions))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("%s requires a sortBy", operatorName)));
+						errmsg("%s requires a sortBy",
+							   operatorName)));
 	}
 	else if (list_length(context->sortOptions) > 1)
 	{
@@ -1729,7 +1732,8 @@ HandleDollarCountWindowOperator(const bson_value_t *opValue,
 	if (!IsBsonValueEmptyDocument(opValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$count only accepts an empty object as input")));
+						errmsg(
+							"$count can only receive an empty object as its valid input")));
 	}
 
 	bson_value_t newOpValue =
@@ -2331,7 +2335,8 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 	if (by->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("$shift requires 'by' as an integer value.")));
+						errmsg(
+							"The shift operator requires the 'by' parameter to be provided as an integer value.")));
 	}
 
 	if (defaultValue->value_type == BSON_TYPE_EOD)
@@ -2343,10 +2348,11 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 	if (!IsBsonValue32BitInteger(by, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("'$shift:by' field must be an integer, but found by: %s",
-							   BsonValueToJsonForLogging(by)),
+						errmsg(
+							"The parameter $shift:by requires an integer value, but received: %s",
+							BsonValueToJsonForLogging(by)),
 						errdetail_log(
-							"'$shift:by' field must be an integer, but found by: %s",
+							"The parameter $shift:by requires an integer value, but received: %s",
 							BsonValueToJsonForLogging(by))));
 	}
 

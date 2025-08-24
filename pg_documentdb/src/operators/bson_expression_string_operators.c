@@ -1372,7 +1372,8 @@ ParseDollarTrimCore(const bson_value_t *argument, AggregationExpressionData *dat
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50694), errmsg(
-								"%s found an unknown argument: %s", opName, key)));
+								"%s encountered an unrecognized input argument: %s",
+								opName, key)));
 		}
 	}
 
@@ -1503,7 +1504,8 @@ ParseDollarRegexInput(const bson_value_t *operatorValue,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31024), errmsg(
-								"%s found an unknown argument: %s", opName, key)));
+								"%s encountered an unrecognized input argument: %s",
+								opName, key)));
 		}
 	}
 
@@ -2504,7 +2506,7 @@ ProcessDollarSubstrBytes(void *state, bson_value_t *result)
 	if (IsUtf8ContinuationByte(offsetString))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28656), errmsg(
-							"$substrBytes:  Invalid range, starting index is a UTF-8 continuation byte."
+							"$substrBytes: Invalid range detected, as the starting index is a UTF-8 continuation byte."
 							)));
 	}
 
@@ -2827,7 +2829,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (!IsValidRegexOptions(options->value.v_utf8.str))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51108), errmsg(
-									"%s invalid flag in regex options: %s", opName,
+									"%s Invalid flag detected in regex options: %s",
+									opName,
 									options->value.v_utf8.str)));
 			}
 		}
@@ -2866,7 +2869,8 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (!IsValidRegexOptions(options->value.v_utf8.str))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51108), errmsg(
-									"%s invalid flag in regex options: %s", opName,
+									"%s Invalid flag detected in regex options: %s",
+									opName,
 									options->value.v_utf8.str)));
 			}
 
@@ -2876,7 +2880,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 					 regex->value.v_regex.options))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51108), errmsg(
-								"%s invalid flag in regex options: %s", opName,
+								"%s Invalid flag detected in regex options: %s", opName,
 								regex->value.v_regex.options)));
 		}
 	}
@@ -2909,7 +2913,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 		if (!IsValidRegexOptions(options->value.v_utf8.str))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51108), errmsg(
-								"%s invalid flag in regex options: %s", opName,
+								"%s Invalid flag detected in regex options: %s", opName,
 								options->value.v_utf8.str)));
 		}
 
@@ -3132,7 +3136,8 @@ ParseDollarReplaceHelper(const bson_value_t *argument,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51750), errmsg(
-								"%s found an unknown argument: %s", opName, key)));
+								"%s encountered an unrecognized input argument: %s",
+								opName, key)));
 		}
 	}
 

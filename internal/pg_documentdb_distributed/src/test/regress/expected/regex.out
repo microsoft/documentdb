@@ -458,9 +458,9 @@ SELECT insert_one('db','regex', '{"_id" : 106, "a" : "hello a\bcde world" }');
 (1 row)
 
 SELECT insert_one('db','regex', '{"_id" : 108, "a" : {"$regularExpression" : {"pattern" : "hello", "options" : ""}} }');
-                                                                                                     insert_one                                                                                                     
+                                                                                                                       insert_one                                                                                                                       
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "Shard key cannot contain a regex." } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "A shard key is not allowed to include any regular expression pattern." } ] }
 (1 row)
 
 SELECT insert_one('db','regex', '{"_id" : 111, "a" : "a value", "b": "b value"}');

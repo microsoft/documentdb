@@ -52,7 +52,7 @@ typedef struct
 	/* The namespace of the collection */
 	char *ns;
 
-	/* The total number of indexes in the collection */
+	/* The collection's total count of indexes */
 	int32 totalIndexes;
 
 	/* Details of each index along with it's validity */
@@ -95,7 +95,7 @@ command_validate(PG_FUNCTION_ARGS)
 
 	if (PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("Invalid namespace specified '%s'.",
+		ereport(ERROR, (errmsg("The provided namespace value '%s' is not valid.",
 							   validateSpec.databaseName)));
 	}
 

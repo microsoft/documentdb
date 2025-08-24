@@ -64,11 +64,11 @@ ERROR:  The collection named 'create_on_fam_3' cannot be found
 ROLLBACK;
 -- test conflicting options
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "update": {"b": 1}}');
-ERROR:  Cannot specify both an update and remove=true
+ERROR:  It is not possible to specify both an update action and simultaneously set  remove=true
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "upsert": true}');
 ERROR:  Cannot specify both upsert=true and remove=true
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "new": true}');
-ERROR:  Cannot specify both new=true and remove=true; 'remove' always returns the deleted document
+ERROR:  It is not allowed to set both new=true and remove=true simultaneously, as the 'remove' always returns the document that was deleted.
 -- field type validations
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": []}');
 ERROR:  collection name has invalid type array
@@ -331,7 +331,7 @@ SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "sharded_collect
 
 -- show that we validate "update" document even if collection doesn't exist or if we can't match any documents
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "dne", "query": {"a": 1}, "update": { "$set": { "a": 1 }, "$unset": {"a": 1 } } }');
-ERROR:  Updating the path 'a' would create a conflict at 'a'
+ERROR:  Modifying the path 'a' will result in a conflict occurring at 'a'
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "dne", "query": {"$a": 1}, "update": { "$set": { "a": 1 } } }');
 ERROR:  unknown top level operator: $a. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.
 SELECT documentdb_api.create_collection('fam', 'no_match');
@@ -343,7 +343,7 @@ NOTICE:  creating collection
 
 \set VERBOSITY TERSE
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "no_match", "update": { "$set": { "a": 1 }, "$unset": {"a": 1 } }}');
-ERROR:  Updating the path 'a' would create a conflict at 'a'
+ERROR:  Modifying the path 'a' will result in a conflict occurring at 'a'
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "no_match", "query": {"$a": 1}, "update": { "$set": { "a": 1 } } }');
 ERROR:  unknown top level operator: $a. If you have a field name that starts with a '$' symbol, consider using $getField or $setField.
 \set VERBOSITY DEFAULT

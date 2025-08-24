@@ -139,9 +139,9 @@ SELECT documentdb_api.insert_one('db', 'collection', '{ "_id": 16, "field": [ { 
 /* Test to validate that _id field cannot have regex as it's value */
 select documentdb_api.insert_one('db', 'bsontypetests', '{"_id": {"$regex": "^A", "$options": ""}}');
 NOTICE:  creating collection
-                                                                                                          insert_one                                                                                                          
+                                                                                                               insert_one                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "The '_id' value cannot be of type regex" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "The '_id' field value must not be a type of regex" } ] }
 (1 row)
 
 /* Test _id cannot have nested paths with $ */
@@ -153,9 +153,9 @@ SELECT documentdb_api.insert_one('db', 'bsontypetests', '{ "_id": { "a": 2, "$c"
 
 /* Test to validate that _id field cannot have array as it's value */
 select documentdb_api.insert_one('db', 'bsontypetests', '{"_id": [1]}');
-                                                                                                          insert_one                                                                                                          
+                                                                                                               insert_one                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "The '_id' value cannot be of type array" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "The '_id' field value must not be a type of array" } ] }
 (1 row)
 
 -- assert object_id matches the '_id' from the content - should be numRows.
@@ -207,7 +207,7 @@ ROLLBACK;
 BEGIN;
 set local documentdb_core.bsonUseEJson TO false;
 SELECT document FROM documentdb_api.collection('db', 'collection') ORDER BY document -> '_id';
-                                                                                                                                          document                                                                                                                                           
+                                                                                                                                                           document                                                                                                                                                            
 ---------------------------------------------------------------------
  BSONHEX1a000000105f6964000900000010246669656c64000100000000
  BSONHEX29000000105f6964000a000000036669656c64001400000010247375624669656c6400010000000000

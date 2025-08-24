@@ -625,13 +625,13 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipelin
 
 -- these should fail - parse and validate no path, CURRENT or ROOT in let spec.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": {}, "let": { "varRef": "$a" } }');
-ERROR:  Command let Expression tried to access a field, but this is not allowed because command let expressions run before the query examines any documents.
+ERROR:  A command let expression attempted to access a field, which is disallowed because such expressions execute prior to the query processing any documents.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": {}, "let": { "varRef": "$$ROOT" } }');
-ERROR:  Command let Expression tried to access a field, but this is not allowed because command let expressions run before the query examines any documents.
+ERROR:  A command let expression attempted to access a field, which is disallowed because such expressions execute prior to the query processing any documents.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": {}, "let": { "varRef": "$$CURRENT" } }');
-ERROR:  Command let Expression tried to access a field, but this is not allowed because command let expressions run before the query examines any documents.
+ERROR:  A command let expression attempted to access a field, which is disallowed because such expressions execute prior to the query processing any documents.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "aggregation_pipeline_let", "projection": { "newField" : "$$varRef" }, "filter": {}, "let": { "varRef": { "$sum": [ "$a", "$a" ] } } }');
-ERROR:  Command let Expression tried to access a field, but this is not allowed because command let expressions run before the query examines any documents.
+ERROR:  A command let expression attempted to access a field, which is disallowed because such expressions execute prior to the query processing any documents.
 -- internal, lookup expression eval merge should wrap variables into $literal and if the variable evaluates to empty, should transform into $$REMOVE
 SELECT documentdb_api_internal.bson_dollar_lookup_expression_eval_merge('{"_id": 1, "b": "$someField"}', '{ "local_b" : "$b", "local_a": "$a" }'::documentdb_core.bson, '{}'::documentdb_core.bson);
                      bson_dollar_lookup_expression_eval_merge                      
@@ -1822,7 +1822,7 @@ SELECT document FROM bson_aggregation_pipeline('db', $$
     "let": { "pointRef": [5, 6], "dist1": 0, "dist2": 2}
 }
 $$);
-ERROR:  maxDistance must be a number
+ERROR:  The value for maxDistance must be a valid numeric type
 -- a valid query
 SELECT document FROM bson_aggregation_pipeline('db', $spec$
 {

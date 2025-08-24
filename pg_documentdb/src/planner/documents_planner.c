@@ -1749,7 +1749,7 @@ HasUnresolvedExternParamsWalker(Node *expression, ParamListInfo boundParams)
 			return false;
 		}
 
-		/* check whether parameter is available */
+		/* Verify if the parameter is valid */
 		if (boundParams && paramId > 0 && paramId <= boundParams->numParams)
 		{
 			return false;

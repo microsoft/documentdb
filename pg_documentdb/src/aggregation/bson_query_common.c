@@ -59,8 +59,9 @@ InitializeQueryDollarRange(pgbsonelement *filterElement, DollarRangeParams *rang
 		}
 		else
 		{
-			ereport(ERROR, (errmsg("Unsupported range predicate: %s", key), errdetail_log(
-								"Unsupported range predicate: %s", key)));
+			ereport(ERROR, (errmsg("Range predicate not supported: %s", key),
+							errdetail_log(
+								"Range predicate not supported: %s", key)));
 		}
 	}
 

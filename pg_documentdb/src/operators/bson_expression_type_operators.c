@@ -1643,7 +1643,7 @@ ProcessDollarToUUID(const bson_value_t *currentValue, bson_value_t *result)
 		FlushErrorState();
 
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-							"Failed to parse BinData %s in $convert with no onError value: Invalid UUID string: %s",
+							"Unable to parse BinData %s in $convert without onError parameter: Provided UUID string is invalid: %s",
 							uuidStr, uuidStr), errdetail_log(
 							"Could not interpret BinData as a valid UUID due to error: %s",
 							edata->message)));
@@ -1954,7 +1954,7 @@ ValidateConvertToTypeFormat(const bson_value_t formatValue)
 	if (IsExpressionResultNullOrUndefined(&formatValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"Format must be speficied when converting to 'binData'")));
+							"A format must be clearly specified when performing a conversion to 'binData'.")));
 	}
 
 	if (formatValue.value_type != BSON_TYPE_UTF8)

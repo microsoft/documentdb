@@ -1367,7 +1367,7 @@ AddMultiBoundaryForDollarIn(int32_t indexAttribute,
 	if (queryElement->bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$in should have an array of values")));
+							"$in must contain an array of values")));
 	}
 
 	bson_iter_t arrayIter;

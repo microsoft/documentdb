@@ -12,7 +12,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 2, "grades" : [ 88, 90, 92 ] }','{ "": { "$set": { "grades.$" : 82 } } }', '{ "_id": 1, "grades": 80 }', NULL);
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 4, "grades": [ { "grade": 80, "mean": 75, "std": 8 }, { "grade": 85, "mean": 90, "std": 5 }, { "grade": 85, "mean": 85, "std": 8 } ] }',
     '{ "": { "$set": { "grades.$.std" : 6 } } }', '{ "_id": 4, "grades.grade": 85 }', NULL);
@@ -32,16 +32,16 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 -- positional on match that doesn't work
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "c": 8 }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "$or": [ { "b": 5 }, { "c": 8 } ] }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "$nor": [ { "b": 5 }, { "c": 8 } ] }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": { "$not": { "$eq": 8 } } }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 -- positional on alternate array (pick first match)
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": { "$in": [ 5, 6 ]} }');
@@ -110,7 +110,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ "bat", "bar", "baz" ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": { "$type": "number" } }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ true, "bar", "baz" ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": { "$type": "string" } }');
                                                                                 bson_update_document                                                                                
@@ -120,10 +120,10 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ { "c": 1 }, { "c": 2 }, { "c": 3 } ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b.c": { "$elemMatch": { "$eq": 2 }} }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ { "c": 1 }, { "c": 2 }, { "c": 3 } ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b.c": { "$elemMatch": { "$eq": 2 }} }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 1, "a": [ 1, 2, 3 ], "b": [ 4, 5, 6 ], "c": 8 }', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": { "$all": [ 5, 6 ] } }');
                                                                                                           bson_update_document                                                                                                          
@@ -164,11 +164,11 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 -- upsert cases
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{}', '{ "": { "$set": { "a.$": 100 } } }', '{ "b": [ 1, 2, 3 ], "a": [ 4, 5, 6 ] }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 -- simple example for non-array
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 3, "a": { "b": [ { "c": 1, "d": 2 } ] } }', '{ "": { "$set": { "a.$.c": 11 } }}', '{ "_id": 1 }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id": 3, "a": { "b": [ { "c": 1, "d": 2 } ] } }', '{ "": { "$set": { "a.$.c": 11 } }}', '{ "a.b.c": 1 }');
 ERROR:  Array updates cannot be applied to an element that is not an array a: { b: [ { "c" : 1, "d" : 2 } ] }
@@ -198,6 +198,6 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 (1 row)
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{ "_id": 1, "a" : [1,2,3,4], "b" : [5,6,7,8], "c" : 1 }', '{ "": { "$set": { "a.$": "new", "b.$" : "new" } }}', '{"c" : 1 }');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{ "_id": 1, "a" : 1, "c" : 1 }', '{ "": { "$set": { "a.$": "new"} }}', '{"a" :  1}');
 ERROR:  Cannot create field 'a' in element {a : 1}

@@ -778,7 +778,7 @@ bson_expression_get('{"a" : null}', '{ "": { "a" : "$a" }}', true);
 -- Document and array expressions with nested expressions that should be converted to a constant at the tree parse stage
 SET client_min_messages TO DEBUG3;
 SELECT bson_expression_get('{}', '{"result": {"a": [ { "$literal" : "foo" } ] }}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
         bson_expression_get         
 ---------------------------------------------------------------------
@@ -786,28 +786,28 @@ DEBUG:  Optimizing document expression into constant.
 (1 row)
 
 SELECT bson_expression_get('{}', '{"result": [ { "$literal" : "foo" } ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
    bson_expression_get    
 ---------------------------------------------------------------------
  { "result" : [ "foo" ] }
 (1 row)
 
 SELECT bson_expression_get('{}', '{"result": [ { "$undefined" : true } ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
    bson_expression_get   
 ---------------------------------------------------------------------
  { "result" : [ null ] }
 (1 row)
 
 SELECT bson_expression_get('{}', '{"result": [ { "$literal" : "foo" }, {"$substr": ["wehello world", 2, -1]} ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
            bson_expression_get           
 ---------------------------------------------------------------------
  { "result" : [ "foo", "hello world" ] }
 (1 row)
 
 SELECT bson_expression_get('{}', '{"result": {"a": [ { "$literal" : "foo" } ], "a": {"$const": "foo2"} }}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
        bson_expression_get       
 ---------------------------------------------------------------------
@@ -829,7 +829,7 @@ DEBUG:  Optimizing document expression into constant.
 (1 row)
 
 SELECT bson_expression_get('{}', '{"document": {"a": {"d": { "$literal" : {"a": "$$REMOVE" } }, "c": [{"$literal": "$$REMOVE"}, true, false]}, "b": {"$const": "b is 2"}}}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
                                              bson_expression_get                                              
 ---------------------------------------------------------------------
@@ -837,15 +837,15 @@ DEBUG:  Optimizing document expression into constant.
 (1 row)
 
 SELECT bson_dollar_project('{}', '{"array": [{"$substr": ["hello world", 0, -1]}, "1", 2, true, false, {"$literal": [{ "$add":[1, 2] }]}], "document": {"a": { "$literal" : {"a": "$$REMOVE" } }, "b": {"$const": "b is 2"} }}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
                                                                                              bson_dollar_project                                                                                             
 ---------------------------------------------------------------------
  { "array" : [ "hello world", "1", { "$numberInt" : "2" }, true, false, [ { "$add" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] } ] ], "document" : { "a" : { "a" : "$$REMOVE" }, "b" : "b is 2" } }
 (1 row)
 
 SELECT bson_dollar_project('{}', '{"array": [{"$substr": ["hello world", 0, -1]}, "1", 2, true, false, {"$literal": [{ "$add":[1, 2] }]}], "document": {"a": { "$literal" : {"a": "$$REMOVE" } }, "b": {"$const": "b is 2"}}, "array2": [{"$literal": "$$ROOT"}, {"$literal": "$$NOW"}, true], "document2": {"result": {"$substr": ["result is: blah", 11, -1]}}}');
-DEBUG:  Optimizing array expression into constant.
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
+DEBUG:  Transforming array expression into fixed constant.
                                                                                                                                    bson_dollar_project                                                                                                                                    
 ---------------------------------------------------------------------
  { "array" : [ "hello world", "1", { "$numberInt" : "2" }, true, false, [ { "$add" : [ { "$numberInt" : "1" }, { "$numberInt" : "2" } ] } ] ], "document" : { "a" : { "a" : "$$REMOVE" }, "b" : "b is 2" }, "array2" : [ "$$ROOT", "$$NOW", true ], "document2" : { "result" : "blah" } }

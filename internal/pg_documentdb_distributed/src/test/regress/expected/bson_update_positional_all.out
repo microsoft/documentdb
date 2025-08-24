@@ -161,7 +161,7 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ {
 ERROR:  Array updates cannot be applied to an element that is not an array a: { b: [ { "c" : 1, "d" : 2 } ] }
 --Test Set 14 : Try with $ and $[<identifier>] and Typo with $[] 
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$.c": 11 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$[element].c": 11 } } }', '{}');
 ERROR:  array filter identifier element must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1.0,2.2,3.2,4.3] }', '{ "": { "$mul": { "a.$[x]": 3 } } }', '{}');
@@ -205,27 +205,27 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 --Test Set 18 : Path Conflicts 
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.$[].$[]": 10, "a.0": 11 } } }', '{}');
-ERROR:  Updating the path 'a.0' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.0' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.0": 10, "a.$[].$[]": 11 } } }', '{}');
-ERROR:  Updating the path 'a.$[].$[]' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.$[].$[]' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.0.1": 10, "a.$[].$[]": 11 } } }', '{}');
-ERROR:  Updating the path 'a.$[].$[]' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.$[].$[]' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.$[].$[]": 11, "a.1.0": 10 } } }', '{}');
-ERROR:  Updating the path 'a.1.0' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.1.0' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.b.$[]": 10, "a.b.0": 11 } } }', '{}');
-ERROR:  Updating the path 'a.b.0' would create a conflict at 'a.b'
+ERROR:  Modifying the path 'a.b.0' will result in a conflict occurring at 'a.b'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.$[]": 11, "a.0": 10 } } }', '{}');
-ERROR:  Updating the path 'a.0' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.0' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.0": 11, "a.$[]": 10 } } }', '{}');
-ERROR:  Updating the path 'a.$[]' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.$[]' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.0": 11 }, "$set":{"a.$[]": 11} } }', '{}');
-ERROR:  Updating the path 'a.$[]' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.$[]' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.$[]": 11 }, "$set":{"a.0": 11} } }', '{}');
-ERROR:  Updating the path 'a.0' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.0' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [{ "x": 10 }, {"x": 11}] }', '{ "": { "$inc": { "a.$[].x": 11 }, "$set":{"a.0": 11} } }', '{}');
-ERROR:  Updating the path 'a.0' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.0' will result in a conflict occurring at 'a'
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [{"x":10},{"y":11}] }', '{ "": { "$set": { "a.$[]": 30 }, "$inc": {"a.1.y" : 1} } }', '{}');
-ERROR:  Updating the path 'a.1.y' would create a conflict at 'a'
+ERROR:  Modifying the path 'a.1.y' will result in a conflict occurring at 'a'
 --Test Set 19 : Multiple Spec One Operator
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.$[].0": 30 , "a.$[].1" : 10} } }', '{}');
                                                                    bson_update_document                                                                   
@@ -241,17 +241,17 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 ---Test Set 20 : $ Operator---
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2],[3,4]] }', '{ "": { "$inc": { "a.0.$": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$set": { "a.$": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$mul": { "a.$": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$inc": { "a.$": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [1,2,3,4] }', '{ "": { "$min": { "a.$": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [{"x": 5},{"y":10}] }', '{ "": { "$inc": { "a.$.c": 30 } } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }', '{ "": { "$set": {"$":10} } }', '{}');
 ERROR:  Positional element (i.e. '$') cannot appear at the beginning of the path '$'.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"x":5},{"y":10}] }', '{ "": { "$inc": {"a.$[].x": 10,"a.$.y": 12 } } }', '{}');
@@ -281,7 +281,7 @@ ERROR:  array filter identifier x must match an entry in arrayFilters (no match 
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a":[{"y":5},{"x":10}] }', '{ "": { "$inc": {"a.$[].x": 10,"a.$[x].y": 12 } } }', '{}');
 ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [[1,2,3],[4,5,6]] }', '{ "": { "$inc": { "a.$.$[]": 10} } }', '{}');
-ERROR:  The positional operator did not find the match needed from the query.
+ERROR:  The positional operator failed to locate the required match within the provided query.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [ {"a":[ {"x":1},{"y":2} ] ,"b": [ {"x":5},{"y":10} ] } ] }', '{ "": { "$inc": { "a.$[].b.$[].x": 10, "a.$[].b.$[x].y":12} } }', '{}');
 ERROR:  array filter identifier x must match an entry in arrayFilters (no match found)
 -- Test Set 23: Rename with positional should not work.

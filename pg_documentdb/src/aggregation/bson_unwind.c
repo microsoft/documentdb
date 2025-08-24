@@ -113,7 +113,7 @@ bson_dollar_unwind_with_options(PG_FUNCTION_ARGS)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg(
-								"unrecognized option to unwind stage")));
+								"option not recognized during unwind stage")));
 		}
 	}
 

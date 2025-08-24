@@ -165,7 +165,7 @@ command_delete(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("database name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL value")));
 	}
 
 	if (PG_ARGISNULL(1))
@@ -361,8 +361,9 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'delete.%s' is an unknown field",
-								   field)));
+							errmsg(
+								"The BSON field 'delete.%s' is not recognized as a valid field name.",
+								field)));
 		}
 	}
 
@@ -459,8 +460,9 @@ PostProcessDeleteBatchSpec(BatchDeletionSpec *spec)
 	if (deletionCount == 0 || deletionCount > MaxWriteBatchSize)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDLENGTH),
-						errmsg("Write batch sizes must be between 1 and %d. "
-							   "Got %d operations.", MaxWriteBatchSize, deletionCount)));
+						errmsg(
+							"Write batch size must fall within the range of 1 to %d, but %d operations were provided.",
+							MaxWriteBatchSize, deletionCount)));
 	}
 }
 

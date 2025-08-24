@@ -649,7 +649,7 @@ command_reindex(const CallStmt *callStmt,
 
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("database name cannot be NULL")));
+		ereport(ERROR, (errmsg("Database name must not be NULL value")));
 	}
 	Datum dbNameDatum = PG_GETARG_DATUM(0);
 
@@ -1589,8 +1589,9 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			if (!BSON_ITER_HOLDS_NUMBER(&indexDefDocIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-								errmsg("The field 'v' must be a number, but got %s",
-									   BsonIterTypeName(&indexDefDocIter))));
+								errmsg(
+									"The field 'v' requires a numeric value, but instead received %s",
+									BsonIterTypeName(&indexDefDocIter))));
 			}
 
 			double vValAsDouble = BsonValueAsDouble(bson_iter_value(&indexDefDocIter));
@@ -1712,7 +1713,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		}
 		else if (strcmp(indexDefDocKey, "ns") == 0)
 		{
-			/* This is a no-op */
+			/* This operation performs no action */
 			continue;
 		}
 		else if (strcmp(indexDefDocKey, "cosmosSearchOptions") == 0)
@@ -1721,7 +1722,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"The field cosmosSearch must be a document. got '%s'",
+									"The field cosmosSearch is required to be a document, but received '%s' instead.",
 									BsonTypeName(bson_iter_type(&indexDefDocIter)))));
 			}
 
@@ -1759,7 +1760,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"The field 'max' must be a number, but got %s.",
+									"The 'max' field must contain a numeric value, but received %s instead.",
 									BsonIterTypeName(&indexDefDocIter))));
 			}
 
@@ -2555,7 +2556,8 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 					indexDefKeyKey + strlen(indexDefKeyKey))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-									errmsg("Index key contains an illegal field name")));
+									errmsg(
+										"Index key includes an invalid or prohibited field name")));
 				}
 			}
 			StringView indexPath = CreateStringViewFromString(indexDefKeyKey);
@@ -2788,7 +2790,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 				/* If a prior column already had textIndexes, it must be adjacent */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"'text' fields in index must all be adjacent")));
+									"All 'text' fields within the index are required to be positioned consecutively.")));
 			}
 
 			/* 'text' indexes don't support wildcards on subpaths - only the root */
@@ -2899,7 +2901,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 						errmsg(
-							"A maximum of one index field is allowed for cdb indexes")));
+							"Only a single index field can be defined when working with cdb indexes.")));
 	}
 
 	indexDefKey->hasHashedIndexes = numHashedIndexes > 0;
@@ -3355,7 +3357,7 @@ CheckWildcardProjectionTreeInternal(const BsonIntermediatePathNode *treeParentNo
 				if (isTopLevel &&
 					StringViewEquals(&treeNode->field, &IdFieldStringView))
 				{
-					/* do nothing */
+					/* perform no operations here */
 				}
 				else if (expectedWPInclusionMode == WP_IM_INVALID)
 				{
@@ -3613,7 +3615,7 @@ CheckPartFilterExprOperatorsWalker(Node *node, void *context)
 		}
 		else
 		{
-			ereport(ERROR, (errmsg("unknown bool operator")));
+			ereport(ERROR, (errmsg("Unrecognized boolean operator encountered")));
 		}
 	}
 	else if (IsA(node, OpExpr) || IsA(node, FuncExpr))
@@ -3688,7 +3690,7 @@ CheckPartFilterExprOperatorsWalker(Node *node, void *context)
 			case QUERY_OPERATOR_UNKNOWN:
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-									"unknown mongo operator")));
+									"Unrecognized MongoDB operator detected")));
 			}
 
 			default:
@@ -3818,7 +3820,7 @@ GetPartFilterExprNodeReprWalker(Node *node, void *contextArg)
 		}
 		else
 		{
-			ereport(ERROR, (errmsg("unknown bool operator")));
+			ereport(ERROR, (errmsg("Unrecognized boolean operator encountered")));
 		}
 	}
 	else if (IsA(node, OpExpr) || IsA(node, FuncExpr))
@@ -3829,7 +3831,7 @@ GetPartFilterExprNodeReprWalker(Node *node, void *contextArg)
 
 		if (operator->operatorType == QUERY_OPERATOR_UNKNOWN)
 		{
-			ereport(ERROR, (errmsg("unknown mongo operator")));
+			ereport(ERROR, (errmsg("Unrecognized MongoDB operator detected")));
 		}
 
 		/* check unexpected cases to be on the safe side */
@@ -6236,7 +6238,7 @@ ValidateIndexName(const bson_value_t *indexName)
 	if (memchr(indexName->value.v_utf8.str, 0, indexName->value.v_utf8.len) != NULL)
 	{
 		ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-				errmsg("The index name cannot contain embedded nulls"));
+				errmsg("The index name must not include any embedded null characters"));
 	}
 
 	/* illegal characters */

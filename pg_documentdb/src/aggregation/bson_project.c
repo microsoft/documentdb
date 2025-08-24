@@ -945,7 +945,7 @@ GetBsonValueForReplaceRoot(bson_iter_t *replaceRootIterator, bson_value_t *value
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
 							errmsg(
-								"BSON fields '$replaceRoot.%s' is an unknown field",
+								"The BSON field '$replaceRoot.%s' is not recognized as a valid or supported field name.",
 								path)));
 		}
 

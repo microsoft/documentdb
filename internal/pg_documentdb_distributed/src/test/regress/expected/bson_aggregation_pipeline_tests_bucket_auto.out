@@ -415,7 +415,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  The 'buckets' field in the $bucketAuto operator must have a value greater than zero, but the provided value was: 0
 -- output must be document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "output": 1 } } ] }');
-ERROR:  The $bucketAuto 'output' field must be an object, but found type: int
+ERROR:  The 'output' field in $bucketAuto must be an object, but a different type was provided: int
 -- unknown argument of $bucketAuto
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "unknown": 1 } } ] }');
 ERROR:  Unrecognized option to $bucketAuto: unknown
@@ -424,7 +424,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  The $bucketAuto 'granularity' field must be a string, but found type: int
 -- unsupported granularity
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": "abc" } } ] }');
-ERROR:  Unknown rounding granularity: abc
+ERROR:  Rounding granularity not recognized: abc
 -- when has granularity, groupby value must be a non-negative number
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$product", "buckets": 3, "granularity": "POWERSOF2" } } ] }');
 ERROR:  $bucketAuto only allows specifying a 'granularity' with numeric boundaries, but encountered a value of type: string

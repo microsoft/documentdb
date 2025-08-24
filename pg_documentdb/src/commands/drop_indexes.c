@@ -603,7 +603,7 @@ ParseDropIndexesArg(pgbson *arg)
 		}
 		else if (IsCommonSpecIgnoredField(argKey))
 		{
-			elog(DEBUG1, "Unrecognized command field: dropIndexes.%s", argKey);
+			elog(DEBUG1, "Command field not recognized: dropIndexes.%s", argKey);
 
 			/*
 			 *  Silently ignore now, so that clients don't break

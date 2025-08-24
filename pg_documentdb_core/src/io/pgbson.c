@@ -1467,7 +1467,7 @@ PgbsonWriterGetPgbson(pgbson_writer *writer)
 
 
 /*
- * Gets an iterator over the current pgbson_writer.
+ * Retrieves an iterator object for accessing the current pgbson_writer instance.
  */
 void
 PgbsonWriterGetIterator(pgbson_writer *writer, bson_iter_t *iterator)

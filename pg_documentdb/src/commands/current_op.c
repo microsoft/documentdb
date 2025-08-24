@@ -74,7 +74,7 @@ typedef struct
 	/* Seconds that the command is running */
 	int secsRunning;
 
-	/* The operationId for the operation */
+	/* The operationId associated with this specific operation */
 	const char *operationId;
 
 	/* The raw mongo table (if it could be determined) */
@@ -1436,7 +1436,7 @@ PhaseToUserMessage(const char *phaseString)
 	}
 	else if (strcmp(phaseString, "waiting for worker to start") == 0)
 	{
-		return "Waiting for worker to start.";
+		return "Awaiting initialization of worker process.";
 	}
 	else if (strcmp(phaseString, "waiting for worker to abort") == 0)
 	{

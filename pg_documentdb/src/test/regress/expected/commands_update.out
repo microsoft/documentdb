@@ -68,7 +68,7 @@ ERROR:  update document cannot be NULL
 select documentdb_api.update(NULL, '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
 ERROR:  database name cannot be NULL
 select documentdb_api.update('db', '{"updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
-ERROR:  BSON field 'update.update' is missing but a required field
+ERROR:  Required field 'update.update' is missing
 select documentdb_api.update('db', '{"update":"updateme"}');
 ERROR:  BSON field 'update.updates' is missing but is a required field
 select documentdb_api.update('db', '{"update":["updateme"], "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
@@ -1092,9 +1092,9 @@ SELECT documentdb_api.update(
         "ordered": true
      }'
 );
-                                                                                                                                                           update                                                                                                                                                           
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" } ] }",f)
+                                                                                                                                                                 update                                                                                                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" } ] }",f)
 (1 row)
 
 -- ii) ordered=false
@@ -1112,9 +1112,9 @@ SELECT documentdb_api.update(
         "ordered": false
      }'
 );
-                                                                                                                                                                                                                                            update                                                                                                                                                                                                                                            
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" }, { ""index"" : { ""$numberInt"" : ""3"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" } ] }",f)
+                                                                                                                                                                                                                                                         update                                                                                                                                                                                                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" }, { ""index"" : { ""$numberInt"" : ""3"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" } ] }",f)
 (1 row)
 
 -- show that we validate "query" document even if collection doesn't exist
@@ -1181,9 +1181,9 @@ SELECT documentdb_api.update(
         "ordered": true
      }'
 );
-                                                                                                                                                           update                                                                                                                                                           
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" } ] }",f)
+                                                                                                                                                                 update                                                                                                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" } ] }",f)
 (1 row)
 
 -- ii) ordered=false
@@ -1201,9 +1201,9 @@ SELECT documentdb_api.update(
         "ordered": false
      }'
 );
-                                                                                                                                                                                                                                            update                                                                                                                                                                                                                                            
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" }, { ""index"" : { ""$numberInt"" : ""3"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Updating the path 'p' would create a conflict at 'p'"" } ] }",f)
+                                                                                                                                                                                                                                                         update                                                                                                                                                                                                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""1"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" }, { ""index"" : { ""$numberInt"" : ""3"" }, ""code"" : { ""$numberInt"" : ""335544349"" }, ""errmsg"" : ""Modifying the path 'p' will result in a conflict occurring at 'p'"" } ] }",f)
 (1 row)
 
 -- show that we validate "query" document even if we can't match any documents

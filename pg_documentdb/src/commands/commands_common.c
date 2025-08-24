@@ -479,7 +479,7 @@ ValidateIdField(const bson_value_t *idValue)
 		(idValue->value_type == BSON_TYPE_REGEX))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"The '_id' value cannot be of type %s",
+							"The '_id' field value must not be a type of %s",
 							BsonTypeName(idValue->value_type))));
 	}
 

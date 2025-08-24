@@ -906,11 +906,11 @@ SELECT * FROM bson_dollar_project('{"a":1 }', '{"result": { "$mod": [ "$a", "$a.
 
 -- $mod operator : can't mod by zero
 SELECT * FROM bson_dollar_project('{"a": 2}', '{"result": { "$mod": ["$a", { "$numberDouble" : "0" }] }}');
-ERROR:  can't $mod by zero
+ERROR:  Cannot perform $mod with zero
 SELECT * FROM bson_dollar_project('{"a": 2}', '{"result": { "$mod": [{ "$numberDecimal" : "Infinity" }, { "$numberDecimal" : "0" }] }}');
-ERROR:  can't $mod by zero
+ERROR:  Cannot perform $mod with zero
 SELECT * FROM bson_dollar_project('{"a": 2}', '{"result": { "$mod": [{ "$numberDecimal" : "Infinity" }, 0] }}');
-ERROR:  can't $mod by zero
+ERROR:  Cannot perform $mod with zero
 -- $mod operator : Only numerics allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$mod": [1, "str"]}}');
 ERROR:  $mod operator supports only numeric types, not int and string
@@ -1695,15 +1695,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [{}]}}');
 ERROR:  $log10 only supports numeric types, not object
 -- $log10: argument must be positive number
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": 0}}');
-ERROR:  $log10's argument must be a positive number, but is 0
+ERROR:  The argument provided to $log10 must be a positive number, but the given value is 0.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": {"$numberLong": "-1"}}}');
-ERROR:  $log10's argument must be a positive number, but is -1
+ERROR:  The argument provided to $log10 must be a positive number, but the given value is -1.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": {"$numberDecimal": "-1"}}}');
-ERROR:  $log10's argument must be a positive number, but is -1
+ERROR:  The argument provided to $log10 must be a positive number, but the given value is -1.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": {"$numberDecimal": "0.000000000000"}}}');
-ERROR:  $log10's argument must be a positive number, but is 0E-12
+ERROR:  The argument provided to $log10 must be a positive number, but the given value is 0E-12.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": {"$numberDouble": "0.0000000"}}}');
-ERROR:  $log10's argument must be a positive number, but is 0
+ERROR:  The argument provided to $log10 must be a positive number, but the given value is 0.
 -- $log10: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [1, 2]}}');
 ERROR:  Expression $log10 takes exactly 1 arguments. 2 were passed in.
@@ -2002,11 +2002,11 @@ SELECT * FROM bson_dollar_project('{"a": null}', '{"result": { "$sqrt": "$a"}}')
 
 -- $sqrt: arg must be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": "str"}}');
-ERROR:  $sqrt only supports numeric types, not string
+ERROR:  $sqrt can only be applied to numeric types, not to string.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": [[]]}}');
-ERROR:  $sqrt only supports numeric types, not array
+ERROR:  $sqrt can only be applied to numeric types, not to array.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": {}}}');
-ERROR:  $sqrt only supports numeric types, not object
+ERROR:  $sqrt can only be applied to numeric types, not to object.
 -- $sqrt: arg must be greater than or equal to 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": -1}}');
 ERROR:  $sqrt's argument must be greater than or equal to 0
@@ -2324,7 +2324,7 @@ ERROR:  The expression $round requires no fewer than 1 arguments and no more tha
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [{}]}}');
 ERROR:  $round works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [1, "str"]}}');
-ERROR:  can't convert from BSON type string to long
+ERROR:  Unable to convert from BSON type string into a long value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [true, 1]}}');
 ERROR:  $round works exclusively with numeric data types, not with bool
 -- $round: precision must be >= -20 and <= 100
@@ -2338,7 +2338,7 @@ ERROR:  precision argument to  $round must be a integral value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [214, {"$numberDouble": "-21.1"} ]}}');
 ERROR:  precision argument to  $round must be a integral value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": [214, {"$numberDecimal": "9223372036854775808"} ]}}');
-ERROR:  Can't coerce out of range value 9223372036854775808 to long
+ERROR:  Unable to convert out-of-range value 9223372036854775808 into a long type
 -- $trunc: defaults to 0 if 1 arg is provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": { "$numberDouble": "1.3" }}}');
             bson_dollar_project             
@@ -2631,7 +2631,7 @@ ERROR:  The expression $trunc requires no fewer than 1 arguments and no more tha
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [{}]}}');
 ERROR:  $trunc works exclusively with numeric data types, not with object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [1, "str"]}}');
-ERROR:  can't convert from BSON type string to long
+ERROR:  Unable to convert from BSON type string into a long value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [true, 1]}}');
 ERROR:  $trunc works exclusively with numeric data types, not with bool
 -- $trunc: precision must be >= -20 and <= 100
@@ -2645,7 +2645,7 @@ ERROR:  precision argument to  $trunc must be a integral value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [214, {"$numberDouble": "-21.1"} ]}}');
 ERROR:  precision argument to  $trunc must be a integral value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$trunc": [214, {"$numberDecimal": "9223372036854775808"} ]}}');
-ERROR:  Can't coerce out of range value 9223372036854775808 to long
+ERROR:  Unable to convert out-of-range value 9223372036854775808 into a long type
 -- Test which verifies the infinity and NaN behavior
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$toInt": {"$numberDecimal": "inf"}}}');
 ERROR:  Attempt to convert infinity value to integer type in $convert with no onError value

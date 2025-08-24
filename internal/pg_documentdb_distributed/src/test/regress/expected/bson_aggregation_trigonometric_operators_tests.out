@@ -660,9 +660,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": {"$numberDouble": 
 
 -- Should error if expression evaluates to Infinity/-Infinity
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $cos to Infinity, value must be in (-inf,inf)
+ERROR:  Cannot use $cos with Infinity; the value must lie within the range (-inf, inf).
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $cos to -Infinity, value must be in (-inf,inf)
+ERROR:  Cannot use $cos with -Infinity; the value must lie within the range (-inf, inf).
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": "str"}}');
 ERROR:  $cos works exclusively with numeric data types, not with string
@@ -1733,17 +1733,17 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": {"$numberDouble":
 
 -- Should error if expression lies outside [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": 1.0000000001 }}');
-ERROR:  cannot apply $asin to 1, value must be in [-1,1]
+ERROR:  Unable to apply $asin to 1 because the provided value must fall within the range [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": -1.0000000001 }}');
-ERROR:  cannot apply $asin to -1, value must be in [-1,1]
+ERROR:  Unable to apply $asin to -1 because the provided value must fall within the range [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": 10 }}');
-ERROR:  cannot apply $asin to 10, value must be in [-1,1]
+ERROR:  Unable to apply $asin to 10 because the provided value must fall within the range [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": -10.9999999999 }}');
-ERROR:  cannot apply $asin to -11, value must be in [-1,1]
+ERROR:  Unable to apply $asin to -11 because the provided value must fall within the range [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $asin to Infinity, value must be in [-1,1]
+ERROR:  Unable to apply $asin to Infinity because the provided value must fall within the range [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $asin to -Infinity, value must be in [-1,1]
+ERROR:  Unable to apply $asin to -Infinity because the provided value must fall within the range [-1, 1]
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": "str"}}');
 ERROR:  $asin works exclusively with numeric data types, not with string

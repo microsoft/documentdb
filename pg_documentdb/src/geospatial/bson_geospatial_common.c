@@ -561,8 +561,8 @@ BsonValueAddLegacyPointDatum(const bson_value_t *value,
 		if (index == 1 && validCoordinates[0] == PointProcessType_Valid)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION13068),
-							errmsg("geo field only has 1 element"),
-							errdetail_log("geo field only has 1 element")));
+							errmsg("Geo field contains only one element"),
+							errdetail_log("Geo field contains only one element")));
 		}
 
 		/* If any point is invalid do further checks */
@@ -698,12 +698,14 @@ GeographyVisitTopLevelField(pgbsonelement *element, const
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			throwError, (
 				errcode(GEO_ERROR_CODE(processState->errorCtxt)),
-				errmsg("%sgeo element must be an array or object: %s : %s",
-					   GEO_ERROR_PREFIX(processState->errorCtxt),
-					   element->path, BsonValueToJsonForLogging(value)),
-				errdetail_log("%sgeo element must be an array or object but found: %s",
-							  GEO_HINT_PREFIX(processState->errorCtxt),
-							  BsonTypeName(value->value_type))));
+				errmsg(
+					"The %sgeo element should be provided as either an array or an object: %s : %s",
+					GEO_ERROR_PREFIX(processState->errorCtxt),
+					element->path, BsonValueToJsonForLogging(value)),
+				errdetail_log(
+					"The %sgeo element should be provided as either an array or an object, but found: %s",
+					GEO_HINT_PREFIX(processState->errorCtxt),
+					BsonTypeName(value->value_type))));
 	}
 
 	/*

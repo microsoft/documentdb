@@ -1994,7 +1994,7 @@ ROLLBACK;
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllClear" : -1  } }';
 ERROR:  A positive number was expected in the following context: $bitsAllClear: -1.0
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllClear" : 23.04  } }';
-ERROR:  Expected an integer: $bitsAllClear: 23.04
+ERROR:  Expected value of integer type: $bitsAllClear: 23.04
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllClear" : "NegTest"  } }';
 ERROR:  a takes an Array, a number, or a BinData but received: $bitsAllClear: \"NegTest"\
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllClear" : 99999999999 } }';
@@ -2026,7 +2026,7 @@ ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "par
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnyClear" : -1  } }';
 ERROR:  A positive number was expected in the following context: $bitsAnyClear: -1.0
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnyClear" : 23.04  } }';
-ERROR:  Expected an integer: $bitsAnyClear: 23.04
+ERROR:  Expected value of integer type: $bitsAnyClear: 23.04
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnyClear" : "NegTest"  } }';
 ERROR:  a takes an Array, a number, or a BinData but received: $bitsAnyClear: \"NegTest"\
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnyClear" : 99999999999 } }';
@@ -2058,7 +2058,7 @@ ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "par
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllSet" : -1  } }';
 ERROR:  A positive number was expected in the following context: $bitsAllSet: -1.0
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllSet" : 23.04  } }';
-ERROR:  Expected an integer: $bitsAllSet: 23.04
+ERROR:  Expected value of integer type: $bitsAllSet: 23.04
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllSet" : "NegTest"  } }';
 ERROR:  a takes an Array, a number, or a BinData but received: $bitsAllSet: \"NegTest"\
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAllSet" : 99999999999 } }';
@@ -2090,7 +2090,7 @@ ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "par
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnySet" : -1  } }';
 ERROR:  A positive number was expected in the following context: $bitsAnySet: -1.0
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnySet" : 23.04  } }';
-ERROR:  Expected an integer: $bitsAnySet: 23.04
+ERROR:  Expected value of integer type: $bitsAnySet: 23.04
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnySet" : "NegTest"  } }';
 ERROR:  a takes an Array, a number, or a BinData but received: $bitsAnySet: \"NegTest"\
 SELECT document FROM documentdb_api.collection('db', 'bitwiseOperators') WHERE document @@ '{ "a": { "$bitsAnySet" : 99999999999 } }';

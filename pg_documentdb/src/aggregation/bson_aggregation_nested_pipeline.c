@@ -564,7 +564,7 @@ HandleDocumentsStage(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$documents is only valid as the first stage in a pipeline")));
+							"$documents can only be used as the first stage in a pipeline.")));
 	}
 
 	/* Documents is an expression */
@@ -1030,10 +1030,10 @@ ParseUnionWith(const bson_value_t *existingValue, StringView *collectionFrom,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"the $unionWith stage specification must be an object or string, but found %s",
+							"The $unionWith stage requires its specification to be either an object or a string, but instead encountered %s",
 							BsonTypeName(existingValue->value_type)),
 						errdetail_log(
-							"the $unionWith stage specification must be an object or string, but found %s",
+							"The $unionWith stage requires its specification to be either an object or a string, but instead encountered %s",
 							BsonTypeName(existingValue->value_type))));
 	}
 }
@@ -3089,9 +3089,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
 								errmsg(
-									"connectToField: FieldPath field names may not start with '$'"),
+									"connectToField: FieldPath field names cannot begin with the symbol '$'"),
 								errdetail_log(
-									"connectToField: FieldPath field names may not start with '$'")));
+									"connectToField: FieldPath field names cannot begin with the symbol '$'")));
 			}
 		}
 		else if (strcmp(key, "from") == 0)
@@ -3167,9 +3167,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
 								errmsg(
-									"depthField: FieldPath field names may not start with '$'"),
+									"depthField:FieldPath field names cannot begin with the symbol '$'"),
 								errdetail_log(
-									"depthField: FieldPath field names may not start with '$'")));
+									"depthField:FieldPath field names cannot begin with the symbol '$'")));
 			}
 		}
 		else if (strcmp(key, "restrictSearchWithMatch") == 0)

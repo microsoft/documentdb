@@ -631,7 +631,7 @@ ERROR:  Size 16777262 is larger than MaxDocumentSize 16777216
 --try to insert bad _id field
 SELECT * FROM aggregate_cursor_first_page('newdb', '{ "aggregate": "sourceDataValidation", "pipeline": [ {"$project" : {"_id" : [1,2,3]}}, {"$out" : "targetDataValidation"} ], "cursor": { "batchSize": 1 } }');
 NOTICE:  creating collection
-ERROR:  The '_id' value cannot be of type array
+ERROR:  The '_id' field value must not be a type of array
 -- Let's take a look at explain plan
 --1) colocated tables , single shard distributed
 SELECT documentdb_api.insert_one('newdb','explainsrc',' {"_id": 1, "name": "Test Case"}', NULL);

@@ -62,7 +62,7 @@ typedef struct ArrayElemAtArgumentState
 	 * If false, it means it is either $first or $last. */
 	bool isArrayElemAtOperator;
 
-	/* Name of operator for logging purposes. */
+	/* Name of operator */
 	const char *opName;
 } ArrayElemAtArgumentState;
 
@@ -751,9 +751,9 @@ ParseDollarFilter(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28647), errmsg(
-								"Unrecognized parameter to $filter: %s", key),
+								"Parameter not recognized in $filter: %s", key),
 							errdetail_log(
-								"Unrecognized parameter to $filter, unexpected key")));
+								"Parameter not recognized in $filter, unexpected key provided")));
 		}
 	}
 
@@ -1481,10 +1481,10 @@ ParseDollarIndexOfArray(const bson_value_t *argument, AggregationExpressionData 
 		else if (arrExpressionData->value.value_type != BSON_TYPE_ARRAY)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40090), errmsg(
-								"$indexOfArray requires an array as a first argument, found: %s",
+								"$indexOfArray expects the first argument to be an array, but received: %s",
 								BsonTypeName(arrExpressionData->value.value_type)),
 							errdetail_log(
-								"$indexOfArray requires an array as a first argument, found: %s",
+								"$indexOfArray expects the first argument to be an array, but received: %s",
 								BsonTypeName(arrExpressionData->value.value_type))));
 		}
 
@@ -1563,10 +1563,10 @@ HandlePreParsedDollarIndexOfArray(pgbson *doc, void *arguments,
 	else if (childResult.value.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40090), errmsg(
-							"$indexOfArray requires an array as a first argument, found: %s",
+							"$indexOfArray expects the first argument to be an array, but received: %s",
 							BsonTypeName(arrExpressionData->value.value_type)),
 						errdetail_log(
-							"$indexOfArray requires an array as a first argument, found: %s",
+							"$indexOfArray expects the first argument to be an array, but received: %s",
 							BsonTypeName(arrExpressionData->value.value_type)
 							)));
 	}
@@ -1656,9 +1656,9 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16879), errmsg(
-								"Unrecognized parameter to $map: %s", key),
+								"Unrecognized parameter provided to $map: %s", key),
 							errdetail_log(
-								"Unrecognized parameter to $map, unexpected key")));
+								"Unrecognized parameter provided to $map, key not expected")));
 		}
 	}
 
@@ -1830,16 +1830,16 @@ ParseDollarReduce(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40076), errmsg(
-								"Unrecognized parameter to $reduce: %s", key),
+								"Parameter not recognized by $reduce: %s", key),
 							errdetail_log(
-								"Unrecognized parameter to $reduce, unexpected key")));
+								"Parameter not recognized by $reduce, unexpected key")));
 		}
 	}
 
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40077), errmsg(
-							"Missing 'input' parameter to $reduce")));
+							"The 'input' parameter required for $reduce is missing")));
 	}
 
 	if (in.value_type == BSON_TYPE_EOD)
@@ -2008,7 +2008,7 @@ ParseDollarSortArray(const bson_value_t *argument, AggregationExpressionData *da
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION2942502), errmsg(
-							"$sortArray requires 'input' to be specified")));
+							"$sortArray needs the 'input' parameter to be explicitly provided")));
 	}
 
 	if (sortby.value_type == BSON_TYPE_EOD)
@@ -2121,7 +2121,7 @@ ParseDollarZip(const bson_value_t *argument, AggregationExpressionData *data,
 	if (inputs.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34465), errmsg(
-							"$zip requires at least one input array")));
+							"$zip needs at least one provided input array")));
 	}
 
 	if (useLongestLength.value_type == BSON_TYPE_EOD)
@@ -2341,10 +2341,10 @@ ParseElementFromArrayForArrayToObject(const bson_value_t *element)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTINCORRECTARRAYLENGTH),
 						errmsg(
-							"$arrayToObject requires an array of size 2 arrays,found array of size: %d",
+							"$arrayToObject needs an array containing exactly two elements, but received one with size: %d",
 							arrayLength),
 						errdetail_log(
-							"$arrayToObject requires an array of size 2 arrays,found array of size: %d",
+							"$arrayToObject needs an array containing exactly two elements, but received one with size: %d",
 							arrayLength)));
 	}
 
@@ -2480,7 +2480,7 @@ ParseDollarMaxMinN(const bson_value_t *argument, AggregationExpressionData *data
 	if (count.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787906), errmsg(
-							"Missing value for 'n'")));
+							"Required value for 'n' is not provided")));
 	}
 
 	DollarMaxMinNArguments *arguments = palloc0(sizeof(DollarMaxMinNArguments));
@@ -2986,12 +2986,12 @@ ProcessDollarArrayElemAt(void *state, bson_value_t *result)
 						errmsg(
 							elemAtState->isArrayElemAtOperator ?
 							"%s's first argument must be an array, but is %s" :
-							"%s's argument must be an array, but is %s",
+							"The argument provided for %s must be of array type, yet it is actually %s.",
 							elemAtState->opName,
 							BsonTypeName(array.value_type)),
 						errdetail_log(elemAtState->isArrayElemAtOperator ?
 									  "%s's first argument must be an array, but is %s" :
-									  "%s's argument must be an array, but is %s",
+									  "The argument provided for %s must be of array type, yet it is actually %s.",
 									  elemAtState->opName,
 									  BsonTypeName(array.value_type))));
 	}
@@ -3330,7 +3330,7 @@ ProcessDollarZip(bson_value_t evaluatedInputsArg, bson_value_t evaluatedLongestL
 	if (rowNum == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34465), errmsg(
-							"$zip requires at least one input array")));
+							"$zip needs at least one provided input array")));
 	}
 
 	bool useLongestLengthArgBoolValue = evaluatedLongestLengthArg.value.v_bool;
@@ -3386,10 +3386,10 @@ ProcessDollarMaxAndMinN(bson_value_t *result, bson_value_t *evaluatedLimit,
 		if (!IsBsonValue64BitInteger(evaluatedLimit, checkFixedInteger))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31109), errmsg(
-								"Can't coerce out of range value %s to long",
+								"Unable to convert out-of-range value %s into a long type",
 								BsonValueToJsonForLogging(evaluatedLimit)),
 							errdetail_log(
-								"Can't coerce out of range value to long")));
+								"Unable to convert out-of-range value to long")));
 		}
 
 		if (nValue < 1)
@@ -3625,14 +3625,14 @@ ValidateElementForFirstAndLastN(bson_value_t *elementsToFetch, const
 			if (IsBsonValueNaN(elementsToFetch))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31109), errmsg(
-									"Can't coerce out of range value %s to long",
+									"Unable to convert out-of-range value %s into a long type",
 									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
 			if (IsBsonValueInfinity(elementsToFetch) != 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31109), errmsg(
-									"Can't coerce out of range value %s to long",
+									"Unable to convert out-of-range value %s into a long type",
 									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
@@ -3657,10 +3657,10 @@ ValidateElementForFirstAndLastN(bson_value_t *elementsToFetch, const
 			if (elementsToFetch->value.v_int64 <= 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787908), errmsg(
-									"'n' must be greater than 0, found %s",
+									"The value of 'n' must be strictly greater than 0, but the current value is %s",
 									BsonValueToJsonForLogging(elementsToFetch)),
 								errdetail_log(
-									"'n' must be greater than 0 found %ld for %s operator",
+									"The value of 'n' must be greater than 0, but received %ld for the %s operator",
 									elementsToFetch->value.v_int64, opName)));
 			}
 			break;
@@ -3794,7 +3794,7 @@ GetEndValueForDollarRange(bson_value_t *endValue)
 	else if (!IsBsonValue32BitInteger(endValue, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34446), errmsg(
-							"$range requires a ending value that can be represented as a 32-bit integer, found value: %s",
+							"$range needs an ending value representable as a 32-bit integer, but encountered value: %s",
 							BsonValueToJsonForLogging(endValue))));
 	}
 	else

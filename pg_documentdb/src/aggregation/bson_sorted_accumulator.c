@@ -234,7 +234,7 @@ DeserializeOrderState(bytea *byteArray,
 	state->numSortKeys = *(int *) (bytes);
 	bytes += sizeof(int);
 
-	/* Extract each of the current results */
+	/* Extract values from each current result */
 	for (int i = 0; i < state->currentCount; i++)
 	{
 		if (*bytes == 0)
@@ -816,7 +816,7 @@ BsonOrderCombine(PG_FUNCTION_ARGS, bool invertSort)
 
 	int minPos = 0; /* Minimum position that new result can be inserted at */
 	int leftPos, rightPos; /* current result position for left/right states*/
-	bool updatedLeft = false; /* Flag to indicate that we updated the leftState */
+	bool updatedLeft = false; /* Flag indicates whether the leftState was updated */
 
 	/* Allocate additional memory for merging right results. */
 	if (leftState.currentCount != leftState.numAggValues)

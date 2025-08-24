@@ -100,7 +100,8 @@ command_compact(PG_FUNCTION_ARGS)
 	if (!EnableCompact || !IsClusterVersionAtleast(DocDB_V0, 104, 0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("Compact command is not supported yet")));
+						errmsg(
+							"Compact command functionality is currently unsupported")));
 	}
 
 	CompactArgs args;

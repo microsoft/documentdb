@@ -358,7 +358,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSWITCHREQUIRESATLEASTONEBRANCH),
 						errmsg(
-							"$switch requires at least one branch.")));
+							"$switch must contain at least one branch.")));
 	}
 
 	/* The default expression will be the last item in our arguments list. */
@@ -378,7 +378,7 @@ ParseDollarSwitch(const bson_value_t *argument, AggregationExpressionData *data,
 
 			SwitchEntry *branchDef = (SwitchEntry *) lfirst(branchCell);
 
-			/* No default expression. */
+			/* No default value expression. */
 			if (branchDef == NULL)
 			{
 				continue;
@@ -442,7 +442,7 @@ HandlePreParsedDollarSwitch(pgbson *doc, void *arguments,
 
 		SwitchEntry *branchDef = (SwitchEntry *) lfirst(branchCell);
 
-		/* No default expression. */
+		/* No default value expression. */
 		if (branchDef == NULL)
 		{
 			continue;

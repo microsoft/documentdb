@@ -75,9 +75,9 @@ ERROR:  BSON field '$densify.range.step' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "partition" } } }]}');
 ERROR:  BSON field '$densify.range.step' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1] } } }]}');
-ERROR:  a bounding array in a range statement must have exactly two elements
+ERROR:  A boundary array used within a range statement is required to contain exactly two elements.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2, 3] } } }]}');
-ERROR:  a bounding array in a range statement must have exactly two elements
+ERROR:  A boundary array used within a range statement is required to contain exactly two elements.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, { "$date": { "$numberLong": "1718841600000" } }] } } }]}');
 ERROR:  BSON field '$densify.range.step' is missing but a required field
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full", "step": "Hello" } } }]}');
@@ -95,11 +95,11 @@ ERROR:  Unrecognized value for time unit: sec
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 1, "unit": "Hour" } } }]}');
 ERROR:  Unrecognized value for time unit: Hour
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": -1 } } }]}');
-ERROR:  the step parameter in a range statement must be a strictly positive numeric value
+ERROR:  The step argument within a range expression should always be a strictly positive numerical value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 0 } } }]}');
-ERROR:  the step parameter in a range statement must be a strictly positive numeric value
+ERROR:  The step argument within a range expression should always be a strictly positive numerical value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": {"$numberDecimal": "-1e1000"} } } }]}');
-ERROR:  the step parameter in a range statement must be a strictly positive numeric value
+ERROR:  The step argument within a range expression should always be a strictly positive numerical value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [2, 1], "step": 1 } } }]}');
 ERROR:  Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "partitionByFields": "a", "range": { "bounds" : "full", "step": 1 } } }]}');
@@ -1256,7 +1256,7 @@ RESET documentdb.test.internalQueryMaxAllowedDensifyDocs;
 SET documentdb.test.internaldocumentsourcedensifymaxmemorybytes TO 100;
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify_limit", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [0, 40], "step": 1 } } }]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: $densify exceeded memory limit of 100
+ERROR:  PlanExecutor error during aggregation :: caused by :: $densify ran out of memory limit: 100
 RESET documentdb.test.internalDocumentSourceDensifyMaxmemoryBytes;
 SHOW documentdb.test.internalQueryMaxAllowedDensifyDocs;
  documentdb.test.internalQueryMaxAllowedDensifyDocs 

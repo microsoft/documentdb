@@ -266,7 +266,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 					else if (isUpsert && ((strcmp(op, "$ref") == 0) ||
 										  (strcmp(op, "$id") == 0)))
 					{
-						/* handle $ref case */
+						/* handle $ref scenario */
 						/* { $ref: "foo", $id: ObjectId("49d4j9jdjd949djd9449jd") } */
 						/* { $id: ObjectId("49d4j9jdjd949djd9449jd"), $ref: "foo" } */
 						bson_iter_t refIterator = idIterator;
@@ -354,7 +354,7 @@ ProcessIdInQuery(void *context, const char *path, const bson_value_t *value)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTSINGLEVALUEFIELD),
 							errmsg(
-								"cannot infer query fields to set, path '_id' is matched twice")));
+								"Unable to determine query fields to assign because the path '_id' appears multiple times.")));
 		}
 		else
 		{

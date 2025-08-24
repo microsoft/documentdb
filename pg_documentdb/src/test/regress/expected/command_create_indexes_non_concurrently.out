@@ -179,7 +179,7 @@ ERROR:  Index already exists with a different name: my_sparse_a_b_idx
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a": 1 }, "name": "*"}]}');
 ERROR:  Error in specification { "key" : { "a" : 1 }, "name" : "*" }:The index name '*' is not valid
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a": 1 }, "name": "name\u0000field"}]}');
-ERROR:  Error in specification { "key" : { "a" : 1 }, "name" : "name\u0000field" }:The index name cannot contain embedded nulls
+ERROR:  Error in specification { "key" : { "a" : 1 }, "name" : "name\u0000field" }:The index name must not include any embedded null characters
 -- For the next test, show the commands that we internally execute to build
 -- & clean-up the collection indexes.
 SET client_min_messages TO DEBUG1;
@@ -272,9 +272,9 @@ ORDER BY indexrelid;
 
 -- Test invalid indexes are not left behind
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**foo": 1}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { "a.$**foo" : 1 }, "name" : "my_idx" }:Index key contains an illegal field name
+ERROR:  Error in specification { "key" : { "a.$**foo" : 1 }, "name" : "my_idx" }:Index key includes an invalid or prohibited field name
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**.foo": 1}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { "a.$**.foo" : 1 }, "name" : "my_idx" }:Index key contains an illegal field name
+ERROR:  Error in specification { "key" : { "a.$**.foo" : 1 }, "name" : "my_idx" }:Index key includes an invalid or prohibited field name
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"b": -1, "a.$**": 1}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "b" : -1, "a.$**" : 1 }, "name" : "my_idx" }:wildcard indexes do not allow compounding
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {}, "name": "my_idx"}]}');

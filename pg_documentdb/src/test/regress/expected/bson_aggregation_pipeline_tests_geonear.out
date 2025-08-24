@@ -71,7 +71,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  There is more than one 2dsphere index; unsure which to use for $geoNear
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": {  } } ]}');
-ERROR:  $geoNear requires a 'distanceField' option as a String
+ERROR:  $geoNear needs a 'distanceField' option specified as a String value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": "value" } ]}');
 ERROR:  Invalid parameter: an object was expected for $geoNear.

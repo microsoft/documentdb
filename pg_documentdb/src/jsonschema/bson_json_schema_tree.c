@@ -338,8 +338,9 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 				 strcmp(key, "format") == 0 || strcmp(key, "id") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("$jsonSchema keyword '%s' is not currently supported",
-								   key)));
+							errmsg(
+								"The '%s' keyword in $jsonSchema is not supported at this time",
+								key)));
 		}
 
 		/* -------------------------------------------------------- */
@@ -602,7 +603,9 @@ ParseEncrypt(const bson_value_t *value, SchemaNode *node)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'encrypt.%s' is an unknown field", key)));
+							errmsg(
+								"The BSON field 'encrypt.%s' is not recognized as a valid field.",
+								key)));
 		}
 	}
 	node->validationFlags.binary |= BinaryValidationTypes_Encrypt;
@@ -1106,10 +1109,14 @@ GetValidatedBsonIntValue(const bson_value_t *value, const char *nonPIIfield)
 	if (!BsonTypeIsNumber(value->value_type))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Expected a number in: %s: %s", nonPIIfield,
-							   BsonValueToJsonForLogging(value)),
-						errdetail_log("Expected a number in: %s: found %s", nonPIIfield,
-									  BsonTypeName(value->value_type))));
+						errmsg(
+							"A numeric value was expected in %s, but instead %s was encountered",
+							nonPIIfield,
+							BsonValueToJsonForLogging(value)),
+						errdetail_log(
+							"A numeric value was expected in %s, but instead %s was encountered",
+							nonPIIfield,
+							BsonTypeName(value->value_type))));
 	}
 	if (!IsBsonValue64BitInteger(value, false))
 	{
@@ -1125,9 +1132,10 @@ GetValidatedBsonIntValue(const bson_value_t *value, const char *nonPIIfield)
 	if (!IsBsonValueFixedInteger(value))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Expected an integer: %s: %s", nonPIIfield,
+						errmsg("Expected value of integer type: %s: %s", nonPIIfield,
 							   BsonValueToJsonForLogging(value)),
-						errdetail_log("Expected an integer: %s: %s", nonPIIfield,
+						errdetail_log("Expected value of integer type: %s: %s",
+									  nonPIIfield,
 									  BsonTypeName(value->value_type))));
 	}
 

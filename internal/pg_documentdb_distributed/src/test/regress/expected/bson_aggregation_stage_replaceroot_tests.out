@@ -58,9 +58,9 @@ SELECT bson_dollar_replace_root(document, '{ "newRoot": {}, "newRoot": {"myArr":
 
 -- Can't have anything other than "newRoot"
 SELECT bson_dollar_replace_root(document, '{ "newRoot1": {"myArr": ["$_id", "$a"]}}') FROM documentdb_api.collection('db', 'replaceRootOps');
-ERROR:  BSON fields '$replaceRoot.newRoot1' is an unknown field
+ERROR:  The BSON field '$replaceRoot.newRoot1' is not recognized as a valid or supported field name.
 SELECT bson_dollar_replace_root(document, '{ "newRoot": {"myArr": ["$_id", "$a"]}, "b": "c"}') FROM documentdb_api.collection('db', 'replaceRootOps');
-ERROR:  BSON fields '$replaceRoot.b' is an unknown field
+ERROR:  The BSON field '$replaceRoot.b' is not recognized as a valid or supported field name.
 -- 'newRoot' is empty document
 SELECT bson_dollar_replace_root(document, '{ "newRoot": { } }') FROM documentdb_api.collection('db', 'replaceRootOps');
  bson_dollar_replace_root 

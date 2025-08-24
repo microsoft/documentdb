@@ -224,7 +224,7 @@ bson_gist_geometry_2d_compress(PG_FUNCTION_ARGS)
 	{
 		/* Out of bounds, throw error */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION13027),
-						errmsg("point not in interval of [ %g, %g ]",
+						errmsg("Point lies outside the specified interval range [%g, %g]",
 							   minBound, maxBound)));
 	}
 

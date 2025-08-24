@@ -152,7 +152,7 @@ SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fi
 ERROR:  $getField requires 'field' to be specified
 -- input is required
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField": {"field": "a"}}}}');
-ERROR:  $getField requires 'input' to be specified
+ERROR:  $getField needs the 'input' parameter to be defined
 -- field must be a string
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField": {"field": null, "input": {}}}}}');
 ERROR:  $getField needs 'field' to evaluate to a String type, but received null
@@ -228,7 +228,7 @@ ERROR:  $unsetField only supports an object as its argument
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a"}}}}');
 ERROR:  $unsetField needs the 'input' parameter to be explicitly specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"input": null}}}}');
-ERROR:  $unsetField requires 'field' to be specified
+ERROR:  $unsetField cannot proceed unless the 'field' parameter is explicitly defined
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": null, "value": 1}}}}');
 ERROR:  $unsetField encountered an unrecognized argument value: value
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": {"$add": [2, 3]}, "input": null}}}}');

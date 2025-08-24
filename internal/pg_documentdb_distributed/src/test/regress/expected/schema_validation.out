@@ -28,16 +28,16 @@ select validator, validation_level, validation_action from documentdb_api_catalo
 
 -- create again without schema validator
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col"}');
-ERROR:  ns: schema_validation.col already exists with different options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
+ERROR:  Namespace schema_validation.col already exists but with different configuration options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
 -- create again without schema validation level
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"a": {"bsonType": "int"}}}}, "validationAction": "warn"}');
-ERROR:  ns: schema_validation.col already exists with different options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
+ERROR:  Namespace schema_validation.col already exists but with different configuration options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
 -- create again without schema validation action
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"a": {"bsonType": "int"}}}}, "validationLevel": "moderate"}');
-ERROR:  ns: schema_validation.col already exists with different options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
+ERROR:  Namespace schema_validation.col already exists but with different configuration options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
 -- create with unmatched schema validator
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"b": {"bsonType": "string"}}}}, "validationLevel": "strict", "validationAction": "error"}');
-ERROR:  ns: schema_validation.col already exists with different options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
+ERROR:  Namespace schema_validation.col already exists but with different configuration options: { "validator" : { "$jsonSchema" : { "bsonType" : "object", "properties" : { "a" : { "bsonType" : "int" } } } }, "validationLevel" : "strict", "validationAction" : "error" }
 -- create again with same parameters
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"a": {"bsonType": "int"}}}}, "validationLevel": "strict", "validationAction": "error"}');
          create_collection_view         
@@ -68,13 +68,13 @@ select validator, validation_level, validation_action from documentdb_api_catalo
 
 -- create again with schema validator
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col3", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"a": {"bsonType": "int"}}}}}');
-ERROR:  ns: schema_validation.col3 already exists with different options: { }
+ERROR:  Namespace schema_validation.col3 already exists but with different configuration options: { }
 -- create again with schema validation level
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col3", "validationLevel": "strict"}');
-ERROR:  ns: schema_validation.col3 already exists with different options: { }
+ERROR:  Namespace schema_validation.col3 already exists but with different configuration options: { }
 -- create again with schema validation action
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col3", "validationAction": "error"}');
-ERROR:  ns: schema_validation.col3 already exists with different options: { }
+ERROR:  Namespace schema_validation.col3 already exists but with different configuration options: { }
 -- create again with same parameters
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col3"}');
          create_collection_view         
@@ -105,7 +105,7 @@ select validator, validation_level, validation_action from documentdb_api_catalo
 
 -- create again with schema validatorAction
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col4", "validator": {"$jsonSchema": {"bsonType": "object", "properties": {"a": {"bsonType": "int"}}}}}');
-ERROR:  ns: schema_validation.col4 already exists with different options: { "validationLevel" : "strict", "validationAction" : "error" }
+ERROR:  Namespace schema_validation.col4 already exists but with different configuration options: { "validationLevel" : "strict", "validationAction" : "error" }
 -- create again with same parameters
 SELECT documentdb_api.create_collection_view('schema_validation', '{ "create": "col4", "validationLevel": "strict"}');
          create_collection_view         

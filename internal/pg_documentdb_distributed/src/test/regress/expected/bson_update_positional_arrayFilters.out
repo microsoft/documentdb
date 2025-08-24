@@ -47,7 +47,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 ERROR:  Error parsing array filter :: caused by :: Expected a single top-level field name, found itemA and itemB
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1 }','{ "": { "$set": { "arrayA.$[itemA]": 70 }}}', '{}', '{ "": [ { "itemA": 6 }, { "itemA": 7 } ] }');
-ERROR:  Found multiple array filters with the same top-level field name itemA
+ERROR:  Multiple array filters detected using identical top-level field name itemA
 -- simple array update on equality
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{"_id": 1, "numbers": [ 100, 200 ] }','{ "": { "$set": { "numbers.$[numElem]": 300 }}}', '{}', '{ "": [{ "numElem": 100 }] }');
@@ -223,7 +223,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [0], [1] ] }',
     '{ "": { "$bit": { "matrix.$[row]": {"or": 5} }} }', '{}', '{ "": [{ "row": 0 }] }');
-ERROR:  Cannot apply $bit to a value of non-integral type.{ "_id" : 1 } has the field 0 of non-integer type array
+ERROR:  $bit cannot be used on a value that is not of an integral type. The document with _id = 1 contains the field 0, which has a non-integer type array.
 -- Check array value should also match in arrayFilters
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [11,12,13], [14,15,16] ] }',

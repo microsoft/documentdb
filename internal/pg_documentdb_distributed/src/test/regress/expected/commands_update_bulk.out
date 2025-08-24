@@ -70,7 +70,7 @@ ERROR:  update document cannot be NULL
 CALL documentdb_api.update_bulk(NULL, '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
 ERROR:  database name cannot be NULL
 CALL documentdb_api.update_bulk('bulkdb', '{"updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
-ERROR:  BSON field 'update.update' is missing but a required field
+ERROR:  Required field 'update.update' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme"}');
 ERROR:  BSON field 'update.updates' is missing but is a required field
 CALL documentdb_api.update_bulk('bulkdb', '{"update":["updateme"], "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
@@ -965,9 +965,9 @@ CALL documentdb_api.update_bulk(
         "ordered": true
      }'
 );
-                                                                                                                                     p_result                                                                                                                                     | p_success 
+                                                                                                                                           p_result                                                                                                                                            | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" } ] } | f
 (1 row)
 
 -- ii) ordered=false
@@ -985,9 +985,9 @@ CALL documentdb_api.update_bulk(
         "ordered": false
      }'
 );
-                                                                                                                                                                                                              p_result                                                                                                                                                                                                              | p_success 
+                                                                                                                                                                                                                           p_result                                                                                                                                                                                                                           | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" }, { "index" : { "$numberInt" : "3" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" }, { "index" : { "$numberInt" : "3" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" } ] } | f
 (1 row)
 
 -- show that we validate "query" document even if collection doesn't exist
@@ -1054,9 +1054,9 @@ CALL documentdb_api.update_bulk(
         "ordered": true
      }'
 );
-                                                                                                                                     p_result                                                                                                                                     | p_success 
+                                                                                                                                           p_result                                                                                                                                            | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" } ] } | f
 (1 row)
 
 -- ii) ordered=false
@@ -1074,9 +1074,9 @@ CALL documentdb_api.update_bulk(
         "ordered": false
      }'
 );
-                                                                                                                                                                                                              p_result                                                                                                                                                                                                              | p_success 
+                                                                                                                                                                                                                           p_result                                                                                                                                                                                                                           | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" }, { "index" : { "$numberInt" : "3" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Updating the path 'p' would create a conflict at 'p'" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "1" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" }, { "index" : { "$numberInt" : "3" }, "code" : { "$numberInt" : "335544349" }, "errmsg" : "Modifying the path 'p' will result in a conflict occurring at 'p'" } ] } | f
 (1 row)
 
 -- show that we validate "query" document even if we can't match any documents

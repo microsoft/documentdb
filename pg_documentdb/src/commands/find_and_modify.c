@@ -445,8 +445,9 @@ ParseFindAndModifyMessage(pgbson *message)
 		if (spec.update != NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Cannot specify both an update and "
-								   "remove=true")));
+							errmsg(
+								"It is not possible to specify both an update action and simultaneously set  "
+								"remove=true")));
 		}
 
 		if (spec.upsert)
@@ -459,9 +460,8 @@ ParseFindAndModifyMessage(pgbson *message)
 		if (spec.returnNewDocument)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Cannot specify both new=true and "
-								   "remove=true; 'remove' always returns "
-								   "the deleted document")));
+							errmsg(
+								"It is not allowed to set both new=true and remove=true simultaneously, as the 'remove' always returns the document that was deleted.")));
 		}
 	}
 	else

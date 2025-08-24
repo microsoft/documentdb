@@ -749,10 +749,10 @@ ThrowMemoryLimitExceededError(int meConsumed)
 				errcode(ERRCODE_DOCUMENTDB_LOCATION6007200),
 				errmsg(
 					"PlanExecutor error during aggregation :: caused by :: "
-					"$densify exceeded memory limit of %d",
+					"$densify ran out of memory limit: %d",
 					PEC_InternalDocumentSourceDensifyMaxMemoryBytes),
 				errdetail_log(
-					"$densify exceeded memory limit of %d",
+					"$densify ran out of memory limit: %d",
 					PEC_InternalDocumentSourceDensifyMaxMemoryBytes)));
 }
 
@@ -1173,7 +1173,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733403),
 										errmsg(
-											"a bounding array in a range statement must have exactly two elements")));
+											"A boundary array used within a range statement is required to contain exactly two elements.")));
 					}
 
 					arguments->densifyType = DENSIFY_TYPE_RANGE;
@@ -1188,7 +1188,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733401),
 									errmsg(
-										"the step parameter in a range statement must be a strictly positive numeric value")));
+										"The step argument within a range expression should always be a strictly positive numerical value")));
 				}
 				arguments->step = rangeElement.bsonValue;
 			}

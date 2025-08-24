@@ -1405,13 +1405,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [[1, {
 
 --$allElementsTrue : Negative Test
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [1]}}');
-ERROR:  $allElementsTrue's argument must be an array, but is int
+ERROR:  The argument provided for $allElementsTrue must be of array type, yet it is actually int.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": ["a"]}}');
-ERROR:  $allElementsTrue's argument must be an array, but is string
+ERROR:  The argument provided for $allElementsTrue must be of array type, yet it is actually string.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [null]}}');
-ERROR:  $allElementsTrue's argument must be an array, but is null
+ERROR:  The argument provided for $allElementsTrue must be of array type, yet it is actually null.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [{"$undefined" : true}]}}');
-ERROR:  $allElementsTrue's argument must be an array, but is undefined
+ERROR:  The argument provided for $allElementsTrue must be of array type, yet it is actually undefined.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [[1,2,3],[3,4,5]]}}');
 ERROR:  Expression $allElementsTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [[1,2,3],1]}}');
@@ -1419,7 +1419,7 @@ ERROR:  Expression $allElementsTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": [1, [1,2,3]]}}');
 ERROR:  Expression $allElementsTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$allElementsTrue": ["$b"]}}');
-ERROR:  $allElementsTrue's argument must be an array, but is missing
+ERROR:  The argument provided for $allElementsTrue must be of array type, yet it is actually missing.
 --$anyElementTrue : Test for True Outputs
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [[true]]}}');
  bson_dollar_project 
@@ -1556,13 +1556,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [[0, {"
 
 --$anyElementTrue : Negative Test
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [1]}}');
-ERROR:  $anyElementTrue's argument must be an array, but is int
+ERROR:  The argument provided for $anyElementTrue must be of array type, yet it is actually int.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": ["a"]}}');
-ERROR:  $anyElementTrue's argument must be an array, but is string
+ERROR:  The argument provided for $anyElementTrue must be of array type, yet it is actually string.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [null]}}');
-ERROR:  $anyElementTrue's argument must be an array, but is null
+ERROR:  The argument provided for $anyElementTrue must be of array type, yet it is actually null.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [{"$undefined" : true}]}}');
-ERROR:  $anyElementTrue's argument must be an array, but is undefined
+ERROR:  The argument provided for $anyElementTrue must be of array type, yet it is actually undefined.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [[1,2,3],[3,4,5]]}}');
 ERROR:  Expression $anyElementTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [[1,2,3],1]}}');
@@ -1570,4 +1570,4 @@ ERROR:  Expression $anyElementTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": [1, [1,2,3]]}}');
 ERROR:  Expression $anyElementTrue takes exactly 1 arguments. 2 were passed in.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$anyElementTrue": ["$b"]}}');
-ERROR:  $anyElementTrue's argument must be an array, but is missing
+ERROR:  The argument provided for $anyElementTrue must be of array type, yet it is actually missing.

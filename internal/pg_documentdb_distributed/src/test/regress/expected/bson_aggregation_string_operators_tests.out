@@ -839,7 +839,7 @@ ERROR:  $trim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1}} }');
 ERROR:  Expected 'string' type for $trim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1, "unknowarG": "1"}} }');
-ERROR:  $trim found an unknown argument: unknowarG
+ERROR:  $trim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $trim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$trim" : {"input": "$a"}} }');
@@ -1075,7 +1075,7 @@ ERROR:  $ltrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1}} }');
 ERROR:  Expected 'string' type for $ltrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1, "unknowarG": "1"}} }');
-ERROR:  $ltrim found an unknown argument: unknowarG
+ERROR:  $ltrim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $ltrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$ltrim" : {"input": "$a"}} }');
@@ -1311,7 +1311,7 @@ ERROR:  $rtrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1}} }');
 ERROR:  Expected 'string' type for $rtrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1, "unknowarG": "1"}} }');
-ERROR:  $rtrim found an unknown argument: unknowarG
+ERROR:  $rtrim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": "", "chars" : ["apple"]}} }');
 ERROR:   $rtrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$rtrim" : {"input": "$a"}} }');
@@ -2443,7 +2443,7 @@ ERROR:  $substrBytes: starting index cannot be negative (received: -1)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["I ❤️ documentdb", 2, 4]} }');
 ERROR:  $substrBytes: Invalid range, ending index falls within a UTF-8 character boundary.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["\uA000Bcd", 1, 2]} }');
-ERROR:  $substrBytes:  Invalid range, starting index is a UTF-8 continuation byte.
+ERROR:  $substrBytes: Invalid range detected, as the starting index is a UTF-8 continuation byte.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : [{"$binary": {"base64": "ww==", "subType": "01"}}, 0, -1] } }');
 ERROR:  Unable to convert from BSON type binData into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : [{"$regex": "/ab/cdsd/abc", "$options" : ""}, 0, -1] } }');
@@ -2675,7 +2675,7 @@ ERROR:  $substrBytes: starting index cannot be negative (received: -1)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["I ❤️ documentdb", 2, 4]} }');
 ERROR:  $substrBytes: Invalid range, ending index falls within a UTF-8 character boundary.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["\uA000Bcd", 1, 2]} }');
-ERROR:  $substrBytes:  Invalid range, starting index is a UTF-8 continuation byte.
+ERROR:  $substrBytes: Invalid range detected, as the starting index is a UTF-8 continuation byte.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : [{"$binary": {"base64": "ww==", "subType": "01"}}, 0, -1] } }');
 ERROR:  Unable to convert from BSON type binData into a String value
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : [{"$regex": "/ab/cdsd/abc", "$options" : ""}, 0, -1] } }');
@@ -3243,7 +3243,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input
 
 -- $regexMatch operator: negative test cases :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input":"", "regex" : "", "extra" : "" }} }');
-ERROR:  $regexMatch found an unknown argument: extra
+ERROR:  $regexMatch encountered an unrecognized input argument: extra
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : { "regex" : ""}} }');
 ERROR:  $regexMatch needs the 'input' parameter specified
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : { "input" : ""}} }');
@@ -3257,7 +3257,7 @@ ERROR:  $regexMatch requires that 'options' must be provided as a string
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "a", "regex" : {"$regex" : "", "$options": "i"}, "options" : "i" }} }');
 ERROR:  $regexMatch detected that regex options have been defined in both the 'regex' and 'option' fields
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "a", "regex" : "a", "options" : "g" }} }');
-ERROR:  $regexMatch invalid flag in regex options: g
+ERROR:  $regexMatch Invalid flag detected in regex options: g
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : null} }');
 ERROR:  $regexMatch requires an object containing named arguments, but encountered: null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : 1} }');
@@ -3537,7 +3537,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input"
 
 -- $regexFind operator: negative test cases :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input":"", "regex" : "", "extra" : "" }} }');
-ERROR:  $regexFind found an unknown argument: extra
+ERROR:  $regexFind encountered an unrecognized input argument: extra
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : { "regex" : ""}} }');
 ERROR:  $regexFind needs the 'input' parameter specified
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : { "input" : ""}} }');
@@ -3551,7 +3551,7 @@ ERROR:  $regexFind requires that 'options' must be provided as a string
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "a", "regex" : {"$regex" : "", "$options": "i"}, "options" : "i" }} }');
 ERROR:  $regexFind detected that regex options have been defined in both the 'regex' and 'option' fields
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "a", "regex" : "a", "options" : "g" }} }');
-ERROR:  $regexFind invalid flag in regex options: g
+ERROR:  $regexFind Invalid flag detected in regex options: g
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : null} }');
 ERROR:  $regexFind requires an object containing named arguments, but encountered: null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : 1} }');
@@ -3867,7 +3867,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"inp
 
 -- $regexFindAll operator: negative test cases :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input":"", "regex" : "", "extra" : "" }} }');
-ERROR:  $regexFindAll found an unknown argument: extra
+ERROR:  $regexFindAll encountered an unrecognized input argument: extra
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : { "regex" : ""}} }');
 ERROR:  $regexFindAll needs the 'input' parameter specified
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : { "input" : ""}} }');
@@ -3881,7 +3881,7 @@ ERROR:  $regexFindAll requires that 'options' must be provided as a string
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "a", "regex" : {"$regex" : "", "$options": "i"}, "options" : "i" }} }');
 ERROR:  $regexFindAll detected that regex options have been defined in both the 'regex' and 'option' fields
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "a", "regex" : "a", "options" : "g" }} }');
-ERROR:  $regexFindAll invalid flag in regex options: g
+ERROR:  $regexFindAll Invalid flag detected in regex options: g
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : null} }');
 ERROR:  $regexFindAll requires an object containing named arguments, but encountered: null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : 1} }');
@@ -4230,9 +4230,9 @@ ERROR:  $replaceOne requires 'input' to be specified
 select bson_dollar_project('{"_id":"1", "test": "hello"}', '{"result": {"$replaceOne": {"find": NaN}}}');
 ERROR:  $replaceOne requires 'input' to be specified
 select bson_dollar_project('{"_id":"1", "test": {"nest": "hello"}}', '{"result": {"$replaceOne": {"input": "Present monsieur", "find": "si", "replacement": "$non", "newField": "he"}}}');
-ERROR:  $replaceOne found an unknown argument: newField
+ERROR:  $replaceOne encountered an unrecognized input argument: newField
 select bson_dollar_project('{"_id":"1", "test": {"nest": "hello"}}', '{"result": {"$replaceOne": {"input": "Present monsieur", "find": "si", "newField": "he"}}}');
-ERROR:  $replaceOne found an unknown argument: newField
+ERROR:  $replaceOne encountered an unrecognized input argument: newField
 -- $replaceOne operator: special characters and escape sequences test:
 select bson_dollar_project('{"_id":"1"}', '{"result": {"$replaceOne": {"input": "I ❤️ documentdb", "find": "❤️", "replacement": "\u0000B"}}}');
                 bson_dollar_project                 
@@ -4473,9 +4473,9 @@ ERROR:  $replaceAll requires 'input' to be specified
 select bson_dollar_project('{"_id":"1", "test": "hello"}', '{"result": {"$replaceAll": {"find": NaN}}}');
 ERROR:  $replaceAll requires 'input' to be specified
 select bson_dollar_project('{"_id":"1", "test": {"nest": "hello"}}', '{"result": {"$replaceAll": {"input": "Present monsieur", "find": "si", "replacement": "$non", "newField": "he"}}}');
-ERROR:  $replaceAll found an unknown argument: newField
+ERROR:  $replaceAll encountered an unrecognized input argument: newField
 select bson_dollar_project('{"_id":"1", "test": {"nest": "hello"}}', '{"result": {"$replaceAll": {"input": "Present monsieur", "find": "si", "newField": "he"}}}');
-ERROR:  $replaceAll found an unknown argument: newField
+ERROR:  $replaceAll encountered an unrecognized input argument: newField
 -- $replaceAll operator: special characters and escape sequences test:
 select bson_dollar_project('{"_id":"1"}', '{"result": {"$replaceAll": {"input": "I ❤️ documentdb", "find": "❤️", "replacement": "\u0000B"}}}');
                 bson_dollar_project                 

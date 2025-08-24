@@ -319,7 +319,7 @@ gin_bson_composite_path_extract_query(PG_FUNCTION_ARGS)
 				totalPathTerms = 0;
 			}
 
-			/* Add the index to the current key */
+			/* Insert the index into the active key */
 			pathScanTermMap[set->indexAttribute].scanKeyIndexList =
 				lappend_int(pathScanTermMap[set->indexAttribute].scanKeyIndexList,
 							foreach_current_index(cell));
@@ -1006,7 +1006,7 @@ gin_bson_composite_index_term_transform(PG_FUNCTION_ARGS)
 
 	if (!foundSkipPath)
 	{
-		/* Keep the current path */
+		/* Continue using current path */
 		PG_RETURN_DATUM(0);
 	}
 

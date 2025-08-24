@@ -32,7 +32,7 @@ ROLLBACK;
 SELECT documentdb_api.shard_collection('db','reshard', '{"value":1}');
 ERROR:  only shard keys that use hashed are supported
 SELECT documentdb_api.shard_collection('db','reshard', '{"value":"hash"}');
-ERROR:  invalid value for shard key: hash
+ERROR:  Shard key value provided is invalid: hash
 -- create two indexes before re-sharding
 SELECT documentdb_api_internal.create_indexes_non_concurrently(
   'db',
@@ -149,9 +149,9 @@ SELECT documentdb_api.insert_one('db','reshard','{"_id":"6", "value": ["hello","
 
 -- documents with regex shard key are not allowed
 SELECT documentdb_api.insert_one('db','reshard','{"_id":"6", "value":  {"$regularExpression":{"pattern":"foo","options":""}}}');
-                                                                                                     insert_one                                                                                                     
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "Shard key cannot contain a regex." } ] }
+                                                                                                                       insert_one                                                                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "A shard key is not allowed to include any regular expression pattern." } ] }
 (1 row)
 
 -- documents with double shard key are allowed

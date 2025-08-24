@@ -301,7 +301,7 @@ row_get_bson(PG_FUNCTION_ARGS)
 			continue;
 		}
 
-		/* get the SQL value. */
+		/* Retrieve the SQL database value */
 		Datum fieldValue = heap_getattr(&tupleValue, i + 1, tupleDescriptor, &isnull);
 
 		if (isnull)
@@ -429,7 +429,7 @@ bson_repath_and_build(PG_FUNCTION_ARGS)
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					 errmsg("argument %d cannot be null", i + 1),
+					 errmsg("The specified argument %d must not be null", i + 1),
 					 errdetail("Object keys should be text.")));
 		}
 
@@ -477,7 +477,7 @@ bson_repath_and_build(PG_FUNCTION_ARGS)
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								(errmsg("Expecting a single element value"))));
+								(errmsg("Expecting only one element value"))));
 			}
 		}
 		else

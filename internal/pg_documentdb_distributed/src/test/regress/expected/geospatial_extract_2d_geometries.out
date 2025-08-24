@@ -124,13 +124,13 @@ ERROR:  location object expected, location array not in correct format
 SELECT bson_extract_geometry('{ "a" : { "field1": { "$undefined": true } } }', 'a');
 ERROR:  location object expected, location array not in correct format
 SELECT bson_extract_geometry('{ "a" : { "field1": { "$numberInt": "1" } } }', 'a');
-ERROR:  geo field only has 1 element
+ERROR:  Geo field contains only one element
 SELECT bson_extract_geometry('{ "a" : { "field1": { "$numberLong": "1" } } }', 'a');
-ERROR:  geo field only has 1 element
+ERROR:  Geo field contains only one element
 SELECT bson_extract_geometry('{ "a" : { "field1": { "$numberDouble": "1" } } }', 'a');
-ERROR:  geo field only has 1 element
+ERROR:  Geo field contains only one element
 SELECT bson_extract_geometry('{ "a" : { "field1": { "$numberDecimal": "1" } } }', 'a');
-ERROR:  geo field only has 1 element
+ERROR:  Geo field contains only one element
 SELECT bson_extract_geometry('{ "a" : { "field1": [], "field2": 10 } }', 'a');
 ERROR:  location object expected, location array not in correct format
 SELECT bson_extract_geometry('{ "a" : { "field1": [[]], "field2": 10 } }', 'a');
@@ -339,7 +339,7 @@ SELECT bson_extract_geometry('{ "a" : [
     { "b": [ { "long": [70, 80], "lat": 75 }, { "long": [80], "lat": 85 } ] },
     { "b": [ { "long": [90, 100], "lat": 95 }, { "long": [100], "lat": 105 } ] },
     { "b": [ { "long": [110, 120], "lat": 115 }, { "long": [120], "lat": 125 } ] } ]}', 'a.b.long');
-ERROR:  geo field only has 1 element
+ERROR:  Geo field contains only one element
 -- With GeoJson points, errors in case of strict mode
 SELECT bson_extract_geometry('{"a": {"type": "Point", "coordinates": [45,45] } }', 'a');
 ERROR:  location object expected, location array not in correct format

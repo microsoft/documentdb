@@ -307,7 +307,7 @@ HandleDistributedColocation(MongoCollection *collection, const
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 							errmsg(
-								"Cannot colocate current collection with a sharded collection.")));
+								"Current collection cannot be colocated with any sharded collection.")));
 		}
 
 		/* Also check if the colocated source has only 1 shard (otherwise require colocate=null explicitly) */

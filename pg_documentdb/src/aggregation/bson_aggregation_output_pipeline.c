@@ -572,9 +572,9 @@ bson_dollar_merge_fail_when_not_matched(PG_FUNCTION_ARGS)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_MERGESTAGENOMATCHINGDOCUMENT),
 					errmsg(
-						"$merge could not find a matching document in the target collection for at least one document in the source collection"),
+						"$merge failed to locate a corresponding document in the target collection for one or more documents from the source collection"),
 					errdetail_log(
-						"$merge could not find a matching document in the target collection for at least one document in the source collection")));
+						"$merge failed to locate a corresponding document in the target collection for one or more documents from the source collection")));
 
 	PG_RETURN_NULL();
 }
@@ -919,11 +919,11 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"$merge requires a string or object argument, but found %s",
+							"The $merge operator needs a string or object input, but received %s instead",
 							BsonTypeName(
 								existingValue->value_type)),
 						errdetail_log(
-							"$merge requires a string or object argument, but found %s",
+							"The $merge operator needs a string or object input, but received %s instead",
 							BsonTypeName(
 								existingValue->value_type))));
 	}
@@ -976,10 +976,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 										errmsg(
-											"BSON field 'into.%s' is the wrong type '%s', expected type 'string",
+											"BSON field 'into.%s' has an incorrect type '%s'; the expected data type is 'string'",
 											innerKey, BsonTypeName(value->value_type)),
 										errdetail_log(
-											"BSON field 'into.%s' is the wrong type '%s', expected type 'string",
+											"BSON field 'into.%s' has an incorrect type '%s'; the expected data type is 'string'",
 											innerKey, BsonTypeName(value->value_type))));
 					}
 
@@ -1065,10 +1065,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51134),
 										errmsg(
-											"$merge 'on' array elements must be strings, but found %s",
+											"Array elements for $merge 'on' must be strings, but a %s type was detected",
 											BsonTypeName(onValuesElement->value_type)),
 										errdetail_log(
-											"$merge 'on' array elements must be strings, but found %s",
+											"Array elements for $merge 'on' must be strings, but a %s type was detected",
 											BsonTypeName(onValuesElement->value_type))));
 					}
 				}
@@ -1136,10 +1136,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"Enumeration value '%s' for field 'whenMatched' is not a valid value.",
+									"The enumeration value '%s' specified for the 'whenMatched' field is invalid.",
 									value->value.v_utf8.str),
 								errdetail_log(
-									"Enumeration value '%s' for field 'whenMatched' is not a valid value.",
+									"The enumeration value '%s' specified for the 'whenMatched' field is invalid.",
 									value->value.v_utf8.str)));
 			}
 		}
@@ -1192,9 +1192,9 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
 						errmsg(
-							"BSON field '$merge.into' is missing but a required field"),
+							"The required BSON field '$merge.into' is missing."),
 						errdetail_log(
-							"BSON field '$merge.into' is missing but a required field")));
+							"The required BSON field '$merge.into' is missing.")));
 	}
 
 	if (!isOnSpecified)
@@ -1608,9 +1608,9 @@ VaildateMergeOnFieldValues(const bson_value_t *onValues, uint64 collectionId)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51183),
 						errmsg(
-							"Cannot find index to verify that join fields will be unique"),
+							"Unable to locate index required to confirm join fields are unique"),
 						errdetail_log(
-							"Cannot find index to verify that join fields will be unique")));
+							"Unable to locate index required to confirm join fields are unique")));
 	}
 }
 
@@ -1765,7 +1765,7 @@ ValidatePreOutputStages(Query *query, char *stageName)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg(
-							"The `%s` stage is not supported with mutable functions yet.",
+							"The `%s` stage currently does not have support for use with mutable functions.",
 							stageName),
 						errdetail_log(
 							"MUTABLE functions are not yet in MERGE command by citus")));

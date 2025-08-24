@@ -205,7 +205,7 @@ ThrowGeoNearNotAllowedInContextError()
 	ereport(ERROR, (
 				errcode(ERRCODE_DOCUMENTDB_LOCATION5626500),
 				errmsg(
-					"$geoNear, $near, and $nearSphere are not allowed in this context")));
+					"Operators $geoNear, $near, and $nearSphere cannot be used in this particular context")));
 }
 
 static inline void

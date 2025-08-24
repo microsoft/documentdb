@@ -171,7 +171,8 @@ GetBsonIndexAmByIndexAmName(const char *index_am_name)
 		}
 	}
 
-	ereport(ERROR, (errmsg("Index access method %s is not found", index_am_name)));
+	ereport(ERROR, (errmsg("The index access method %s could not be located",
+						   index_am_name)));
 }
 
 

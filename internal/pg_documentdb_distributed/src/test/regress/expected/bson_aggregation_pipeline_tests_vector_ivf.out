@@ -145,11 +145,11 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 COMMIT;
 -- IVF search, error cases
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 10000000 }  } } ], "cursor": {} }');
-ERROR:  $nProbes must be less than or equal to 32768.
+ERROR:  The value of $nProbes must not exceed 32768.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": -5 }  } } ], "cursor": {} }');
 ERROR:  $nProbes must be greater than or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": "5" }  } } ], "cursor": {} }');
-ERROR:  $nProbes must be an integer value.
+ERROR:  $nProbes is required to be an integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 5.5 }  } } ], "cursor": {} }');
                                                                                                                                document                                                                                                                                
 ---------------------------------------------------------------------
@@ -3568,7 +3568,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 
 RESET client_min_messages;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 2.5 }  } } ], "cursor": {} }');
 ERROR:  oversampling is not allowed for non-compressed vector index.
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_ivf_halfvec", "index": "foo_1"}');
@@ -3807,9 +3807,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 RESET client_min_messages;
 -- oversampling, error cases
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0.5 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": "0" }  } } ], "cursor": {} }');
 ERROR:  $oversampling must be a number value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_ivf_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": [] }  } } ], "cursor": {} }');

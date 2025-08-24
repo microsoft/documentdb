@@ -102,7 +102,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  $geoNear requires a 2d or 2dsphere index, but none were found
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": {  } } ]}');
-ERROR:  $geoNear requires a 'distanceField' option as a String
+ERROR:  $geoNear needs a 'distanceField' option specified as a String value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": "value" } ]}');
 ERROR:  Invalid parameter: an object was expected for $geoNear.
@@ -129,19 +129,19 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  minDistance must be nonnegative
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a",  "minDistance": {"$numberDouble": "NaN"}} } ]}');
-ERROR:  minDistance must be non-negative
+ERROR:  minDistance must be positive or zero
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a",  "minDistance": {"$numberDouble": "-NaN"}} } ]}');
-ERROR:  minDistance must be non-negative
+ERROR:  minDistance must be positive or zero
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a",  "maxDistance": {"$numberDecimal": "-Infinity"}} } ]}');
 ERROR:  maxDistance must be nonnegative
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a",  "maxDistance": {"$numberDecimal": "NaN"}} } ]}');
-ERROR:  maxDistance must be non-negative
+ERROR:  maxDistance must be positive or zero
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a",  "maxDistance": {"$numberDecimal": "-NaN"}} } ]}');
-ERROR:  maxDistance must be non-negative
+ERROR:  maxDistance must be positive or zero
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a"} }, { "$match": { "a": { "$near": {"coordinates": [1,1]}}}} ]}');
 ERROR:  Too many geoNear expressions
@@ -1253,11 +1253,11 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIn
 -- Errors out with point not in interval based on index bounds.
 -- TODO: add index bound tests for sharded collection once ORDER BY pushdown to shards is supported
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "boundstest", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "geo", "includeLocs": "dist.location", "minDistance": 0, "maxDistance": 500000} } ]}');
-ERROR:  point not in interval of [ -1, 1 ]
+ERROR:  Point lies outside the specified interval range [-1, 1]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "boundstest", "pipeline": [ { "$geoNear": { "near": [0, 6], "distanceField": "dist.calculated", "key": "geo", "includeLocs": "dist.location", "minDistance": 0, "maxDistance": 500000} } ]}');
-ERROR:  point not in interval of [ -1, 1 ]
+ERROR:  Point lies outside the specified interval range [-1, 1]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "boundstest", "pipeline": [ { "$geoNear": { "near": [5, 0], "distanceField": "dist.calculated", "key": "geo", "includeLocs": "dist.location", "minDistance": 0, "maxDistance": 500000} } ]}');
-ERROR:  point not in interval of [ -1, 1 ]
+ERROR:  Point lies outside the specified interval range [-1, 1]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "boundstest", "pipeline": [ { "$geoNear": { "near": [1, -1], "distanceField": "dist.calculated", "key": "geo", "includeLocs": "dist.location", "minDistance": 0, "maxDistance": 500000} } ]}');
                                                                                                                   document                                                                                                                  
 ---------------------------------------------------------------------

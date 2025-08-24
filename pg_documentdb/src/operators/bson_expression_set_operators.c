@@ -1062,12 +1062,13 @@ ProcessDollarAllOrAnyElementsTrue(const bson_value_t *currentValue, void *state,
 	{
 		ereport(ERROR, (errcode(IsAllElementsTrueOp ? ERRCODE_DOCUMENTDB_LOCATION17040 :
 								ERRCODE_DOCUMENTDB_LOCATION17041),
-						errmsg("%s's argument must be an array, but is %s",
-							   IsAllElementsTrueOp ? "$allElementsTrue" :
-							   "$anyElementTrue",
-							   currentValue->value_type == BSON_TYPE_EOD ?
-							   MISSING_TYPE_NAME :
-							   BsonTypeName(currentValue->value_type))));
+						errmsg(
+							"The argument provided for %s must be of array type, yet it is actually %s.",
+							IsAllElementsTrueOp ? "$allElementsTrue" :
+							"$anyElementTrue",
+							currentValue->value_type == BSON_TYPE_EOD ?
+							MISSING_TYPE_NAME :
+							BsonTypeName(currentValue->value_type))));
 	}
 
 	bson_iter_t arrayIterator;

@@ -170,7 +170,7 @@ RunQueryOnAllServerNodes(const char *commandName, Datum *values, Oid *types,
 
 					StringView errorView = CreateStringViewFromString(workerError);
 					StringView connectivityView = CreateStringViewFromString(
-						"failed to connect to");
+						"Unable to establish connection with");
 					StringView recoveryErrorView = CreateStringViewFromString(
 						"terminating connection due to conflict with recovery");
 					StringView recoveryCancelErrorView = CreateStringViewFromString(

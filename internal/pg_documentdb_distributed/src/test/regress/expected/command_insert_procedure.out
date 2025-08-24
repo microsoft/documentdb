@@ -11,7 +11,7 @@ END;
 CALL documentdb_api.insert_bulk('db', NULL);
 ERROR:  insert document cannot be NULL
 CALL documentdb_api.insert_bulk(NULL, '{"insert":"collection", "documents":[{"a":1}]}');
-ERROR:  database name cannot be NULL
+ERROR:  Database name must not be NULL value
 CALL documentdb_api.insert_bulk('db', '{"documents":[{"a":1}]}');
 ERROR:  The BSON field 'insert.insert' is required but not provided
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection"}');
@@ -353,7 +353,7 @@ ERROR:  System namespace provided is invalid: db.system.othercoll
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 CALL documentdb_api.insert_bulk('db', '{"insert":"random$name", "documents":[{"_id":1,"a":1}]}');
-ERROR:  Invalid collection name: random$name
+ERROR:  Collection name provided is invalid: random$name
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 CALL documentdb_api.insert_bulk('db', '{"insert":".randomname", "documents":[{"_id":1,"a":1}]}');

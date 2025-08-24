@@ -498,7 +498,7 @@ ParseIVFIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$nProbes must be an integer value.")));
+									"$nProbes is required to be an integer value.")));
 			}
 
 			int32_t nProbes = BsonValueAsInt32(value);
@@ -515,7 +515,7 @@ ParseIVFIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$nProbes must be less than or equal to %d.",
+									"The value of $nProbes must not exceed %d.",
 									IVFFLAT_MAX_NPROBES)));
 			}
 

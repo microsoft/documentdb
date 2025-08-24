@@ -637,7 +637,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 		if (pathSpecValue->value_type == BSON_TYPE_DOCUMENT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31271),
-							errmsg("positional projection cannot be used with "
+							errmsg("Positional projection is not allowed when applied to "
 								   "an expression or sub object")));
 		}
 		if (!BsonValueIsNumberOrBool(pathSpecValue))
@@ -694,7 +694,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"elemMatch: Invalid argument, object required, but got %s",
+									"elemMatch: Invalid argument provided, an object is required but received %s",
 									BsonTypeName(operatorValue->value_type))));
 			}
 			else if (IsPositionalIncluded(treeState->operatorExistenceFlag))

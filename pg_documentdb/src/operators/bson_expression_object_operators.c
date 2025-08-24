@@ -350,7 +350,7 @@ ParseDollarGetField(const bson_value_t *argument, AggregationExpressionData *dat
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION3041703),
 						errmsg(
-							"$getField requires 'input' to be specified")));
+							"$getField needs the 'input' parameter to be defined")));
 	}
 
 	DollarGetFieldArguments *arguments = palloc0(sizeof(DollarGetFieldArguments));
@@ -495,7 +495,8 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION4161102),
 						errmsg(
-							"%s requires 'field' to be specified", operatorName)));
+							"%s cannot proceed unless the 'field' parameter is explicitly defined",
+							operatorName)));
 	}
 
 	if (isSetField && value.value_type == BSON_TYPE_EOD)

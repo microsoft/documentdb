@@ -346,8 +346,9 @@ PgbsonSequenceInitFromJson(const char *jsonString)
 	if (element.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Json value for bsonsequence must be an array. got %s",
-							   BsonTypeName(element.bsonValue.value_type))));
+						errmsg(
+							"The JSON value for bsonsequence should be provided as an array, but received %s instead.",
+							BsonTypeName(element.bsonValue.value_type))));
 	}
 
 	bson_iter_t arrayIterator;

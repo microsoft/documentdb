@@ -55,13 +55,13 @@ SELECT documentdb_api.list_indexes_cursor_first_page('orderdb','{ "listIndexes":
 
 --Test 3: Collection not exist --
 SELECT documentdb_api.list_indexes_cursor_first_page('orderdb','{ "listIndexes": "nonexistent_collection" }') ORDER BY 1;
-ERROR:  ns does not exist: orderdb.nonexistent_collection
+ERROR:  Namespace does not currently exist: orderdb.nonexistent_collection
 --Test 4: DB not exist --
 SELECT documentdb_api.list_indexes_cursor_first_page('db_not_exist','{ "listIndexes": "order_data" }') ORDER BY 1;
-ERROR:  ns does not exist: db_not_exist.order_data
+ERROR:  Namespace does not currently exist: db_not_exist.order_data
 --Test 5: DB and collection both does not exist --
 SELECT documentdb_api.list_indexes_cursor_first_page('db_not_exist','{ "listIndexes": "nonexistent_collection" }') ORDER BY 1;
-ERROR:  ns does not exist: db_not_exist.nonexistent_collection
+ERROR:  Namespace does not currently exist: db_not_exist.nonexistent_collection
 -- Test 6: Sparse is included in result only when specified:
 SELECT documentdb_api_internal.create_indexes_non_concurrently('sparsedb', '{"createIndexes": "sparse_orders", "indexes": [{"key": {"promo_code": 1}, "name": "promo_sparse_idx1", "sparse": true}]}', true);
 NOTICE:  creating collection

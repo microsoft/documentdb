@@ -99,27 +99,27 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  $expMovingAvg requires an explicit 'sortBy'
 -- alpha and N all exist
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "alpha": 0.666, "N": 2} } } } } ] }');
-ERROR:  $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field
+ERROR:  The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.
 -- miss input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"alpha": 0.666, "N": 2} } } } } ] }');
-ERROR:  $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field
+ERROR:  The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.
 -- miss alpha and N
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost"} } } } } ] }');
-ERROR:  $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field
+ERROR:  The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.
 -- incorrect parameter
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "alpah": 0.666} } } } } ] }');
-ERROR:  Got unrecognized field in $expMovingAvg, $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field
+ERROR:  Got unrecognized field in $expMovingAvg, The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "M": 2} } } } } ] }');
-ERROR:  Got unrecognized field in $expMovingAvg, $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field
+ERROR:  Got unrecognized field in $expMovingAvg, The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.
 -- N is float
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "N": 2.3} } } } } ] }');
-ERROR:  'N' field must be an integer, but found  N: 2.300000. To use a non-integer, use the 'alpha' argument instead
+ERROR:  The 'N' field is required to be an integer value, but instead a floating-point number was provided as N: 2.300000; to specify a non-integer, please use the 'alpha' argument.
 -- alpha >= 1
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "alpha": 2} } } } } ] }');
-ERROR:  'alpha' must be between 0 and 1 (exclusive), found alpha: 2.000000
+ERROR:  The value of 'alpha' must lie strictly between 0 and 1 (not inclusive), but the provided alpha is: 2.000000
 -- alpha <= 0
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "alpha": -2.8} } } } } ] }');
-ERROR:  'alpha' must be between 0 and 1 (exclusive), found alpha: -2.800000
+ERROR:  The value of 'alpha' must lie strictly between 0 and 1 (not inclusive), but the provided alpha is: -2.800000
 -- data contains null
 SELECT documentdb_api.insert_one('db','test2','{ "_id": 1, "name": "p1", "cost": 20, "date": { "$date": { "$numberLong": "1718841600001"}}}');
 NOTICE:  creating collection

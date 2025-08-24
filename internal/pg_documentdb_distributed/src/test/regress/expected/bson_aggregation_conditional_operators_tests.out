@@ -384,7 +384,7 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"foo": "blah", 
 ERROR:  Unknown argument: foo
 -- $switch: requires at least one branch
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": []}}}');
-ERROR:  $switch requires at least one branch.
+ERROR:  $switch must contain at least one branch.
 -- $switch: default is required only when there is no matching branch
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$switch": {"branches": [{"case": false, "then": "$b"}]}}}');
 ERROR:  The $switch operator failed to locate a matching branch for the provided input, and no default branch was defined.

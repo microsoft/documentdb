@@ -12,7 +12,7 @@ NOTICE:  creating collection
 
 -- invalid scenarios
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "create_indexes_text", "indexes": [ { "key": { "a": "text", "b": 1, "c": "text" } } ] }', true);
-ERROR:  Error in specification { "key" : { "a" : "text", "b" : 1, "c" : "text" } }:'text' fields in index must all be adjacent
+ERROR:  Error in specification { "key" : { "a" : "text", "b" : 1, "c" : "text" } }:All 'text' fields within the index are required to be positioned consecutively.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "create_indexes_text", "indexes": [ { "key": { "a": "hashed", "b": 1, "c": "text" } } ] }', true);
 ERROR:  Error in specification { "key" : { "a" : "hashed", "b" : 1, "c" : "text" } }:It is not allowed to enable more than one index plugin for the same index.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "create_indexes_text", "indexes": [ { "key": { "c": "text" }, "name": "foo",  "expireAfterSeconds": 10 } ] }', true);

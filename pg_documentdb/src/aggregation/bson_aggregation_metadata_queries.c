@@ -396,7 +396,8 @@ GenerateBaseListIndexesQuery(text *databaseDatum, const StringView *collectionNa
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
-						errmsg("ns does not exist: %s", context->namespaceName)));
+						errmsg("Namespace does not currently exist: %s",
+							   context->namespaceName)));
 	}
 
 	/* Add ApiInternalSchemaName.index_spec_as_bson(index_spec, TRUE) projector */

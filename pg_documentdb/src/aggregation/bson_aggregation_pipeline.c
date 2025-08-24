@@ -1683,10 +1683,11 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 					{
 						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-										errmsg("key %.*s is not supported yet",
+										errmsg("The key %.*s is currently not supported",
 											   keyView.length, keyView.string),
-										errdetail_log("key %.*s is not supported yet",
-													  keyView.length, keyView.string)));
+										errdetail_log(
+											"The key %.*s is currently not supported",
+											keyView.length, keyView.string)));
 					}
 
 					continue;
@@ -1724,10 +1725,11 @@ GenerateFindQuery(text *databaseDatum, pgbson *findSpec, QueryData *queryData, b
 					{
 						/* fail if returnKey or showRecordId are present and with boolean value true, else ignore */
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-										errmsg("key %.*s is not supported yet",
+										errmsg("The key %.*s is currently not supported",
 											   keyView.length, keyView.string),
-										errdetail_log("key %.*s is not supported yet",
-													  keyView.length, keyView.string)));
+										errdetail_log(
+											"The key %.*s is currently not supported",
+											keyView.length, keyView.string)));
 					}
 
 					continue;
@@ -2182,7 +2184,8 @@ GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStateme
 	if (strlen(distinctKey.string) != distinctKey.length)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_KEYCANNOTCONTAINNULLBYTE),
-						errmsg("Distinct key cannot have embedded nulls")));
+						errmsg(
+							"A distinct key value cannot contain any embedded null characters")));
 	}
 
 	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
@@ -2261,7 +2264,7 @@ ParseGetMore(text **databaseName, pgbson *getMoreSpec, QueryData *queryData, boo
 		else if (!IsCommonSpecIgnoredField(pathKey))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("%s is an unknown field",
+							errmsg("%s is an unrecognized field name",
 								   pathKey)));
 		}
 	}
@@ -2498,16 +2501,17 @@ ParseInputForNGroupAccumulators(const bson_value_t *inputDocument,
 								"Specification should be an object type; encountered %s: %s",
 								opName, BsonValueToJsonForLogging(inputDocument)),
 							errdetail_log(
-								"specification must be an object; opname: %s type found: %s",
+								"specification must be defined as an object; opname: %s type found: %s",
 								opName, BsonTypeName(inputDocument->value_type))));
 		}
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787801),
-							errmsg("specification must be an object; found %s :%s",
-								   opName, BsonValueToJsonForLogging(inputDocument)),
+							errmsg(
+								"specification must be defined as an object, but the provided input was %s :%s",
+								opName, BsonValueToJsonForLogging(inputDocument)),
 							errdetail_log(
-								"specification must be an object; opname: %s type found :%s",
+								"pecification must be defined as an object; opname: %s type found :%s",
 								opName, BsonTypeName(inputDocument->value_type))));
 		}
 	}
@@ -2572,10 +2576,11 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 	if (inputDocument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788001),
-						errmsg("specification must be an object; found %s :%s",
-							   opName, BsonValueToJsonForLogging(inputDocument)),
+						errmsg(
+							"specification must be defined as an object, but the provided input was %s :%s",
+							opName, BsonValueToJsonForLogging(inputDocument)),
 						errdetail_log(
-							"specification must be an object; opname: %s type found :%s",
+							"specification must be defined as an object; opname: %s type found :%s",
 							opName, BsonTypeName(inputDocument->value_type))));
 	}
 	bson_iter_t docIter;
@@ -2612,7 +2617,7 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 														 strcmp(opName, "$bottomN") == 0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788003),
-						errmsg("Missing value for 'n'"),
+						errmsg("Required value for 'n' is not provided"),
 						errdetail_log(
 							"%s requires an 'n' field", opName)));
 	}
@@ -2759,15 +2764,17 @@ ValidateElementForNGroupAccumulators(bson_value_t *elementsToFetch, const
 			if (IsBsonValueNaN(elementsToFetch))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31109),
-								errmsg("Can't coerce out of range value %s to long",
-									   BsonValueToJsonForLogging(elementsToFetch))));
+								errmsg(
+									"Unable to convert out-of-range value %s into a long type",
+									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
 			if (IsBsonValueInfinity(elementsToFetch) != 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31109),
-								errmsg("Can't coerce out of range value %s to long",
-									   BsonValueToJsonForLogging(elementsToFetch))));
+								errmsg(
+									"Unable to convert out-of-range value %s into a long type",
+									BsonValueToJsonForLogging(elementsToFetch))));
 			}
 
 			if (!IsBsonValueFixedInteger(elementsToFetch))
@@ -2792,8 +2799,9 @@ ValidateElementForNGroupAccumulators(bson_value_t *elementsToFetch, const
 			if (elementsToFetch->value.v_int64 <= 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787908),
-								errmsg("'n' must be greater than 0, found %s",
-									   BsonValueToJsonForLogging(elementsToFetch)),
+								errmsg(
+									"The value of 'n' must be strictly greater than 0, but the current value is %s",
+									BsonValueToJsonForLogging(elementsToFetch)),
 								errdetail_log(
 									"'n' must be greater than 0, found %ld",
 									elementsToFetch->value.v_int64)));
@@ -2871,7 +2879,8 @@ HandleBucket(const bson_value_t *existingValue, Query *query,
 	if (IsCollationApplicable(context->collationString))
 	{
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-						errmsg("collation is not supported in $bucket stage yet.")));
+						errmsg(
+							"Collation is currently unsupported in the $bucket stage.")));
 	}
 
 	ReportFeatureUsage(FEATURE_STAGE_BUCKET);
@@ -3087,9 +3096,12 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field '$fill.%s' is an unknown field", key),
-							errdetail_log("BSON field '$fill.%s' is an unknown field",
-										  key)));
+							errmsg(
+								"The BSON field named '$fill.%s' is not recognized as a valid field.",
+								key),
+							errdetail_log(
+								"The BSON field named '$fill.%s' is not recognized as a valid field.",
+								key)));
 		}
 	}
 
@@ -3184,9 +3196,10 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6050202),
-									errmsg("Method must be either locf or linear"),
+									errmsg(
+										"The method must be specified as either locf or linear"),
 									errdetail_log(
-										"Method must be either locf or linear")));
+										"The method must be specified as either locf or linear")));
 				}
 			}
 			else if (strcmp(key, "value") == 0)
@@ -3223,9 +3236,12 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 			{
 				/* unsupported field name */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-								errmsg("BSON field '$fill.%s' is an unknown field", key),
-								errdetail_log("BSON field '$fill.%s' is an unknown field",
-											  key)));
+								errmsg(
+									"The BSON field named '$fill.%s' is not recognized as a valid field.",
+									key),
+								errdetail_log(
+									"The BSON field named '$fill.%s' is not recognized as a valid field.",
+									key)));
 			}
 			PgbsonWriterEndDocument(&outputWriter, &outputFieldSpecWriter);
 		}
@@ -3576,7 +3592,7 @@ HandleLimit(const bson_value_t *existingValue, Query *query,
 	if (limitValue == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15958),
-						errmsg("the limit must be positive")));
+						errmsg("The specified limit value must always be positive")));
 	}
 
 	if (query->limitCount != NULL)
@@ -3947,7 +3963,7 @@ AddShardKeyAndIdFilters(const bson_value_t *existingValue, Query *query,
 
 	RangeTblEntry *rtable = rt_fetch(var->varno, query->rtable);
 
-	/* Check that we're still on the base RTE */
+	/* Verify still on base RTE */
 	if (rtable->rtekind != RTE_RELATION ||
 		rtable->relid != context->mongoCollection->relationId)
 	{
@@ -4081,7 +4097,7 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31119),
 						errmsg(
-							"$unset specification must be a string or an array with at least one field")));
+							"The $unset operator requires input as either a string or an array containing at least one specified field.")));
 	}
 
 	Const *addFieldsProcessed = MakeBsonConst(excludeBson);
@@ -4185,7 +4201,7 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15981),
 							errmsg(
-								"expected either a string or an object as specification for $unwind stage, got %s",
+								"A string or an object was expected as the specification for the $unwind stage, but instead received %s.",
 								BsonTypeName(existingValue->value_type))));
 		}
 	}
@@ -4224,7 +4240,8 @@ HandleUnwind(const bson_value_t *existingValue, Query *query,
 	if (pathView.string[1] == '$')
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
-						errmsg("FieldPath field names may not start with '$'.")));
+						errmsg(
+							"FieldPath field names cannot begin with the symbol '$'.")));
 	}
 
 	FuncExpr *resultExpr;
@@ -5620,7 +5637,8 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 	if (existingValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15947),
-						errmsg("a group's fields must be specified in an object")));
+						errmsg(
+							"The fields of a group must be explicitly defined within an object")));
 	}
 
 	/* Push prior stuff to a subquery first since we're gonna aggregate our way */
@@ -6514,7 +6532,7 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"Each element of the 'pipeline' array must be an object")));
+								"Every item within the 'pipeline' array is required to be an object.")));
 		}
 
 		pgbsonelement stageElement;
@@ -7075,7 +7093,7 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28748),
-							errmsg("unrecognized option to $sample")));
+							errmsg("Option not recognized for $sample")));
 		}
 	}
 

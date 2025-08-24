@@ -1301,7 +1301,7 @@ CheckForIndexCmdToFinish(const List *indexIdList, char cmdType)
 			}
 			else
 			{
-				result->errmsg = "Index creation attempt failed";
+				result->errmsg = "Failed to create index";
 				result->errcode = ERRCODE_DOCUMENTDB_INTERNALERROR;
 			}
 			isAnyIndexFailed = true;

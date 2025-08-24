@@ -14,7 +14,7 @@ ERROR:  The BSON field 'create.capped' has an incorrect type 'string'; it should
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests", "capped": "false"}');
 ERROR:  The BSON field 'create.capped' has an incorrect type 'string'; it should be one of the following valid types: [bool, long, int, decimal, double]
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests", "timeseries": { "timeField": "a" } }');
-ERROR:  time series collections not supported yet
+ERROR:  Time series data collections are currently not supported
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests", "clusteredIndex": { } }');
 ERROR:  clusteredIndex not supported yet
 SELECT documentdb_api.create_collection_view('db', '{ "create": 2 }');

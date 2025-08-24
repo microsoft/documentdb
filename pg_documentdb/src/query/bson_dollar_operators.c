@@ -130,7 +130,7 @@ typedef struct TraverseElementValidateState
 	const char *collationString;
 } TraverseElementValidateState;
 
-/* State for the comparison of $in operator */
+/* Comparison state for the $in operator */
 typedef struct TraverseInValidateState
 {
 	/* must be the first field */
@@ -3396,7 +3396,7 @@ PopulateRegexFromQuery(RegexData *regexState, pgbsonelement *filterElement)
 		filterElement->bsonValue.value_type != BSON_TYPE_REGEX)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$regex has to be a string")));
+							"$regex must be provided with a string value")));
 	}
 
 
@@ -4170,14 +4170,12 @@ OrderByVisitTopLevelField(pgbsonelement *element, const
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5429513),
 							errmsg(
-								"PlanExecutor error during aggregation :: caused by :: "
-								"Invalid range: Expected the sortBy field to be a Date, "
-								"but it was %s", BsonTypeName(
+								"Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (%s) was provided.",
+								BsonTypeName(
 									element->bsonValue.value_type)),
 							errdetail_log(
-								"PlanExecutor error during aggregation :: caused by :: "
-								"Invalid range: Expected the sortBy field to be a Date, "
-								"but it was %s", BsonTypeName(
+								"Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (%s) was provided.",
+								BsonTypeName(
 									element->bsonValue.value_type))));
 		}
 	}
@@ -4189,14 +4187,12 @@ OrderByVisitTopLevelField(pgbsonelement *element, const
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5429414),
 							errmsg(
-								"PlanExecutor error during aggregation :: caused by :: "
-								"Invalid range: Expected the sortBy field to be a number, "
-								"but it was %s", BsonTypeName(
+								"Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (%s) was provided.",
+								BsonTypeName(
 									element->bsonValue.value_type)),
 							errdetail_log(
-								"PlanExecutor error during aggregation :: caused by :: "
-								"Invalid range: Expected the sortBy field to be a number, "
-								"but it was %s", BsonTypeName(
+								"Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (%s) was provided.",
+								BsonTypeName(
 									element->bsonValue.value_type))));
 		}
 	}

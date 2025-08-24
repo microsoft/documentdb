@@ -74,7 +74,7 @@ select 1 from documentdb_api.insert_one('db', 'removeme', '{"a":10,"_id":10}');
 select documentdb_api.delete('db', NULL);
 ERROR:  delete document cannot be NULL
 select documentdb_api.delete(NULL, '{"delete":"removeme", "deletes":[{"q":{},"limit":0}]}');
-ERROR:  database name cannot be NULL
+ERROR:  Database name must not be NULL value
 select documentdb_api.delete('db', '{"deletes":[{"q":{},"limit":0}]}');
 ERROR:  The required BSON field 'delete.delete' is not present in the data.
 select documentdb_api.delete('db', '{"delete":"removeme"}');
@@ -84,7 +84,7 @@ ERROR:  collection name has invalid type array
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":{"q":{},"limit":0}}');
 ERROR:  The BSON field 'delete.deletes' has an incorrect type 'object'; it should be of type 'array'.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}], "extra":1}');
-ERROR:  BSON field 'delete.extra' is an unknown field
+ERROR:  The BSON field 'delete.extra' is not recognized as a valid field name.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{}}]}');
 ERROR:  The BSON field 'delete.deletes.limit' is not present, but it is required
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"limit":0}]}');

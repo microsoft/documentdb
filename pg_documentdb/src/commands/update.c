@@ -705,9 +705,9 @@ BuildUpdates(BatchUpdateSpec *spec)
 	if (updateCount == 0 || updateCount > MaxWriteBatchSize)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDLENGTH),
-						errmsg("Write batch sizes must be between 1 and %d. "
+						errmsg("Batch sizes should always fall between 1 and %d. "
 							   "Got %d operations.", MaxWriteBatchSize, updateCount),
-						errdetail_log("Write batch sizes must be between 1 and %d. "
+						errdetail_log("Batch sizes should always fall between 1 and %d. "
 									  "Got %d operations.", MaxWriteBatchSize,
 									  updateCount)));
 	}
@@ -826,8 +826,7 @@ BuildBatchUpdateSpec(bson_iter_t *updateCommandIter, pgbsonsequence *updateDocs)
 	if (collectionName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'update.update' is missing but "
-							   "a required field")));
+						errmsg("Required field 'update.update' is missing")));
 	}
 
 	BatchUpdateSpec *batchSpec = palloc0(sizeof(BatchUpdateSpec));
@@ -2419,9 +2418,9 @@ ProcessUnshardedUpdateBatchWorker(MongoCollection *collection, List *updates,
 	if (updateCount == 0 || updateCount > MaxWriteBatchSize)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDLENGTH),
-						errmsg("Write batch sizes must be between 1 and %d. "
+						errmsg("Batch sizes should always fall between 1 and %d. "
 							   "Got %d operations.", MaxWriteBatchSize, updateCount),
-						errdetail_log("Write batch sizes must be between 1 and %d. "
+						errdetail_log("Batch sizes should always fall between 1 and %d. "
 									  "Got %d operations.", MaxWriteBatchSize,
 									  updateCount)));
 	}

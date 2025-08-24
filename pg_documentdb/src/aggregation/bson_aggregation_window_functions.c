@@ -143,9 +143,9 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	if (current_pos != 0 && WinRowsArePeers(winobj, current_pos - 1, current_pos))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6050106),
-						errmsg("There can be no repeated values in the sort field"),
+						errmsg("The sort field must not contain any duplicate values"),
 						errdetail_log(
-							"There can be no repeated values in the sort field")));
+							"The sort field must not contain any duplicate values")));
 	}
 
 	/* Move forward winobj's mark position to release unnecessary tuples in TupleStore */
@@ -410,9 +410,10 @@ CheckSortKeyBsonValue(bool isnull, pgbsonelement *sortKeyElement)
 	if (isnull || sortKeyElement->bsonValue.value_type == BSON_TYPE_NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg("sortBy value must be numeric or a date, but found null"),
+						errmsg(
+							"The sortBy parameter should contain either a numeric value or a date, but a null value was provided instead."),
 						errdetail_log(
-							"sortBy value must be numeric or a date, but found null")));
+							"The sortBy parameter should contain either a numeric value or a date, but a null value was provided instead.")));
 	}
 	if (!BsonValueIsNumber(&sortKeyElement->bsonValue) &&
 		sortKeyElement->bsonValue.value_type != BSON_TYPE_DATE_TIME)

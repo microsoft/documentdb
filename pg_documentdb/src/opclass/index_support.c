@@ -945,7 +945,7 @@ CheckPathForIndexOperations(Path *path, ReplaceExtensionFunctionContext *context
 					if (context->forceIndexQueryOpData.opExtraState != NULL)
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-										errmsg("Too many text expressions")));
+										errmsg("Excessive number of text expressions")));
 					}
 					context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
 					context->forceIndexQueryOpData.path = indexPath;
@@ -2804,7 +2804,7 @@ ReplaceFunctionOperatorsInPlanPath(PlannerInfo *root, RelOptInfo *rel, Path *pat
 					if (textIndexData != NULL)
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-										errmsg("Too many text expressions")));
+										errmsg("Excessive number of text expressions")));
 					}
 					context->forceIndexQueryOpData.type = ForceIndexOpType_Text;
 					context->forceIndexQueryOpData.path = indexPath;

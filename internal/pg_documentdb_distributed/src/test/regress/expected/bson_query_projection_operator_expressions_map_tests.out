@@ -378,7 +378,7 @@ ERROR:  Missing Input Array for bson_expression_map: 'array'
 -- Document and array expressions with nested expressions that should be converted to a constant at the tree parse stage
 SET client_min_messages TO DEBUG3;
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": {"a": [ { "$literal" : "foo" } ] }}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
           bson_expression_map           
 ---------------------------------------------------------------------
@@ -386,28 +386,28 @@ DEBUG:  Optimizing document expression into constant.
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": [ { "$literal" : "foo" } ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
      bson_expression_map      
 ---------------------------------------------------------------------
  { "result" : [ [ "foo" ] ] }
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": [ { "$undefined" : true } ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
      bson_expression_map     
 ---------------------------------------------------------------------
  { "result" : [ [ null ] ] }
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": [ { "$literal" : "foo" }, {"$substr": ["wehello world", 2, -1]} ] }');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
              bson_expression_map             
 ---------------------------------------------------------------------
  { "result" : [ [ "foo", "hello world" ] ] }
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": {"a": [ { "$literal" : "foo" } ], "a": {"$const": "foo2"} }}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
          bson_expression_map         
 ---------------------------------------------------------------------
@@ -429,7 +429,7 @@ DEBUG:  Optimizing document expression into constant.
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"document": {"a": {"d": { "$literal" : {"a": "$$REMOVE" } }, "c": [{"$literal": "$$REMOVE"}, true, false]}, "b": {"$const": "b is 2"}}}');
-DEBUG:  Optimizing array expression into constant.
+DEBUG:  Transforming array expression into fixed constant.
 DEBUG:  Optimizing document expression into constant.
                                                bson_expression_map                                                
 ---------------------------------------------------------------------

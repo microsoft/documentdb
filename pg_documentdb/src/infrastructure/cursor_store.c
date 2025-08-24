@@ -462,7 +462,7 @@ DeserializeFileState(bytea *cursorFileState)
 	if (fileState->bufFile < 0 && errno == ENOENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORNOTFOUND),
-						errmsg("Cursor not found")));
+						errmsg("Cursor could not be located")));
 	}
 	else if (fileState->bufFile < 0)
 	{
@@ -582,7 +582,7 @@ FlushBuffer(CursorFileState *cursorFileState)
 		{
 			ereport(ERROR,
 					(errcode_for_file_access(),
-					 errmsg("could not write to file")));
+					 errmsg("Failed to save data to file")));
 		}
 
 		cursorFileState->cursorState.file_offset += cursorFileState->pos;

@@ -153,8 +153,9 @@ pg_attribute_noreturn()
 ThrowPathConflictError(const char * requestedPath, const char * existingPath)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONFLICTINGUPDATEOPERATORS),
-					errmsg("Updating the path '%s' would create a conflict at '%s'",
-						   requestedPath, existingPath)));
+					errmsg(
+						"Modifying the path '%s' will result in a conflict occurring at '%s'",
+						requestedPath, existingPath)));
 }
 
 #endif

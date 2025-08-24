@@ -205,7 +205,7 @@ uint32_t ContiunationTokenLength = 16;
 pgbson *
 DrainSingleResultQuery(Query *query)
 {
-	/* Create a cursor for this iteration */
+	/* Generate a cursor for the specified iteration */
 	int cursorOptions = CURSOR_OPT_NO_SCROLL | CURSOR_OPT_BINARY;
 	Portal queryPortal = CreateNewPortal();
 	queryPortal->visible = false;

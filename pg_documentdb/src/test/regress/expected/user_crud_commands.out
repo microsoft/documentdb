@@ -236,9 +236,9 @@ SELECT documentdb_api.create_user('{"createUser":"adminUser", "pwd":"test_passwo
 
 --Verify that we error out for external identity provider
 SELECT documentdb_api.create_user('{"createUser":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "roles":[{"role":"readWriteAnyDatabase","db":"admin"}, {"role":"clusterAdmin","db":"admin"}], "customData":{"IdentityProvider" : {"type" : "ExternalProvider", "properties": {"principalType": "servicePrincipal"}}}}');
-                                                                             create_user                                                                              
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- { "ok" : { "$numberInt" : "0" }, "errmsg" : "External identity providers are not supported", "code" : { "$numberInt" : "115" }, "codeName" : "CommandNotSupported" }
+                                                                                 create_user                                                                                  
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "ok" : { "$numberInt" : "0" }, "errmsg" : "External identity providers are currently unsupported", "code" : { "$numberInt" : "115" }, "codeName" : "CommandNotSupported" }
 (1 row)
 
 SELECT current_user as original_user \gset

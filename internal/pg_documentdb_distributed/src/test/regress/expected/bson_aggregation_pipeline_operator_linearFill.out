@@ -1310,7 +1310,7 @@ SELECT documentdb_api.insert_one('db','setWindowFields','{ "_id": 6, "test": 11,
 (1 row)
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db','{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"sortBy": { "test": 1 }, "output": {"val": { "$linearFill": "$val"}}}}]}');
-ERROR:  There can be no repeated values in the sort field
+ERROR:  The sort field must not contain any duplicate values
 -- fill non-numeric field
 SELECT documentdb_api.drop_collection('db','setWindowFields');
  drop_collection 

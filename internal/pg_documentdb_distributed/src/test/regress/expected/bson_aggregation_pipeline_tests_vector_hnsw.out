@@ -3306,7 +3306,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 2.5 }  } } ], "cursor": {} }');
 ERROR:  oversampling is not allowed for non-compressed vector index.
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "aggregation_pipeline_hnsw_halfvec", "index": "foo_1"}');
@@ -3501,9 +3501,9 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 
 -- oversampling, error cases
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": 0.5 }  } } ], "cursor": {} }');
-ERROR:  $oversampling should be greater than or equal to 1.
+ERROR:  $oversampling must be set to a value that is greater or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": "0" }  } } ], "cursor": {} }');
 ERROR:  $oversampling must be a number value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_hnsw_halfvec", "pipeline": [ { "$search": { "cosmosSearch": { "k": 3, "path": "v", "vector": [ 3.0, 4.9, 1.0 ], "oversampling": [] }  } } ], "cursor": {} }');

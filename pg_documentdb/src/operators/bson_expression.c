@@ -2655,7 +2655,7 @@ ParseArrayAggregationExpressionData(const bson_value_t *value,
 
 	if (isConstantArray)
 	{
-		ereport(DEBUG3, (errmsg("Optimizing array expression into constant.")));
+		ereport(DEBUG3, (errmsg("Transforming array expression into fixed constant.")));
 
 		/* If it is a constant array, it could've had nested operators that were transformed to a constant
 		 * as the result of evaluating that operator is always constant. So we need to write the value from the parsed tree
@@ -2776,7 +2776,7 @@ ParseDollarLet(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16874), errmsg(
-							"$let only supports an object as its argument")));
+							"$let can accept only an object type as its argument.")));
 	}
 
 	bson_iter_t docIter;
@@ -2808,13 +2808,13 @@ ParseDollarLet(const bson_value_t *argument, AggregationExpressionData *data,
 	if (vars.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16876), errmsg(
-							"Missing 'vars' parameter to $let")));
+							"'vars' parameter for $let is missing")));
 	}
 
 	if (in.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16876), errmsg(
-							"Missing 'in' parameter to $let")));
+							"'in' parameter is missing for $let")));
 	}
 
 	if (vars.value_type != BSON_TYPE_DOCUMENT)
@@ -2942,9 +2942,7 @@ DisallowExpressionsForTopLevelLet(AggregationExpressionData *parsedExpression)
 		  AggregationExpressionSystemVariableKind_Root)))
 	{
 		ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_LOCATION4890500), errmsg(
-					"Command let Expression tried to access a field,"
-					" but this is not allowed because command let expressions"
-					" run before the query examines any documents."));
+					"A command let expression attempted to access a field, which is disallowed because such expressions execute prior to the query processing any documents."));
 	}
 }
 

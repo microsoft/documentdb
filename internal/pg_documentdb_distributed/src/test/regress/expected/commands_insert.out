@@ -6,7 +6,7 @@ SET documentdb.next_collection_index_id TO 6590;
 select documentdb_api.insert('db', NULL);
 ERROR:  insert document cannot be NULL
 select documentdb_api.insert(NULL, '{"insert":"into", "documents":[{"a":1}]}');
-ERROR:  database name cannot be NULL
+ERROR:  Database name must not be NULL value
 select documentdb_api.insert('db', '{"documents":[{"a":1}]}');
 ERROR:  The BSON field 'insert.insert' is required but not provided
 select documentdb_api.insert('db', '{"insert":"into"}');
@@ -278,7 +278,7 @@ SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 rollback;
 begin;
 select documentdb_api.insert('db', '{"insert":"random$name", "documents":[{"_id":1,"a":1}]}');
-ERROR:  Invalid collection name: random$name
+ERROR:  Collection name provided is invalid: random$name
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 rollback;

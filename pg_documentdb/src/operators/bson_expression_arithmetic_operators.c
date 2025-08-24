@@ -1243,7 +1243,7 @@ ProcessDollarMod(void *state, bson_value_t *result)
 		(BsonValueAsDouble(&divisorValue) == 0.0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARMODBYZEROPROHIBITED), errmsg(
-							"can't $mod by zero")));
+							"Cannot perform $mod with zero")));
 	}
 
 	bson_value_t remainder;
@@ -1366,7 +1366,7 @@ ProcessDollarSqrt(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$sqrt only supports numeric types, not %s",
+							"$sqrt can only be applied to numeric types, not to %s.",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1428,7 +1428,7 @@ ProcessDollarLog10(const bson_value_t *currentValue, bson_value_t *result)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARLOG10MUSTBEPOSITIVENUMBER),
 						errmsg(
-							"$log10's argument must be a positive number, but is %s",
+							"The argument provided to $log10 must be a positive number, but the given value is %s.",
 							BsonValueToJsonForLogging(currentValue))));
 	}
 

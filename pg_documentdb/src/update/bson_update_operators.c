@@ -217,7 +217,8 @@ HandleUpdateDollarInc(const bson_value_t *existingValue,
 	if (!BsonValueIsNumberOrBool(updateValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg("Cannot increment with non-numeric argument")));
+						errmsg(
+							"Increment operation failed due to non-numeric argument")));
 	}
 
 	bool overflowedFromInt64 = false;
@@ -464,7 +465,7 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 			default:
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-								errmsg("Unexpected data type")));
+								errmsg("Data type not recognized")));
 			}
 		}
 		valueToModify.value_type = mulFactor->value_type;
@@ -915,7 +916,7 @@ HandleUpdateDollarPush(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"The field '%.*s' must be an array but is of type %s in document { _id: %s }",
+							"The field '%.*s' is required to be an array, however it is currently of type %s in document { _id: %s }",
 							setValueState->fieldPath->length,
 							setValueState->fieldPath->string,
 							BsonTypeName(currentValue.value_type),
@@ -1031,11 +1032,11 @@ HandleUpdateDollarPop(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Path '%s' contains an element of non-array type '%s'",
+							"The specified path '%s' within $pop includes an element that is not of an array data type '%s'",
 							setValueState->relativePath,
 							BsonTypeName(existingValue->value_type)),
 						errdetail_log(
-							"Path in $pop contains an element of non-array type '%s'",
+							"The specified path within $pop includes an element that is not of an array data type '%s'",
 							BsonTypeName(existingValue->value_type))));
 	}
 
@@ -1173,12 +1174,12 @@ ValidateBitwiseInputParams(const MongoBitwiseOperatorType operatorType,
 		{
 			/* Get the document Id for error reporting */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Cannot apply $bit to a value of non-integral type."
-								   "{ \"_id\" : %s } has the field %s of non-integer type %s",
-								   BsonValueToJsonForLogging(&docState->documentId),
-								   updatePath, BsonTypeName(state->value_type)),
+							errmsg(
+								"$bit cannot be used on a value that is not of an integral type. The document with _id = %s contains the field %s, which has a non-integer type %s.",
+								BsonValueToJsonForLogging(&docState->documentId),
+								updatePath, BsonTypeName(state->value_type)),
 							errdetail_log(
-								"Cannot apply $bit to a value of non-integral type %s",
+								"$bit cannot be used on a value that is not of an integral type %s",
 								BsonTypeName(state->value_type))));
 		}
 	}
@@ -1233,7 +1234,7 @@ ValidateAddToSetWithDollarEach(const bson_value_t *updateValue,
 	{
 		*isEach = true;
 
-		/* The argument to $each in $addToSet must be an array, else error out */
+		/* The value provided to the $each within the $addToSet must specifically be an array, otherwise the operation will result in an error. */
 		if (element.bsonValue.value_type != BSON_TYPE_ARRAY)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),

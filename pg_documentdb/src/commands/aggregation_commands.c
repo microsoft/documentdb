@@ -878,7 +878,7 @@ BuildStreamingContinuationDocument(HTAB *cursorMap, pgbson *querySpec, int64_t c
 	/* In the response add the number of iterations (used in tests) */
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
 
-	/* Add the time system variables */
+	/* Add time system variables accordingly */
 	if (EnableNowSystemVariable)
 	{
 		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
@@ -919,7 +919,7 @@ BuildPersistedFileContinuationDocument(const char *cursorName, int64_t
 	/* In the response add the number of iterations (used in tests) */
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
 
-	/* Add the time system variables */
+	/* Add time system variables accordingly */
 	if (EnableNowSystemVariable)
 	{
 		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
@@ -954,7 +954,7 @@ BuildPersistedContinuationDocument(const char *cursorName, int64_t cursorId, Que
 	/* In the response add the number of iterations (used in tests) */
 	PgbsonWriterAppendInt32(&writer, "numIters", 8, numIterations);
 
-	/* Add the time system variables */
+	/* Add time system variables accordingly */
 	if (EnableNowSystemVariable)
 	{
 		if (timeSystemVariables != NULL && timeSystemVariables->nowValue.value_type !=
@@ -1125,7 +1125,7 @@ GenerateCursorId(int64_t inputValue)
 	/* This is the same logic UUID generation uses - we should be good here */
 	if (!pg_strong_random(cursorBuffer, 8))
 	{
-		ereport(ERROR, (errmsg("Unable to generate a unique cursor id")));
+		ereport(ERROR, (errmsg("Failed to create a unique identifier for the cursor")));
 	}
 
 	int64_t cursorId = *(int64_t *) cursorBuffer;

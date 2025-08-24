@@ -549,15 +549,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": ["$a"]}}');
 
 -- should error if no array is provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [{}]}}');
-ERROR:  $first's argument must be an array, but is object
+ERROR:  The argument provided for $first must be of array type, yet it is actually object.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [true]}}');
-ERROR:  $first's argument must be an array, but is bool
+ERROR:  The argument provided for $first must be of array type, yet it is actually bool.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [false]}}');
-ERROR:  $first's argument must be an array, but is bool
+ERROR:  The argument provided for $first must be of array type, yet it is actually bool.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": ["string"]}}');
-ERROR:  $first's argument must be an array, but is string
+ERROR:  The argument provided for $first must be of array type, yet it is actually string.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [1]}}');
-ERROR:  $first's argument must be an array, but is int
+ERROR:  The argument provided for $first must be of array type, yet it is actually int.
 -- should error with wrong number of args
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$first": [1, 2, 3]}}');
 ERROR:  Expression $first takes exactly 1 arguments. 3 were passed in.
@@ -610,15 +610,15 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": ["$a"]}}');
 
 -- should error if no array is provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [{}]}}');
-ERROR:  $last's argument must be an array, but is object
+ERROR:  The argument provided for $last must be of array type, yet it is actually object.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [true]}}');
-ERROR:  $last's argument must be an array, but is bool
+ERROR:  The argument provided for $last must be of array type, yet it is actually bool.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [false]}}');
-ERROR:  $last's argument must be an array, but is bool
+ERROR:  The argument provided for $last must be of array type, yet it is actually bool.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": ["string"]}}');
-ERROR:  $last's argument must be an array, but is string
+ERROR:  The argument provided for $last must be of array type, yet it is actually string.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [1]}}');
-ERROR:  $last's argument must be an array, but is int
+ERROR:  The argument provided for $last must be of array type, yet it is actually int.
 -- should error with wrong number of args
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$last": [1, 2, 3]}}');
 ERROR:  Expression $last takes exactly 1 arguments. 3 were passed in.
@@ -897,9 +897,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": 
 ERROR:  $arrayToObject needs an input object containing keys 'k' and 'v', with 'k' specifically required to be a string type. Detected type: int
 -- $arrayToObject: array input format must be of length 2
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["value"]]]}}');
-ERROR:  $arrayToObject requires an array of size 2 arrays,found array of size: 1
+ERROR:  $arrayToObject needs an array containing exactly two elements, but received one with size: 1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["a", "value"], ["b", "v"], [1, 2, 3]]]}}');
-ERROR:  $arrayToObject requires an array of size 2 arrays,found array of size: 3
+ERROR:  $arrayToObject needs an array containing exactly two elements, but received one with size: 3
 -- $arrayToObject: document input format must have 2 fields
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a"}]]}}');
 ERROR:  $arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:1
@@ -1423,7 +1423,7 @@ ERROR:  The 'cond' parameter required by the $filter operator is missing
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"cond": true}}}');
 ERROR:  'Input' parameter is missing for $filter
 SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter": {"input": "$a", "cond": true, "sort": false}}}');
-ERROR:  Unrecognized parameter to $filter: sort
+ERROR:  Parameter not recognized in $filter: sort
 -- $filter, input should be an array
 SELECT * FROM bson_dollar_project('{"a": { }}', '{"result": {"$filter": {"input": "$a", "cond": true}}}');
 ERROR:  input to $filter must be an array not object
@@ -1598,22 +1598,22 @@ ERROR:  Input must be an array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": 4.56, "n":3} }}');
 ERROR:  Input must be an array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": true }}');
-ERROR:  specification must be an object; found $firstN :true
+ERROR:  specification must be defined as an object, but the provided input was $firstN :true
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": "ayush_test_name" }}');
-ERROR:  specification must be an object; found $firstN :"ayush_test_name"
+ERROR:  specification must be defined as an object, but the provided input was $firstN :"ayush_test_name"
 --$firstN, operator invalid n
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":"3"} }}');
 ERROR:  Expected 'integer' type for 'n' field but found '"3"' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":0} }}');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":-1} }}');
-ERROR:  'n' must be greater than 0, found -1
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n":3.124} }}');
 ERROR:  Expected 'integer' type for 'n' field but found 'double' type for value '3.124'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n": {"$numberDecimal": "9223372036854775808"} } }}');
 ERROR:  Expected 'integer' type for 'n' field but found 'decimal' type for value '9223372036854775808'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$firstN": {"input": [1,2,3,4], "n": {"$numberDecimal": "0"} } }}');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 -- $lastN, operator with docs in db 
 select documentdb_api.insert_one('db','dollarLastN','{"a":[1,2,3] , "_id":1}');
 NOTICE:  creating collection
@@ -1726,22 +1726,22 @@ ERROR:  Input must be an array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": 4.56, "n":3} }}');
 ERROR:  Input must be an array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": true }}');
-ERROR:  specification must be an object; found $lastN :true
+ERROR:  specification must be defined as an object, but the provided input was $lastN :true
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": "ayush_test_name" }}');
-ERROR:  specification must be an object; found $lastN :"ayush_test_name"
+ERROR:  specification must be defined as an object, but the provided input was $lastN :"ayush_test_name"
 --$lastN, operator invalid n
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":"3"} }}');
 ERROR:  Expected 'integer' type for 'n' field but found '"3"' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":0} }}');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":-1} }}');
-ERROR:  'n' must be greater than 0, found -1
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n":3.124} }}');
 ERROR:  Expected 'integer' type for 'n' field but found 'double' type for value '3.124'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n": {"$numberDecimal": "9223372036854775808"} } }}');
 ERROR:  Expected 'integer' type for 'n' field but found 'decimal' type for value '9223372036854775808'
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4], "n": {"$numberDecimal": "0"} } }}');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 --$lastN, operator missing or extra args
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lastN": {"input": [1,2,3,4]} }}');
 ERROR:  $lastN requires an 'n' field
@@ -1908,9 +1908,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [null,400,40,400]
 ERROR:  The expression $range requires no fewer than 2 arguments and no more than 3 arguments, but 4 arguments were actually provided.
 -- $range, negative conditions ending number
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [2147648,214748364121,40] } }');
-ERROR:  $range requires a ending value that can be represented as a 32-bit integer, found value: 214748364121
+ERROR:  $range needs an ending value representable as a 32-bit integer, but encountered value: 214748364121
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [-10, {"$numberDecimal":"0.35"},4] } }');
-ERROR:  $range requires a ending value that can be represented as a 32-bit integer, found value: 0.35
+ERROR:  $range needs an ending value representable as a 32-bit integer, but encountered value: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [400,"abvcf",400] } }');
 ERROR:  $range expression needs a numeric ending value, but a value of type string was provided
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [5,true,40] } }');
@@ -2194,7 +2194,7 @@ SELECT * FROM bson_dollar_project('{"a": [[1,2,345,5]]}', '{"result": {"$indexOf
 
 -- $indexOfArray, negative cases
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [true, 50.0, 1,50] } }');
-ERROR:  $indexOfArray requires an array as a first argument, found: bool
+ERROR:  $indexOfArray expects the first argument to be an array, but received: bool
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$indexOfArray": [[1,2,345,5,100,90,11,50,234], 50.0, 11, 5] } }');
           bson_dollar_project           
 ---------------------------------------------------------------------
@@ -2975,9 +2975,9 @@ SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$minN"
 (1 row)
 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$maxN": {"input":   [1, 2, 3, 5, 7, 9], "n": {"$numberDecimal": "12345678901234567890" } }   }}');
-ERROR:  Conversion would overflow target type
+ERROR:  Conversion would exceed target type limit
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$minN": {"input":   [1, 2, 3, 5, 7, 9], "n": {"$numberDecimal": "12345678901234567890" } }   }}');
-ERROR:  Conversion would overflow target type
+ERROR:  Conversion would exceed target type limit
 -- $maxN/minN, n short
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": {"input": [1.1,2.2,"3"], "n": 2 }   }}');
                           bson_dollar_project                          
@@ -3006,9 +3006,9 @@ SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$minN"
 
 -- $maxN/minN, n missing
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": {"input": [1.1,2.2,"3"] }   }}');
-ERROR:  Missing value for 'n'
+ERROR:  Required value for 'n' is not provided
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$minN": {"input": [1.1,2.2,"3"] }   }}');
-ERROR:  Missing value for 'n'
+ERROR:  Required value for 'n' is not provided
 -- $maxN/minN, input missing
 SELECT * FROM bson_dollar_project('{"d1": [1.1,2.1,3.1]}', '{"result": { "$maxN": { "n": 1 }   }}');
 ERROR:  Missing value for 'input'
@@ -3224,7 +3224,7 @@ ERROR:  $sortArray requires an object as an argument, found: string
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": "", "sortBy": 1 } } }');
 ERROR:  The provided input for the $sortArray operator must be an array, but a value of type string was received instead.
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"sortBy": 1 } } }');
-ERROR:  $sortArray requires 'input' to be specified
+ERROR:  $sortArray needs the 'input' parameter to be explicitly provided
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": [1, 5, 3, 2, 4] } } }');
 ERROR:  The $sortArray needs the 'sortBy' parameter to be explicitly specified
 select *from bson_dollar_project('{}', '{"result": {"$sortArray": {"input": "", "sortBy": 1} } }');
@@ -3312,7 +3312,7 @@ ERROR:  defaults can only be specified when useLongestLength is set to true
 select *from bson_dollar_project('{"a": [[ 0 ], [ 1, 2 ], [ 3 ]]}', '{"result": {"$zip": {"inputs": "$a", "useLongestLength": true, "defaults": [ "a", "b" ]} } }');
 ERROR:  defaults and inputs are required to be of identical length
 select *from bson_dollar_project('{"a": []}', '{"result": {"$zip": {"inputs": "$a"} } }');
-ERROR:  $zip requires at least one input array
+ERROR:  $zip needs at least one provided input array
 select *from bson_dollar_project('{"a": null}', '{"result": {"$zip": {"inputs": "$a"} } }');
 ERROR:  Inputs must be provided as an array of expressions, but null was encountered instead.
 select *from bson_dollar_project('{"a": [1]}', '{"result": {"$zip": {"inputs": "$a"} } }');

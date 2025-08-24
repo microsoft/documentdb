@@ -2260,7 +2260,7 @@ GinBsonExtractQueryIn(BsonExtractQueryArgs *args)
 	if (queryElement.bsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$in should have an array of values")));
+							"$in must contain an array of values")));
 	}
 
 	bson_iter_t arrayIter;
@@ -2531,7 +2531,7 @@ GinBsonExtractQueryRegex(BsonExtractQueryArgs *args)
 		(queryElement.bsonValue.value_type != BSON_TYPE_REGEX))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$regex has to be a string")));
+							"$regex must be provided with a string value")));
 	}
 
 	int32_t numEntries = 2;

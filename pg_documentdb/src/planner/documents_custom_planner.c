@@ -271,13 +271,13 @@ SetPointReadQualsOnIndexScan(IndexScan *indexScan, Expr *queryQuals)
 			}
 			else
 			{
-				/* Cannot push to index */
+				/* Unable to push data into the specified index */
 				runtimeClauses = lappend(runtimeClauses, expr);
 			}
 		}
 		else
 		{
-			/* Cannot push to index */
+			/* Unable to push data into the specified index */
 			if (IsA(expr, FuncExpr))
 			{
 				FuncExpr *funcExpr = (FuncExpr *) expr;

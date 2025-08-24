@@ -471,7 +471,7 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 			PgbsonWriterInit(&finalWriter);
 			PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 0);
 			PgbsonWriterAppendUtf8(&finalWriter, "errmsg", 6,
-								   "External identity providers are not supported");
+								   "External identity providers are currently unsupported");
 			PgbsonWriterAppendInt32(&finalWriter, "code", 4, 115);
 			PgbsonWriterAppendUtf8(&finalWriter, "codeName", 8,
 								   "CommandNotSupported");
@@ -616,7 +616,7 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 										errmsg(
-											"Unsupported field specified in custom data: '%s'.",
+											"The specified field in the custom data is not supported: '%s'.",
 											customDataKey)));
 					}
 				}
@@ -861,7 +861,7 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 			PgbsonWriterInit(&finalWriter);
 			PgbsonWriterAppendInt32(&finalWriter, "ok", 2, 0);
 			PgbsonWriterAppendUtf8(&finalWriter, "errmsg", 6,
-								   "External identity providers are not supported");
+								   "External identity providers are currently unsupported");
 			PgbsonWriterAppendInt32(&finalWriter, "code", 4, 115);
 			PgbsonWriterAppendUtf8(&finalWriter, "codeName", 8,
 								   "CommandNotSupported");
@@ -1513,7 +1513,7 @@ PrehashPassword(const char *password)
 	if (ScramDefaultSaltLen > SCRAM_MAX_SALT_LEN)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Invalid value for salt length.")));
+						errmsg("Salt length value is invalid.")));
 	}
 
 	/*

@@ -595,7 +595,7 @@ bson_std_dev_pop_samp_transition(PG_FUNCTION_ARGS)
 	pgbsonelement currentValueElement;
 	PgbsonToSinglePgbsonElement(currentValue, &currentValueElement);
 
-	/* Ignore non-numeric values */
+	/* Skip non-numeric values */
 	if (BsonValueIsNumber(&currentValueElement.bsonValue))
 	{
 		CalculateSFuncForCovarianceOrVarianceWithYCAlgr(&currentValueElement.bsonValue,
@@ -1901,7 +1901,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"'alpha' must be between 0 and 1 (exclusive), found alpha: %lf",
+									"The value of 'alpha' must lie strictly between 0 and 1 (not inclusive), but the provided alpha is: %lf",
 									BsonValueAsDouble(weightExpression))));
 			}
 			decimalWeightValue->value_type = BSON_TYPE_DECIMAL128;
@@ -1924,7 +1924,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 									errmsg(
-										"'N' field must be an integer, but found  N: %lf. To use a non-integer, use the 'alpha' argument instead",
+										"The 'N' field is required to be an integer value, but instead a floating-point number was provided as N: %lf; to specify a non-integer, please use the 'alpha' argument.",
 										BsonValueAsDouble(weightExpression))));
 				}
 				else if (IsBsonValueNegativeNumber(weightExpression))
@@ -1954,7 +1954,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 			/*incorrect parameter,like "alpah" */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Got unrecognized field in $expMovingAvg, $expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field")));
+								"Got unrecognized field in $expMovingAvg, The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.")));
 		}
 	}
 
@@ -1964,7 +1964,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$expMovingAvg sub object must have exactly two fields: An 'input' field, and either an 'N' field or an 'alpha' field")));
+							"The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.")));
 	}
 
 	return (paramsValid & InputValidFlags_Alpha) ? true : false;

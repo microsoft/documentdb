@@ -302,14 +302,14 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxmi
 
 /*n == 0*/
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": 0 } } } } ] }');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$minN": {"input": "$points", "n": 0 } } } } ] }');
-ERROR:  'n' must be greater than 0, found 0
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is 0
 /*n == -1*/
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": -1 } } } } ] }');
-ERROR:  'n' must be greater than 0, found -1
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -1
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$minN": {"input": "$points", "n": -1 } } } } ] }');
-ERROR:  'n' must be greater than 0, found -1
+ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -1
 /*n == 0.5*/
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "bson_maxminn_group_test1", "pipeline": [ { "$group": { "_id": "$teamId", "NScore":{"$maxN": {"input": "$points", "n": 0.5 } } } } ] }');
 ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'

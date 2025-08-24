@@ -90,7 +90,7 @@ SELECT document FROM r1 WHERE document @@ '{ "$text": { "$search": "cat" } }';
 ERROR:  A text index is necessary to perform a $text query.
 -- no more than 1 $text:
 SELECT document FROM documentdb_api.collection('db', 'bson_dollar_ops_text_search') WHERE document @@ '{ "$and": [ { "$text": { "$search": "cat" } }, { "$text": { "$search": "dogs" } }] }';
-ERROR:  Too many text expressions
+ERROR:  Excessive number of text expressions
 CALL documentdb_api.drop_indexes('db', '{ "dropIndexes": "bson_dollar_ops_text_search", "index": "a_text" }');
                           retval                          
 ---------------------------------------------------------------------
