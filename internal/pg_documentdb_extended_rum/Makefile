@@ -5,7 +5,7 @@ PGFILEDESC = "DocumentDB Extended RUM index access method"
 
 OSS_SRC_DIR = ../../
 
-SOURCES = $(wildcard src/*.c)
+SOURCES = $(wildcard src/*.c) $(wildcard src/jsonb/*.c)
 OBJS = $(patsubst %.c,%.o,$(SOURCES)) $(WIN32RES)
 
 SQL_DEPDIR=.deps/sql
@@ -40,10 +40,11 @@ override LDFLAGS_SL += -fvisibility=hidden -DHAVE_VISIBILITY_ATTRIBUTE=1
 override CFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1
 override CXXFLAGS += -fvisibility=hidden  -DHAVE_VISIBILITY_ATTRIBUTE=1
 
+check:
+	$(MAKE) -C src/test all
 
 clean-sql:
 	rm -rf .deps/ build/
-
 
 build-sql: $(generated_sql_files)
 
