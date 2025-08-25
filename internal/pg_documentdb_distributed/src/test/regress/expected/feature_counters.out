@@ -455,7 +455,7 @@ SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
 
 -- should not count for non-existent operators
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "feature_counter_col3", "pipeline": [ {"$project": {"result": { "$nonExistent": {"input": [1, 2, 3, 4], "cond": {"$eq": ["$$this", 3]}}}}}], "cursor": {} }');
-ERROR:  Unknown expression $nonExistent
+ERROR:  Unrecognized expression format: $nonExistent
 SELECT documentdb_distributed_test_helpers.get_feature_counter_pretty(true);
      get_feature_counter_pretty      
 ---------------------------------------------------------------------

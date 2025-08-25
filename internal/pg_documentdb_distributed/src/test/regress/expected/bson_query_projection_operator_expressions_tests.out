@@ -479,7 +479,7 @@ SELECT bson_expression_get(document, '{ "field" : { "$isArray": [ 1, 2 ] } }') F
 ERROR:  The expression $isArray requires exactly 1 arguments, but 2 arguments were actually provided.
 -- unsupported operators
 SELECT bson_expression_get(document, '{ "field" : { "$unknownop": "some literal" } }') FROM documentdb_api.collection('db', 'projectexprs') ORDER BY object_id;
-ERROR:  Unknown expression $unknownop
+ERROR:  Unrecognized expression format: $unknownop
 -- Array Expression and Nested Expression evaluation tests
 SELECT bson_expression_get(document, '{ "new" : ["$_id"]}') FROM documentdb_api.collection('db', 'projectexprs');
  bson_expression_get 
@@ -582,7 +582,7 @@ SELECT bson_expression_get(document, '{ "field" : { "$isArray": [ "$a.b" ] } }')
 SELECT bson_expression_get(document, '{ "field" : { "$isArray": [ "$a.b" ] , "a": 1.0} }') FROM documentdb_api.collection('db', 'projectexprs');
 ERROR:  Expected a single field in an expression operator specification. Found: '$isArray' and 'a'.
 SELECT bson_expression_get(document, '{ "field" : { "first": 1.0, "$isArray": [ "$a.b" ]} }') FROM documentdb_api.collection('db', 'projectexprs');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
+ERROR:  FieldPath field names cannot begin with the operators symbol '$'; you might want to use $getField or $setField instead.
 SELECT bson_expression_get(document, '{ "field" : ["$_id", ["$a", "$b"], { "arrayobj" : [{},"$_id"]}] }') FROM documentdb_api.collection('db', 'projectexprs');
                                                                                                                                                           bson_expression_get                                                                                                                                                           
 ---------------------------------------------------------------------

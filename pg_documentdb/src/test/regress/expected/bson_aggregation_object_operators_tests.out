@@ -224,7 +224,7 @@ SELECT * FROM documentdb_api_catalog.bson_dollar_project('{"a": {"b": 1, "c": 2}
 
 -- negative cases
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": 1}}}');
-ERROR:  $unsetField only supports an object as its argument
+ERROR:  Expected 'document' type for $unsetField
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a"}}}}');
 ERROR:  $unsetField needs the 'input' parameter to be explicitly specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"input": null}}}}');
@@ -236,11 +236,11 @@ ERROR:  The $unsetField needs the 'field' value to be constant, but a non-consta
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "$a", "input": null}}}}');
 ERROR:  A field path reference is being used here, but it is not permitted in this specific context. Perhaps you intended to use the operators {$literal: '$a'} instead?
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": 5, "input": null}}}}');
-ERROR:  $unsetField requires 'field' to evaluate to type String, but got int
+ERROR:  Expected 'string' type for $unsetField but found 'int' type
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": ["a"], "input": null}}}}');
 ERROR:  The $unsetField needs the 'field' value to be constant, but a non-constant value was provided instead.
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": null, "input": null}}}}');
-ERROR:  $unsetField requires 'field' to evaluate to type String, but got null
+ERROR:  Expected 'string' type for $unsetField but found 'null' type
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": 3}}}}');
 ERROR:  $unsetField needs 'input' to evaluate as an Object type
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$unsetField": {"field": "a", "input": {"$add": [2, 3]}}}}}');

@@ -84,7 +84,7 @@ EvaluateMetaSearchScore(pgbson *document)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40218),
 						errmsg(
-							"query requires search score metadata, but it is not available")));
+							"Search score metadata is required for this query, but it is currently unavailable")));
 	}
 }
 
@@ -106,7 +106,7 @@ CalculateSearchParamBsonForIndexPath(IndexPath *vectorSearchPath, pgbson *search
 	IndexPath *indexPath = (IndexPath *) vectorSearchPath;
 	Oid indexRelam = indexPath->indexinfo->relam;
 
-	/* Get rows in the index */
+	/* Read rows from the index*/
 	Cardinality indexRows = indexPath->indexinfo->tuples;
 	if (indexRows <= 1)
 	{

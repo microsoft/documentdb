@@ -876,11 +876,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [1, 2]}}
 ERROR:  The expression $arrayToObject requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $arrayToObject: input must be array
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [1]}}');
-ERROR:  $arrayToObject requires an array input, found: int
+ERROR:  $arrayToObject needs an array as input, but a different type was provided: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [{}]}}');
-ERROR:  $arrayToObject requires an array input, found: object
+ERROR:  $arrayToObject needs an array as input, but a different type was provided: object
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [{"$add": [1, 1]}]}}');
-ERROR:  $arrayToObject requires an array input, found: int
+ERROR:  $arrayToObject needs an array as input, but a different type was provided: int
 -- $arrayToObject: requires consistent input all objects or all arrays
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["a", "value"], {"k": "b", "v": 1}]]}}');
 ERROR:  $arrayToObject needs a consistent format of input. All elements must either be arrays or objects exclusively. An array was identified initially, but the following element was found: object
@@ -902,9 +902,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[["a", 
 ERROR:  $arrayToObject needs an array containing exactly two elements, but received one with size: 3
 -- $arrayToObject: document input format must have 2 fields
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a"}]]}}');
-ERROR:  $arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:1
+ERROR:  $arrayToObject needs object keys named 'k' and 'v', but an incorrect number of keys was detected: 1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "v": "b"}, {"k": "a"}]]}}');
-ERROR:  $arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:1
+ERROR:  $arrayToObject needs object keys named 'k' and 'v', but an incorrect number of keys was detected: 1
 -- $arrayToObject: document input must have a 'k' and a 'v' field
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$arrayToObject": [[{"k": "a", "foo": "value"}]]}}');
 ERROR:  $arrayToObject needs an object containing both 'k' and 'v' keys, but one or both of these required keys are missing from: { "k" : "a", "foo" : "value" }
@@ -1005,9 +1005,9 @@ select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : ["$a",-1,2]} }');
 ERROR:  The first parameter provided to $slice must be an array, but a value of type int was received instead.
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : [[1,2,3,4,5],1,0]} }');
-ERROR:  Third argument to $slice must be positive: 0
+ERROR:  The third argument provided to the $slice operator must have a positive value: 0
 select bson_dollar_project('{"_id":"1", "a" : 1  }', '{"slicedArray" : { "$slice" : [[1,2,3,4,5],2,-1]} }');
-ERROR:  Third argument to $slice must be positive: -1
+ERROR:  The third argument provided to the $slice operator must have a positive value: -1
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3,4,5]  }', '{"a" : { "$slice" : ["$b",-1,2]} }');
      bson_dollar_project     
 ---------------------------------------------------------------------
@@ -1073,23 +1073,23 @@ ERROR:  The Second argument for the $slice needs to be a numeric value; however,
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,"str"]}}');
 ERROR:  The Third argument for the $slice needs to be a numeric value; however, it is currently of type: string
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,1.02]}}');
-ERROR:  The argument Third for $slice cannot be expressed as a 32-bit integer: 1.02
+ERROR:  The Third value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: 1.02
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,-1]}}');
-ERROR:  Third argument to $slice must be positive: -1
+ERROR:  The third argument provided to the $slice operator must have a positive value: -1
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,0]}}');
-ERROR:  Third argument to $slice must be positive: 0
+ERROR:  The third argument provided to the $slice operator must have a positive value: 0
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a"]}}');
 ERROR:  The expression $slice requires no fewer than 2 arguments and no more than 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",1,2,4]}}');
 ERROR:  The expression $slice requires no fewer than 2 arguments and no more than 3 arguments, but 4 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "NaN"}]}}');
-ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: NaN
+ERROR:  The Second value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: NaN
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "NaN"},{ "$numberDecimal" : "Infinity"}]}}');
-ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: NaN
+ERROR:  The Second value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: NaN
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "Infinity"},{ "$numberDecimal" : "NaN"}]}}');
-ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: Infinity
+ERROR:  The Second value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: Infinity
 select bson_dollar_project('{"_id":"1", "a" : [1,2,3] }', '{"a" : { "$slice" : ["$a",{ "$numberDecimal" : "Infinity"},{ "$numberDecimal" : "Infinity"}]}}');
-ERROR:  The argument Second for $slice cannot be expressed as a 32-bit integer: Infinity
+ERROR:  The Second value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: Infinity
 -- $concatArrays operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$concatArrays": []}}');
  bson_dollar_project 
@@ -1426,11 +1426,11 @@ SELECT * FROM bson_dollar_project('{"a": [-1,-2,-3,-4]}', '{"result": {"$filter"
 ERROR:  Parameter not recognized in $filter: sort
 -- $filter, input should be an array
 SELECT * FROM bson_dollar_project('{"a": { }}', '{"result": {"$filter": {"input": "$a", "cond": true}}}');
-ERROR:  input to $filter must be an array not object
+ERROR:  Expected 'array' type as input to $filter but found 'object' type
 SELECT * FROM bson_dollar_project('{"a": { }}', '{"result": {"$filter": {"input": "a", "cond": true}}}');
-ERROR:  input to $filter must be an array not string
+ERROR:  Expected 'array' type as input to $filter but found 'string' type
 SELECT * FROM bson_dollar_project('{"a": { }}', '{"result": {"$filter": {"input": true, "cond": true}}}');
-ERROR:  input to $filter must be an array not bool
+ERROR:  Expected 'array' type as input to $filter but found 'bool' type
 -- $filter, as variable name should be valid
 -- invalid
 SELECT * FROM bson_dollar_project('{"a": []}', '{"result": {"$filter": {"input": "$a", "cond": true, "as": "_element"}}}');
@@ -1895,9 +1895,9 @@ SELECT * FROM bson_dollar_project('{"city": "San Jose", "distance": 288}', '{"re
 
 -- $range, negative conditions starting number
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [2147483648,214748364121,40] } }');
-ERROR:  $range requires a starting value that can be represented as a 32-bit integer, found value: 2147483648
+ERROR:  The $range operator needs a starting value that fits within a 32-bit integer, but the provided value was: 2147483648
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [{"$numberDecimal":"0.35"},400,40] } }');
-ERROR:  $range requires a starting value that can be represented as a 32-bit integer, found value: 0.35
+ERROR:  The $range operator needs a starting value that fits within a 32-bit integer, but the provided value was: 0.35
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": ["abvcf",400,40] } }');
 ERROR:  $range expression requires a numeric start value but encountered a value of type: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$range": [true,400,40] } }');
@@ -2872,7 +2872,7 @@ select *from bson_dollar_project('{"a":[{"fieldA":"abc","fieldB":2,"fieldC":[{"n
 select *from bson_dollar_project('{"a": 1}', '{"result": {"$map": {"input": "$a", "as": "x", "in": { "$add": ["$$x", 1] } } } }');
 ERROR:  The $map operator requires an array input, but received int instead
 select *from bson_dollar_project('{"a": [1, 2, 3]}', '{"result": {"$map": {"input": "$a" }} }');
-ERROR:  Missing 'in' parameter to $map
+ERROR:  'in' parameter must be specified for $map
 -- $reduce
 select *from bson_dollar_project('{"a": ["a", "b", "c"]}', '{"result": { "$reduce": { "input": "$a", "initialValue": "", "in": { "$concat": ["$$value", "$$this"] } } } }');
  bson_dollar_project  

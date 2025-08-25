@@ -505,7 +505,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "similarity
 (4 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "similarity_score_cos", "pipeline": [ { "$project": { "rank": { "$meta": "searchScore" } } } ], "cursor": {} }');
-ERROR:  query requires search score metadata, but it is not available
+ERROR:  Search score metadata is required for this query, but it is currently unavailable
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "similarity_score_cos", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 4, "path": "v" }  } }, { "$project": { "v": 0 }}, { "$project": { "rank": {"$round":[{"$multiply": [{"$meta": "searchScore" }, 100000]}]} } } ], "cursor": {} }');
                                    document                                    
 ---------------------------------------------------------------------

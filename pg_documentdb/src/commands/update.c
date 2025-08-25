@@ -406,7 +406,7 @@ command_update_bulk(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("database name cannot be NULL")));
+		ereport(ERROR, (errmsg("database name must not be NULL")));
 	}
 
 	if (PG_ARGISNULL(1))
@@ -463,7 +463,7 @@ command_update(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("database name cannot be NULL")));
+		ereport(ERROR, (errmsg("database name must not be NULL")));
 	}
 
 	if (PG_ARGISNULL(1))
@@ -697,8 +697,7 @@ BuildUpdates(BatchUpdateSpec *spec)
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'update.updates' is missing but is "
-							   "a required field")));
+						errmsg("Required field 'update.updates' is missing")));
 	}
 
 	int updateCount = list_length(updates);
@@ -1517,7 +1516,7 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 	bool isUpsert = updateSpec->updateOneParams.isUpsert;
 	bool isMulti = updateSpec->isMulti;
 
-	/* cannot use sort with multi: true */
+	/* sort cannot be performed when multi is set to true  */
 	if (isMulti && updateSpec->updateOneParams.sort != NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
@@ -2452,8 +2451,7 @@ SerializeUnshardedUpdateParams(const bson_value_t *updateSpec, bool isOrdered,
 	if (updateSpec != NULL && updateSpec->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40414),
-						errmsg("BSON field 'update.updates' is missing but is "
-							   "a required field")));
+						errmsg("Required field 'update.updates' is missing")));
 	}
 
 	pgbson_writer writer;

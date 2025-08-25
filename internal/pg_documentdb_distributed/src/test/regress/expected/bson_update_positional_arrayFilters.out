@@ -186,7 +186,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [0], [1] ] }',
     '{ "": { "$inc": { "matrix.$[row]": 10 }} }', '{}', '{ "": [{ "row": 0 }] }');
-ERROR:  Cannot apply $inc to a value of non-numeric type. { _id: 1 } has the field '0' of non-numeric type array
+ERROR:  Operation $inc cannot be performed because the target value is not numeric. Document { _id: 1 } contains the field '0' which is of non-numeric type array.
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document(
     '{ "_id" : 1, "matrix" : [ [0], [1] ] }',
     '{ "": { "$min": { "matrix.$[row]": 10 }} }', '{}', '{ "": [{ "row": 0 }] }');

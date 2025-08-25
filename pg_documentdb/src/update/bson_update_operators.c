@@ -232,7 +232,7 @@ HandleUpdateDollarInc(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"Cannot apply $inc to a value of non-numeric type. { _id: %s } has the field '%.*s' of non-numeric type %s",
+							"Operation $inc cannot be performed because the target value is not numeric. Document { _id: %s } contains the field '%.*s' which is of non-numeric type %s.",
 							BsonValueToJsonForLogging(&state->documentId),
 							setValueState->fieldPath->length,
 							setValueState->fieldPath->string,
@@ -821,7 +821,7 @@ HandleUpdateDollarPullAll(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$pullAll requires an array argument but was given a %s",
+							"Parameter $pullAll needs an array input, but received a %s instead",
 							BsonTypeName(updateValue->value_type))));
 	}
 
@@ -1267,7 +1267,7 @@ AddToSetWriteFinalArray(UpdateOperatorWriter *writer,
 	{
 		BsonValueInitIterator(existingValue, &currentArrayIter);
 
-		/* Add all the existing elements first. */
+		/* Make sure to add all current existing elements first. */
 		while (bson_iter_next(&currentArrayIter))
 		{
 			const bson_value_t *value = bson_iter_value(&currentArrayIter);
@@ -1430,12 +1430,12 @@ ValidateUpdateSpecAndSetPushUpdateState(const bson_value_t *fieldUpdateValue,
 
 	pushState->modifiersExist = true;
 
-	/* Validate $each spec */
+	/* Validate $each specification */
 	if (eachBsonValue.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"The argument to $each in $push must be an array but it was of type: %s",
+							"Expected 'array' type for $each in $push but found '%s' type",
 							BsonTypeName(eachBsonValue.value_type))));
 	}
 	pushState->dollarEachArray = eachBsonValue;
@@ -1461,7 +1461,7 @@ ValidateUpdateSpecAndSetPushUpdateState(const bson_value_t *fieldUpdateValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"The argument to $slice in $push must be an integer value but was given type: %s",
+							"Expected 'array' type for $slice in $push but found '%s' type",
 							BsonTypeName(sliceBsonValue.value_type))));
 	}
 
@@ -1567,7 +1567,7 @@ ApplyDollarPushModifiers(const bson_value_t *bsonArray,
 		index++;
 	}
 
-	/* Step 4: Do Sort */
+	/* step 4: proceed to sort */
 	if (pushState->sortContext->sortType != SortType_No_Sort)
 	{
 		/**

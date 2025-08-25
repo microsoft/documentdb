@@ -2561,7 +2561,7 @@ GetRemainderFromModBsonValues(const bson_value_t *dividendValue,
 		if (IsBsonValueNaN(divisorValue))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"divisor cannot be NaN")));
+								"A divisor value must not be NaN")));
 		}
 
 		if ((divisorValue->value_type == BSON_TYPE_DECIMAL128 && IsDecimal128Zero(
@@ -3373,7 +3373,7 @@ PopulateRegexState(PG_FUNCTION_ARGS, TraverseRegexValidateState *state)
 						   &filterElement);
 	if (regexState == NULL)
 	{
-		/* Cache is not available */
+		/* Cache not available */
 		PopulateRegexFromQuery(&localState, &filterElement);
 		regexState = &localState;
 	}

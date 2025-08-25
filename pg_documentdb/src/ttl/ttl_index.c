@@ -53,7 +53,7 @@ bool UseV2TTLIndexPurger = true;
  */
 typedef struct TtlIndexEntry
 {
-	/* The collection id for the given entry. */
+	/* ID of the collection */
 	uint64 collectionId;
 
 	/* The TTL index id */

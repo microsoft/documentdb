@@ -1074,7 +1074,7 @@ SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let_gl', '{ "
 (1 row)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_let_gl", "pipeline": [ { "$graphLookup": { "from": "aggregation_pipeline_let_gl", "startWith": { "$max": [ "$reportsTo", "$$reportsTo" ] }, "connectFromField": "reportsTo", "connectToField": "name", "as": "reportingHierarchy" } } ], "let": { "reportsTo": "Dev" } }');
-ERROR:  $graphLookup with 'from' on a sharded collection is not supported
+ERROR:  $graphLookup using 'from' on a sharded collection is currently unsupported
 -- $inverseMatch
 SELECT documentdb_api.shard_collection('db', 'aggregation_pipeline_let_inv', '{ "_id": "hashed" }', false);
  shard_collection 

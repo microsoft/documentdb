@@ -476,7 +476,7 @@ TryCheckMetaScoreOrderBy(const bson_value_t *value)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Cannot have additional keys in a $meta sort specification")));
+								"Additional keys are not permitted within a $meta sort specification.")));
 		}
 
 		return true;
@@ -966,7 +966,7 @@ BsonValidateAndExtractTextQuery(const bson_value_t *queryValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$caseSensitive had the wrong type. Expected bool, found %s",
+							"Expected 'bool' type for $caseSensitive but found '%s' type",
 							BsonTypeName(caseSensitive->value_type))));
 	}
 

@@ -39,10 +39,10 @@ typedef struct PgbsonElementHashEntryOrdered
  */
 typedef struct BsonValueHashEntry
 {
-	/* key for hash entry; must be the first field */
+	/* key for hash entry; should be the first field */
 	bson_value_t bsonValue;
 
-	/* collation string; must be second field */
+	/* Collation string; should be the second field */
 	const char *collationString;
 } BsonValueHashEntry;
 

@@ -654,7 +654,7 @@ ProcessDollarSin(const bson_value_t *currentValue, bson_value_t *result)
 	if (IsBsonValueInfinity(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $sin to %s, value must be in (-inf,inf)",
+							"Unable to use operator $sin on %s, as the value must fall within the range (-inf, inf)",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}

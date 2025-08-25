@@ -511,7 +511,6 @@ DetermineUpdateType(const bson_value_t *updateSpec)
 			const char *path = bson_iter_key(&updateDocumentIterator);
 			uint32_t pathLength = bson_iter_key_len(&updateDocumentIterator);
 
-			/* found an operator. */
 			if (pathLength > 1 && path[0] == '$')
 			{
 				if (!isUpdateTypeReplacement)

@@ -2477,8 +2477,9 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 		if (pItem == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31325),
-							errmsg("Unknown expression %s", searchKey.operatorName),
-							errdetail_log("Unknown expression %s",
+							errmsg("Unrecognized expression format: %s",
+								   searchKey.operatorName),
+							errdetail_log("Unrecognized expression format: %s",
 										  searchKey.operatorName)));
 		}
 

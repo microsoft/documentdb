@@ -614,7 +614,6 @@ ExecuteJob(BackgroundWorkerJobExecution *jobExec, char *userName, char *database
 	}
 	PG_END_TRY();
 
-	/* Free string info data */
 	pfree(localhostConnStr->data);
 }
 

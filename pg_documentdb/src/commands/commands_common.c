@@ -587,7 +587,7 @@ CommitWriteProcedureAndReacquireCollectionLock(MongoCollection *collection,
 	/* Commit the old transaction */
 	CommitTransactionCommand();
 
-	/* Start a new transaction */
+	/* Initiate a new transaction */
 	StartTransactionCommand();
 
 	/* Push the active snapshot if commands need it (Portals do) */

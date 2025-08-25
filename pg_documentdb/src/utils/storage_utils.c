@@ -152,8 +152,9 @@ get_bloat_stats_worker(PG_FUNCTION_ARGS)
 	if (isNulls[0])
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("Failed to get bloat stats for collection %lu",
-							   collectionId)));
+						errmsg(
+							"Unable to retrieve bloat statistics for the specified collection %lu",
+							collectionId)));
 	}
 
 	PG_RETURN_POINTER(DatumGetPgBson(resultDatum[0]));

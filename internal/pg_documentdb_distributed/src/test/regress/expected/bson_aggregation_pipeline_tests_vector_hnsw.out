@@ -101,11 +101,11 @@ ANALYZE;
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "unknown", "similarity": "IP", "dimensions": 3 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "unknown", "similarity" : "IP", "dimensions" : 3 } }:Invalid search index kind unknown
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": -4, "efConstruction": 16, "similarity": "IP", "dimensions": 3 } } ] }', true);
-ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : -4, "efConstruction" : 16, "similarity" : "IP", "dimensions" : 3 } }:m must be greater than or equal to 2 not -4
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : -4, "efConstruction" : 16, "similarity" : "IP", "dimensions" : 3 } }:m must be greater than or equal to 2, but was -4
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 101, "efConstruction": 160, "similarity": "IP", "dimensions": 3 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 101, "efConstruction" : 160, "similarity" : "IP", "dimensions" : 3 } }:m should not exceed 100, but received 101
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 4, "efConstruction": -16, "similarity": "COS", "dimensions": 3 } } ] }', true);
-ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : -16, "similarity" : "COS", "dimensions" : 3 } }:efConstruction must be greater than or equal to 4 not -16
+ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 4, "efConstruction" : -16, "similarity" : "COS", "dimensions" : 3 } }:efConstruction must be greater than or equal to 4, but was -16
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": 40, "efConstruction": 1001, "similarity": "COS", "dimensions": 3 } } ] }', true);
 ERROR:  Error in specification { "key" : { "v" : "cosmosSearch" }, "name" : "foo_1", "cosmosSearchOptions" : { "kind" : "vector-hnsw", "m" : 40, "efConstruction" : 1001, "similarity" : "COS", "dimensions" : 3 } }:efConstruction should not exceed 1000, but received 1001
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createIndexes": "aggregation_pipeline_vector", "indexes": [ { "key": { "v": "cosmosSearch" }, "name": "foo_1", "cosmosSearchOptions": { "kind": "vector-hnsw", "m": "40", "efConstruction": 16, "similarity": "L2", "dimensions": 3 } } ] }', true);
@@ -287,7 +287,7 @@ SET documentdb.enableVectorHNSWIndex = on;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": 10000000 }  } } ], "cursor": {} }');
 ERROR:  $efSearch must be less than or equal to 1000.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": -5 }  } } ], "cursor": {} }');
-ERROR:  $efSearch must be greater than or equal to 1.
+ERROR:  The parameter $efSearch should have a value that is greater than or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": "5" }  } } ], "cursor": {} }');
 ERROR:  $efSearch must be an integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": 5.5 }  } } ], "cursor": {} }');
@@ -298,13 +298,13 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 (2 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "efSearch": 0 }  } } ], "cursor": {} }');
-ERROR:  $efSearch must be greater than or equal to 1.
+ERROR:  The parameter $efSearch should have a value that is greater than or equal to 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "k": 2, "path": "v", "efSearch": 1 }  } } ], "cursor": {} }');
 ERROR:  $vector is required field for using a vector index.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": -1, "path": "v", "efSearch": 1 }  } } ], "cursor": {} }');
 ERROR:  The $k should always be a positive integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": "1", "path": "v", "efSearch": 1 }  } } ], "cursor": {} }');
-ERROR:  $k must be an integer value.
+ERROR:  The parameter $k should always hold a valid integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 0, "path": "v", "efSearch": 1 }  } } ], "cursor": {} }');
 ERROR:  The $k should always be a positive integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "path": "v", "efSearch": 1 }  } } ], "cursor": {} }');

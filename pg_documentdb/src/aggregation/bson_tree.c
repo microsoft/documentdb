@@ -442,8 +442,9 @@ EnsureValidFieldPathString(const StringView *fieldPath)
 				 !StringViewContainsDbRefsField(&currentFieldPath))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
-							errmsg("FieldPath field names may not start with '$'. "
-								   "Consider using $getField or $setField")));
+							errmsg(
+								"FieldPath field names cannot begin with the operators "
+								"symbol '$'; you might want to use $getField or $setField instead.")));
 		}
 	}
 }

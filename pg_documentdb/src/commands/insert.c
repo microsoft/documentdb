@@ -246,7 +246,7 @@ CreateCollectionForInsert(Datum databaseNameDatum, Datum collectionNameDatum)
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-						errmsg("failed to create collection"),
+						errmsg("Unable to create the specified collection"),
 						errdetail_log(
 							"Could not get collection from cache after creating the collection")));
 	}
@@ -278,7 +278,7 @@ BuildBatchInsertionSpec(bson_iter_t *insertCommandIter, pgbsonsequence *insertDo
 			if (!BSON_ITER_HOLDS_UTF8(insertCommandIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("collection name has invalid type %s",
+								errmsg("Collection name contains an invalid data type %s",
 									   BsonIterTypeName(insertCommandIter))));
 			}
 
@@ -331,7 +331,7 @@ BuildBatchInsertionSpec(bson_iter_t *insertCommandIter, pgbsonsequence *insertDo
 		}
 		else if (IsCommonSpecIgnoredField(field))
 		{
-			elog(DEBUG1, "Unrecognized command field: insert.%s", field);
+			elog(DEBUG1, "Command field not recognized: insert.%s", field);
 
 			/*
 			 *  Silently ignore now, so that clients don't break
@@ -1004,7 +1004,7 @@ CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocCon
 	}
 	else
 	{
-		/* open the collection */
+		/* open collection */
 		Datum collectionNameDatum = CStringGetTextDatum(batchSpec->collectionName);
 		MongoCollection *collection =
 			GetMongoCollectionByNameDatum(databaseNameDatum, collectionNameDatum,
@@ -1021,7 +1021,7 @@ CommandInsertCore(PG_FUNCTION_ARGS, bool isTransactional, MemoryContext allocCon
 																   RowExclusiveLock);
 		}
 
-		/* do the inserts */
+		/* execute data inserts */
 		ProcessBatchInsertion(collection, batchSpec, transactionId, &batchResult,
 							  isTransactional);
 	}
@@ -1182,7 +1182,7 @@ command_insert_worker(PG_FUNCTION_ARGS)
 
 
 /*
- * InsertDocument inserts a document into a collection.
+ * InsertDocument adds a new document into the specified collection.
  */
 bool
 InsertDocument(uint64 collectionId, const char *shardTableName,

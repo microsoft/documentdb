@@ -934,7 +934,7 @@ ParseInverseMatchSpec(const bson_value_t *spec, InverseMatchArgs *args)
 	if (args->path.length == 0 || args->path.string == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"Missing 'path' parameter to $inverseMatch")));
+							"Path parameter is missing for the operator $inverseMatch")));
 	}
 
 	bool useFromCollection = false;
@@ -1024,7 +1024,7 @@ ParseUnionWith(const bson_value_t *existingValue, StringView *collectionFrom,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 							errmsg(
-								"$unionWith stage without explicit collection must have a pipeline with $documents as first stage")));
+								"A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.")));
 		}
 	}
 	else
@@ -1210,10 +1210,10 @@ ValidateFacet(const bson_value_t *facetValue)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40600),
 								errmsg(
-									"%s is not allowed to be used within a $facet stage",
+									"%s cannot be utilized within an operators facet processing stage",
 									nestedPipelineStage),
 								errdetail_log(
-									"%s is not allowed to be used within a $facet stage",
+									"%s cannot be utilized within an operators facet processing stage",
 									nestedPipelineStage)));
 			}
 		}
@@ -1800,7 +1800,7 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40321),
 								errmsg(
-									"lookup argument 'from' must be a string, is type %s",
+									"The 'from' parameter in lookup must be provided as a string, but a value of type %s was given instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -2944,7 +2944,7 @@ ValidateUnionWithPipeline(const bson_value_t *pipeline, bool hasCollection)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$unionWith stage without explicit collection must have a pipeline with $documents as first stage")));
+							"A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.")));
 	}
 
 	bool isFirstStage = true;
@@ -2958,7 +2958,7 @@ ValidateUnionWithPipeline(const bson_value_t *pipeline, bool hasCollection)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$unionWith stage without explicit collection must have a pipeline with $documents as first stage")));
+									"A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.")));
 			}
 		}
 
@@ -3102,10 +3102,10 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"The 'from' parameter in graphlookup must be provided as a string, but a value of type %s was received instead.",
+									"graphlookup 'from' parameter must be provided as a string, but a value of type %s was given instead.",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"The 'from' parameter in graphlookup must be provided as a string, but a value of type %s was received instead.",
+									"graphlookup 'from' parameter must be provided as a string, but a value of type %s was given instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -3559,9 +3559,9 @@ GenerateBaseCaseQuery(AggregationPipelineBuildContext *parentContext,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
 						errmsg(
-							"$graphLookup with 'from' on a sharded collection is not supported"),
+							"$graphLookup using 'from' on a sharded collection is currently unsupported"),
 						errdetail_log(
-							"$graphLookup with 'from' on a sharded collection is not supported")));
+							"$graphLookup using 'from' on a sharded collection is currently unsupported")));
 	}
 
 	if (args->restrictSearch.value_type != BSON_TYPE_EOD)
@@ -3572,9 +3572,7 @@ GenerateBaseCaseQuery(AggregationPipelineBuildContext *parentContext,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5626500),
 							errmsg(
-								"$geoNear, $near, and $nearSphere are not allowed in this context, "
-								"as these operators require sorting geospatial data. If you do not need sort, "
-								"consider using $geoWithin instead.")));
+								"$near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead.")));
 		}
 	}
 
@@ -3662,9 +3660,7 @@ GenerateRecursiveCaseQuery(AggregationPipelineBuildContext *parentContext,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5626500),
 							errmsg(
-								"$geoNear, $near, and $nearSphere are not allowed in this context, "
-								"as these operators require sorting geospatial data. If you do not need sort, "
-								"consider using $geoWithin instead.")));
+								"$near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead.")));
 		}
 	}
 

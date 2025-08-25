@@ -500,6 +500,13 @@ bson_dollar_merge_handle_when_matched(PG_FUNCTION_ARGS)
 
 		case WhenMatched_FAIL:
 		{
+			/*
+			 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output to maintain
+			 * compatibility with existing tools and scripts that rely on specific error message formats. Modifying
+			 * this text may cause unexpected behavior in dependent systems.
+			 *
+			 * JsTest to resolve: mode_fail_insert.js
+			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DUPLICATEKEY),
 							errmsg(
 								"$merge with whenMatched: fail found an existing document with the same values for the 'on' fields"),
@@ -1045,10 +1052,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51186),
 								errmsg(
-									"The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: %s",
+									"The $merge 'on' field must be provided as either a single string or an array containing multiple strings, but received %s instead.",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: %s",
+									"The $merge 'on' field must be provided as either a single string or an array containing multiple strings, but received %s instead.",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -1078,9 +1085,9 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51187),
 									errmsg(
-										"If explicitly specifying $merge 'on', must include at least one field"),
+										"When you explicitly set the operators merge to 'on', you are required to include at least one field."),
 									errdetail_log(
-										"If explicitly specifying $merge 'on', must include at least one field")));
+										"When you explicitly set the operators merge to 'on', you are required to include at least one field.")));
 				}
 			}
 
@@ -1151,10 +1158,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"BSON field '$merge.whenNotMatched' is the wrong type '%s', expected type 'string'",
+									"BSON field '$merge.whenNotMatched' has an incorrect type '%s', but it should be of type 'string'",
 									BsonTypeName(value->value_type)),
 								errdetail_log(
-									"BSON field '$merge.whenNotMatched' is the wrong type '%s', expected type 'string'",
+									"BSON field '$merge.whenNotMatched' has an incorrect type '%s', but it should be of type 'string'",
 									BsonTypeName(value->value_type))));
 			}
 
@@ -1174,10 +1181,10 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"Enumeration value '%s' for field '$merge.whenNotMatched' is not a valid value",
+									"The enumeration value '%s' provided for the field operator '$merge.whenNotMatched' is invalid.",
 									value->value.v_utf8.str),
 								errdetail_log(
-									"Enumeration value '%s' for field '$merge.whenNotMatched' is not a valid value",
+									"The enumeration value '%s' provided for the field operator '$merge.whenNotMatched' is invalid.",
 									value->value.v_utf8.str)));
 			}
 		}
@@ -2211,7 +2218,8 @@ ValidateTargetNameSpaceForOutputStage(const StringView *targetDB,
 		int errorCode = isMergeStage ? ERRCODE_DOCUMENTDB_LOCATION31320 :
 						ERRCODE_DOCUMENTDB_LOCATION31321;
 		ereport(ERROR, (errcode(errorCode),
-						errmsg("Cannot %s to internal database: %s", stageName,
+						errmsg("Unable to %s into internal database resource: %s",
+							   stageName,
 							   targetDB->string)));
 	}
 
@@ -2221,7 +2229,7 @@ ValidateTargetNameSpaceForOutputStage(const StringView *targetDB,
 		int errorCode = isMergeStage ? ERRCODE_DOCUMENTDB_LOCATION31319 :
 						ERRCODE_DOCUMENTDB_LOCATION17385;
 		ereport(ERROR, (errcode(errorCode),
-						errmsg(" Can't %s to special collection: %s",
+						errmsg(" Unable to %s into designated special collection: %s",
 							   stageName, targetCollection->string)));
 	}
 }

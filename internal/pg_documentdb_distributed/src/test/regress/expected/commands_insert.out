@@ -12,7 +12,7 @@ ERROR:  The BSON field 'insert.insert' is required but not provided
 select documentdb_api.insert('db', '{"insert":"into"}');
 ERROR:  BSON field 'insert.documents' is missing but a required field
 select documentdb_api.insert('db', '{"insert":["into"], "documents":[{"a":1}]}');
-ERROR:  collection name has invalid type array
+ERROR:  Collection name contains an invalid data type array
 select documentdb_api.insert('db', '{"insert":"into", "documents":{"a":1}}');
 ERROR:  The BSON field 'insert.documents' has an incorrect type 'object'; it should be of type 'array'.
 select documentdb_api.insert('db', '{"insert":"into", "documents":[{"a":1}], "extra":1}');
@@ -290,7 +290,7 @@ SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 rollback;
 begin;
 select documentdb_api.insert('verylongdatabasenameformeasuringthelimitsofdatabasenamesinmongodb', '{"insert":"coll", "documents":[{"_id":1,"a":1}]}');
-ERROR:  database name is too long
+ERROR:  The provided database name exceeds the permitted length
 rollback;
 begin;
 select documentdb_api.insert('verylongdatabasenameformeasuringlimitsofdatabasenamesinmongodb', '{"insert":"verylongcollectionnameformeasuringthelimitsofcollectionnamesinmongodb", "documents":[{"_id":1,"a":1}]}');

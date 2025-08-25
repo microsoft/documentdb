@@ -272,7 +272,8 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 			if (strLength == 0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("'createRole' cannot be empty.")));
+								errmsg(
+									"The 'createRole' field must not be left empty.")));
 			}
 
 			if (IsUserNameInvalid(createRoleSpec->roleName))

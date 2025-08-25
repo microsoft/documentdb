@@ -61,10 +61,10 @@ command_evaluate_query_expression(PG_FUNCTION_ARGS)
 	pgbsonelement valueElement;
 	PgbsonToSinglePgbsonElement(value, &valueElement);
 
-	/* get the expression value */
+	/* retrieve the value of the expression */
 	bson_value_t expressionValue = ConvertPgbsonToBsonValue(expression);
 
-	/* Compile the expression */
+	/* compile the given expression */
 	ExprEvalState *evalState = GetExpressionEvalState(&expressionValue,
 													  fcinfo->flinfo->fn_mcxt);
 
@@ -90,10 +90,10 @@ command_evaluate_expression_get_first_match(PG_FUNCTION_ARGS)
 	pgbsonelement valueElement;
 	PgbsonToSinglePgbsonElement(value, &valueElement);
 
-	/* get the expression value */
+	/* retrieve the value of the expression */
 	bson_value_t expressionValue = ConvertPgbsonToBsonValue(expression);
 
-	/* Compile the expression */
+	/* compile the given expression */
 	ExprEvalState *evalState = GetExpressionEvalState(&expressionValue,
 													  fcinfo->flinfo->fn_mcxt);
 

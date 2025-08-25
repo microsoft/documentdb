@@ -143,9 +143,9 @@ ParseBsonValueAsLegacyPointInternal(const bson_value_t *pointValue,
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			throwError, (
 				errcode(GEO_ERROR_CODE(errCtxt)),
-				errmsg("%sPoint must only contain numeric elements",
+				errmsg("%sPoint parameter should contain only numeric values",
 					   GEO_ERROR_PREFIX(errCtxt)),
-				errdetail_log("%sPoint must only contain numeric elements",
+				errdetail_log("%sPoint parameter should contain only numeric values",
 							  GEO_HINT_PREFIX(errCtxt))));
 	}
 
@@ -162,10 +162,11 @@ ParseBsonValueAsLegacyPointInternal(const bson_value_t *pointValue,
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				throwError, (
 					errcode(GEO_ERROR_CODE(errCtxt)),
-					errmsg("%sPoint must only contain numeric elements",
+					errmsg("%sPoint parameter should contain only numeric values",
 						   GEO_ERROR_PREFIX(errCtxt)),
-					errdetail_log("%sPoint must only contain numeric elements",
-								  GEO_HINT_PREFIX(errCtxt))));
+					errdetail_log(
+						"%sPoint parameter should contain only numeric values",
+						GEO_HINT_PREFIX(errCtxt))));
 		}
 
 		/* Get double degrees in quiet mode and check for finite number */
@@ -199,9 +200,9 @@ ParseBsonValueAsLegacyPointInternal(const bson_value_t *pointValue,
 		RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 			throwError, (
 				errcode(GEO_ERROR_CODE(errCtxt)),
-				errmsg("%sPoint must only contain numeric elements",
+				errmsg("%sPoint parameter should contain only numeric values",
 					   GEO_ERROR_PREFIX(errCtxt)),
-				errdetail_log("%sPoint must only contain numeric elements",
+				errdetail_log("%sPoint parameter should contain only numeric values",
 							  GEO_HINT_PREFIX(errCtxt))));
 	}
 

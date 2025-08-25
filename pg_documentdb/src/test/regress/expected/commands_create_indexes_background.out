@@ -30,9 +30,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": null, "indexes": [{"key": {"a": 1, "": -1}, "name": "my_idx"}]}');
-                                                                                            retval                                                                                             | ok | requests 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "collection name has invalid type null", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                   retval                                                                                                   | ok | requests 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Collection name contains an invalid data type null", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": null}');
@@ -66,9 +66,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{}');
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 1}');
-                                                                                            retval                                                                                            | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "collection name has invalid type int", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                  retval                                                                                                   | ok | requests 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Collection name contains an invalid data type int", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": 1}');
@@ -157,9 +157,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$**": 0}, "name": "my_idx"}]}');
-                                                                                                                                       retval                                                                                                                                        | ok | requests 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**\" : 0 }, \"name\" : \"my_idx\" }:Values in the index key pattern cannot be 0.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                           retval                                                                                                                                            | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$**\" : 0 }, \"name\" : \"my_idx\" }:Index key pattern values are not allowed to be zero.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$**": ""}, "name": "my_idx"}]}');
@@ -313,9 +313,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"b.$**": "hashed" }, "name": "invalid_hashed"}]}');
-                                                                                                                                                            retval                                                                                                                                                             | ok | requests 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"b.$**\" : \"hashed\" }, \"name\" : \"invalid_hashed\" }:Index key contains an illegal field name: field name starts with '$'.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                                 retval                                                                                                                                                                  | ok | requests 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"b.$**\" : \"hashed\" }, \"name\" : \"invalid_hashed\" }:Index key has an invalid field name because it begins with an operators symbol.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 -- can't create index on same key with same sparse options
@@ -420,9 +420,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"$**foo": 1}, "name": "my_idx_13"}]}');
-                                                                                                                                                      retval                                                                                                                                                      | ok | requests 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"$**foo\" : 1 }, \"name\" : \"my_idx_13\" }:Index key contains an illegal field name: field name starts with '$'.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                           retval                                                                                                                                                           | ok | requests 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"$**foo\" : 1 }, \"name\" : \"my_idx_13\" }:Index key has an invalid field name because it begins with an operators symbol.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"..": 1}, "name": "my_idx_12"}]}');
@@ -444,9 +444,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"$a": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                                    retval                                                                                                                                                    | ok | requests 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"$a\" : 1 }, \"name\" : \"my_idx_12\" }:Index key contains an illegal field name: field name starts with '$'.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                         retval                                                                                                                                                         | ok | requests 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"$a\" : 1 }, \"name\" : \"my_idx_12\" }:Index key has an invalid field name because it begins with an operators symbol.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {".": 1}, "name": "my_idx_12"}]}');
@@ -456,15 +456,15 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$b": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                                     retval                                                                                                                                                     | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$b\" : 1 }, \"name\" : \"my_idx_12\" }:Index key contains an illegal field name: field name starts with '$'.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                          retval                                                                                                                                                          | ok | requests 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$b\" : 1 }, \"name\" : \"my_idx_12\" }:Index key has an invalid field name because it begins with an operators symbol.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$b.$**": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                                       retval                                                                                                                                                       | ok | requests 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$b.$**\" : 1 }, \"name\" : \"my_idx_12\" }:Index key contains an illegal field name: field name starts with '$'.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                            retval                                                                                                                                                            | ok | requests 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.$b.$**\" : 1 }, \"name\" : \"my_idx_12\" }:Index key has an invalid field name because it begins with an operators symbol.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.": 1}, "name": "my_idx_12"}]}');

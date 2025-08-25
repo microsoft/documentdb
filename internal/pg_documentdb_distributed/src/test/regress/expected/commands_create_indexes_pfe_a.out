@@ -391,7 +391,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   ]
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : 2 } }, { "c" : 4 } ] } }:$in needs an array
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "$and" : [ { "b" : 3 }, { "a" : { "$in" : 2 } }, { "c" : 4 } ] } }:Expected 'array' type for $in
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [
@@ -411,7 +411,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "a": 1, "b": {"$and": [{"d": 1}]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "b" : { "$and" : [ { "d" : 1 } ] } } }:unknown operator: $and
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : 1, "b" : { "$and" : [ { "d" : 1 } ] } } }:Unrecognized operator specified: $and
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$not": {"$eq": [1,2,3]}}
@@ -452,13 +452,13 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "c": "d"
 }
 '), true);
-ERROR:  $text operator is not yet implemented
+ERROR:  $text operator functionality not implemented yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "a": {"$and": [{"a": 1}, {"b": 3}]}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } } }:unknown operator: $and
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$and" : [ { "a" : 1 }, { "b" : 3 } ] } } }:Unrecognized operator specified: $and
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$and": [{"p": 1}, {"q": 2}],
@@ -480,7 +480,7 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_i
   "a": {"$unknown_operator": 1}
 }
 '), true);
-ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$unknown_operator" : 1 } } }:unknown operator: $unknown_operator
+ERROR:  Error in specification { "key" : { "c.d" : 1 }, "name" : "new_idx", "partialFilterExpression" : { "a" : { "$unknown_operator" : 1 } } }:Unrecognized operator specified: $unknown_operator
 SELECT documentdb_api_internal.create_indexes_non_concurrently('my_db', create_index_arg_using_pfe('
 {
   "$unknown_operator": [{"a": 1}]

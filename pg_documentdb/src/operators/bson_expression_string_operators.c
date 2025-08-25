@@ -1348,8 +1348,8 @@ ParseDollarTrimCore(const bson_value_t *argument, AggregationExpressionData *dat
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50696), errmsg(
-							"%s can only accept an object as its argument, but received %s",
-							opName, BsonTypeName(argument->value_type))));
+							"Expected 'document' type but found '%s' type",
+							BsonTypeName(argument->value_type))));
 	}
 
 	bson_value_t input = { 0 };
@@ -2045,7 +2045,7 @@ ProcessDollarIndexOfCore(FourArgumentExpressionState *input,
 								MISSING_VALUE_NAME :
 								BsonValueToJsonForLogging(&input->thirdArgument)),
 							errdetail_log(
-								"%s requires an integral starting index, found a value of type: %s",
+								"Expected 'integer' type for %s but found '%s' type",
 								opName,
 								input->thirdArgument.value_type == BSON_TYPE_EOD ?
 								MISSING_TYPE_NAME :
@@ -2678,10 +2678,10 @@ ProcessDollarTrim(const bson_value_t *inputValue, const bson_value_t *charsValue
 		BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50700), errmsg(
-							" %s requires the 'chars' parameter to be a string value, but received %s which is of type %s instead.",
+							"%s requires that 'chars' be a string, but instead received %s which is of type %s.",
 							opName, BsonValueToJsonForLogging(charsValue), BsonTypeName(
 								charsValue->value_type)), errdetail_log(
-							" %s requires the 'chars' parameter to be a string value, but received %s.",
+							"%s requires 'chars' to be a string, got of type %s instead.",
 							opName, BsonTypeName(charsValue->value_type))));
 	}
 
@@ -3104,7 +3104,7 @@ ParseDollarReplaceHelper(const bson_value_t *argument,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51751), errmsg(
-							"%s requires an object type as its argument, but received: %s",
+							"%s requires an object as input argument, but received: %s",
 							opName,
 							BsonTypeName(argument->value_type))));
 	}

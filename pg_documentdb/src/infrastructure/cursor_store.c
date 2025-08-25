@@ -288,7 +288,7 @@ CreateCursorFile(const char *cursorName)
 		if (errno == EEXIST)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORINUSE),
-							errmsg("Cursor already exists on server: %s", cursorName)));
+							errmsg("Cursor already present on server: %s", cursorName)));
 		}
 		else
 		{
@@ -302,7 +302,7 @@ CreateCursorFile(const char *cursorName)
 	if (FileSize(cursorFile) != 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CURSORINUSE),
-						errmsg("Cursor already exists on server: %s", cursorName)));
+						errmsg("Cursor already present on server: %s", cursorName)));
 	}
 
 	/* Register the cursor file for transaction abort */

@@ -200,7 +200,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			if (IsBsonValueNaN(value))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("divisor cannot be NaN")));
+								errmsg("A divisor value must not be NaN")));
 			}
 			if (IsBsonValueInfinity(value))
 			{
@@ -485,7 +485,7 @@ ParseJsonType(const bson_value_t *value, SchemaNode *node)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"$jsonSchema keyword 'type' must be either a string or an array of strings")));
+							"The 'type' property in $jsonSchema must be defined as either a single string or an array containing multiple strings")));
 	}
 
 	node->validations.common->jsonTypes = jsonTypes;
@@ -654,8 +654,9 @@ ParseEncryptMetadata(const bson_value_t *value, SchemaNode *node)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'encryptMetadata.%s' is an unknown field",
-								   key)));
+							errmsg(
+								"The BSON field 'encryptMetadata.%s' is not recognized as a valid or supported field.",
+								key)));
 		}
 	}
 }
@@ -788,7 +789,7 @@ GetJsonTypeEnumFromJsonTypeString(const char *jsonTypeStr)
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("Unknown type name alias: %s", jsonTypeStr)));
+					errmsg("Unrecognized data type alias: %s", jsonTypeStr)));
 }
 
 
@@ -894,7 +895,7 @@ GetBsonTypeEnumFromBsonTypeString(const char *bsonTypeStr)
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg(" Unknown type name alias: %s", bsonTypeStr)));
+					errmsg(" Unrecognized data type alias: %s", bsonTypeStr)));
 }
 
 
@@ -1143,11 +1144,11 @@ GetValidatedBsonIntValue(const bson_value_t *value, const char *nonPIIfield)
 	if (intValue < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("A positive number is required in %s but got %s",
+						errmsg("Value for %s cannot be zero or negative. Got %s",
 							   nonPIIfield,
 							   BsonValueToJsonForLogging(value)),
-						errdetail_log("A positive number is required in %s",
-									  nonPIIfield)));
+						errdetail_log("Value for %s cannot be zero or negative. Got %s",
+									  nonPIIfield, BsonValueToJsonForLogging(value))));
 	}
 	return intValue;
 }

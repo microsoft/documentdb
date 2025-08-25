@@ -440,7 +440,7 @@ EnsureValidWindowSpec(int frameOptions)
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 					errmsg(
-						"Window bounds can only specify 'unit' with range-based bounds.")));
+						"The 'unit' parameter is valid only when bounds are defined using a range-based specification.")));
 	}
 }
 
@@ -618,7 +618,7 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"An expression used to partition cannot evaluate to value of type array")));
+								"A partition expression cannot be evaluated to yield an array type value")));
 			}
 
 			/* If partitionBy is on the shard key expression and the base table is still the rte
@@ -736,7 +736,7 @@ HandleSetWindowFieldsCore(const bson_value_t *existingValue,
 		if (output.pathLength == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40352),
-							errmsg("FieldPath cannot be constructed with empty string")));
+							errmsg("FieldPath cannot be created from an empty string")));
 		}
 
 		if (output.path[0] == '$')
@@ -1308,10 +1308,11 @@ ThrowExtraInvalidFrameOptions(const char * str1, const char * str2)
 {
 	ereport(ERROR, (
 				errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-				errmsg("'window' field that specifies %s cannot have other fields %s",
-					   str1, str2),
+				errmsg(
+					"The 'window' field specifying %s is not allowed to be used together with other fields %s.",
+					str1, str2),
 				errdetail_log(
-					"'window' field that specifies %s cannot have other fields %s",
+					"The 'window' field specifying %s is not allowed to be used together with other fields %s.",
 					str1, str2)));
 }
 
@@ -1321,12 +1322,14 @@ pg_attribute_noreturn()
 ThrowInvalidWindowValue(const char * windowType, const bson_value_t * value)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-					errmsg("Window bounds must be a 2-element array: %s: %s",
-						   windowType,
-						   BsonValueToJsonForLogging(value)),
-					errdetail_log("Window bounds must be a 2-element array: %s: %s",
-								  windowType,
-								  BsonTypeName(value->value_type))));
+					errmsg(
+						"Window bounds should consist of exactly two elements in the array: %s: %s",
+						windowType,
+						BsonValueToJsonForLogging(value)),
+					errdetail_log(
+						"Window bounds should consist of exactly two elements in the array: %s: %s",
+						windowType,
+						BsonTypeName(value->value_type))));
 }
 
 
@@ -1374,7 +1377,8 @@ UpdateWindowOptions(const pgbsonelement *element, WindowClause *windowClause,
 			if (windowValue->value_type != BSON_TYPE_UTF8)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("'unit' must be a string")));
+								errmsg(
+									"The parameter 'unit' needs to be provided as a string value.")));
 			}
 			dateUnit = GetDateUnitFromString(windowValue->value.v_utf8.str);
 
@@ -1675,7 +1679,7 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 					errmsg(
-						"%s requires an 'input' expression", operatorName)));
+						"%s needs a valid 'input' expression", operatorName)));
 	}
 	if (bson_iter_next(&iterSortSpec))
 	{
@@ -2326,14 +2330,14 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Unknown argument in $shift")));
+							errmsg("Unrecognized argument found in parameter shift")));
 		}
 	}
 
 	if (output->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("$shift requires an 'output' expression.")));
+						errmsg("Operator $shift needs an 'output' expression.")));
 	}
 
 	if (by->value_type == BSON_TYPE_EOD)
@@ -2373,7 +2377,7 @@ ParseInputDocumentForDollarShift(const bson_value_t *opValue, bson_value_t *outp
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"'$shift:default' expression must yield a constant value.")));
+							"Expression '$shift:default' is required to produce a constant value.")));
 	}
 
 	pfree(expressionData);

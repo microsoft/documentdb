@@ -153,9 +153,9 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 --Test Set12 : Update path not exist or cannot be created
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ 1 , 2 ], "H" : { "c" : 11 } }},','{ "": { "$set": { "a.b.$[].c": 11 } } }', '{}');
-ERROR:  Cannot create field '0' in element {0 : 1}
+ERROR:  Failed to create the field '0' within the element specified by {0 : 1}
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 }, 2 ], "H" : { "c" : 11 } }},','{ "": { "$set": { "a.b.$[].c": 11 } } }', '{}');
-ERROR:  Cannot create field '1' in element {1 : 2}
+ERROR:  Failed to create the field '1' within the element specified by {1 : 2}
 --Test Set 13 : Positional all operator on non array element
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1,"a" : { "b" : [ { "c" : 1, "d" : 2 } ] }},','{ "": { "$set": { "a.$[].c": 11 } } }', '{}');
 ERROR:  Array updates cannot be applied to an element that is not an array a: { b: [ { "c" : 1, "d" : 2 } ] }

@@ -618,7 +618,7 @@ GetMongoCollectionByNameDatumCore(Datum databaseNameDatum, Datum collectionNameD
 	if (databaseNameLength >= MAX_DATABASE_NAME_LENGTH)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE), errmsg(
-							"database name is too long")));
+							"The provided database name exceeds the permitted length")));
 	}
 
 	int collectionNameLength = VARSIZE_ANY_EXHDR(collectionNameDatum);
@@ -799,7 +799,7 @@ GetTempMongoCollectionByNameDatum(Datum databaseNameDatum, Datum collectionNameD
 	if (databaseNameLength >= MAX_DATABASE_NAME_LENGTH)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"database name is too long")));
+							"The provided database name exceeds the permitted length")));
 	}
 
 	int collectionNameLength = VARSIZE_ANY_EXHDR(collectionNameDatum);

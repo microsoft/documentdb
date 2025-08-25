@@ -953,7 +953,7 @@ ProcessDollarAdd(const bson_value_t *currentElement, void *state, bson_value_t *
 		if (addState->isDateTimeAdd)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARADDONLYONEDATE), errmsg(
-								"only one date allowed in an $add expression")));
+								"Only a single date value is permitted within an $add operators expression.")));
 		}
 
 		addState->isDateTimeAdd = true;
@@ -1334,7 +1334,7 @@ ProcessDollarExp(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$exp only supports numeric types, not %s",
+							"The $exp operator can only be used with numeric data types, not %s",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1381,7 +1381,7 @@ ProcessDollarSqrt(const bson_value_t *currentValue, bson_value_t *result)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSQRTGREATEROREQUALTOZERO),
 						errmsg(
-							"$sqrt's argument must be greater than or equal to 0")));
+							"The operator sqrt requires its argument to be zero or a positive value")));
 	}
 
 	bson_value_t sqrtResult;
@@ -1462,7 +1462,7 @@ ProcessDollarLn(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$ln only supports numeric types, not %s",
+							"$ln works exclusively with numeric data types, but received %s instead",
 							BsonTypeName(currentValue->value_type))));
 	}
 

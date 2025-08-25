@@ -189,7 +189,7 @@ extern char *AlternateIndexHandler;
 #define COMPOUND_INDEX_TERM_SIZE_LIMIT (uint32_t) (_RUM_TERM_SIZE_LIMIT - \
 												   (sizeof(uint8_t) + VARHDRSZ + 16))
 
-/* exported only for testing purposes */
+/* Available exclusively for internal testing purposes */
 PG_FUNCTION_INFO_V1(generate_create_index_arg);
 
 PG_FUNCTION_INFO_V1(command_create_indexes_non_concurrently);
@@ -684,7 +684,7 @@ command_index_build_is_in_progress(PG_FUNCTION_ARGS)
 {
 	if (PG_ARGISNULL(0))
 	{
-		ereport(ERROR, (errmsg("indexId cannot be NULL")));
+		ereport(ERROR, (errmsg("indexId value must not be NULL")));
 	}
 	int indexId = DatumGetInt32(PG_GETARG_DATUM(0));
 
@@ -1132,7 +1132,7 @@ reindex_concurrently(Datum dbNameDatum, Datum collectionNameDatum)
 							ERRCODE_DOCUMENTDB_BACKGROUNDOPERATIONINPROGRESSFORNAMESPACE),
 						errmsg(
 							"cannot perform operation: an index build is currently running for collection"
-							" '%s.%s'", collection->name.databaseName,
+							"'%s.%s'", collection->name.databaseName,
 							collection->name.collectionName)));
 	}
 
@@ -1187,7 +1187,7 @@ InitFCInfoForCallStmt(FunctionCallInfo fcinfo, const CallStmt *callStmt,
 	HeapTuple procTuple = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcexpr->funcid));
 	if (!HeapTupleIsValid(procTuple))
 	{
-		ereport(ERROR, (errmsg("function with oid %u does not exist",
+		ereport(ERROR, (errmsg("The function identified by OID %u could not be found",
 							   funcexpr->funcid)));
 	}
 
@@ -1286,7 +1286,7 @@ ParseCreateIndexesArg(Datum dbNameDatum, pgbson *arg)
 			if (!BSON_ITER_HOLDS_UTF8(&argIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("collection name has invalid type %s",
+								errmsg("Collection name contains an invalid data type %s",
 									   BsonIterTypeName(&argIter))));
 			}
 
@@ -1374,7 +1374,7 @@ ParseCreateIndexesArg(Datum dbNameDatum, pgbson *arg)
 		createIndexesArg.collectionName[0] == '\0')
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid namespace specified '%s.'",
+						errmsg("The specified namespace is invalid: '%s'.",
 							   TextDatumGetCString(dbNameDatum))));
 	}
 
@@ -1737,8 +1737,9 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			if (!BSON_ITER_HOLDS_BOOL(&indexDefDocIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("The field hidden must be a bool. got '%s'",
-									   BsonTypeName(bson_iter_type(&indexDefDocIter)))));
+								errmsg(
+									"The 'hidden' field must contain a boolean value, but received '%s'.",
+									BsonTypeName(bson_iter_type(&indexDefDocIter)))));
 			}
 
 			bool hidden = bson_iter_bool(&indexDefDocIter);
@@ -1776,7 +1777,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"The field 'min' must be a number, but got %s.",
+									"The field 'min' is required to be a numeric value, but received %s instead.",
 									BsonIterTypeName(&indexDefDocIter))));
 			}
 
@@ -1966,8 +1967,8 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			if (!IntermediateNodeHasChildren(indexDef->wildcardProjectionTree))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("The 'wildcardProjection' field can't be an "
-									   "empty object")));
+								errmsg("The 'wildcardProjection' field must not "
+									   "contain an empty object")));
 			}
 			else if (list_length(indexDef->key->keyPathList) != 0)
 			{
@@ -2253,7 +2254,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDINDEXSPECIFICATIONOPTION),
 						errmsg(
-							"the field 'weights' can only be specified with text indexes")));
+							"The 'weights' field is permitted exclusively when defining text indexes.")));
 
 		bson_iter_t weightsIterator;
 		PgbsonInitIterator(indexDef->weightsDocument, &weightsIterator);
@@ -2529,7 +2530,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Index key contains an illegal field name: field name starts with '$'.")));
+									"Index key has an invalid field name because it begins with an operators symbol.")));
 			}
 
 			/* Case 2: Index key field should not start with '.'. */
@@ -2584,7 +2585,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 									errmsg(
-										"Index key contains an illegal field name: field name starts with '$'.")));
+										"Index key has an invalid field name because it begins with an operators symbol.")));
 				}
 				indexPath = StringViewSubstring(&indexPath,
 												indexPathSubstring.length + 1);
@@ -2689,7 +2690,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Values in the index key pattern cannot be 0.")));
+									"Index key pattern values are not allowed to be zero.")));
 			}
 
 			if (isWildcardKeyPath && (doubleValue < 0))
@@ -2735,7 +2736,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Index key contains an illegal field name: field name starts with '$'.")));
+									"Index key has an invalid field name because it begins with an operators symbol.")));
 			}
 
 			numHashedIndexes++;
@@ -2764,7 +2765,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Index key contains an illegal field name: field name starts with '$'.")));
+									"Index key has an invalid field name because it begins with an operators symbol.")));
 			}
 
 			indexDefKey->has2dIndex = true;
@@ -2777,7 +2778,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Index key contains an illegal field name: field name starts with '$'.")));
+									"Index key has an invalid field name because it begins with an operators symbol.")));
 			}
 
 			indexDefKey->has2dsphereIndex = true;
@@ -2802,7 +2803,7 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Index key contains an illegal field name: field name starts with '$'.")));
+									"Index key has an invalid field name because it begins with an operators symbol.")));
 			}
 
 			/* We only add the first key - the rest are tracked within the index itself. */
@@ -3348,7 +3349,7 @@ CheckWildcardProjectionTreeInternal(const BsonIntermediatePathNode *treeParentNo
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Bad projection specification, cannot use computed fields when parsing a spec in kBanComputedFields mode")));
+									"Projection specification is invalid; using computed fields is not supported in kBanComputedFields parsing mode")));
 			}
 
 			case NodeType_LeafIncluded:
@@ -4154,8 +4155,9 @@ static void
 ThrowIndexOptionsConflictError(const char *existingIndexName)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INDEXOPTIONSCONFLICT),
-					errmsg("Index already exists with a different name: %s",
-						   existingIndexName)));
+					errmsg(
+						"Index already exists with a different name: %s",
+						existingIndexName)));
 }
 
 

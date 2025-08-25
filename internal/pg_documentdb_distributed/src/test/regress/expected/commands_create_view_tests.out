@@ -26,7 +26,7 @@ ERROR:  The BSON field 'create.create' has an incorrect type 'null'; it should b
 SELECT documentdb_api.create_collection_view('db', '{ "create": {"$undefined": true} }');
 ERROR:  The BSON field 'create.create' has an incorrect type 'undefined'; it should be of type 'string'.
 SELECT documentdb_api.create_collection_view('db', '{ "create": "" }');   -- empty string not allowed
-ERROR:  Invalid namespace specified 'db.'
+ERROR:  The specified namespace is invalid: 'db'.
 -- create valid collections
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests_not_capped1", "capped": false}');
 NOTICE:  creating collection
@@ -196,7 +196,7 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "create_view_tests" 
 
 -- create views with different options
 SELECT documentdb_api.create_collection_view('db', '{ "create": "create_view_tests", "viewOn": "create_view_tests_view_5", "pipeline": [ { "$sort": { "a": 1 } } ] }');
-ERROR:  ns: db.create_view_tests already exists with different options: {}
+ERROR:  Namespace db.create_view_tests already exists but with different configuration options: {}
 -- Can't write to views
 SELECT documentdb_api.insert_one('db', 'create_view_tests_view_1', '{ "_id": 5, "a": 60 }');
 ERROR:  The namespace db.create_view_tests_view_1 refers to a view object rather than a collection

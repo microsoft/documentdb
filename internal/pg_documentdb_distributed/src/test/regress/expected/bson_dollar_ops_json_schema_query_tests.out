@@ -1357,7 +1357,7 @@ ERROR:  $jsonSchema keyword 'encryptMetadata' must be a document
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {}} }');
 ERROR:  $jsonSchema keyword 'encryptMetadata' cannot be an empty object
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"unknown":"hello"}} }');
-ERROR:  BSON field 'encryptMetadata.unknown' is an unknown field
+ERROR:  The BSON field 'encryptMetadata.unknown' is not recognized as a valid or supported field.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"keyId":1}} }');
 ERROR:  The BSON field 'encryptMetadata.keyId' has an incorrect type 'int'; it should be of type 'array'.
 SELECT bson_dollar_json_schema('{"data" : { "$binary" : { "base64" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "subType" : "01" }}}','{ "$jsonSchema":  {"encryptMetadata": {"algorithm":[]}} }');

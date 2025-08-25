@@ -105,7 +105,7 @@ ERROR:  Unrecognized parameter supplied to $inverseMatch: 'pathRule'
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "policy", "inputValue": {"flight_type": "domestic"} }}]}');
 ERROR:  Unrecognized parameter supplied to $inverseMatch: 'inputValue'
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "", "input": {"flight_type": "domestic"} }}]}');
-ERROR:  Missing 'path' parameter to $inverseMatch
+ERROR:  Path parameter is missing for the operator $inverseMatch
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "policy", "input": ["flight_type", "domestic"] }}]}');
 ERROR:  $inverseMatch requires that if 'input' is an array its contents be documents, found: string
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [ { "$inverseMatch": {"path": "policy", "input": [{"flight_type": "domestic"}, ""] }}]}');
@@ -121,7 +121,7 @@ SELECT documentdb_api.insert_one('invmatch','chinese_cities','{ "_id": 6, "city_
 
 -- any inverseMatch that queries that path should fail
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [{ "$inverseMatch": {"path": "specialPolicy", "input": { "origin": "Guangdong" }, "defaultResult": false}}]}');
-ERROR:  unknown operator: $allValues
+ERROR:  Unrecognized operator specified: $allValues
 -- if we query "policy" path without defaultResult in the spec it should not match for the Hangzhou city which doesn't define the policy as the default value is false
 SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "chinese_cities", "pipeline": [{ "$inverseMatch": {"path": "policy", "input": { "origin": "Guangdong" }}}]}');
                                                                                                                      document                                                                                                                      
@@ -607,7 +607,7 @@ SELECT document FROM bson_aggregation_pipeline('invmatch', '{ "aggregate": "paym
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": {}, "input": "$roles"}} ], "cursor": {} }');
 ERROR:  The BSON field '$inverseMatch.path' has an incorrect type 'object'; it should be of type 'string'.
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "", "input": "$roles"}} ], "cursor": {} }');
-ERROR:  Missing 'path' parameter to $inverseMatch
+ERROR:  Path parameter is missing for the operator $inverseMatch
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "input": [true]}} ], "cursor": {} }');
  document 
 ---------------------------------------------------------------------

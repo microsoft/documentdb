@@ -439,9 +439,9 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": {"$numberDouble": 
 
 -- Should error if expression evaluates to Infinity/-Infinity
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $sin to Infinity, value must be in (-inf,inf)
+ERROR:  Unable to use operator $sin on Infinity, as the value must fall within the range (-inf, inf)
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $sin to -Infinity, value must be in (-inf,inf)
+ERROR:  Unable to use operator $sin on -Infinity, as the value must fall within the range (-inf, inf)
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": "str"}}');
 ERROR:  $sin works exclusively with numeric data types, not with string

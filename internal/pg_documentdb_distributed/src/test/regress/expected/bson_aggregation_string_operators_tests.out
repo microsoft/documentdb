@@ -833,7 +833,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": "ap
 
 -- $trim operator: Negative test :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : 1} }');
-ERROR:  $trim can only accept an object as its argument, but received int
+ERROR:  Expected 'document' type but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {}} }');
 ERROR:  $trim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1}} }');
@@ -841,11 +841,11 @@ ERROR:  Expected 'string' type for $trim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $trim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$trim" : {"input": "", "chars" : ["apple"]}} }');
-ERROR:   $trim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
+ERROR:  $trim requires that 'chars' be a string, but instead received [ "apple" ] which is of type array.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$trim" : {"input": "$a"}} }');
 ERROR:  Expected 'string' type for $trim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$trim" : {"input": "apple", "chars" : "$a"}} }');
-ERROR:   $trim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
+ERROR:  $trim requires that 'chars' be a string, but instead received 1 which is of type int.
 --$ltrim operator : basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": "", "chars" :""}} }');
       bson_dollar_project       
@@ -1069,7 +1069,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": "a
 
 -- $ltrim operator: Negative test :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : 1} }');
-ERROR:  $ltrim can only accept an object as its argument, but received int
+ERROR:  Expected 'document' type but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {}} }');
 ERROR:  $ltrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1}} }');
@@ -1077,11 +1077,11 @@ ERROR:  Expected 'string' type for $ltrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $ltrim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$ltrim" : {"input": "", "chars" : ["apple"]}} }');
-ERROR:   $ltrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
+ERROR:  $ltrim requires that 'chars' be a string, but instead received [ "apple" ] which is of type array.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$ltrim" : {"input": "$a"}} }');
 ERROR:  Expected 'string' type for $ltrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$ltrim" : {"input": "apple", "chars" : "$a"}} }');
-ERROR:   $ltrim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
+ERROR:  $ltrim requires that 'chars' be a string, but instead received 1 which is of type int.
 --$rtrim operator : basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": "", "chars" :""}} }');
       bson_dollar_project       
@@ -1305,7 +1305,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": "a
 
 -- $rtrim operator: Negative test :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : 1} }');
-ERROR:  $rtrim can only accept an object as its argument, but received int
+ERROR:  Expected 'document' type but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {}} }');
 ERROR:  $rtrim needs to have an 'input' field
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1}} }');
@@ -1313,11 +1313,11 @@ ERROR:  Expected 'string' type for $rtrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": 1, "unknowarG": "1"}} }');
 ERROR:  $rtrim encountered an unrecognized input argument: unknowarG
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$rtrim" : {"input": "", "chars" : ["apple"]}} }');
-ERROR:   $rtrim requires the 'chars' parameter to be a string value, but received [ "apple" ] which is of type array instead.
+ERROR:  $rtrim requires that 'chars' be a string, but instead received [ "apple" ] which is of type array.
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$rtrim" : {"input": "$a"}} }');
 ERROR:  Expected 'string' type for $rtrim but value 1 has 'int' type
 select bson_dollar_project('{"_id":"1", "a" : 1}', '{"result" : { "$rtrim" : {"input": "apple", "chars" : "$a"}} }');
-ERROR:   $rtrim requires the 'chars' parameter to be a string value, but received 1 which is of type int instead.
+ERROR:  $rtrim requires that 'chars' be a string, but instead received 1 which is of type int.
 --$indexOfBytes operator : basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$indexOfBytes" : ["",""]} }');
                 bson_dollar_project                 
@@ -2871,7 +2871,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["\uA000B
 (1 row)
 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$susbtrCP" : ["a\u0000B\u0000\u0000z", 2, 2]} }');
-ERROR:  Unknown expression $susbtrCP
+ERROR:  Unrecognized expression format: $susbtrCP
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["😀😁😂🤣😃😄😅😆😉😊😋😎🥲🙈🤔😪😟", 40, 13]} }');
       bson_dollar_project       
 ---------------------------------------------------------------------

@@ -2115,7 +2115,7 @@ select * from bson_dollar_project('{}','{"result": {"$dateAdd": {"startDate": {"
 ERROR:  Unrecognized argument to $dateAdd: hex. Expected arguments are startDate, unit, amount, and optionally timezone
 -- $dateAdd cases with error cases
 select * from bson_dollar_project('{}','{"result": {"$dateAdd": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"year" , "amount": 56.55} } }');
-ERROR:  $dateAdd requires an integer value for the number of time units
+ERROR:  Expected 'integer' type for $dateAdd
 select * from bson_dollar_project('{}','{"result": {"$dateAdd": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"years" , "amount": 56} } }');
 ERROR:  Unrecognized or invalid time unit value: years
 select * from bson_dollar_project('{}','{"result": {"$dateAdd": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"year" , "amount": 56, "field":5} } }');
@@ -2338,7 +2338,7 @@ select * from bson_dollar_project('{}','{"result": {"$dateSubtract": {"startDate
 ERROR:  Unrecognized argument to $dateSubtract: hex. Expected arguments are startDate, unit, amount, and optionally timezone
 -- $dateSubtract cases with error cases
 select * from bson_dollar_project('{}','{"result": {"$dateSubtract": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"year" , "amount": 56.55} } }');
-ERROR:  $dateSubtract requires an integer value for the number of time units
+ERROR:  Expected 'integer' type for $dateSubtract
 select * from bson_dollar_project('{}','{"result": {"$dateSubtract": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"years" , "amount": 56} } }');
 ERROR:  Unrecognized or invalid time unit value: years
 select * from bson_dollar_project('{}','{"result": {"$dateSubtract": {"startDate": {"$date": {"$numberLong": "1612062000000"} } , "unit":"year" , "amount": 56, "field":5} } }');
@@ -3004,13 +3004,13 @@ ERROR:  $dateDiff can only accept an object type as its input argument
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {} } }');
 ERROR:  'startDate' parameter required for $dateDiff
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"startDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "month"  } } }');
-ERROR:  'endDate' parameter is required for $dateDiff
+ERROR:  $dateDiff requires 'endDate' to be specified
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "month"  } } }');
 ERROR:  'startDate' parameter required for $dateDiff
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"startDate": 1 , "unit": "month",  "endDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
-ERROR:  $dateDiff expects 'startDate' to be in date format, but received int 
+ERROR:  $dateDiff needs 'startDate' to be provided as a valid date, but instead received int
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": 1 , "unit": "month",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
-ERROR:  $dateDiff expects 'endDate' to be in date format, but received int 
+ERROR:  $dateDiff needs 'endDate' to be provided as a valid date, but instead received int
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"hex":1, "endDate": 1 , "unit": "month",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
 ERROR:  Unrecognized parameter provided to $dateDiff: hex
 select * from bson_dollar_project('{}','{"result": {"$dateDiff": {"endDate": {"$date": {"$numberLong": "1262304000000"} } , "unit": "ashd",  "startDate": {"$date": {"$numberLong": "1262304000000"} } } } }');
@@ -3411,12 +3411,12 @@ ERROR:  Error parsing date string '2022-10-12'. Format literal not found '2'
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2024 1002", "format": "%Y %j" } } }');
 ERROR:  Error parsing date string '2024 1002'. Trailing data '2'
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "Jenuery 1 2024", "format": "%B %d %Y" } } }');
-ERROR:  an incomplete date/time string has been found, with elements missing: 'Jenuery 1 2024'
+ERROR:  an incomplete date/time string has been found, with certain required elements missing: 'Jenuery 1 2024'
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "act 1 2024", "format": "%b %d %Y" } } }');
-ERROR:  an incomplete date/time string has been found, with elements missing: 'act 1 2024'
+ERROR:  an incomplete date/time string has been found, with certain required elements missing: 'act 1 2024'
 -- unkown argument in input
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2022-10-12", "format": " %Y-%m-%d", "unknown":1} } }');
-ERROR:  Unrecognized argument to $dateFromString: unknown
+ERROR:  Unrecognized argument passed to $dateFromString operator: unknown
 -- passing timezone as input with existing timezone in string
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017-07-12T22:23:55 GMT+02:00", "format": "%Y-%m-%dT%H:%M:%S %z", "timezone": "Europe/Paris"} } }');
 ERROR:  you cannot pass in a date/time string with GMT offset together with a timezone argument
@@ -3426,7 +3426,7 @@ select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateStr
 ERROR:  you cannot pass in a date/time string with GMT offset together with a timezone argument
 -- not enough data
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017-07T22:23:55 GMT+02:00", "format": "%Y-%mT%H:%M:%S %z"} } }');
-ERROR:  an incomplete date/time string has been found, with elements missing: '2017-07T22:23:55 GMT+02:00'
+ERROR:  an incomplete date/time string has been found, with certain required elements missing: '2017-07T22:23:55 GMT+02:00'
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "2017", "format": "%C"} } }');
 ERROR:  Invalid format character '%C' in format string
 select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateString": "ISO Week 1, 2018", "format": "ISO Week %V, %Y"} } }');
@@ -3585,9 +3585,9 @@ select * from bson_dollar_project('{}','{"result": {"$dateFromString": {"dateStr
 
 -- Defensive check to prevent error from ms conversion to timestamptz
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$dateToString": {"date":{"$toDate": {"$numberDouble": "-244058800000000"}}}}}');
-ERROR:  Invalid conversion to date time.
+ERROR:  value -244058800000000 (milliseconds) is out of range for timestamps.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$dateToString": {"date":{"$toDate": {"$numberDouble": "9664590969990000"}}}}}');
-ERROR:  Invalid conversion to date time.
+ERROR:  value 9664590969990000 (milliseconds) is out of range for timestamps.
 -- parse with preset formats
 select * from bson_dollar_project('{"dateString": "2021-01-11 11:00:03"}','{"result": {"$dateFromString": {"dateString": "$dateString"} } }');
                        bson_dollar_project                        

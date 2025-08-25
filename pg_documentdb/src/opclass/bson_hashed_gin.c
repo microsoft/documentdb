@@ -348,7 +348,7 @@ GenerateTermsForDollarIn(pgbsonelement *queryElement, int *nentries)
 								  queryElement->bsonValue.value.v_doc.data_len))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Unable to read array for $in")));
+						errmsg("Failed to read array for operators $in")));
 	}
 
 	bool arrayHasNull = false;

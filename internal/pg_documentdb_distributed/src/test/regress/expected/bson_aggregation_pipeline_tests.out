@@ -1671,11 +1671,11 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 (9 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { } } ], "cursor": {} }');
-ERROR:  $unionWith stage without explicit collection must have a pipeline with $documents as first stage
+ERROR:  A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { "pipeline": [ ] } } ], "cursor": {} }');
-ERROR:  $unionWith stage without explicit collection must have a pipeline with $documents as first stage
+ERROR:  A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { "pipeline": [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } } ] } } ] } } ], "cursor": {} }');
-ERROR:  $unionWith stage without explicit collection must have a pipeline with $documents as first stage
+ERROR:  A $unionWith stage without specifying a target collection must begin its pipeline with a $documents stage.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$unionWith": { "pipeline": [ { "$documents": [ { "a": 1 }, { "a": 2 } ]}] } } ], "cursor": {} }');
                                                                document                                                               
 ---------------------------------------------------------------------

@@ -1109,7 +1109,7 @@ BsonOrderFinal(PG_FUNCTION_ARGS, bool isSingle, bool invert)
 		{
 			if (state.currentResult[i] == NULL)
 			{
-				/* No more Results*/
+				/* No additional results found*/
 				break;
 			}
 

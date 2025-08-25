@@ -437,7 +437,9 @@ bson_repath_and_build(PG_FUNCTION_ARGS)
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					 errmsg("argument %d must be a text", i)));
+					 errmsg(
+						 "Invalid type: expected a text type field, but received %s instead",
+						 format_type_be(types[i]))));
 		}
 
 		text *pathText = DatumGetTextP(args[i]);

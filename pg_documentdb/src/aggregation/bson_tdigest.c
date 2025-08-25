@@ -96,8 +96,8 @@ typedef struct tdigest_aggstate_t
 	int ncentroids;             /* Total count of centroids */
 	int ncompacted;             /* compacted part */
 	/* array of requested percentiles and values */
-	int npercentiles;           /* number of percentiles */
-	int nvalues;                /* number of values */
+	int npercentiles;           /* Count of percentiles requested */
+	int nvalues;                /* Count of provided values */
 	double trim_low;            /* low threshold (for trimmed aggs) */
 	double trim_high;           /* high threshold (for trimmed aggs) */
 	double *percentiles;        /* array of percentiles (if any) */
@@ -858,7 +858,7 @@ tdigest_percentile(PG_FUNCTION_ARGS)
 		elog(ERROR, "tdigest_percentile called in non-aggregate context");
 	}
 
-	/* if there's no digest, return NULL */
+	/* Return NULL when no digest is present */
 	if (PG_ARGISNULL(0))
 	{
 		PG_RETURN_NULL();

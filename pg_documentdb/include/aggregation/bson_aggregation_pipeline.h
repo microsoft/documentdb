@@ -27,7 +27,7 @@ typedef enum QueryCursorType
 	QueryCursorType_Streamable = 1,
 
 	/*
-	 * Whether or not it's a single batch query.
+	 * Indicates whether this is processed as a single batch query.
 	 */
 	QueryCursorType_SingleBatch,
 

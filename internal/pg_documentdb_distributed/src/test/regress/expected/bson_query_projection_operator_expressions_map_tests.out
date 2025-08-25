@@ -199,7 +199,7 @@ SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ 1, 2 
 ERROR:  The expression $isArray requires exactly 1 arguments, but 2 arguments were actually provided.
 -- unsupported operators
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$unknownop": "some literal" } }') FROM documentdb_api.collection('db', 'mapprojectexprs') ORDER BY object_id;
-ERROR:  Unknown expression $unknownop
+ERROR:  Unrecognized expression format: $unknownop
 -- Array Expression and Nested Expression evaluation tests
 SELECT bson_expression_map(document, 'array', '{ "new" : ["$_id"]}') FROM documentdb_api.collection('db', 'mapprojectexprs');
                                        bson_expression_map                                       
@@ -246,7 +246,7 @@ SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ "$a.b
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ "$a.b" ] , "a": 1.0} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
 ERROR:  Expected a single field in an expression operator specification. Found: '$isArray' and 'a'.
 SELECT bson_expression_map(document, 'array', '{ "field" : { "first": 1.0, "$isArray": [ "$a.b" ]} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
+ERROR:  FieldPath field names cannot begin with the operators symbol '$'; you might want to use $getField or $setField instead.
 SELECT bson_expression_map(document, 'array', '{ "field" : ["$_id", ["$a", "$b"], { "arrayobj" : [{},"$_id"]}] }') FROM documentdb_api.collection('db', 'mapprojectexprs');
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    bson_expression_map                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ---------------------------------------------------------------------

@@ -140,7 +140,7 @@ ThrowIdPathModifiedErrorForOperatorUpdate()
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_IMMUTABLEFIELD),
 					errmsg(
-						"Performing an update on the path '_id' would modify the immutable field '_id'")));
+						"Updating the path '_id' is not allowed because it would change the immutable field '_id'")));
 }
 
 

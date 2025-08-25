@@ -164,7 +164,7 @@ ERROR:  $vector is required field for using a vector index.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": -1, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
 ERROR:  The $k should always be a positive integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": "1", "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
-ERROR:  $k must be an integer value.
+ERROR:  The parameter $k should always hold a valid integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 0, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
 ERROR:  The $k should always be a positive integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');

@@ -381,7 +381,7 @@ rumvalidate(Oid opclassoid)
 			}
 		}
 
-		/* Check other operator signature */
+		/* Verify alternative operator definition */
 		else if (!check_amop_signature(oprform->amopopr, BOOLOID,
 									   oprform->amoplefttype,
 									   oprform->amoprighttype))

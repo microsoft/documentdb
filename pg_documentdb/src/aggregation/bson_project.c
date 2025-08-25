@@ -861,7 +861,7 @@ ProjectReplaceRootDocument(pgbson *document,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40228),
 						errmsg(
-							"'newRoot' expression must evaluate to an object, but resulting value was: %s. Type of resulting value: '%s'.",
+							"The expression 'newRoot' must produce an object value, but instead it yielded: %s. The type of this resulting value is: '%s'.",
 							BsonValueToJsonForLogging(&resultElement.bsonValue),
 							BsonTypeName(resultElement.bsonValue.value_type)),
 						errdetail_log(
@@ -1566,7 +1566,7 @@ TryInlineProjection(Node *currentExprNode, Oid functionOid, const
 		BsonProjectionQueryState projectionState = { 0 };
 		BuildBsonPathTreeForDollarProject(&projectionState, &projectContext);
 
-		/* TODO: Handle inclusion projection */
+		/* TODO: Need to address inclusion projection handling */
 		if (!projectionState.hasExclusion || projectionState.hasInclusion)
 		{
 			return false;
@@ -1833,7 +1833,7 @@ BuildBsonPathTreeForDollarUnset(BsonProjectionQueryState *state,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$unset specification must have at least one field.")));
+							"Unset operator specification requires at least one field.")));
 	}
 
 	/* by default we do path based projections if there's ANY inclusions/exclusions */
@@ -1880,7 +1880,7 @@ BsonLookUpGetFilterExpression(pgbson *sourceDocument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$lookup argument 'localField' must be a string, found localField: %s",
+							"The operator $lookup requires the 'localField' argument to be a string, but instead received: %s",
 							BsonTypeName(localFieldPath.value_type))));
 	}
 

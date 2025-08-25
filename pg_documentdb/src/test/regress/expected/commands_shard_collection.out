@@ -143,8 +143,8 @@ SELECT count(*) FROM documentdb_api.collection('db','reshard') WHERE document @@
 -- documents with an array shard key are not allowed
 SELECT documentdb_api.insert_one('db','reshard','{"_id":"6", "value": ["hello","world"]}');
                                                                                                      insert_one                                                                                                      
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "Shard key cannot contain an array." } ] }
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "1088" }, "errmsg" : "A shard key is not permitted to include any array elements." } ] }
 (1 row)
 
 -- documents with regex shard key are not allowed

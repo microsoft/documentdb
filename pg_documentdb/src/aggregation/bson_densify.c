@@ -488,10 +488,10 @@ HandleDensify(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"The $densify stage specification must be an object, found %s",
+							"The $densify stage specification must be provided as an object, but encountered %s instead",
 							BsonTypeName(existingValue->value_type)),
 						errdetail_log(
-							"The $densify stage specification must be an object, found %s",
+							"The $densify stage specification must be provided as an object, but encountered %s instead",
 							BsonTypeName(existingValue->value_type))));
 	}
 
@@ -1305,7 +1305,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733402),
 							errmsg(
-								"a bounding array must be an ascending array of either two dates or two numbers")));
+								"A bounding array is required to be sorted in ascending order and must contain either two dates or two numerical values.")));
 		}
 		else if (arguments->lowerBound.value_type == BSON_TYPE_DATE_TIME &&
 				 !IsBsonValueFixedInteger(&arguments->step))
@@ -1320,7 +1320,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5876900),
 							errmsg(
-								"Upper bound, lower bound, and step must all have the same type")));
+								"Upper bound, lower bound, and step values must each be of identical type")));
 		}
 	}
 }
@@ -1554,7 +1554,7 @@ GetValidPartitionAwareState(DensifyWindowState *state, pgbson *document)
 
 	if (partitionState->isInitialized)
 	{
-		/* Already initialized, nothing to do */
+		/* Already initialized, no further action required */
 		return partitionState;
 	}
 

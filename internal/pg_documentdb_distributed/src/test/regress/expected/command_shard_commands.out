@@ -41,7 +41,7 @@ ERROR:  numInitialChunks must be a positive number
 SELECT documentdb_api.shard_collection('{ "shardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "numInitialChunks": 5678 }');
 ERROR:  numInitialChunks must be less than 128.
 SELECT documentdb_api.shard_collection('{ "shardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "collation": { "a": "b" } }');
-ERROR:  Collation on shard collection is not supported yet
+ERROR:  Collation for sharded collections is currently unsupported
 SELECT documentdb_api.shard_collection('{ "shardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "timeseries": { "a": "b" } }');
 ERROR:  timeseries on shard collection is not supported yet
 SELECT documentdb_api.shard_collection('{ "shardCollection": "comm_sh_coll.", "key": { "_id": "hashed" } }');
@@ -143,7 +143,7 @@ ERROR:  hashed shard keys cannot be declared unique.
 SELECT documentdb_api.reshard_collection('{ "reshardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "numInitialChunks": 5678 }');
 ERROR:  numInitialChunks must be less than 128.
 SELECT documentdb_api.reshard_collection('{ "reshardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "collation": { "a": "b" } }');
-ERROR:  Collation on shard collection is not supported yet
+ERROR:  Collation for sharded collections is currently unsupported
 SELECT documentdb_api.reshard_collection('{ "reshardCollection": "comm_sh_coll.single_shard", "key": { "_id": "hashed" }, "numInitialChunks": -1 }');
 ERROR:  numInitialChunks must be a positive number
 SELECT documentdb_api.reshard_collection('{ "reshardCollection": "comm_sh_coll.", "key": { "_id": "hashed" } }');

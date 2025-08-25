@@ -223,7 +223,7 @@ SELECT * FROM bson_dollar_project_find(
     '{ "a": {"$elemMatch": {"b" : {"$jsonSchema": {}} } } }',
     '{ }'
 );
-ERROR:  unknown operator: $jsonSchema
+ERROR:  Unrecognized operator specified: $jsonSchema
 --unresolved fields
 select bson_dollar_project_find('{"_id":"1", "a" :[[1],[2],[3],[4]]}', '{"c" : { "$elemMatch" : {}}}',NULL);
  bson_dollar_project_find 

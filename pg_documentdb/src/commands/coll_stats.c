@@ -315,7 +315,7 @@ CollStatsCoordinator(Datum databaseName, Datum collectionName, int scale)
 	if (scale < 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51024), errmsg(
-							"BSON field 'scale' value must be >= 1, actual value '%d'",
+							"The BSON field 'scale' must have a value of at least 1, but the provided value is '%d'.",
 							scale)));
 	}
 

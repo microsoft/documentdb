@@ -139,7 +139,7 @@ GetShapeOperatorByValue(const bson_value_t *shapeValue, bson_value_t *shapePoint
 	if (IsBsonValueEmptyDocument(shapeValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("geo query doesn't have any geometry")));
+						errmsg("Geo query is missing the required geometry data")));
 	}
 
 	bson_iter_t shapeIter;
@@ -228,8 +228,9 @@ BsonValueGetBox(const bson_value_t *shapePointValue, ShapeOperatorInfo *opInfo)
 		shapePointValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("unknown geo specifier: $box: %s",
-							   BsonValueToJsonForLogging(shapePointValue)),
+						errmsg(
+							"Unknown geographical specifier detected: %s with operator $box",
+							BsonValueToJsonForLogging(shapePointValue)),
 						errdetail_log("unknown geo specifier: $box with argument type %s",
 									  BsonTypeName(shapePointValue->value_type))));
 	}

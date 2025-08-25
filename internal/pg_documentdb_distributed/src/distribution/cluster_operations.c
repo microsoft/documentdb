@@ -1033,7 +1033,7 @@ UpdateClusterMetadata(bool isInitialize)
 	Datum updateArgs[1] = { PointerGetDatum(PgbsonWriterGetPgbson(&writer)) };
 	Oid updateTypes[1] = { BsonTypeId() };
 
-	/*  Update the row */
+	/* Modify the existing row data */
 	const char *updateQuery = FormatSqlQuery(
 		"UPDATE %s.%s_cluster_data SET metadata = %s.bson_dollar_set(metadata, $1)",
 		ApiDistributedSchemaName, ExtensionObjectPrefix, ApiCatalogSchemaName);

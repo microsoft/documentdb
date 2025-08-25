@@ -81,7 +81,7 @@ typedef struct ContinuationState
 	/* How many tuples have been enumerated so far */
 	uint64_t currentTupleCount;
 
-	/* The size of the tuples enumerated */
+	/* The enumerated tuples' size */
 	uint64_t currentEnumeratedSize;
 
 	/* The current table ID (Copied from input continuation) */
@@ -257,7 +257,7 @@ command_cursor_state(PG_FUNCTION_ARGS)
 {
 	if (CurrentQueryState == NULL)
 	{
-		ereport(ERROR, (errmsg("This method should not be called directly")));
+		ereport(ERROR, (errmsg("This method must never be invoked directly")));
 	}
 	else
 	{
@@ -1462,7 +1462,8 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 		{
 			if (!BSON_ITER_HOLDS_NUMBER(&continuationIterator))
 			{
-				ereport(ERROR, (errmsg("batchSizeAttr must be a number.")));
+				ereport(ERROR, (errmsg(
+									"batchSizeAttr must be a number.")));
 			}
 			else if (extensionScanState->contentTrackAttributeNumber > 0)
 			{
@@ -1495,7 +1496,8 @@ ParseContinuationState(ExtensionScanState *extensionScanState,
 			if (!BSON_ITER_HOLDS_ARRAY(&continuationIterator) ||
 				!bson_iter_recurse(&continuationIterator, &continuationArray))
 			{
-				ereport(ERROR, (errmsg("continuation must be an array.")));
+				ereport(ERROR, (errmsg(
+									"continuation must be an array.")));
 			}
 
 			while (bson_iter_next(&continuationArray))

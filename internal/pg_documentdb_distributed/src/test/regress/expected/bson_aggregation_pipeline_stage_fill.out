@@ -764,7 +764,7 @@ SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", 
 ERROR:  The sort field must not contain any duplicate values
 -- partionBy and partitionByFields both are present
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionBy": "$a", "partitionByFields": ["a"], "sortBy": { "date": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
-ERROR:  Maximum one of 'partitionBy' and 'partitionByFields can be specified in '$fill'
+ERROR:  Only one of 'partitionBy' or 'partitionByFields' is allowed when using the '$fill'.
 -- partitionByFields element starts with $
 SELECT document FROM bson_aggregation_pipeline('db','{ "aggregate": "filltest", "pipeline":  [{"$fill": {"partitionByFields": ["$a"], "sortBy": { "date": 1 }, "output": {"quantity": { "method": "linear"}}}}]}');
 ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.

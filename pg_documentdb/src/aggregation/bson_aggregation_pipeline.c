@@ -776,7 +776,7 @@ static const AggregationStageDefinition StageDefinitions[] =
 		/* can always be inlined since it doesn't change the projector */
 		.canInlineLookupStageFunc = &CanInlineLookupStageTrue,
 
-		/* Sort sets the ordering state */
+		/* Sorting determines the current ordering state */
 		.preservesStableSortOrder = true,
 		.canHandleAgnosticQueries = false,
 		.isProjectTransform = false,
@@ -1301,7 +1301,7 @@ GenerateAggregationQuery(text *database, pgbson *aggregationSpec, QueryData *que
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("%*s is an unknown field",
+							errmsg("%*s is not a recognized field",
 								   keyView.length, keyView.string)));
 		}
 	}
@@ -1767,7 +1767,7 @@ default_find_case:
 	else if (collectionName.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection name can't be empty.")));
+						errmsg("Collection name must not be left empty.")));
 	}
 
 	/* In case only ntoreturn is present we give a different error.*/
@@ -1987,7 +1987,7 @@ GenerateCountQuery(text *databaseDatum, pgbson *countSpec, bool setStatementTime
 	if (collectionName.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection name can't be empty.")));
+						errmsg("Collection name must not be left empty.")));
 	}
 
 	Query *query = GenerateBaseTableQuery(databaseDatum, &collectionName, collectionUuid,
@@ -2172,7 +2172,7 @@ GenerateDistinctQuery(text *databaseDatum, pgbson *distinctSpec, bool setStateme
 	else if (collectionName.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection name can't be empty.")));
+						errmsg("Collection name must not be left empty.")));
 	}
 
 	if (distinctKey.length == 0)
@@ -2272,7 +2272,7 @@ ParseGetMore(text **databaseName, pgbson *getMoreSpec, QueryData *queryData, boo
 	if (nameView.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Collection name can't be empty.")));
+						errmsg("Collection name must not be left empty.")));
 	}
 
 	if (*databaseName == NULL)
@@ -2635,7 +2635,7 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 	if (output->value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788004),
-						errmsg("Missing value for 'output'"),
+						errmsg("The 'output' parameter is missing a required value"),
 						errdetail_log(
 							"%s requires an 'output' field", opName)));
 	}
@@ -2645,7 +2645,7 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788005),
 						errmsg("No value provided for 'sortBy'"),
 						errdetail_log(
-							"%s requires a 'sortBy", opName)));
+							"%s needs a 'sortBy' parameter", opName)));
 	}
 	else if (sortSpec->value_type != BSON_TYPE_DOCUMENT)
 	{
@@ -2680,8 +2680,9 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 		int errorcode = isMedianOp ? ERRCODE_DOCUMENTDB_LOCATION7436100 :
 						ERRCODE_DOCUMENTDB_LOCATION7429703;
 		ereport(ERROR, (errcode(errorcode),
-						errmsg("specification must be an object; found %s type: %s",
-							   opName, BsonTypeName(inputDocument->value_type)),
+						errmsg(
+							"Specification must be an object type, but instead received %s with type: %s",
+							opName, BsonTypeName(inputDocument->value_type)),
 						errdetail_log(
 							"The %s format requires an object", opName)));
 	}
@@ -2707,7 +2708,8 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD), errmsg(
-								"BSON field '$%s.%s' is an unknown field.", opName, key),
+								"The BSON field named with operators '$%s.%s' is not recognized.",
+								opName, key),
 							errdetail_log("%s found an unknown argument", opName)));
 		}
 	}
@@ -3053,10 +3055,10 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40201),
 						errmsg(
-							"Argument to $fill stage must be an object, but found type: %s",
+							"The operator $fill requires an object as its argument, but a value of type %s was provided instead.",
 							BsonTypeName(fillSpec->value_type)),
 						errdetail_log(
-							"Argument to $fill stage must be an object, but found type: %s",
+							"The operator $fill requires an object as its argument, but a value of type %s was provided instead.",
 							BsonTypeName(fillSpec->value_type))));
 	}
 
@@ -3110,9 +3112,9 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6050204),
 						errmsg(
-							"Maximum one of 'partitionBy' and 'partitionByFields can be specified in '$fill'"),
+							"Only one of 'partitionBy' or 'partitionByFields' is allowed when using the '$fill'."),
 						errdetail_log(
-							"Maximum one of 'partitionBy' and 'partitionByFields can be specified in '$fill'")));
+							"Only one of 'partitionBy' or 'partitionByFields' is allowed when using the '$fill'.")));
 	}
 
 	/* output is a required field in $fill, check it */
@@ -4047,7 +4049,7 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 		if (existingValue->value.v_utf8.len == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40352),
-							errmsg("FieldPath cannot be constructed with empty string")));
+							errmsg("FieldPath cannot be created from an empty string")));
 		}
 
 		if (existingValue->value.v_utf8.str[0] == '$')
@@ -4081,7 +4083,7 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40352),
 								errmsg(
-									"FieldPath cannot be constructed with empty string")));
+									"FieldPath cannot be created from an empty string")));
 			}
 
 			if (arrayValue->value.v_utf8.str[0] == '$')
@@ -5769,8 +5771,9 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 													   &accumulatorElement))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40238),
-							errmsg("The field '%.*s' must specify one accumulator",
-								   keyView.length, keyView.string)));
+							errmsg(
+								"The field '%.*s' is required to define exactly one accumulator",
+								keyView.length, keyView.string)));
 		}
 
 		StringView accumulatorName = {
@@ -6574,9 +6577,9 @@ ExtractAggregationStages(const bson_value_t *pipelineValue,
 		if (definition == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNRECOGNIZEDCOMMAND),
-							errmsg("Unrecognized pipeline stage name: %s",
+							errmsg("Pipeline stage name not recognized: %s",
 								   stageElement.path),
-							errdetail_log("Unrecognized pipeline stage name: %s",
+							errdetail_log("Pipeline stage name not recognized: %s",
 										  stageElement.path)));
 		}
 		if (definition->pipelineCheckFunc != NULL)
@@ -7109,7 +7112,7 @@ HandleSample(const bson_value_t *existingValue, Query *query,
 	if (sizeValue.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28749),
-						errmsg("$sample stage must specify a size")));
+						errmsg("The $sample stage must explicitly define a size value")));
 	}
 
 	if (!BsonValueIsNumber(&sizeValue))

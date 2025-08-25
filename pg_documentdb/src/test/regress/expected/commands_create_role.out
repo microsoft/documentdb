@@ -69,7 +69,7 @@ ERROR:  At least one inherited role must be specified in 'roles' array.
 -- Test error cases
 -- Test createRole with empty role name, should fail
 SELECT documentdb_api.create_role('{"createRole":"", "roles":["documentdb_readonly_role"]}');
-ERROR:  'createRole' cannot be empty.
+ERROR:  The 'createRole' field must not be left empty.
 -- Test createRole with invalid inherited role, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidInheritRole", "roles":["nonexistent_role"]}');
 ERROR:  Role 'nonexistent_role' not supported.

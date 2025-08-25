@@ -572,7 +572,7 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"'roles' field must be an array")));
+									"The 'roles' attribute is required to be in an array format")));
 			}
 
 			spec->roles = *bson_iter_value(&createIter);
@@ -812,8 +812,9 @@ documentdb_extension_drop_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("DropUser command is not supported."),
-						errdetail_log("DropUser command is not supported.")));
+						errmsg("The DropUser operation is currently unsupported."),
+						errdetail_log(
+							"The DropUser operation is currently unsupported.")));
 	}
 
 	if (PG_ARGISNULL(0))
@@ -1262,7 +1263,8 @@ ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 				if (bson_iter_as_int64(&getIter) != 1)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("Unsupported value for 'usersInfo' field.")));
+									errmsg(
+										"The 'usersInfo' field contains an unsupported value.")));
 				}
 			}
 			else if (bson_iter_type(&getIter) == BSON_TYPE_UTF8)

@@ -315,10 +315,10 @@ SELECT documentdb_api.shard_collection('db', 'graphlookup_socialgroup', '{ "_id"
 
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "graphlookup_socialgroup", "pipeline": [ { "$graphLookup": { "from": "graphlookup_socialgroup", "startWith": "$friend", "connectFromField": "friend", "connectToField": "userName", "as": "friendChain" } } ]}');
-ERROR:  $graphLookup with 'from' on a sharded collection is not supported
+ERROR:  $graphLookup using 'from' on a sharded collection is currently unsupported
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "graphlookup_visitors", "pipeline": [ { "$graphLookup": { "from": "graphlookup_places", "startWith": "$homePlace", "connectFromField": "nearby", "connectToField": "placeCode", "as": "reachablePlaces", "maxDepth": 2 } } ]}');
-ERROR:  $graphLookup with 'from' on a sharded collection is not supported
+ERROR:  $graphLookup using 'from' on a sharded collection is currently unsupported
 -- Construct random numeric relationship between 1000 users and 5 interests
 DO $$
 DECLARE i int;

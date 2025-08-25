@@ -104,7 +104,7 @@ typedef struct
 	/* represents value of "v" field */
 	int version;
 
-	/* represents sphere index version */
+	/* Indicates the version of the sphere index */
 	int sphereIndexVersion;
 
 	/* represents value of "key" field */

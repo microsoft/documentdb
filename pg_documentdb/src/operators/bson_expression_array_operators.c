@@ -155,7 +155,7 @@ typedef struct DollarReduceArguments
 /* Struct that represents the parsed arguments to a $zip expression. */
 typedef struct DollarZipArguments
 {
-	/* The array input to the $zip expression. */
+	/* The array provided as input to the $zip expression. */
 	AggregationExpressionData inputs;
 
 	/* The boolean value specifies whether the length of the longest array determines the number of arrays in the output array. */
@@ -846,7 +846,7 @@ HandlePreParsedDollarFilter(pgbson *doc, void *arguments,
 								"Operator $filter requires the limit to be specified as a 32-bit integer value: %s",
 								BsonValueToJsonForLogging(&evaluatedLimit)),
 							errdetail_log(
-								"$filter: limit of type %s can't be represented as a 32-bit integral value",
+								"The operator $filter has a limit of type %s that cannot be expressed as a 32-bit integer value.",
 								BsonTypeName(evaluatedLimit.value_type))));
 		}
 
@@ -879,10 +879,12 @@ HandlePreParsedDollarFilter(pgbson *doc, void *arguments,
 	if (evaluatedInputArg.value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28651), errmsg(
-							"input to $filter must be an array not %s", BsonTypeName(
+							"Expected 'array' type as input to $filter but found '%s' type",
+							BsonTypeName(
 								evaluatedInputArg.value_type)),
-						errdetail_log("input to $filter must be an array not %s",
-									  BsonTypeName(evaluatedInputArg.value_type))));
+						errdetail_log(
+							"Expected 'array' type as input to $filter but found '%s' type",
+							BsonTypeName(evaluatedInputArg.value_type))));
 	}
 
 	StringView aliasName = {
@@ -1671,7 +1673,7 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 	if (in.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16882), errmsg(
-							"Missing 'in' parameter to $map")));
+							"'in' parameter must be specified for $map")));
 	}
 
 	bson_value_t aliasValue = {
@@ -2113,8 +2115,9 @@ ParseDollarZip(const bson_value_t *argument, AggregationExpressionData *data,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34464), errmsg(
-								"$zip found an unknown argument: %s", key),
-							errdetail_log("$zip found an unknown argument: %s", key)));
+								"$zip encountered an unrecognized argument: %s", key),
+							errdetail_log("$zip encountered an unrecognized argument: %s",
+										  key)));
 		}
 	}
 
@@ -2268,10 +2271,10 @@ ParseElementFromObjectForArrayToObject(const bson_value_t *element)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTINCORRECTNUMBEROFKEYS),
 						errmsg(
-							"$arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:%d",
+							"$arrayToObject needs object keys named 'k' and 'v', but an incorrect number of keys was detected: %d",
 							keyCount),
 						errdetail_log(
-							"$arrayToObject requires an object keys of 'k' and 'v'. Found incorrect number of keys:%d",
+							"$arrayToObject needs object keys named 'k' and 'v', but an incorrect number of keys was detected: %d",
 							keyCount)));
 	}
 
@@ -2434,11 +2437,10 @@ ParseDollarMaxMinN(const bson_value_t *argument, AggregationExpressionData *data
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787900), errmsg(
-							"Specification requires an object type, but received %s: %s",
-							operatorName,
-							BsonValueToJsonForLogging(argument)),
+							"Specification must correspond to an object; operator name: %s, but encountered type: %s",
+							operatorName, BsonValueToJsonForLogging(argument)),
 						errdetail_log(
-							"Specification requires an object type, but received opname:%s with input type:%s",
+							"Specification must correspond to an object; operator name: %s, but encountered type: %s",
 							operatorName, BsonTypeName(argument->value_type))));
 	}
 
@@ -2930,7 +2932,7 @@ ProcessDollarSlice(void *state, bson_value_t *result)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDSIGNTHIRDARG),
 							errmsg(
-								"Third argument to $slice must be positive: %s",
+								"The third argument provided to the $slice operator must have a positive value: %s",
 								BsonValueToJsonForLogging(currentElement)),
 							errdetail_log(
 								"The third argument for the $slice operator must be a positive value, but a negative number was provided.")));
@@ -3137,10 +3139,11 @@ ProcessDollarArrayToObject(const bson_value_t *currentValue, bson_value_t *resul
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTREQUIRESARRAY),
 						errmsg(
-							"$arrayToObject requires an array input, found: %s",
+							"$arrayToObject needs an array as input, but a different type was provided: %s",
 							BsonTypeName(currentValue->value_type)),
-						errdetail_log("$arrayToObject requires an array input, found: %s",
-									  BsonTypeName(currentValue->value_type))));
+						errdetail_log(
+							"$arrayToObject needs an array as input, but a different type was provided: %s",
+							BsonTypeName(currentValue->value_type))));
 	}
 
 	bson_iter_t arrayIter;
@@ -3763,7 +3766,7 @@ GetStartValueForDollarRange(bson_value_t *startValue)
 	else if (!IsBsonValue32BitInteger(startValue, checkFixedInteger))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34444), errmsg(
-							"$range requires a starting value that can be represented as a 32-bit integer, found value: %s",
+							"The $range operator needs a starting value that fits within a 32-bit integer, but the provided value was: %s",
 							BsonValueToJsonForLogging(startValue))));
 	}
 	else
@@ -4019,7 +4022,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
 							BsonTypeName(arg->value_type),
 							BsonValueToJsonForLogging(arg)),
 						errdetail_log(
-							"$indexOfArray requires an integral %s index, found a value of type: %s",
+							"$indexOfArray needs an integer %s index but encountered a value of type: %s",
 							isStartIndex ? startingIndexString : endingIndexString,
 							BsonTypeName(arg->value_type)
 							)));
@@ -4035,7 +4038,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
 							BsonTypeName(arg->value_type),
 							BsonValueToJsonForLogging(arg)),
 						errdetail_log(
-							"$indexOfArray requires an integral %s index, found a value of type: %s",
+							"$indexOfArray needs an integer %s index but encountered a value of type: %s",
 							isStartIndex ? startingIndexString : endingIndexString,
 							BsonTypeName(arg->value_type)
 							)));
@@ -4122,7 +4125,7 @@ DollarSliceInputValidation(bson_value_t *inputValue, bool isSecondArg)
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDVALUESECONDARG :
 								ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDVALUETHIRDARG),
 						errmsg(
-							"The argument %s for $slice cannot be expressed as a 32-bit integer: %s",
+							"The %s value provided to the $slice operator cannot be expressed within the limits of a 32-bit integer: %s",
 							isSecondArg ? "Second" : "Third",
 							BsonValueToJsonForLogging(inputValue)),
 						errdetail_log(

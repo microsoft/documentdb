@@ -74,7 +74,7 @@ typedef struct IndexTermCreateMetadata
 	/* If the term belongs to a wildcard projection index. */
 	bool isWildcardProjection;
 
-	/* The index version for this index */
+	/* Version of the index */
 	IndexOptionsVersion indexVersion;
 
 	/* Whether or not the term is for a descending index */

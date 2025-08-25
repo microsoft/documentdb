@@ -151,10 +151,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 -- negative test case for percentile
 -- invalid input document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": 1 } } } ] }');
-ERROR:  specification must be an object; found $percentile type: int
+ERROR:  Specification must be an object type, but instead received $percentile with type: int
 -- unkonwn field in input document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": [ 0.95 ], "method": "approximate", "unknownField": "unknownValue" } } } } ] }');
-ERROR:  BSON field '$$percentile.unknownField' is an unknown field.
+ERROR:  The BSON field named with operators '$$percentile.unknownField' is not recognized.
 -- p value not an array
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "percentileVal": { "$percentile": { "input": "$dataVal", "p": 1.5, "method": "approximate" } } } } ] }');
 ERROR:  Expected an array containing numbers from 0.0 to 1.0, but instead received: 1.5
@@ -179,10 +179,10 @@ ERROR:  The BSON field '$$percentile.method' is required but is currently missin
 -- negative test case for median
 -- invalid input document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": 1 } } } ] }');
-ERROR:  specification must be an object; found $median type: int
+ERROR:  Specification must be an object type, but instead received $median with type: int
 -- unkonwn field in input document
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": { "input": "$dataVal", "method": "approximate", "unknownField": "unknownValue" } } } } ] }');
-ERROR:  BSON field '$$median.unknownField' is an unknown field.
+ERROR:  The BSON field named with operators '$$median.unknownField' is not recognized.
 -- invalid method
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "testPercentileAndMedian", "pipeline": [ { "$group": { "_id": "$group", "medianVal": { "$median": { "input": "$dataVal", "method": "invalid" } } } } ] }');
 ERROR:  Currently only 'approximate' can be used as percentile 'method'

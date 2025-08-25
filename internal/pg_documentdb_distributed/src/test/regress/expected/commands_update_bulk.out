@@ -68,11 +68,11 @@ select 1 from documentdb_api.insert_one('bulkdb', 'updateme', '{"a":10,"_id":10,
 CALL documentdb_api.update_bulk('bulkdb', NULL);
 ERROR:  update document cannot be NULL
 CALL documentdb_api.update_bulk(NULL, '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
-ERROR:  database name cannot be NULL
+ERROR:  database name must not be NULL
 CALL documentdb_api.update_bulk('bulkdb', '{"updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
 ERROR:  Required field 'update.update' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme"}');
-ERROR:  BSON field 'update.updates' is missing but is a required field
+ERROR:  Required field 'update.updates' is missing
 CALL documentdb_api.update_bulk('bulkdb', '{"update":["updateme"], "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}]}');
 ERROR:  collection name has invalid type array
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":{"q":{},"u":{"$set":{"b":0}},"multi":true}}');
@@ -159,9 +159,9 @@ CALL documentdb_api.update_bulk('bulkdb', '{"update":"notexists", "updates":[{"q
 
 -- query syntax errors are added the response
 CALL documentdb_api.update_bulk('bulkdb', '{"update":"updateme", "updates":[{"q":{"a":{"$ltr":5}},"u":{"$set":{"b":0}},"multi":true}]}');
-                                                                                                                     p_result                                                                                                                      | p_success 
+                                                                                                                             p_result                                                                                                                             | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "unknown operator: $ltr" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "16777245" }, "errmsg" : "Unrecognized operator specified: $ltr" } ] } | f
 (1 row)
 
 -- when ordered, expect only first update to be executed
@@ -1371,9 +1371,9 @@ NOTICE:  creating collection
 
 --upsert with $expr
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$and" : [{"$expr" : {"$eq": ["$a",1]}}]},"u":{},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$or" : [{"$expr" : {"$gt": ["$b",1]}}, {"x": 2}]},"u":{"$set" : {"a": 10}},"upsert":true}]}');
@@ -1383,33 +1383,33 @@ CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$or" : [{"$expr" : {"$gte": ["$c", 100]}}]},"u":{"$set": {"a" :10}},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$or" : [{"$or" : [{"$expr" : {"$gte": ["$c", 100]}}]}]},"u":{"$set": {"a" :10}},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$and" : [{"$or" : [{"x": 10},{"$expr" : {"$gte": ["$c", 100]}}, {"y": 10}]}]},"u":{"$set": {"a" :10}},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$expr": {"$gt" : ["$x",10]}},"u":{},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 CALL documentdb_api.update_bulk('update_bulk', '{"update":"single", "updates":[{"q":{"$and" : [{"a": 10}, {"$or" : [{"x": 10},{"$expr" : {"$gte": ["$c", 100]}}, {"y": 10}]}, {"b":11} ]},"u":{"$set": {"a" :10}},"upsert":true}]}');
-                                                                                                                                       p_result                                                                                                                                       | p_success 
+                                                                                                                                                         p_result                                                                                                                                                          | p_success 
 ---------------------------------------------------------------------
- { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "$expr is not allowed in the query predicate for an upsert" } ] } | f
+ { "ok" : { "$numberDouble" : "1.0" }, "nModified" : { "$numberInt" : "0" }, "n" : { "$numberInt" : "0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "50593821" }, "errmsg" : "Use of the $expr operator is not permitted within the query predicate for an upsert operation." } ] } | f
 (1 row)
 
 -- below query will be updating document although we don't have @@ in query match but for below query only object id filter is sufficient.

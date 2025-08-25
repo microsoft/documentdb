@@ -249,8 +249,8 @@ bson_in_range_numeric(PG_FUNCTION_ARGS)
 									  valElement.bsonValue.value_type;
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5429414),
 						errmsg(
-							"PlanExecutor error during aggregation :: caused by :: Invalid range: "
-							"Expected the sortBy field to be a number, but it was %s",
+							"SortBy range is invalid: "
+							"expected a Number type field, but received %s instead",
 							BsonTypeName(conflictingType)),
 						errdetail_log(
 							"Illegal range passed to bson_in_range_numeric: The sortBy field must contain a numeric value, but received %s instead.",
@@ -1146,7 +1146,7 @@ CompareBsonValue(const bson_value_t *left, const bson_value_t *right,
 
 		case BSON_TYPE_TIMESTAMP:
 		{
-			/* compare the time value first */
+			/* First, compare the time value */
 			int64_t leftVal = left->value.v_timestamp.timestamp;
 			int64_t rightVal = right->value.v_timestamp.timestamp;
 			if (leftVal != rightVal)

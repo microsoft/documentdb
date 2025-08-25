@@ -1913,7 +1913,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 		else if (strcmp(key, "N") == 0)
 		{
 			/*
-			 * N is a integer, must be greater than 1.
+			 * N must be an integer greater than one.
 			 */
 			*weightExpression = *bson_iter_value(&docIter);
 

@@ -79,7 +79,7 @@ typedef struct ReplaceDocumentDbCollectionContext
 	/* whether or not the collection is non-existent function */
 	bool isNonExistentCollection;
 
-	/* the bound parameters associated with the request */
+	/* the bound parameters for the given request context */
 	ParamListInfo boundParams;
 
 	/* The query associated with this context */

@@ -373,7 +373,7 @@ PickVariableBoundsForOrderedScan(VariableIndexBounds *variableBounds,
 			pfree(otherSet);
 		}
 
-		/* Remove the current index */
+		/* Remove current index */
 		foreach_delete_current(
 			variableBounds->variableBoundsList, cell);
 	}
@@ -1332,7 +1332,7 @@ SetSingleBoundsDollarType(const bson_value_t *queryValue,
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					 errmsg("Invalid $type value: %ld", typeCode)));
+					 errmsg("Invalid $type specified: %ld", typeCode)));
 		}
 	}
 	else

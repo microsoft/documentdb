@@ -1699,4 +1699,4 @@ ERROR:  The expression $divide requires exactly 2 arguments, but 3 arguments wer
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lt": [{"$divide": [1, 0, {"$not": []}]}, 2]}}');
 ERROR:  The expression $divide requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$lte": [{"$add": [{"$date": { "$numberLong": "1" }}, {"$date": { "$numberLong": "1" }}]}, 3]}}');
-ERROR:  only one date allowed in an $add expression
+ERROR:  Only a single date value is permitted within an $add operators expression.

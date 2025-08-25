@@ -1433,9 +1433,10 @@ UpdateCursorInContinuationMapCore(bson_iter_t *singleContinuationDoc, HTAB *curs
 
 	if (continuationBinaryValue.value_type != BSON_TYPE_BINARY)
 	{
-		ereport(ERROR, (errmsg("Expecting binary value for %s, found %s",
-							   CursorContinuationValue.string, BsonTypeName(
-								   continuationBinaryValue.value_type))));
+		ereport(ERROR, (errmsg(
+							"Expected a binary value for %s but instead encountered %s",
+							CursorContinuationValue.string, BsonTypeName(
+								continuationBinaryValue.value_type))));
 	}
 
 	if (continuationBinaryValue.value.v_binary.data_len != sizeof(ItemPointerData))
@@ -1540,7 +1541,8 @@ BuildContinuationMap(pgbson *continuationValue, HTAB *cursorMap)
 		if (!BSON_ITER_HOLDS_ARRAY(&continuationIterator) ||
 			!bson_iter_recurse(&continuationIterator, &continuationArray))
 		{
-			ereport(ERROR, (errmsg("continuation must be an array.")));
+			ereport(ERROR, (errmsg(
+								"continuation must be an array.")));
 		}
 
 		while (bson_iter_next(&continuationArray))
@@ -1589,7 +1591,7 @@ ConstructCursorResultTupleDesc(AttrNumber maxAttrNum)
 
 	if (tupleDescriptor->tdtypeid == RECORDOID && tupleDescriptor->tdtypmod < 0)
 	{
-		/* Register the type */
+		/* Make sure to register the specified type */
 		assign_record_type_typmod(tupleDescriptor);
 	}
 
@@ -1621,7 +1623,8 @@ BuildTailableCursorContinuationMap(pgbson *continuationValue, HTAB *cursorMap)
 		if (!BSON_ITER_HOLDS_ARRAY(&continuationIterator) ||
 			!bson_iter_recurse(&continuationIterator, &continuationArray))
 		{
-			ereport(ERROR, (errmsg("continuation must be an array.")));
+			ereport(ERROR, (errmsg(
+								"continuation must be an array.")));
 		}
 
 		while (bson_iter_next(&continuationArray))

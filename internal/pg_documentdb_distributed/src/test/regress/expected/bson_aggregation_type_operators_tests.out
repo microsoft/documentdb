@@ -918,26 +918,26 @@ SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": fals
 ERROR:  Unsupported conversion from bool to binData in $convert with no onError value
 -- error: uuid format and uuid subtype violations
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 4}, "format": "base64"}}}');
-ERROR:  Failed to parse BinData 'SGVsbG8gd29ybGQh' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
+ERROR:  Unable to interpret BinData 'SGVsbG8gd29ybGQh' during $convert operation due to missing onError parameter: Only the UUID subtype (4) is allowed with the 'uuid' format
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData"}, "format": "uuid"}}}');
-ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
+ERROR:  Unable to interpret BinData '451e4567-e89b-42d3-a456-556642440000' during $convert operation due to missing onError parameter: Only the UUID subtype (4) is allowed with the 'uuid' format
 -- error: $convert to BinData with input-format mismatch
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "123", "to": "binData", "format": "base64"}}}');
-ERROR:  Failed to parse BinData '123' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
+ERROR:  Unable to interpret BinData '123' during $convert operation due to missing onError parameter: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3uUsMxSE6S0cVkebjm=fg==", "to": {"type": "binData", "subtype": 4}, "format": "base64"}}}');
-ERROR:  Failed to parse BinData 'hn3uUsMxSE6S0cVkebjm=fg==' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
+ERROR:  Unable to interpret BinData 'hn3uUsMxSE6S0cVkebjm=fg==' during $convert operation due to missing onError parameter: Only the UUID subtype (4) is allowed with the 'uuid' format
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 0}, "format": "base64"}}}');
-ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
+ERROR:  Unable to interpret BinData '451e4567-e89b-42d3-a456-556642440000' during $convert operation due to missing onError parameter: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjmfg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
-ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjmfg==' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
+ERROR:  Unable to interpret BinData 'hn3u+UsMxSE6S0cVkebjmfg==' during $convert operation due to missing onError parameter: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjm/fg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
-ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjm/fg==' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
+ERROR:  Unable to interpret BinData 'hn3u+UsMxSE6S0cVkebjm/fg==' during $convert operation due to missing onError parameter: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "äöäöä", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
-ERROR:  Failed to parse BinData 'äöäöä' in $convert with no onError value: Input is not a valid UUID string %s.
+ERROR:  Unable to interpret BinData 'äöäöä' during $convert operation due to missing onError parameter: The provided input does not represent a properly formatted UUID string %s.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
-ERROR:  Failed to parse BinData 'SGVsbG8gd29ybGQh' in $convert with no onError value: Input is not a valid UUID string %s.
+ERROR:  Unable to interpret BinData 'SGVsbG8gd29ybGQh' during $convert operation due to missing onError parameter: The provided input does not represent a properly formatted UUID string %s.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 4}, "format": "hex"}}}');
-ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
+ERROR:  Unable to interpret BinData '451e4567-e89b-42d3-a456-556642440000' during $convert operation due to missing onError parameter: Only the UUID subtype (4) is allowed with the 'uuid' format
 -- error: auto format not supported for to BinData
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 0}, "format": "auto"}}}');
 ERROR:  Format 'auto' is not supported for string to 'binData' conversion
@@ -1601,7 +1601,7 @@ SELECT bson_dollar_project(document, '{"output": {"$convert": { "input": "$value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": { "input": {"$divide": [1, 0]}, "to": "string", "onError": "There was an error in $convert"}}}');
 ERROR:  $divide by zero is not allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": "$myField"}}');
-ERROR:  $convert expects an object of named arguments but found: string
+ERROR:  $convert requires an object containing named arguments, but instead received: string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "onError": "There was an error"}}}');
 ERROR:  'to' parameter is missing for $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"to": 1, "onError": "There was an error"}}}');
@@ -1609,7 +1609,7 @@ ERROR:  Missing 'input' parameter to $convert
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"myCustomInput": 1, "onError": "There was an error"}}}');
 ERROR:  $convert encountered an unrecognized argument: myCustomInput
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": "someType", "onError": "There was an error"}}}');
-ERROR:  Unknown type name alias: someType
+ERROR:  Unrecognized data type alias: someType
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "1.1"}, "onError": "There was an error"}}}');
 ERROR:  In $convert, numeric 'to' argument is not an integer
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$convert": {"input": 1, "to": {"$numberDouble": "255"}, "onError": "There was an error"}}}');
@@ -1892,9 +1892,9 @@ ERROR:  Conversion would overflow target type in $convert with no onError value:
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"$numberDecimal": "-1.8E309"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: -1.8E+309
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "1.8E309" }}');
-ERROR:  Unable to interpret number '1.8E309' within $convert, as no onError value was specified: Out of range
+ERROR:  Unable to interpret number '1.8E309' within $convert, as no onError value was specified: Value exceeds allowed range
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "-1.8E309" }}');
-ERROR:  Unable to interpret number '-1.8E309' within $convert, as no onError value was specified: Out of range
+ERROR:  Unable to interpret number '-1.8E309' within $convert, as no onError value was specified: Value exceeds allowed range
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "This contains a number: 324423.23" }}');
 ERROR:  Unable to interpret number 'This contains a number: 324423.23' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": "    324423.0" }}');

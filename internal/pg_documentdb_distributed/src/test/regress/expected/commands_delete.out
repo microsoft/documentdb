@@ -84,7 +84,7 @@ ERROR:  The required BSON field 'delete.delete' is not present in the data.
 select documentdb_api.delete('db', '{"delete":"removeme"}');
 ERROR:  The required BSON field 'delete.deletes' is not present in the data.
 select documentdb_api.delete('db', '{"delete":["removeme"], "deletes":[{"q":{},"limit":0}]}');
-ERROR:  collection name has invalid type array
+ERROR:  Collection name contains an invalid data type array
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":{"q":{},"limit":0}}');
 ERROR:  The BSON field 'delete.deletes' has an incorrect type 'object'; it should be of type 'array'.
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{},"limit":0}], "extra":1}');
@@ -166,7 +166,7 @@ select documentdb_api.delete('db', '{"delete":"notexists", "deletes":[{"q":{},"l
 select documentdb_api.delete('db', '{"delete":"removeme", "deletes":[{"q":{"a":{"$ltr":5}},"limit":0}]}');
                                                                                                                      delete                                                                                                                      
 ---------------------------------------------------------------------
- ("{ ""n"" : { ""$numberInt"" : ""0"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""16777245"" }, ""errmsg"" : ""unknown operator: $ltr"" } ] }",f)
+ ("{ ""n"" : { ""$numberInt"" : ""0"" }, ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""16777245"" }, ""errmsg"" : ""Unrecognized operator specified: $ltr"" } ] }",f)
 (1 row)
 
 -- when ordered, expect only first delete to be executed

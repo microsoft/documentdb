@@ -96,9 +96,9 @@ SELECT documentdb_api.insert_one('db','near_sphere','{ "_id": 15, "a": { "geo": 
 -- Test near and nearsphere with index and runtime flags
 -- Should fail
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0, 0]}}}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0, 0]}}}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 BEGIN;
 -- Should pass
 SET LOCAL documentdb.enable_force_push_geonear_index to off;
@@ -155,45 +155,45 @@ SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', '
 -- validations
 -- $near/$nearSphere tests
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [0] } }}');
-ERROR:  invalid argument in geo near query: 0
+ERROR:  Invalid parameter detected in geo near query: 0
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"type": "Point", "coordinates": [0]}}}}}');
-ERROR:  invalid argument in geo near query: coordinates
+ERROR:  Invalid parameter detected in geo near query: coordinates
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"type": "Point", "coordinates": [0, 0]}, "$hello": 1}}}}');
-ERROR:  invalid argument in geo near query: $hello
+ERROR:  Invalid parameter detected in geo near query: $hello
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"type": "Point"}}}}}');
-ERROR:  $near requires geojson point, given { "type" : "Point" }
+ERROR:  The parameter $near expects a GeoJSON point, but received { "type" : "Point" } instead
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"tide": "Point", "coordintes": [1,1]}}}}}');
-ERROR:  $near requires geojson point, given { "tide" : "Point", "coordintes" : [ 1, 1 ] }
+ERROR:  The parameter $near expects a GeoJSON point, but received { "tide" : "Point", "coordintes" : [ 1, 1 ] } instead
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {}}}}');
 ERROR:  A geo near query requires the $geometry to be specified.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": []}}}');
 ERROR:  A geo near query requires the $geometry to be specified.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"tide": "Point", "coordintes": [1,1]}}}}');
-ERROR:  invalid argument in geo near query: tide
+ERROR:  Invalid parameter detected in geo near query: tide
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"x": 1, "coordinates": [1,1]}}}}');
-ERROR:  invalid argument in geo near query: x
+ERROR:  Invalid parameter detected in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"x": "a", "y": 1}}}}');
-ERROR:  invalid argument in geo near query: x
+ERROR:  Invalid parameter detected in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [0] } }}');
-ERROR:  invalid argument in geo near query: 0
+ERROR:  Invalid parameter detected in geo near query: 0
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point", "coordinates": [0]}}}}}');
-ERROR:  invalid argument in geo near query: coordinates
+ERROR:  Invalid parameter detected in geo near query: coordinates
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point", "coordinates": [0, 0]}, "$hello": 1}}}}');
-ERROR:  invalid argument in geo near query: $hello
+ERROR:  Invalid parameter detected in geo near query: $hello
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"type": "Point"}}}}}');
-ERROR:  $near requires geojson point, given { "type" : "Point" }
+ERROR:  The parameter $near expects a GeoJSON point, but received { "type" : "Point" } instead
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"tide": "Point", "coordintes": [1,1]}}}}}');
-ERROR:  $near requires geojson point, given { "tide" : "Point", "coordintes" : [ 1, 1 ] }
+ERROR:  The parameter $near expects a GeoJSON point, but received { "tide" : "Point", "coordintes" : [ 1, 1 ] } instead
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {}}}}');
 ERROR:  A geo near query requires the $geometry to be specified.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": []}}}');
 ERROR:  A geo near query requires the $geometry to be specified.
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"tide": "Point", "coordintes": [1,1]}}}}');
-ERROR:  invalid argument in geo near query: tide
+ERROR:  Invalid parameter detected in geo near query: tide
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"x": 1, "coordinates": [1,1]}}}}');
-ERROR:  invalid argument in geo near query: x
+ERROR:  Invalid parameter detected in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"x": "a", "y": 1}}}}');
-ERROR:  invalid argument in geo near query: x
+ERROR:  Invalid parameter detected in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"coordinates": [1,1]}}, "b": { "$nearSphere": {"coordinates": [1,1]}}}}');
 ERROR:  Excessive number of geoNear query expressions
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"coordinates": [1,1]}}, "b": { "$nearSphere": {"coordinates": [1,1]}}}}');
@@ -229,15 +229,15 @@ SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filt
 ERROR:  maxDistance must be positive or zero
 -- invalid places to call $near/$nearSphere
 SELECT document FROM documentdb_api.collection('db','near_sphere') WHERE document @@ '{ "a.b": { "$elemMatch" : {"$near": [1,1] }}}';
-ERROR:  $geoNear, $near, and $nearSphere are not allowed in this context, as these operators require sorting geospatial data. If you do not need sort, consider using $geoWithin instead.
+ERROR:  $near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead.
 SELECT document FROM documentdb_api.collection('db','near_sphere') WHERE document @@ '{ "$or": [{"a.b": {"$near": [1,1] }},{"t": 1}]}';
 ERROR:  $geoNear must appear at the top level of the expression
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": {}, "projection": { "p" : {"$elemMatch": {"geo": {"$near": [1,1]}}}}}');
-ERROR:  $geoNear, $near, and $nearSphere are not allowed in this context, as these operators require sorting geospatial data. If you do not need sort, consider using $geoWithin instead.
+ERROR:  $near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead.
 SELECT documentdb_api.update('db', '{"update":"near_sphere", "updates":[{"q":{},"u":{"$set": {"a.$[elem].b": 1}},"multi":false,"upsert":true, "arrayFilters": [{"elem.geo": {"$near": [1, 1]}}]}]}');
                                                                                                                                                                                                                          update                                                                                                                                                                                                                         
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""21757981"" }, ""errmsg"" : ""$geoNear, $near, and $nearSphere are not allowed in this context, as these operators require sorting geospatial data. If you do not need sort, consider using $geoWithin instead."" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""21757981"" }, ""errmsg"" : ""$near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead."" } ] }",f)
 (1 row)
 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "near_sphere", "indexes": [{"key": {"t": 1}, "name": "my_invalid_idx", "partialFilterExpression": {"geo": {"$near": [1,1]}} }]}', true);

@@ -2026,7 +2026,7 @@ SELECT documentdb_api.shard_collection('db', 'ci_search8', '{ "_id": "hashed" }'
 
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "ci_search7", "pipeline": [ { "$graphLookup": { "from": "ci_search8", "startWith": "$pet", "connectFromField": "name", "connectToField": "_id", "as": "destinations", "depthField": "depth" } } ],  "collation": { "locale": "fr", "strength" : 1, "alternate": "shifted" } }');
-ERROR:  $graphLookup with 'from' on a sharded collection is not supported
+ERROR:  $graphLookup using 'from' on a sharded collection is currently unsupported
 -- unsupported $merge 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "ci_search6", "pipeline": [{"$merge" : { "into": "ci_search9", "whenMatched" : "replace" }} ], "collation": { "locale": "en", "strength" : 1} }');
 ERROR:  collation is not supported with $merge yet

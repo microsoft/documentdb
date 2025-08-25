@@ -297,10 +297,11 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 				RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 					shouldThrowError, (
 						errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-						errmsg("%sMultiPoint coordinates must have at least 1 element",
-							   GEO_ERROR_PREFIX(parseState->errorCtxt)),
+						errmsg(
+							"%sMultiPoint coordinates require a minimum of one element",
+							GEO_ERROR_PREFIX(parseState->errorCtxt)),
 						errdetail_log(
-							"%sMultiPoint coordinates must have at least 1 element",
+							"%sMultiPoint coordinates require a minimum of one element",
 							GEO_HINT_PREFIX(parseState->errorCtxt))));
 			}
 
@@ -316,10 +317,12 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 					RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 						shouldThrowError, (
 							errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-							errmsg("%sGeoJSON coordinates must be an array",
-								   GEO_ERROR_PREFIX(parseState->errorCtxt)),
-							errdetail_log("%sGeoJSON coordinates must be an array",
-										  GEO_HINT_PREFIX(parseState->errorCtxt))));
+							errmsg(
+								"%sGeoJSON coordinates need to be provided in an array format",
+								GEO_ERROR_PREFIX(parseState->errorCtxt)),
+							errdetail_log(
+								"%sGeoJSON coordinates need to be provided in an array format",
+								GEO_HINT_PREFIX(parseState->errorCtxt))));
 				}
 				isValid = WriteBufferGeoJsonCoordinates(pointValue, GeoJsonType_POINT,
 														insideGeometryCollection,
@@ -574,10 +577,11 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(state->errorCtxt)),
-					errmsg("%sGeoJSON coordinates must be an array",
+					errmsg("%sGeoJSON coordinates need to be provided in an array format",
 						   GEO_ERROR_PREFIX(state->errorCtxt)),
-					errdetail_log("%sGeoJSON coordinates must be an array",
-								  GEO_HINT_PREFIX(state->errorCtxt))));
+					errdetail_log(
+						"%sGeoJSON coordinates need to be provided in an array format",
+						GEO_HINT_PREFIX(state->errorCtxt))));
 		}
 
 		memset(&point, 0, sizeof(Point));
@@ -679,7 +683,7 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 					errcode(GEO_ERROR_CODE(state->errorCtxt)),
 					errmsg("%sLoop contains no vertices: []",
 						   GEO_ERROR_PREFIX(state->errorCtxt)),
-					errdetail_log("%sLoop has no vertices. []",
+					errdetail_log("%sLoop contains no vertices available.",
 								  GEO_HINT_PREFIX(state->errorCtxt))));
 		}
 
@@ -688,7 +692,7 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(state->errorCtxt)),
-					errmsg("Loop for %s remains unclosed.: %s",
+					errmsg("%sLoop structure remains unclosed: %s",
 						   GEO_ERROR_PREFIX(state->errorCtxt),
 						   BsonValueToJsonForLogging(multiPointValue)),
 					errdetail_log("Loop for %s remains unclosed.",
@@ -1441,7 +1445,7 @@ WriteBufferGeoJsonCore(const bson_value_t *value, bool insideGeoJsonGeometryColl
 							errmsg("%sUnrecognized CRS name provided: %s",
 								   GEO_ERROR_PREFIX(parseState->errorCtxt),
 								   crsName),
-							errdetail_log("%sUnknown CRS name.",
+							errdetail_log("%sUnknown CRS name encountered.",
 										  GEO_HINT_PREFIX(parseState->errorCtxt))));
 				}
 			}

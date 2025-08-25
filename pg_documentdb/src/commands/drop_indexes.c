@@ -270,7 +270,8 @@ ProcessDropIndexesRequest(char *dbName, DropIndexesArg dropIndexesArg, bool
 				PgbsonToJsonForLogging(dropIndexesArg.index.document);
 
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INDEXNOTFOUND),
-							errmsg("can't find index with key: %s", keyDocumentStr)));
+							errmsg("Unable to locate index using the provided key: %s",
+								   keyDocumentStr)));
 		}
 		else if (nmatchingIndexes > 1)
 		{
@@ -661,7 +662,7 @@ DropIndexesArgExpandIndexNameList(uint64 collectionId, DropIndexesArg *dropIndex
 	if (list_length(dropIndexesArg->index.nameList) != 0 &&
 		strcmp(linitial(dropIndexesArg->index.nameList), "*") == 0)
 	{
-		/* we don't want to drop _id index */
+		/* Dropping the _id index is not permitted */
 		bool excludeIdIndex = true;
 		bool inProgressOnly = false;
 		dropIndexesArg->index.nameList = CollectionIdGetIndexNames(collectionId,
@@ -872,7 +873,8 @@ HandleDropIndexConcurrently(uint64 collectionId, int indexId, bool unique, bool
 		result->errmsg = edata->message;
 		result->ok = false;
 
-		ereport(DEBUG1, (errmsg("couldn't drop some indexes for a collection")));
+		ereport(DEBUG1, (errmsg(
+							 "Failed to remove certain indexes from the specified collection")));
 
 		PopAllActiveSnapshots();
 		AbortCurrentTransaction();

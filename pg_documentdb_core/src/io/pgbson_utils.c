@@ -70,7 +70,8 @@ BsonValueHoldsNumberArray(const bson_value_t *currentValue, int32_t *numElements
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"value must be of type array")));
+							"Invalid type: expected an array type field, but received %s instead",
+							BsonTypeName(currentValue->value_type))));
 	}
 	bson_iter_t arrayIter;
 	BsonValueInitIterator(currentValue, &arrayIter);
@@ -552,7 +553,7 @@ BsonTypeFromName(const char *name)
 	}
 
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("Unknown type name alias: %s", name)));
+					errmsg("Unrecognized data type alias: %s", name)));
 }
 
 
@@ -861,7 +862,7 @@ AddDoubleToValue(bson_value_t *current, double value)
 		valueBson.value.v_double = value;
 		valueBson.value_type = BSON_TYPE_DOUBLE;
 
-		/* Convert value to decimal128 */
+		/* Transform value into decimal128 format */
 		valueBson.value.v_decimal128 = GetBsonValueAsDecimal128Quantized(&valueBson);
 		valueBson.value_type = BSON_TYPE_DECIMAL128;
 

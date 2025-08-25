@@ -162,7 +162,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 				/* Throw an error in case of upsert if querySpec holds $expr */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_QUERYFEATURENOTALLOWED),
 								errmsg(
-									"$expr is not allowed in the query predicate for an upsert")));
+									"Use of the $expr operator is not permitted within the query predicate for an upsert operation.")));
 			}
 
 			if (processFilterFunc)
@@ -177,7 +177,7 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 				/* Throw an error in case of upsert if querySpec holds $expr */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_QUERYFEATURENOTALLOWED),
 								errmsg(
-									"$expr is not allowed in the query predicate for an upsert")));
+									"Use of the $expr operator is not permitted within the query predicate for an upsert operation.")));
 			}
 
 			if (processFilterFunc)
@@ -274,10 +274,11 @@ TraverseQueryDocumentAndProcess(bson_iter_t *queryDocument, void *context,
 						if (!bson_iter_next(&refIterator))
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-												"unknown operator: %s",
+												"Unrecognized operator specified: %s",
 												op),
-											errdetail_log("unknown operator: %s",
-														  op)));
+											errdetail_log(
+												"Unrecognized operator specified: %s",
+												op)));
 						}
 
 						bool isRef = strcmp(op, "$ref") == 0;

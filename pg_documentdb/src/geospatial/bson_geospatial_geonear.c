@@ -390,7 +390,7 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 			if (request->distanceMultiplier < 0.0)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("distanceMultiplier must be nonnegative")));
+								errmsg("distanceMultiplier must not be negative")));
 			}
 		}
 		else if (strcmp(key, "maxDistance") == 0)
@@ -453,12 +453,13 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 				{
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("invalid argument in geo near query: %s",
+								errmsg("Invalid parameter detected in geo near query: %s",
 									   (request->isGeoJsonPoint ? "coordinates" :
 										lastkey)),
-								errdetail_log("invalid argument in geo near query: %s",
-											  (request->isGeoJsonPoint ? "coordinates" :
-											   lastkey))));
+								errdetail_log(
+									"Invalid parameter detected in geo near query: %s",
+									(request->isGeoJsonPoint ? "coordinates" :
+									 lastkey))));
 				}
 
 				if (index == 0)
@@ -490,11 +491,12 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 			{
 				ereport(ERROR, (
 							errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-							errmsg("invalid argument in geo near query: %s",
+							errmsg("Invalid parameter detected in geo near query: %s",
 								   (request->isGeoJsonPoint ? "coordinates" : lastkey)),
-							errdetail_log("invalid argument in geo near query: %s",
-										  (request->isGeoJsonPoint ? "coordinates" :
-										   lastkey))));
+							errdetail_log(
+								"Invalid parameter detected in geo near query: %s",
+								(request->isGeoJsonPoint ? "coordinates" :
+								 lastkey))));
 			}
 		}
 		else if (strcmp(key, "query") == 0)
@@ -529,7 +531,8 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Legacy point is out of bounds for spherical query")));
+							errmsg(
+								"The legacy point lies outside the valid range for a spherical query.")));
 		}
 	}
 
@@ -571,7 +574,8 @@ ValidateQueryOperatorsForGeoNear(Node *node, void *state)
 	{
 		ereport(ERROR, (
 					errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("text and geoNear not allowed in same query")));
+					errmsg(
+						"Using text and geoNear together in a single query is not permitted")));
 	}
 
 	return expression_tree_walker(node, ValidateQueryOperatorsForGeoNear, state);
@@ -636,7 +640,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("invalid argument in geo near query: %s", op)));
+								errmsg("Invalid parameter detected in geo near query: %s",
+									   op)));
 			}
 		}
 	}
@@ -649,17 +654,18 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 
 			if (iterValue->value_type == BSON_TYPE_DOCUMENT)
 			{
-				/* Query looks like {$near: {$geometry: {coordinates: [0, 0]}}} */
+				/* Query appears similar to {$near: {$geometry: {coordinates: [0, 0]}}} */
 				bson_iter_t geoJsonIter;
 				bson_iter_recurse(&valueIter, &geoJsonIter);
 
 				if (!bson_iter_find(&geoJsonIter, "coordinates"))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-									errmsg("$near requires geojson point, given %s",
-										   BsonValueToJsonForLogging(iterValue)),
+									errmsg(
+										"The parameter $near expects a GeoJSON point, but received %s instead",
+										BsonValueToJsonForLogging(iterValue)),
 									errdetail_log(
-										"$near requires geojson point, given %s",
+										"The parameter $near expects a GeoJSON point, but received %s instead",
 										BsonValueToJsonForLogging(iterValue))));
 				}
 
@@ -700,9 +706,12 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 					{
 						ereport(ERROR,
 								(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								 errmsg("invalid argument in geo near query: %s", op),
-								 errdetail_log("invalid argument in geo near query: %s",
-											   op)));
+								 errmsg(
+									 "Invalid parameter detected in geo near query: %s",
+									 op),
+								 errdetail_log(
+									 "Invalid parameter detected in geo near query: %s",
+									 op)));
 					}
 				}
 			}
@@ -713,18 +722,22 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							 errmsg("invalid argument in geo near query: %s", op),
-							 errdetail_log("invalid argument in geo near query: %s",
-										   op)));
+							 errmsg("Invalid parameter detected in geo near query: %s",
+									op),
+							 errdetail_log(
+								 "Invalid parameter detected in geo near query: %s",
+								 op)));
 				}
 
 				if (!BsonValueIsNumber(bson_iter_value(&valueIter)))
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							 errmsg("invalid argument in geo near query: %s", op),
-							 errdetail_log("invalid argument in geo near query: %s",
-										   op)));
+							 errmsg("Invalid parameter detected in geo near query: %s",
+									op),
+							 errdetail_log(
+								 "Invalid parameter detected in geo near query: %s",
+								 op)));
 				}
 
 				PgbsonWriterAppendValue(&writer, "near", 4, value);
@@ -737,9 +750,11 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							 errmsg("invalid argument in geo near query: %s", op),
-							 errdetail_log("invalid argument in geo near query: %s",
-										   op)));
+							 errmsg("Invalid parameter detected in geo near query: %s",
+									op),
+							 errdetail_log(
+								 "Invalid parameter detected in geo near query: %s",
+								 op)));
 				}
 
 				isGeoJsonPoint = true;
@@ -780,8 +795,10 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("invalid argument in geo near query: %s", op),
-							errdetail_log("invalid argument in geo near query: %s", op)));
+							errmsg("Invalid parameter detected in geo near query: %s",
+								   op),
+							errdetail_log(
+								"Invalid parameter detected in geo near query: %s", op)));
 		}
 	}
 

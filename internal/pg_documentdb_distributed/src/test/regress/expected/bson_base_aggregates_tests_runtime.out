@@ -237,7 +237,7 @@ SELECT bson_repath_and_build('max'::text, 'max2', BSONMAX(document-> 'i32'), 'su
 ERROR:  argument list must have an even number of elements
 DETAIL:  The arguments of bson_repath_and_build() must consist of alternating keys and values.
 SELECT bson_repath_and_build(BSONMAX(document-> 'i32'), 'max'::text, 'sum'::text, BSONSUM(document-> 'i32'), 'average'::text, BSONAVERAGE(document-> 'i32')) FROM documentdb_api.collection('db', 'testAggregates');
-ERROR:  argument 0 must be a text
+ERROR:  Invalid type: expected a text type field, but received bson instead
 -- Shard the collection
 SELECT documentdb_api.shard_collection('db', 'testAggregates', '{"_id":"hashed"}', false);
  shard_collection 

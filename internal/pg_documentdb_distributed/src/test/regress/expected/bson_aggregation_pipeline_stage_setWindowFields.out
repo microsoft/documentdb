@@ -125,7 +125,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  The BSON field '$setWindowFields.unknownField' is not recognized as a valid field.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "partitionBy": [1] } }]}');
-ERROR:  An expression used to partition cannot evaluate to value of type array
+ERROR:  A partition expression cannot be evaluated to yield an array type value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "partitionBy": { "$concatArrays": [[1], [2]] }}}]}');
 ERROR:  PlanExecutor error during aggregation :: caused by :: An expression used to partition cannot evaluate to value of type array
@@ -146,7 +146,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  FieldPath field names are not allowed to begin with the operators symbol '$'; consider using $getField or $setField instead.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "": {"$unknownOperator": 1}}}}]}');
-ERROR:  FieldPath cannot be constructed with empty string
+ERROR:  FieldPath cannot be created from an empty string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1}, "total2": "Not an object" }}}]}');
 ERROR:  Expected 'document' type for 'total2'
@@ -161,19 +161,19 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  'window' field can only contain 'documents' as the only argument or 'range' with an optional 'unit' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": "not an array" }}}}}]}');
-ERROR:  Window bounds must be a 2-element array: documents: "not an array"
+ERROR:  Window bounds should consist of exactly two elements in the array: documents: "not an array"
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "range": { "a": 1, "b": 2 } }}}}}]}');
-ERROR:  Window bounds must be a 2-element array: range: { "a" : 1, "b" : 2 }
+ERROR:  Window bounds should consist of exactly two elements in the array: range: { "a" : 1, "b" : 2 }
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": ["current", "current"], "unknownBound": [1, 2] }}}}}]}');
-ERROR:  'window' field that specifies documents cannot have other fields 
+ERROR:  The 'window' field specifying documents is not allowed to be used together with other fields .
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "range": ["current", "current"], "unknownBound": [1, 2] }}}}}]}');
-ERROR:  'window' field that specifies range cannot have other fields besides 'unit'
+ERROR:  The 'window' field specifying range is not allowed to be used together with other fields besides 'unit'.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": ["current", "current"], "unit": "second" }}}}}]}');
-ERROR:  Window bounds can only specify 'unit' with range-based bounds.
+ERROR:  The 'unit' parameter is valid only when bounds are defined using a range-based specification.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [-1 , 1] }}}}}]}');
 ERROR:  Missing sortBy field for document-based window
@@ -206,10 +206,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Expected ascending sortBy field definition
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1] }}}}}]}');
-ERROR:  Window bounds must be a 2-element array: documents: [ 1 ]
+ERROR:  Window bounds should consist of exactly two elements in the array: documents: [ 1 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1, 2, 3] }}}}}]}');
-ERROR:  Window bounds must be a 2-element array: documents: [ 1, 2, 3 ]
+ERROR:  Window bounds should consist of exactly two elements in the array: documents: [ 1, 2, 3 ]
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total1": {"$sum": 1 , "window": { "documents": [1, "text"] }}}}}]}');
 ERROR:  The window boundaries value must be either 'unbounded', 'current', or a specific numeric value.
@@ -248,7 +248,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (string) was provided.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields_invalidtypes", "pipeline":  [{"$match": { "_id": 4 }}, {"$setWindowFields": { "sortBy": {"cost": 1}, "output": { "total1": {"$sum": 1 , "window": { "range": ["current", 2]}}}}}]}');
-ERROR:  PlanExecutor error during aggregation :: caused by :: Invalid range: Expected the sortBy field to be a number, but it was undefined
+ERROR:  SortBy range is invalid: expected a Number type field, but received undefined instead
 -- Common Positive tests for $setWindowFields stage and explains
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"total": { "$sum": 1}}}}]}');
@@ -3589,7 +3589,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  The specified unit must be 'week' or a smaller time interval
 -- $integral with no input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "unit": "hour" }, "window": { "range": [ -1, 2 ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  $integral requires an 'input' expression
+ERROR:  $integral needs a valid 'input' expression
 -- $integral with invalid input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$unknown", "unit": "hour" }, "window": { "range": [ -1, 2 ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
 ERROR:  The input value of $integral window function must be a vector of 2 value, the first value must be numeric or date type and the second must be numeric.
@@ -3834,7 +3834,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"a
 ERROR:  The specified unit must be 'week' or a smaller time interval
 -- $derivative (with no 'sortBy')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" }, "window": { "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  Window bounds can only specify 'unit' with range-based bounds.
+ERROR:  The 'unit' parameter is valid only when bounds are defined using a range-based specification.
 -- $derivative (with invalid str 'sortBy')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "str": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
 ERROR:  Aggregation PlanExecutor encountered an - Invalid range - error: The specified sortBy field should be of type Date, but a different type (undefined) was provided.
@@ -3849,7 +3849,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"a
 ERROR:  The input value of $derivative window function must be a vector of 2 value, the first value must be numeric or date type and the second must be numeric.
 -- $derivative with no input
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "unit": "hour" }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  $derivative requires an 'input' expression
+ERROR:  $derivative needs a valid 'input' expression
 -- unknown argument
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour", "unknown": 1 }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
 ERROR:  $derivative received an unexpected argument: unknown
@@ -4352,7 +4352,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  'sortBy' parameters must be specified for $shift
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "by": 1 }}}}}]}'); -- missing ouput field in $shift
-ERROR:  $shift requires an 'output' expression.
+ERROR:  Operator $shift needs an 'output' expression.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity" }}}}}]}'); -- missing by field in $shift
 ERROR:  The shift operator requires the 'by' parameter to be provided as an integer value.
@@ -4367,10 +4367,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  The parameter $shift:by requires an integer value, but received: { "undefined" : true }
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1, "default": "$quantity" }}}}}]}'); -- non-constant default expression in $shift
-ERROR:  '$shift:default' expression must yield a constant value.
+ERROR:  Expression '$shift:default' is required to produce a constant value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1, "default": ["$sasdf"] }}}}}]}'); -- non-constant default expression in $shift
-ERROR:  '$shift:default' expression must yield a constant value.
+ERROR:  Expression '$shift:default' is required to produce a constant value.
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 2147483649}}}}}]}'); -- by value greater than int32 max value
 ERROR:  The parameter $shift:by requires an integer value, but received: 2147483649
@@ -5212,11 +5212,11 @@ ERROR:  specification must be defined as an object, but the provided input was $
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$top": {"output": "hello"}}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottom": {"sortBy": {"quantity": 1}}}}}} ] }'); -- missing output field
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "hello", "sortBy": {"quantity": 1}}}}}} ] }'); -- missing n
 ERROR:  Required value for 'n' is not provided
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"n": 2, "sortBy": {"quantity": 1}}}}}} ] }'); -- missing output
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "hello", "n": 2}}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": {"quantity": 1}, "fourth": true}}}}} ] }'); -- extra field

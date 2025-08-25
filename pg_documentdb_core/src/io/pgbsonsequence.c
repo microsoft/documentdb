@@ -383,7 +383,8 @@ PgbsonSequenceInitFromJson(const char *jsonString)
 							  currentValue->value.v_doc.data_len))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Could not initialize bson from value")));
+							errmsg(
+								"Failed to initialize bson object from provided value")));
 		}
 
 		if (!bson_concat(doc, &currentbson))

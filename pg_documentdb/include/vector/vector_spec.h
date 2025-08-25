@@ -171,7 +171,7 @@ typedef pgbson *(*CalculateSearchParamBsonFunc)(bytea *indexOptions,
 												pgbson *searchParamBson);
 
 /*
- * Extract the index compression type from the index options.
+ * Retrieve the type of index compression specified within the provided index options.
  */
 typedef VectorIndexCompressionType (*ExtractIndexCompressionTypeFunc)(
 	bytea *indexOptions);

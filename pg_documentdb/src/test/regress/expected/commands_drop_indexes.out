@@ -36,7 +36,7 @@ CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index":
 ERROR:  The BSON field 'dropIndexes.index' has an incorrect type 'int'; it should be of type '[string, object]'.
 ---- dropIndexes - top level - not implemented yet ----
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "index": {}}');
-ERROR:  can't find index with key: { }
+ERROR:  Unable to locate index using the provided key: { }
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "writeConcern": 1}');
 ERROR:  The BSON field 'dropIndexes.index' is required but was not provided
 CALL documentdb_api.drop_indexes('db', '{"dropIndexes": "collection_3", "comment": 1}');

@@ -137,7 +137,7 @@ DropMongoCollection(char *database_name, char *target_collection_name)
 
 
 /*
- * Updates the name of a collection in a database.
+ * Update the name of a specified collection in the database.
  */
 static void
 UpdateMongoCollectionName(char *database_name, char *collection_name, char *new_name)

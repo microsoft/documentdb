@@ -10,7 +10,7 @@ ERROR:  dbName cannot be NULL
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "unknown_field": []}', true);
 ERROR:  BSON field 'createIndexes.unknown_field' is an unknown field
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": null, "indexes": [{"key": {"a": 1, "": -1}, "name": "my_idx"}]}', true);
-ERROR:  collection name has invalid type null
+ERROR:  Collection name contains an invalid data type null
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": null}', true);
 ERROR:  The BSON field 'createIndexes.indexes' has an incorrect type 'null'; it should be of type 'array'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": 5}', true);
@@ -22,7 +22,7 @@ ERROR:  The BSON field 'createIndexes.indexes' is required but was not provided
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{}', true);
 ERROR:  The BSON field 'createIndexes.indexes' is required but was not provided
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": 1}', true);
-ERROR:  collection name has invalid type int
+ERROR:  Collection name contains an invalid data type int
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": 1}', true);
 ERROR:  The BSON field 'createIndexes.indexes' has an incorrect type 'int'; it should be of type 'array'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [1,2]}', true);
@@ -53,7 +53,7 @@ ERROR:  Error in specification { "key" : { ".$**" : 1 }, "name" : "my_idx" }:Ind
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": "bad"}, "name": "my_idx"}]}', true);
 ERROR:  Error in specification { "key" : { "a.$**" : "bad" }, "name" : "my_idx" }:Unknown plugin index specified: "bad"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": 0}, "name": "my_idx"}]}', true);
-ERROR:  Error in specification { "key" : { "a.$**" : 0 }, "name" : "my_idx" }:Values in the index key pattern cannot be 0.
+ERROR:  Error in specification { "key" : { "a.$**" : 0 }, "name" : "my_idx" }:Index key pattern values are not allowed to be zero.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": ""}, "name": "my_idx"}]}', true);
 ERROR:  Error in specification { "key" : { "a.$**" : "" }, "name" : "my_idx" }:Index key pattern values must not contain empty strings
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": {"a": 1}}, "name": "my_idx"}]}', true);
@@ -168,7 +168,7 @@ ERROR:  Error in specification { "key" : { "b" : "hashed", "c" : "hashed" }, "na
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"b": "hashed", "c": 1, "d": "hashed" }, "name": "invalid_hashed"}]}', true);
 ERROR:  Error in specification { "key" : { "b" : "hashed", "c" : 1, "d" : "hashed" }, "name" : "invalid_hashed" }:A maximum of one index field is allowed to be hashed but found 2
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"b.$**": "hashed" }, "name": "invalid_hashed"}]}', true);
-ERROR:  Error in specification { "key" : { "b.$**" : "hashed" }, "name" : "invalid_hashed" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "b.$**" : "hashed" }, "name" : "invalid_hashed" }:Index key has an invalid field name because it begins with an operators symbol.
 -- can't create index on same key with same sparse options
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.sparse.b": 1}, "name": "my_non_sparse_a_b_idx1"}]}', true);
 ERROR:  Index already exists with a different name: my_non_sparse_a_b_idx
@@ -278,7 +278,7 @@ ERROR:  Error in specification { "key" : {  }, "name" : "my_idx" }:Index keys ar
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": "my_idx"}]}', true);
 ERROR:  Error in specification { "name" : "my_idx" }:The 'key' field is mandatory and must be included as part of an index specification
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"$**foo": 1}, "name": "my_idx_13"}]}', true);
-ERROR:  Error in specification { "key" : { "$**foo" : 1 }, "name" : "my_idx_13" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "$**foo" : 1 }, "name" : "my_idx_13" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"..": 1}, "name": "my_idx_12"}]}', true);
 ERROR:  Error in specification { "key" : { ".." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a..b.$**": 1}, "name": "my_idx_10"}]}', true);
@@ -286,13 +286,13 @@ ERROR:  Error in specification { "key" : { "a..b.$**" : 1 }, "name" : "my_idx_10
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a..b.foo": 1}, "name": "my_idx_11"}]}', true);
 ERROR:  Error in specification { "key" : { "a..b.foo" : 1 }, "name" : "my_idx_11" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"$a": 1}, "name": "my_idx_12"}]}', true);
-ERROR:  Error in specification { "key" : { "$a" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "$a" : 1 }, "name" : "my_idx_12" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {".": 1}, "name": "my_idx_12"}]}', true);
 ERROR:  Error in specification { "key" : { "." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$b": 1}, "name": "my_idx_12"}]}', true);
-ERROR:  Error in specification { "key" : { "a.$b" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "a.$b" : 1 }, "name" : "my_idx_12" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$b.$**": 1}, "name": "my_idx_12"}]}', true);
-ERROR:  Error in specification { "key" : { "a.$b.$**" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "a.$b.$**" : 1 }, "name" : "my_idx_12" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.": 1}, "name": "my_idx_12"}]}', true);
 ERROR:  Error in specification { "key" : { "a." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 -- show that we didn't leave any invalid collection indexes behind

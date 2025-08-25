@@ -176,7 +176,6 @@ void
 BsonValueToPgbsonElementUnsafe(const bson_value_t *bsonValue,
 							   pgbsonelement *element)
 {
-	/* bsonValue should not be null */
 	Assert(bsonValue != NULL);
 
 	if (bsonValue->value_type != BSON_TYPE_DOCUMENT)
@@ -216,7 +215,6 @@ BsonValueToPgbsonElement(const bson_value_t *bsonValue,
 {
 	bson_iter_t iterator;
 
-	/* bsonValue should not be null */
 	Assert(bsonValue != NULL);
 
 	if (!bson_iter_init_from_data(&iterator,
@@ -245,7 +243,6 @@ TryGetBsonValueToPgbsonElement(const bson_value_t *bsonValue, pgbsonelement *ele
 {
 	bson_iter_t iterator;
 
-	/* bsonValue should not be null */
 	Assert(bsonValue != NULL);
 
 	if (!bson_iter_init_from_data(&iterator,

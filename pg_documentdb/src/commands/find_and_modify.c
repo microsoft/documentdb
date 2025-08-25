@@ -261,7 +261,7 @@ ParseFindAndModifyMessage(pgbson *message)
 			if (!BSON_ITER_HOLDS_UTF8(&messageIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("collection name has invalid type %s",
+								errmsg("Collection name contains an invalid data type %s",
 									   BsonIterTypeName(&messageIter))));
 			}
 
@@ -453,8 +453,8 @@ ParseFindAndModifyMessage(pgbson *message)
 		if (spec.upsert)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Cannot specify both upsert=true and "
-								   "remove=true")));
+							errmsg("It is not allowed to set both upsert=true "
+								   "and remove=true simultaneously")));
 		}
 
 		if (spec.returnNewDocument)
@@ -469,8 +469,8 @@ ParseFindAndModifyMessage(pgbson *message)
 		if (spec.update == NULL)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("Either an update or remove=true must be "
-								   "specified")));
+							errmsg("You must specify either an update action "
+								   "or set remove=true for proper execution")));
 		}
 	}
 

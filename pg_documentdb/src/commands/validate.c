@@ -136,7 +136,7 @@ command_validate(PG_FUNCTION_ARGS)
 	if (validateSpec.collectionName == NULL || strlen(validateSpec.collectionName) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid namespace specified '%s.'",
+						errmsg("The specified namespace is invalid: '%s'.",
 							   validateSpec.databaseName)));
 	}
 

@@ -7,8 +7,8 @@
  *
  *-------------------------------------------------------------------------
  */
-#ifndef MONGO_INDEXES_H
-#define MONGO_INDEXES_H
+#ifndef INDEXES_H
+#define INDEXES_H
 
 #include <postgres.h>
 #include <utils/array.h>
@@ -66,7 +66,7 @@ typedef struct IndexSpec
 
 	/** index options start here **/
 
-	/* "v" number, must be greater than 0 */
+	/* index version specified by "v" number. must be a positive number */
 	int indexVersion;
 
 	/* "key" document, cannot be NULL */
@@ -187,7 +187,7 @@ typedef struct
  */
 typedef enum MongoIndexKind
 {
-	/* Unknow / invalid index plugin */
+	/* Unrecognized or unsupported index plugin */
 	MongoIndexKind_Unknown = 0x0,
 
 	/* Regular asc/desc index */

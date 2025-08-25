@@ -266,7 +266,7 @@ GetLowerBound(bson_type_t type)
 		{
 			lowerBound.value_type = BSON_TYPE_TIMESTAMP;
 			lowerBound.value.v_timestamp.increment = 0;
-			lowerBound.value.v_timestamp.timestamp = 0; /* Minimum timestamp value */
+			lowerBound.value.v_timestamp.timestamp = 0; /* Lowest allowable timestamp value */
 			break;
 		}
 

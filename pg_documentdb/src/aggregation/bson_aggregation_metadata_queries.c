@@ -661,7 +661,7 @@ HandleIndexStats(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40602),
 						errmsg(
-							"$indexStats is only valid as the first stage in the pipeline.")));
+							"The $indexStats operator can only be used as the initial stage in the pipeline.")));
 	}
 
 	bool isTopLevel = true;

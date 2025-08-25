@@ -816,11 +816,11 @@ SELECT bson_dollar_project(document, '{"a" : { "b" : { "c": { "d": "$_id"}}}, "a
 ERROR:  Collision detected in specified path c
 -- Invalid key format tests
 SELECT bson_dollar_project(document, '{"$a.b": 1, "a.b.c": 1}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
+ERROR:  FieldPath field names cannot begin with the operators symbol '$'; you might want to use $getField or $setField instead.
 SELECT bson_dollar_project(document, '{"$isArray": 1}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
+ERROR:  FieldPath field names cannot begin with the operators symbol '$'; you might want to use $getField or $setField instead.
 SELECT bson_dollar_project(document, '{"$keyName": "newVal"}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField
+ERROR:  FieldPath field names cannot begin with the operators symbol '$'; you might want to use $getField or $setField instead.
 SELECT documentdb_api.insert_one('db','projectops','{"_id":"10", "a" : { "b" : { "c" : "abc" } } }', NULL);
                               insert_one                              
 ---------------------------------------------------------------------

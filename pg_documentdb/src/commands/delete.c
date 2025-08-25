@@ -297,7 +297,7 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 			if (!BSON_ITER_HOLDS_UTF8(deleteCommandIter))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("collection name has invalid type %s",
+								errmsg("Collection name contains an invalid data type %s",
 									   BsonIterTypeName(deleteCommandIter))));
 			}
 
@@ -942,7 +942,7 @@ DeleteAllMatchingDocuments(MongoCollection *collection, pgbson *queryDoc,
 	Oid *argTypes = palloc0(sizeof(Oid) * argCount);
 	char *argNulls = palloc0(sizeof(char) * argCount);
 
-	/* set query value */
+	/* assign query value */
 	Oid bsonTypeId = BsonTypeId();
 	argTypes[0] = bsonTypeId;
 	argValues[0] = PointerGetDatum(queryDoc);
@@ -1227,7 +1227,7 @@ command_delete_worker(PG_FUNCTION_ARGS)
 /*
  * DeleteOneInternal deletes a single row with a specific shard key value filter.
  *
- * Returns 1 if a row was deleted, and 0 if no row matched the query.
+ * Returns 1 if a row was deleted, and 0 if No rows were found matching the provided query.
  */
 static void
 DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
@@ -1358,7 +1358,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	argValues[0] = Int64GetDatum(shardKeyHash);
 	argNulls[0] = ' ';
 
-	/* set query value*/
+	/* assign query value*/
 	Oid bsonTypeId = BsonTypeId();
 	argTypes[1] = bsonTypeId;
 	argValues[1] = PointerGetDatum(query);
@@ -1489,7 +1489,7 @@ DeleteOneInternal(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 	}
 	else
 	{
-		/* no row matched the query */
+		/* No rows were found matching the provided query */
 		result->isRowDeleted = false;
 		result->objectId = NULL;
 	}

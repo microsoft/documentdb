@@ -17,7 +17,7 @@ ERROR:  The BSON field 'insert.insert' is required but not provided
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection"}');
 ERROR:  BSON field 'insert.documents' is missing but a required field
 CALL documentdb_api.insert_bulk('db', '{"insert":["collection"], "documents":[{"a":1}]}');
-ERROR:  collection name has invalid type array
+ERROR:  Collection name contains an invalid data type array
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":{"a":1}}');
 ERROR:  The BSON field 'insert.documents' has an incorrect type 'object'; it should be of type 'array'.
 CALL documentdb_api.insert_bulk('db', '{"insert":"collection", "documents":[{"a":1}], "extra":1}');
@@ -361,7 +361,7 @@ ERROR:  Collection names must not begin with the '.' character: .randomname
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SQL statement "SELECT documentdb_api.create_collection($1, $2)"
 CALL documentdb_api.insert_bulk('verylongdatabasenameformeasuringthelimitsofdatabasenamesinmongodb', '{"insert":"coll", "documents":[{"_id":1,"a":1}]}');
-ERROR:  database name is too long
+ERROR:  The provided database name exceeds the permitted length
 CALL documentdb_api.insert_bulk('verylongdatabasenameformeasuringlimitsofdatabasenamesinmongoda', '{"insert":"verylongcollectionnameformeasuringthelimitsofcollectionnamesinmongodb", "documents":[{"_id":1,"a":1}]}');
 NOTICE:  creating collection
                                p_result                               | p_success 

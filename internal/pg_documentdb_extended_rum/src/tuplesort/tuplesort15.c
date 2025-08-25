@@ -182,7 +182,7 @@ bool optimize_bounded_sort = true;
  */
 typedef struct
 {
-	void *tuple;                /* the tuple itself */
+	void *tuple;                /* the tuple object itself */
 	Datum datum1;               /* value of first key column */
 	bool isnull1;               /* is first key column NULL? */
 	int srctape;                /* source tape number */
@@ -5009,7 +5009,7 @@ static void
 copytup_datum(Tuplesortstate *state, SortTuple *stup, void *tup)
 {
 	/* Not currently needed */
-	elog(ERROR, "copytup_datum() should not be called");
+	elog(ERROR, "The function copytup_datum() must not be invoked");
 }
 
 

@@ -459,9 +459,11 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSETFIELDREQUIRESOBJECT), errmsg(
-							"%s only supports an object as its argument", operatorName),
-						errdetail_log("%s only supports an object as its argument",
-									  operatorName)));
+							"Expected 'document' type for %s",
+							operatorName),
+						errdetail_log(
+							"Expected 'document' type for %s",
+							operatorName)));
 	}
 
 	bson_iter_t docIter;
@@ -536,11 +538,11 @@ ParseDollarSetFieldOrUnsetFieldCore(const bson_value_t *argument,
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_LOCATION4161107),
 						errmsg(
-							"%s requires 'field' to evaluate to type String, but got %s",
+							"Expected 'string' type for %s but found '%s' type",
 							operatorName,
 							BsonTypeName(arguments->field.value.value_type)),
 						errdetail_log(
-							"%s requires 'field' to evaluate to type String, but got %s",
+							"Expected 'string' type for %s but found '%s' type",
 							operatorName,
 							BsonTypeName(arguments->field.value.value_type))));
 	}

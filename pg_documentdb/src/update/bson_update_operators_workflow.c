@@ -62,7 +62,7 @@ typedef enum PositionalType
 	/* It is not a positional update */
 	PositionalType_None = 0,
 
-	/* Corresponds to the $[] path */
+	/* Matches the $[] path */
 	PositionalType_All,
 
 	/* Matches the specified value $ path */
@@ -1773,7 +1773,7 @@ HandleCurrentIteratorPosition(bson_iter_t *documentIterator,
 					if (isArray)
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-											"Cannot create field '%s' in element {%s : %s}",
+											"Failed to create the field '%s' within the element specified by {%s : %s}",
 											path.string, path.string,
 											BsonValueToJsonForLogging(bson_iter_value(
 																		  documentIterator)))));
@@ -1784,7 +1784,7 @@ HandleCurrentIteratorPosition(bson_iter_t *documentIterator,
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_PATHNOTVIABLE),
 										errmsg(
-											"Cannot create field '%s' in element {%s : %s}",
+											"Failed to create the field '%s' within the element specified by {%s : %s}",
 											path.string, path.string,
 											BsonValueToJsonForLogging(bson_iter_value(
 																		  documentIterator)))));
@@ -1799,7 +1799,7 @@ HandleCurrentIteratorPosition(bson_iter_t *documentIterator,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_PATHNOTVIABLE),
 									errmsg(
-										"Cannot create field '%s' in element {%s : %s}",
+										"Failed to create the field '%s' within the element specified by {%s : %s}",
 										path.string, path.string,
 										BsonValueToJsonForLogging(bson_iter_value(
 																	  documentIterator)))));
@@ -2276,7 +2276,7 @@ HandlePullWriterGetState(const bson_value_t *updateValue)
 				if (hasDollarField)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"unknown operator: %s", field)));
+										"Unrecognized operator specified: %s", field)));
 				}
 			}
 		}

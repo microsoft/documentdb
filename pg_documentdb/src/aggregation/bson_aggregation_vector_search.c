@@ -189,7 +189,7 @@ command_bson_document_add_score_field(PG_FUNCTION_ARGS)
 	PgbsonWriterStartDocument(&finalDocWriter, VECTOR_METADATA_FIELD_NAME,
 							  VECTOR_METADATA_FIELD_NAME_STR_LEN, &nestedWriter);
 
-	/* Add the score field */
+	/* Include the score field */
 	PgbsonWriterAppendDouble(&nestedWriter,
 							 VECTOR_METADATA_SCORE_FIELD_NAME,
 							 VECTOR_METADATA_SCORE_FIELD_NAME_STR_LEN,
@@ -776,7 +776,7 @@ AddScoreFieldToDocumentEntry(TargetEntry *documentEntry, Expr *vectorSortExpr,
 		}
 	}
 
-	/* Add the score field to the document */
+	/* Include the field 'score' to the document */
 	Expr *scoreExpr = GenerateScoreExpr((Expr *) sortExprInput, distanceMetric);
 
 	List *args = list_make2(documentEntry->expr, scoreExpr);
@@ -1145,7 +1145,7 @@ GeneratePrefilteringVectorSearchQuery(Query *searchQuery,
 																  leftCtidEntry,
 																  rightCtidEntry);
 
-		/* Add the limit to the sub-query */
+		/* Include a limit clause within the sub-query */
 		joinedQuery->limitCount = limitCount;
 
 		if (VectorPreFilterIterativeScanMode == VectorIterativeScan_RELAXED_ORDER &&
@@ -1601,7 +1601,7 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 	{
 		ReportFeatureUsage(FEATURE_STAGE_SEARCH_VECTOR_PRE_FILTER);
 
-		/* check if the collection is unsharded */
+		/* Validate whether the collection is sharded or not */
 		if (context->mongoCollection != NULL &&
 			context->mongoCollection->shardKey != NULL)
 		{
@@ -1639,7 +1639,7 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 	{
 		ReportFeatureUsage(FEATURE_STAGE_SEARCH_VECTOR_PRE_FILTER);
 
-		/* check if the collection is unsharded */
+		/* Validate whether the collection is sharded or not */
 		if (context->mongoCollection != NULL &&
 			context->mongoCollection->shardKey != NULL)
 		{
@@ -1654,7 +1654,7 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 													  processedSortExpr,
 													  limitCount);
 
-		/* Add the score field */
+		/* Include the field 'score' */
 		TargetEntry *documentEntry = linitial(query->targetList);
 		sortExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
 												vectorSearchOptions->distanceMetric);
@@ -1667,7 +1667,7 @@ HandleVectorSearchCore(Query *query, VectorSearchOptions *vectorSearchOptions,
 		/* After the limit is applied, push to a subquery */
 		query = MigrateQueryToSubQuery(query, context);
 
-		/* Add the score field */
+		/* Include the field 'score' */
 		TargetEntry *documentEntry = linitial(query->targetList);
 		sortExpr = AddScoreFieldToDocumentEntry(documentEntry, sortEntry->expr,
 												vectorSearchOptions->distanceMetric);
@@ -1732,7 +1732,7 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$path cannot be empty.")));
+									"The parameter $path must not be left empty.")));
 			}
 		}
 		else if (strcmp(key, "vector") == 0)
@@ -1767,7 +1767,7 @@ ParseAndValidateVectorQuerySpecCore(const pgbson *vectorSearchSpecPgbson,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$k must be an integer value.")));
+									"The parameter $k should always hold a valid integer value.")));
 			}
 
 			vectorSearchOptions->resultCount = BsonValueAsInt32(value);

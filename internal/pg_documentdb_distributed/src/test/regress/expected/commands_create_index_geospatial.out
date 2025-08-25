@@ -26,7 +26,7 @@ ERROR:  Compound 2d indexes are not supported yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"b": 1, "a": "2d"}, "name": "my_2d_a_idx" }]}', true); -- Multi 2d and 2d index is not the first one
 ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2d" }, "name" : "my_2d_a_idx" }:The 2d field must be the first in the index.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a.$**": "2d"}, "name": "my_2d_a_idx" }]}', true); -- 2d with wildcard
-ERROR:  Error in specification { "key" : { "a.$**" : "2d" }, "name" : "my_2d_a_idx" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "a.$**" : "2d" }, "name" : "my_2d_a_idx" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "max": -190 } ]}', true); -- 2d with max -170 and min -180 (default)
 ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "max" : -190 }:The specified region for hash must be valid with a positive area, but the provided coordinates [-180, -190] are invalid.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "min": 190 } ]}', true); -- 2d with min 190 and max 180 (default)
@@ -51,7 +51,7 @@ ERROR:  Error in specification { "key" : { "a" : "2dsphere", "b" : 1 }, "name" :
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"b": 1, "a": "2dsphere"}, "name": "my_2ds_a_idx" }]}', true); -- Compound 2dsphere with 1 being regular index
 ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2dsphere" }, "name" : "my_2ds_a_idx" }:Compound Regular & 2dsphere indexes are not supported yet
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a.$**": "2dsphere"}, "name": "my_2ds_a_idx" }]}', true); -- 2dsphere with wildcard
-ERROR:  Error in specification { "key" : { "a.$**" : "2dsphere" }, "name" : "my_2ds_a_idx" }:Index key contains an illegal field name: field name starts with '$'.
+ERROR:  Error in specification { "key" : { "a.$**" : "2dsphere" }, "name" : "my_2ds_a_idx" }:Index key has an invalid field name because it begins with an operators symbol.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "coarsestIndexedLevel": -1 } ]}', true); -- 2dsphere with coarestIndexedLevel invalid value
 ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "coarsestIndexedLevel" : -1 }:coarsestIndexedLevel must be greater than or equal to 0
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "finestIndexedLevel": 31 } ]}', true); -- 2dsphere with finestIndexedLevel invalid value
@@ -303,13 +303,13 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "x
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [1] }', NULL); -- Legacy array invalid format
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [1, "text"] }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "point"} }', NULL); -- Wrong type case-sensitive
@@ -333,7 +333,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Point", "coordinates": [1, "hello"]} }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Point", "coordinates": "non-array" } }', NULL);
@@ -345,13 +345,13 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Point", "coordinates": [[1 , 2], [3, 4]] } }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Point", "coordinates": [] } }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Multipoint", "coordinates": [[1 , 2], [3, 4]] } }', NULL); -- Wrong case sensitive type
@@ -363,13 +363,13 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPoint", "coordinates": [3, 4] } }', NULL);
                                                                                                                             insert_one                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates must be an array" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates need to be provided in an array format" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPoint", "coordinates": [[1 , "Hello"], [3, 4]] } }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPoint", "coordinates": "non-array" } }', NULL);
@@ -381,7 +381,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPoint", "coordinates": [] } }', NULL);
                                                                                                                                     insert_one                                                                                                                                    
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } MultiPoint coordinates must have at least 1 element" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } MultiPoint coordinates require a minimum of one element" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Linestring", "coordinates": [[1,2], [3,4]] } }', NULL);
@@ -417,7 +417,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiLineString", "coordinates": [[1,2], [3,4]] } }', NULL);
                                                                                                                             insert_one                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates must be an array" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates need to be provided in an array format" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiLineString", "coordinates": "non-array" } }', NULL);
@@ -471,7 +471,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[1, 2]] } }', NULL);
                                                                                                                             insert_one                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates must be an array" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates need to be provided in an array format" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2]]] } }', NULL);
@@ -483,7 +483,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2], [1, 2], [1,3]]] } }', NULL);
                                                                                                                                          insert_one                                                                                                                                         
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Loop for Failed to retrieve geo keys { _id: 1 }  remains unclosed.: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ] ]" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Loop structure remains unclosed: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ] ]" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2], [1, 2], [1,3], [1,2]]] } }', NULL);
@@ -573,13 +573,13 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPolygon", "coordinates": [[[1, 2]]] } }', NULL);
                                                                                                                             insert_one                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates must be an array" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeoJSON coordinates need to be provided in an array format" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPolygon", "coordinates": [[[[1, 2], [1, 2], [1,3]]]] } }', NULL);
                                                                                                                                          insert_one                                                                                                                                         
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Loop for Failed to retrieve geo keys { _id: 1 }  remains unclosed.: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ] ]" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Loop structure remains unclosed: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ] ]" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPolygon", "coordinates": [[[[1, 2], [1, 2], [1,3], [1,2]]]] } }', NULL);
@@ -639,7 +639,7 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "t
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": ["Hello", 2]}] } }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 -- Multi key failure cases
@@ -688,25 +688,25 @@ SELECT documentdb_api.insert_one('db','2dindextest','{"b" : [ { "c": [10, 20] },
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [{"type": "Point", "coordinates": [10, 20]}, {"type": "Point", "coordinates": [10, 20]}] }', NULL); -- This is not supported as multi key
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [[10, 20], [20, 20]] }', NULL); -- This is not supported as multi key legacy
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : [ { "x" : 1, "y" : 1 }, { "x" : 2, "y" : 2 }, { "x" : 3, "y" : 3 } ] }', NULL); -- This is not supported as multi key legacy
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "b" : [ {"c" : {"type": "Point", "coordinates": [10, 20]} }, {"c" : {"type": "Point", "coordinates": ["Text", 20]} } ] }', NULL);
                                                                                                                               insert_one                                                                                                                               
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point must only contain numeric elements" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Point parameter should contain only numeric values" } ] }
 (1 row)
 
 -- Some case which are valid where the field is either empty object/document or not of type object/document

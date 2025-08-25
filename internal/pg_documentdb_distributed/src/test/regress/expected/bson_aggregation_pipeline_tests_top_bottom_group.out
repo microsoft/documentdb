@@ -67,19 +67,19 @@ SELECT documentdb_api.insert_one('db','pipeline_group_tests','{ "user": "Delta",
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"output": [ "$user", "$points" ]}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
 ERROR:  Unrecognized argument provided to $top 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"output": [ "$user", "$points" ]}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
 ERROR:  Unrecognized argument provided to $bottom 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n
 ERROR:  Required value for 'n' is not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": "a"}}}} ] }'); -- n is not a number
@@ -95,7 +95,7 @@ ERROR:  Expected 'integer' type for 'n' but found 'double' for value '0.5'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output
-ERROR:  Missing value for 'output'
+ERROR:  The 'output' parameter is missing a required value
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }}}}} ] }'); -- missing n
 ERROR:  Required value for 'n' is not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottomN": {"output": [ "$user", "$points" ], "sortBy": { "points": 1 }, "n": "a"}}}} ] }'); -- n is not a number

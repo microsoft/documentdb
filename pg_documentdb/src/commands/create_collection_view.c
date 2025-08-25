@@ -346,7 +346,7 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 		}
 		else if (strcmp(key, "size") == 0 || strcmp(key, "max") == 0)
 		{
-			/* Ignore: Capped collection options */
+			/* Cannot apply capped collection settings */
 		}
 		else if (strcmp(key, "storageEngine") == 0 ||
 				 strcmp(key, "indexOptionDefaults") == 0)
@@ -395,7 +395,7 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 	if (spec->name == NULL || strlen(spec->name) == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid namespace specified '%s.'",
+						errmsg("The specified namespace is invalid: '%s'.",
 							   TextDatumGetCString(databaseDatum))));
 	}
 
@@ -564,9 +564,10 @@ ValidateCollectionOptionsEquivalent(CreateSpec *createDefinition,
 	{
 		/* We have a collection, we're trying to create a view - error */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACEEXISTS),
-						errmsg("ns: %s.%s already exists with different options: {}",
-							   collection->name.databaseName,
-							   collection->name.collectionName)));
+						errmsg(
+							"Namespace %s.%s already exists but with different configuration options: {}",
+							collection->name.databaseName,
+							collection->name.collectionName)));
 	}
 
 	if (collection->viewDefinition != NULL && createDefinition->viewOn == NULL)

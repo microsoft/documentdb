@@ -53,11 +53,11 @@ SELECT insert_one('db','densify','{ "_id": 14, "a": "def", "cost": 9, "quantity"
 
 -- Validations of $densify stage and negative test cases
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": "Not an object" }]}');
-ERROR:  The $densify stage specification must be an object, found string
+ERROR:  The $densify stage specification must be provided as an object, but encountered string instead
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { } }]}');
 ERROR:  The BSON field '$densify.field' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": [ ] }]}');
-ERROR:  The $densify stage specification must be an object, found array
+ERROR:  The $densify stage specification must be provided as an object, but encountered array instead
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": 1 } }]}');
 ERROR:  The BSON field '$densify.field' has an incorrect type 'int'; it should be of type 'string'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a" } }]}');
@@ -89,7 +89,7 @@ ERROR:  invalid input syntax JSON for BSON: Code: '2', Message 'Unexpected integ
 LINE 1: ...ECT document FROM bson_aggregation_pipeline('db', '{ "aggreg...
                                                              ^
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": {"$numberDecimal": "1"} } } }]}');
-ERROR:  Upper bound, lower bound, and step must all have the same type
+ERROR:  Upper bound, lower bound, and step values must each be of identical type
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 1, "unit": "sec" } } }]}');
 ERROR:  Unrecognized value for time unit: sec
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2], "step": 1, "unit": "Hour" } } }]}');
@@ -147,7 +147,7 @@ SELECT document FROM bson_aggregation_pipeline('db',
 
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [8, 12], "step": 1.2 } } }]}');
-ERROR:  Upper bound, lower bound, and step must all have the same type
+ERROR:  Upper bound, lower bound, and step values must each be of identical type
 SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "cost", "partitionByFields": ["a"], "range": { "bounds": [-10, -5], "step": 1 } } }]}');
                                                                                        document                                                                                        

@@ -289,7 +289,7 @@ GetUserInfoFromExternalIdentityProvider(const char *userName)
 
 
 /*
- * Check if the user is external
+ * Is user external
  */
 bool
 IsUserExternal(const char *userName)

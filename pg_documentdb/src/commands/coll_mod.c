@@ -438,8 +438,9 @@ ParseIndexSpecSetCollModOptions(bson_iter_t *indexSpecIter,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'collMod.index.%s' is an unknown field.",
-								   key)));
+							errmsg(
+								"The BSON field 'collMod.index.%s' is not recognized as a valid field.",
+								key)));
 		}
 	}
 

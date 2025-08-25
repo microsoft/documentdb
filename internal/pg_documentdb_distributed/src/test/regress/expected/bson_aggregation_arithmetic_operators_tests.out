@@ -209,11 +209,11 @@ SELECT * FROM bson_dollar_project('{"a":1}', '{"result": { "$add": [ "$a", {} ]}
 ERROR:  $add can only process numeric or date types, not object
 -- Should error if multiple dates are passed in
 SELECT * FROM bson_dollar_project('{"a":{ "$date": { "$numberLong" : "0" }}, "b": {"$date": { "$numberLong" : "1000" }}}', '{"result": { "$add": [ "$a", "$b" ]}}');
-ERROR:  only one date allowed in an $add expression
+ERROR:  Only a single date value is permitted within an $add operators expression.
 SELECT * FROM bson_dollar_project('{"a":{ "$date": { "$numberLong" : "0" }}, "b": {"$date": { "$numberLong" : "1000" }}}', '{"result": { "$add": [ 1, 2, "$a", "$b" ]}}');
-ERROR:  only one date allowed in an $add expression
+ERROR:  Only a single date value is permitted within an $add operators expression.
 SELECT * FROM bson_dollar_project('{"a": 100, "b": {"$date": { "$numberLong" : "1000" }}}', '{"result": { "$add": [ 1, 2, "$a", "$b", {"$date": {"$numberLong": "1000"}} ]}}');
-ERROR:  only one date allowed in an $add expression
+ERROR:  Only a single date value is permitted within an $add operators expression.
 -- Should error if date overflows
 SELECT * FROM bson_dollar_project('{"a": 100, "b": {"$date": { "$numberLong" : "9223372036854775807" }}}', '{"result": { "$add": [ "$a", "$b" ]}}');
 ERROR:  Date value overflow detected in operator $add
@@ -1277,11 +1277,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": "$a"}}');
 
 -- $exp: input should be numeric 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": "str"}}');
-ERROR:  $exp only supports numeric types, not string
+ERROR:  The $exp operator can only be used with numeric data types, not string
 SELECT * FROM bson_dollar_project('{"a": true}', '{"result": { "$exp": "$a"}}');
-ERROR:  $exp only supports numeric types, not bool
+ERROR:  The $exp operator can only be used with numeric data types, not bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": [[]]}}');
-ERROR:  $exp only supports numeric types, not array
+ERROR:  The $exp operator can only be used with numeric data types, not array
 -- $exp: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": ["str", 1]}}');
 ERROR:  The expression $exp requires exactly 1 arguments, but 2 arguments were actually provided.
@@ -1467,13 +1467,13 @@ SELECT * FROM bson_dollar_project('{"$a": null}', '{"result": { "$ln": "$a"}}');
 
 -- $ln: supports only numerics
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": "str"}}');
-ERROR:  $ln only supports numeric types, not string
+ERROR:  $ln works exclusively with numeric data types, but received string instead
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": true}}');
-ERROR:  $ln only supports numeric types, not bool
+ERROR:  $ln works exclusively with numeric data types, but received bool instead
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": [false]}}');
-ERROR:  $ln only supports numeric types, not bool
+ERROR:  $ln works exclusively with numeric data types, but received bool instead
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": [{}]}}');
-ERROR:  $ln only supports numeric types, not object
+ERROR:  $ln works exclusively with numeric data types, but received object instead
 -- $ln: should be positive number greater than 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": {"$numberDouble": "-2"}}}');
 ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received -2 instead.
@@ -2009,13 +2009,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": {}}}');
 ERROR:  $sqrt can only be applied to numeric types, not to object.
 -- $sqrt: arg must be greater than or equal to 0
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": -1}}');
-ERROR:  $sqrt's argument must be greater than or equal to 0
+ERROR:  The operator sqrt requires its argument to be zero or a positive value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": { "$numberDouble": "-1000000"}}}');
-ERROR:  $sqrt's argument must be greater than or equal to 0
+ERROR:  The operator sqrt requires its argument to be zero or a positive value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": { "$numberDouble": "-0.00001"}}}');
-ERROR:  $sqrt's argument must be greater than or equal to 0
+ERROR:  The operator sqrt requires its argument to be zero or a positive value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": { "$numberDecimal": "-0.000000000000001"}}}');
-ERROR:  $sqrt's argument must be greater than or equal to 0
+ERROR:  The operator sqrt requires its argument to be zero or a positive value
 -- $sqrt: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": []}}');
 ERROR:  The expression $sqrt requires exactly 1 arguments, but 0 arguments were actually provided.

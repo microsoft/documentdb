@@ -162,7 +162,9 @@ GetPgTimestampFromUnixEpoch(int64_t epochInMs)
 		seconds >= (float8) SECS_PER_DAY * (TIMESTAMP_END_JULIAN - UNIX_EPOCH_JDATE))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OVERFLOW),
-						errmsg("Invalid conversion to date time.")));
+						errmsg(
+							"value %lld (milliseconds) is out of range for timestamps.",
+							(long long) epochInMs)));
 	}
 
 	return DirectFunctionCall1(

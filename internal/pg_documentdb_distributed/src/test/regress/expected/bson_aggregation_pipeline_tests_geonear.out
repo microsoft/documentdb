@@ -99,7 +99,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  $geoNear stage must be present before any other stage in the pipeline
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated" } } ]}');
-ERROR:  $geoNear requires a 2d or 2dsphere index, but none were found
+ERROR:  The $geoNear operator needs either a 2d or 2dsphere index, but no such index exists
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": {  } } ]}');
 ERROR:  $geoNear needs a 'distanceField' option specified as a String value
@@ -111,10 +111,10 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  Expected 'document' or 'array' type for $geoNear 'near' field but found 'bool' type
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a", "query": { "$text": { "$search": "cat" } } } } ]}');
-ERROR:  text and geoNear not allowed in same query
+ERROR:  Using text and geoNear together in a single query is not permitted
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a", "query": { "$or": [{"$text": { "$search": "cat" }}, {"b": 2}] } } } ]}');        
-ERROR:  text and geoNear not allowed in same query
+ERROR:  Using text and geoNear together in a single query is not permitted
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a", "query": { "a": {"$near": [1, 1]}} } } ]}');       
 ERROR:  Excessive number of geoNear query expressions
@@ -148,10 +148,10 @@ ERROR:  Too many geoNear expressions
 -- Tests for verifying strict index usage
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b" } }] }');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a.b" } }] }');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 -- Test whether we can push $geonear to runtime based on the GUC
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "agg_geonear", "indexes": [{"key": {"a.b": 1}, "name": "ab_idx" }, {"key": {"a.geo": 1}, "name": "a_geo_idx" }, {"key": {"a.geo.type": 1}, "name": "a_geo_type_idx" }]}', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
@@ -328,7 +328,7 @@ SELECT * FROM documentdb_distributed_test_helpers.get_collection_indexes('db', '
 -- If geo indexes are available on different paths then also geonear should fail
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "not_available" } }] }');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 BEGIN;
 -- Find using $geoNear
 set local citus.enable_local_execution TO OFF;
@@ -1040,7 +1040,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT document FROM documentdb_api_catalog.bson
 -- Same non spherical query doesn't work though
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear_legacy", "pipeline": [ { "$geoNear": { "near": [0, 0], "distanceField": "dist.calculated", "key": "a", "spherical": false } }, { "$addFields": { "dist.calculated": {"$round":[ { "$multiply": ["$dist.calculated", 100000] }] } } } ]}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 -- Tests with other stages. $lookup
 SELECT documentdb_api.insert_one('db','geonear_lookup_1','{ "_id": 1, "a": [10, 10], "x": 5 }', NULL);
 NOTICE:  creating collection
@@ -1096,7 +1096,7 @@ EXPLAIN (VERBOSE ON, COSTS OFF) SELECT * FROM documentdb_api_catalog.bson_aggreg
 -- This fails because no valid index on geonear_lookup_2 for $geoNear
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db','{ "aggregate": "geonear_lookup_1", "pipeline": [ '
 '{ "$lookup": { "from": "geonear_lookup_2", "pipeline": [{ "$geoNear": { "near": { "type": "Point", "coordinates": [5, 6] }, "distanceField": "dist.calculated", "key": "a"} } ], "as": "c"  } }]}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "geonear_lookup_2", "indexes": [{"key": {"a": "2dsphere"}, "name": "lookup2_2ds_a_idx" }]}', true);
                                                                                                    create_indexes_non_concurrently                                                                                                    
 ---------------------------------------------------------------------
@@ -1288,9 +1288,9 @@ NOTICE:  creating collection
 
 -- This now fails to because no valid index, and without index this invalid extract will not happen
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "valid_extract", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b"} } ]}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "invalid_extract1", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated", "key": "a.b"} } ]}');
-ERROR:  planner returned error :: caused by :: unable to find index for $geoNear query
+ERROR:  unable to find index for $geoNear query
 SELECT documentdb_api.drop_collection('db', 'valid_extract') IS NOT NULL;
  ?column? 
 ---------------------------------------------------------------------

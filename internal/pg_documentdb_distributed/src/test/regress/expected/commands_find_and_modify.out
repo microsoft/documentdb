@@ -11,7 +11,7 @@ ERROR:  p_message cannot be NULL
 SELECT documentdb_api.find_and_modify('fam', '{}');
 ERROR:  The BSON field 'findAndModify.findAndModify' is required but was not provided
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "remove_or_update"}');
-ERROR:  Either an update or remove=true must be specified
+ERROR:  You must specify either an update action or set remove=true for proper execution
 -- no such collection, upsert=false
 --  i) remove=true
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "dne", "query": {"a": 1000}, "remove": 0.1, "sort": {"b": -1}}');
@@ -66,12 +66,12 @@ ROLLBACK;
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "update": {"b": 1}}');
 ERROR:  It is not possible to specify both an update action and simultaneously set  remove=true
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "upsert": true}');
-ERROR:  Cannot specify both upsert=true and remove=true
+ERROR:  It is not allowed to set both upsert=true and remove=true simultaneously
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "opts_conflict", "remove": true, "new": true}');
 ERROR:  It is not allowed to set both new=true and remove=true simultaneously, as the 'remove' always returns the document that was deleted.
 -- field type validations
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": []}');
-ERROR:  collection name has invalid type array
+ERROR:  Collection name contains an invalid data type array
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "invalid_type", "query": 1}');
 ERROR:  The BSON field 'findAndModify.query' has an incorrect type 'int'; it should be of type 'object'.
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "invalid_type", "sort": "text"}');
@@ -183,7 +183,7 @@ BEGIN;
 (1 row)
 
   SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "collection", "query": {"a": 100}, "sort": {"b": 1}, "update": { "$set": { "a.$[a]": 10 }}, "fields": {"b": 1, "_id": 0}, "upsert": true, "arrayFilters": [ { "a": 30 } ]}');
-ERROR:  Cannot create field 'a' in element {a : 100}
+ERROR:  Failed to create the field 'a' within the element specified by {a : 100}
 ROLLBACK;
 BEGIN;
   SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "collection", "query": {"a": { "$gte": 15 } }, "sort": {}, "update": {"$set": {"z": 5}, "$inc": {"z": 5}, "$inc": {"a": 10}}, "upsert": false, "new": true, "fields": {}}');
@@ -592,7 +592,7 @@ SELECT document FROM documentdb_api.collection('fam', 'retryable_update') ORDER 
 
 -- unknown operator expressions in fields argument
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "collection", "query": {"_id": 1}, "update": {"$inc": {"b": 1}}, "new": true, "upsert": true, "fields": {"foo": {"$pop": ["bar"]}}}');
-ERROR:  Unknown expression $pop
+ERROR:  Unrecognized expression format: $pop
 -- test with operator expression in fields argument
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "collection", "query": {"_id": 1}, "update": {"$inc": {"b": 1}}, "new": true, "upsert": true, "fields": {"foo": {"$pow": [1, 2]}}}');
                                                                                                                                    find_and_modify                                                                                                                                    

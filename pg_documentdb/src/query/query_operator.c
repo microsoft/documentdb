@@ -220,8 +220,10 @@ pg_attribute_noreturn()
 ThrowInvalidRegexOptions(char c)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51108), errmsg(
-						"invalid flag in regex options %c", c),
-					errdetail_log("invalid flag in regex options %c", c)));
+						"Invalid flag detected within the specified regex options %c", c),
+					errdetail_log(
+						"Invalid flag detected within the specified regex options %c",
+						c)));
 }
 
 /* --------------------------------------------------------- */
@@ -1827,7 +1829,8 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			if (!BSON_ITER_HOLDS_ARRAY(operatorDocIterator))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("%s needs an array", mongoOperatorName)));
+								errmsg("Expected 'array' type for %s",
+									   mongoOperatorName)));
 			}
 
 			bson_iter_t arrayIterator;
@@ -1944,7 +1947,8 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 			if (!BSON_ITER_HOLDS_ARRAY(operatorDocIterator))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("%s needs an array", mongoOperatorName)));
+								errmsg("Expected 'array' type for %s",
+									   mongoOperatorName)));
 			}
 
 			bson_iter_t arrayIterator;
@@ -2279,7 +2283,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 		case QUERY_OPERATOR_TEXT:
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED), errmsg(
-								"$text operator is not yet implemented")));
+								"$text operator functionality not implemented yet")));
 		}
 
 		case QUERY_OPERATOR_WITHIN:
@@ -2415,9 +2419,9 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				if (!bson_iter_next(&refIterator))
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"unknown operator: %s",
+										"Unrecognized operator specified: %s",
 										mongoOperatorName),
-									errdetail_log("unknown operator: %s",
+									errdetail_log("Unrecognized operator specified: %s",
 												  mongoOperatorName)));
 				}
 
@@ -2439,17 +2443,19 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-											"unknown operator: %s", mongoOperatorName),
-										errdetail_log("unknown operator: %s",
-													  mongoOperatorName)));
+											"Unrecognized operator specified: %s",
+											mongoOperatorName),
+										errdetail_log(
+											"Unrecognized operator specified: %s",
+											mongoOperatorName)));
 					}
 				}
 			}
 
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"unknown operator: %s",
+								"Unrecognized operator specified: %s",
 								mongoOperatorName),
-							errdetail_log("unknown operator: %s",
+							errdetail_log("Unrecognized operator specified: %s",
 										  mongoOperatorName)));
 		}
 	}
@@ -2522,7 +2528,7 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Cannot represent as a 32-bit integer: %s: %s.0",
+									"Unable to store as a 32-bit integer: %s: %s.0",
 									operator->mongoOperatorName,
 									BsonValueToJsonForLogging(
 										operatorDocValue)),
@@ -2544,7 +2550,7 @@ CreateExprForBitwiseQueryOperators(bson_iter_t *operatorDocIterator,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 								errmsg(
-									"Cannot represent as a 32-bit integer: %s: %s.0",
+									"Unable to store as a 32-bit integer: %s: %s.0",
 									operator->mongoOperatorName,
 									BsonValueToJsonForLogging(
 										operatorDocValue)),
@@ -3879,7 +3885,7 @@ ValidateOptionsArgument(const bson_value_t *argBsonValue)
 	if (argBsonValue->value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"$options has to be a string")));
+							"Expected 'string' type for $options parameter")));
 	}
 
 	/* Only options which mongo supports are i, m, x, s, u*/
@@ -4223,7 +4229,7 @@ TryOptimizeDollarOrExpr(BsonQueryOperatorContext *context,
 
 	if (!StringViewEquals(&singlePathExistsFalse, &singlePathEqualsNull))
 	{
-		/* Not the same path */
+		/* Paths do not match */
 		return NULL;
 	}
 
@@ -4442,9 +4448,7 @@ ParseBsonValueForNearAndCreateOpExpr(bson_iter_t *operatorDocIterator,
 		ereport(ERROR,
 				(errcode(ERRCODE_DOCUMENTDB_LOCATION5626500),
 				 errmsg(
-					 "$geoNear, $near, and $nearSphere are not allowed in this context, "
-					 "as these operators require sorting geospatial data. If you do not need sort, "
-					 "consider using $geoWithin instead.")));
+					 "$near, $nearSphere and $geoNear cannot be used here. Use $geoWithin instead.")));
 	}
 
 	GeonearRequest *request = ParseGeonearRequest(queryDoc);

@@ -286,7 +286,7 @@ ParseIVFCreationSpec(bson_iter_t *vectorOptionsIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"Current value of %s is %d, which is lower than the min value of %d",
+									"%s must be greater than or equal to %d, but was %d",
 									VECTOR_PARAMETER_NAME_IVF_NLISTS,
 									vectorIndexOptions->numLists,
 									IVFFLAT_MIN_LISTS)));
@@ -363,10 +363,11 @@ ParseHNSWCreationSpec(bson_iter_t *vectorOptionsIter,
 			if (vectorIndexOptions->m < HNSW_MIN_M)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("%s must be greater than or equal to %d not %d",
-									   VECTOR_PARAMETER_NAME_HNSW_M,
-									   HNSW_MIN_M,
-									   vectorIndexOptions->m)));
+								errmsg(
+									"%s must be greater than or equal to %d, but was %d",
+									VECTOR_PARAMETER_NAME_HNSW_M,
+									HNSW_MIN_M,
+									vectorIndexOptions->m)));
 			}
 
 			if (vectorIndexOptions->m > HNSW_MAX_M)
@@ -397,7 +398,7 @@ ParseHNSWCreationSpec(bson_iter_t *vectorOptionsIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"%s must be greater than or equal to %d not %d",
+									"%s must be greater than or equal to %d, but was %d",
 									VECTOR_PARAMETER_NAME_HNSW_EF_CONSTRUCTION,
 									HNSW_MIN_EF_CONSTRUCTION,
 									vectorIndexOptions->efConstruction)));
@@ -584,7 +585,7 @@ ParseHNSWIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$efSearch must be greater than or equal to %d.",
+									"The parameter $efSearch should have a value that is greater than or equal to %d.",
 									HNSW_MIN_EF_SEARCH)));
 			}
 

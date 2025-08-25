@@ -480,7 +480,7 @@ ParseDollarConvert(const bson_value_t *argument, AggregationExpressionData *data
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-							"$convert expects an object of named arguments but found: %s",
+							"$convert requires an object containing named arguments, but instead received: %s",
 							BsonTypeName(argument->value_type))));
 	}
 
@@ -586,7 +586,7 @@ ParseDollarConvert(const bson_value_t *argument, AggregationExpressionData *data
 	if (IsAggregationExpressionConstant(arguments->toData))
 	{
 		/*  <to-expression> could be { "to": {type: <targetType>, "subtype": <subtype> } } */
-		/* subtype is optional */
+		/* The subtype specification is considered optional */
 		if (originalToValue.value_type == BSON_TYPE_DOCUMENT)
 		{
 			/* Extract and validate the to.type and subtype. */
@@ -1710,7 +1710,7 @@ ProcessDollarToBinData(const bson_value_t *currentValue, const bson_type_t *toTy
 											   "Only the UUID subtype (4) is allowed with the 'uuid' format");
 			}
 
-			/* Validate the input has the right format. */
+			/* Check if the input format is correct */
 			char *decodedValue = currentString;
 			int decodedValueLen = strlen(currentString);
 			if (strcmp(formatString, "base64") == 0)
@@ -1786,7 +1786,7 @@ ProcessDollarToBinData(const bson_value_t *currentValue, const bson_type_t *toTy
 				if (!ValidateUUIDString(currentString))
 				{
 					ThrowFailedToParseBinDataError(currentString,
-												   "Input is not a valid UUID string %s.");
+												   "The provided input does not represent a properly formatted UUID string %s.");
 				}
 
 				ConvertUUIDStringToPgUUID(currentString, result);
@@ -2075,7 +2075,8 @@ ConvertStringToDouble(const bson_value_t *value)
 
 	if (!IsDecimal128InDoubleRange(&decimalResult))
 	{
-		ThrowFailedToParseNumberError(value->value.v_utf8.str, "Out of range");
+		ThrowFailedToParseNumberError(value->value.v_utf8.str,
+									  "Value exceeds allowed range");
 	}
 
 	return GetBsonDecimal128AsDouble(&decimalResult);
@@ -2230,7 +2231,7 @@ pg_attribute_noreturn()
 ThrowFailedToParseBinDataError(const char * value, const char * reason)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), errmsg(
-						"Failed to parse BinData '%s' in $convert with no onError value: %s",
+						"Unable to interpret BinData '%s' during $convert operation due to missing onError parameter: %s",
 						value, reason)));
 }
 

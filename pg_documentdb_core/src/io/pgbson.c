@@ -392,7 +392,7 @@ FormatBsonValueForShellLogging(const bson_value_t *bson)
 		case BSON_TYPE_DECIMAL128:
 		{
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("Decimal 128 operation is not supported yet")));
+							errmsg("Decimal 128 operations are currently unsupported")));
 		}
 
 		case BSON_TYPE_DOCUMENT:

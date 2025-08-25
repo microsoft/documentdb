@@ -46,10 +46,8 @@
  */
 typedef struct
 {
-	/* name of the Mongo database */
 	char databaseName[MAX_DATABASE_NAME_LENGTH];
 
-	/* name of the Mongo collection */
 	char collectionName[MAX_COLLECTION_NAME_LENGTH];
 } MongoCollectionName;
 
