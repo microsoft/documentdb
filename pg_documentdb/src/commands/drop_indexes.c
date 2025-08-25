@@ -117,7 +117,7 @@ command_drop_indexes(PG_FUNCTION_ARGS)
 
 	if (PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("arg cannot be NULL")));
+		ereport(ERROR, (errmsg("Argument value must not be NULL")));
 	}
 	pgbson *arg = PG_GETARG_PGBSON(1);
 
@@ -154,7 +154,8 @@ ProcessDropIndexesRequest(char *dbName, DropIndexesArg dropIndexesArg, bool
 	if (collection == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
-						errmsg("ns not found %s.%s", dbName, collectionName)));
+						errmsg("Namespace %s.%s could not be located", dbName,
+							   collectionName)));
 	}
 
 	uint64 collectionId = collection->collectionId;
@@ -348,7 +349,7 @@ ProcessDropIndexesRequest(char *dbName, DropIndexesArg dropIndexesArg, bool
 	}
 	else
 	{
-		ereport(ERROR, (errmsg("unexpected drop index mode")));
+		ereport(ERROR, (errmsg("invalid dropIndex mode")));
 	}
 
 	return result;
@@ -367,7 +368,7 @@ command_drop_indexes_concurrently(PG_FUNCTION_ARGS)
 	}
 	if (PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("arg cannot be NULL")));
+		ereport(ERROR, (errmsg("Argument value must not be NULL")));
 	}
 	text *databaseDatum = PG_GETARG_TEXT_P(0);
 	pgbson *spec = PG_GETARG_PGBSON(1);
@@ -455,7 +456,7 @@ command_drop_indexes_concurrently_internal(PG_FUNCTION_ARGS)
 
 	if (PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("arg cannot be NULL")));
+		ereport(ERROR, (errmsg("Argument value must not be NULL")));
 	}
 	pgbson *arg = PG_GETARG_PGBSON(1);
 
@@ -615,8 +616,9 @@ ParseDropIndexesArg(pgbson *arg)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("BSON field 'dropIndexes.%s' is an unknown field",
-								   argKey)));
+							errmsg(
+								"The BSON field 'dropIndexes.%s' is not recognized as a valid field.",
+								argKey)));
 		}
 	}
 

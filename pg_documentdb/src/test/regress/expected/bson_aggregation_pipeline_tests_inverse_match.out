@@ -270,7 +270,7 @@ ERROR:  Missing 'path' parameter to $inverseMatch
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "input": [true]}} ], "cursor": {} }');
 ERROR:  $inverseMatch requires that if 'input' is an array its contents be documents, found: bool
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "input": true}} ], "cursor": {} }');
-ERROR:  $inverseMatch requires that 'input' be a document or an array of documents, found: bool
+ERROR:  The $inverseMatch requires 'input' to be either a single document or an array of documents, but instead received: bool
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "input": {}, "from": "collection"}} ], "cursor": {} }');
 ERROR:  'input' and 'from' can't be used together in an $inverseMatch stage.
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "collection"}} ], "cursor": {} }');
@@ -278,4 +278,4 @@ ERROR:  'pipeline' argument is required when 'from' is specified in an $inverseM
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"rule": "rule"}} ], "cursor": {} }');
 ERROR:  Unrecognized parameter supplied to $inverseMatch: 'rule'
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "mycoll", "pipeline": []}} ], "cursor": {} }');
-ERROR:  'from' collection: 'invmatch.mycoll' doesn't exist.
+ERROR:  The 'from' collection 'invmatch.mycoll' could not be found.

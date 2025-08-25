@@ -55,7 +55,7 @@ typedef struct centroid_t
 typedef struct tdigest_t
 {
 	int32 vl_len_;              /* varlena header (do not touch directly!) */
-	int32 flags;                /* reserved for future use (versioning, ...) */
+	int32 flags;                /* Allocated specifically for potential future purposes such as version control */
 	int64 count;                /* number of items added to the t-digest */
 	int compression;            /* compression used to build the digest */
 	int ncentroids;             /* Number of centroids in the array */
@@ -93,7 +93,7 @@ typedef struct tdigest_aggstate_t
 	int64 count;                /* number of samples in the digest */
 	int ncompactions;           /* number of merges/compactions */
 	int compression;            /* compression algorithm */
-	int ncentroids;             /* number of centroids */
+	int ncentroids;             /* Total count of centroids */
 	int ncompacted;             /* compacted part */
 	/* array of requested percentiles and values */
 	int npercentiles;           /* number of percentiles */
@@ -271,7 +271,7 @@ tdigest_sort(tdigest_aggstate_t *state)
 		}
 
 		/*
-		 * We can ignore groups of size 1 (number of centroids, not counts), as
+		 * We can ignore groups of size 1 (Total count of centroids, not counts), as
 		 * those are trivially sorted.
 		 */
 		if (group_size > 1)
@@ -306,7 +306,7 @@ tdigest_sort(tdigest_aggstate_t *state)
  * accuracy, as mentioned in the paper.
  *
  * XXX This initially used the k1 scale function, but the implementation was
- * not limiting the number of centroids for some reason (it might have been
+ * not limiting the Total count of centroids for some reason (it might have been
  * a bug in the implementation, of course). The current code is a modified
  * copy from ajwerner [1], and AFAIK it's the k2 function, it's much simpler
  * and generally works quite nicely.
@@ -599,7 +599,7 @@ tdigest_aggstate_allocate(int npercentiles, int nvalues, int compression)
 	tdigest_aggstate_t *state;
 	char *ptr;
 
-	/* at least one of those values is 0 */
+	/* At least one of the provided values is equal to zero */
 	Assert(nvalues == 0 || npercentiles == 0);
 
 	/*

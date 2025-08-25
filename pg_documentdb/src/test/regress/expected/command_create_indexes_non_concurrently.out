@@ -17,9 +17,9 @@ ERROR:  The BSON field 'createIndexes.indexes' has an incorrect type 'int'; it s
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": []}');
 ERROR:  You must provide at least one index in order to proceed with creation
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1"}');
-ERROR:  BSON field 'createIndexes.indexes' is missing but a required field
+ERROR:  The BSON field 'createIndexes.indexes' is required but was not provided
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{}');
-ERROR:  BSON field 'createIndexes.indexes' is missing but a required field
+ERROR:  The BSON field 'createIndexes.indexes' is required but was not provided
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": 1}');
 ERROR:  collection name has invalid type int
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": 1}');
@@ -33,9 +33,9 @@ ERROR:  Error in specification { "name" : 1 }:The field 'name' is required to be
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"unique": "1"}]}');
 ERROR:  Error in specification { "unique" : "1" }:The field 'unique' has value unique: "1", which is not convertible to bool
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a": 1}}]}');
-ERROR:  Error in specification { "key" : { "a" : 1 } }:The 'name' field is a required property of an index specification
+ERROR:  Error in specification { "key" : { "a" : 1 } }:The 'name' field is mandatory and must be included as part of an index specification
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": "my_idx"}]}');
-ERROR:  Error in specification { "name" : "my_idx" }:The 'key' field is a required property of an index specification
+ERROR:  Error in specification { "name" : "my_idx" }:The 'key' field is mandatory and must be included as part of an index specification
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"unknown_field": "111"}]}');
 ERROR:  Error in specification { "unknown_field" : "111" }:The field 'unknown_field' cannot be used in an index specification. Provided specification: { "unknown_field" : "111" }
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": "_name_", "unknown_field": "111"}]}');
@@ -48,7 +48,7 @@ ERROR:  Error in specification { "key" : { "a" : 1, "" : -1 }, "name" : "my_idx"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": 1, "b": -1}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "a.$**" : 1, "b" : -1 }, "name" : "my_idx" }:wildcard indexes do not allow compounding
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {".$**": 1}, "name": "my_idx"}]}');
-ERROR:  Error in specification { "key" : { ".$**" : 1 }, "name" : "my_idx" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { ".$**" : 1 }, "name" : "my_idx" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": "bad"}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : { "a.$**" : "bad" }, "name" : "my_idx" }:Unknown plugin index specified: "bad"
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$**": 0}, "name": "my_idx"}]}');
@@ -280,25 +280,25 @@ ERROR:  Error in specification { "key" : { "b" : -1, "a.$**" : 1 }, "name" : "my
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {}, "name": "my_idx"}]}');
 ERROR:  Error in specification { "key" : {  }, "name" : "my_idx" }:Index keys are not allowed to be completely empty fields.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"name": "my_idx"}]}');
-ERROR:  Error in specification { "name" : "my_idx" }:The 'key' field is a required property of an index specification
+ERROR:  Error in specification { "name" : "my_idx" }:The 'key' field is mandatory and must be included as part of an index specification
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"$**foo": 1}, "name": "my_idx_13"}]}');
 ERROR:  Error in specification { "key" : { "$**foo" : 1 }, "name" : "my_idx_13" }:Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"..": 1}, "name": "my_idx_12"}]}');
-ERROR:  Error in specification { "key" : { ".." : 1 }, "name" : "my_idx_12" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { ".." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a..b.$**": 1}, "name": "my_idx_10"}]}');
-ERROR:  Error in specification { "key" : { "a..b.$**" : 1 }, "name" : "my_idx_10" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { "a..b.$**" : 1 }, "name" : "my_idx_10" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a..b.foo": 1}, "name": "my_idx_11"}]}');
-ERROR:  Error in specification { "key" : { "a..b.foo" : 1 }, "name" : "my_idx_11" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { "a..b.foo" : 1 }, "name" : "my_idx_11" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"$a": 1}, "name": "my_idx_12"}]}');
 ERROR:  Error in specification { "key" : { "$a" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {".": 1}, "name": "my_idx_12"}]}');
-ERROR:  Error in specification { "key" : { "." : 1 }, "name" : "my_idx_12" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { "." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$b": 1}, "name": "my_idx_12"}]}');
 ERROR:  Error in specification { "key" : { "a.$b" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.$b.$**": 1}, "name": "my_idx_12"}]}');
 ERROR:  Error in specification { "key" : { "a.$b.$**" : 1 }, "name" : "my_idx_12" }:Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "collection_1", "indexes": [{"key": {"a.": 1}, "name": "my_idx_12"}]}');
-ERROR:  Error in specification { "key" : { "a." : 1 }, "name" : "my_idx_12" }:Index keys cannot contain an empty field.
+ERROR:  Error in specification { "key" : { "a." : 1 }, "name" : "my_idx_12" }:Index keys are not allowed to include any fields that are empty.
 -- show that we didn't leave any invalid collection indexes behind
 SELECT * FROM documentdb_test_helpers.get_collection_indexes('db', 'collection_1') ORDER BY collection_id, index_id;
  collection_id | index_id |                                                             index_spec_as_bson                                                              | index_is_valid 
@@ -839,25 +839,25 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test',
 
 -- test path collision
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": 1, "a.b": 1}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "a.b" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Path collision at a.b remaining portion b
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : 1, "a.b" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path a.b remaining portion b
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b": 1, "a": 1}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : 1, "a" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Path collision at a
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : 1, "a" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path a
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b": {"c.d": 1}, "a.b.c": 1}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a.b.c" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Path collision at a.b.c
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a.b.c" : 1 } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path a.b.c
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b": {"c.d": 1}, "a": {"b.c": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at b.c
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path b.c
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b": {"c.d": 1}, "a": {"b.c.d.e": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c.d.e" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at b.c.d.e remaining portion c.d.e
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c.d.e" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path b.c.d.e remaining portion c.d.e
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b": {"c.d": 1}, "a": {"b.c": {"d.e": 1}}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c" : { "d.e" : 1 } } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at d.e remaining portion e
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b" : { "c.d" : 1 }, "a" : { "b.c" : { "d.e" : 1 } } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path d.e remaining portion e
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a.b.c": 1, "a.b": {"c.d": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b.c" : 1, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at c.d remaining portion d
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a.b.c" : 1, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path c.d remaining portion d
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"b.c": 1}, "a.b": {"c.d": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c" : 1 }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at c.d remaining portion d
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c" : 1 }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path c.d remaining portion d
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"b.c.d.e": 1}, "a.b": {"c.d": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c.d.e" : 1 }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at c.d
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c.d.e" : 1 }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path c.d
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test', create_index_arg_using_wp('{"a": {"b.c": {"d.e": 1}}, "a.b": {"c.d": 1}}'));
-ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c" : { "d.e" : 1 } }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Path collision at c.d
+ERROR:  Error in specification { "key" : { "$**" : 1 }, "name" : "idx", "wildcardProjection" : { "a" : { "b.c" : { "d.e" : 1 } }, "a.b" : { "c.d" : 1 } } }:Failed to parse: wildcardProjection :: caused by :: Collision detected in specified path c.d
 SELECT documentdb_api_internal.create_indexes_non_concurrently('wp_test',
     '{
         "createIndexes": "no_path_collision_1",

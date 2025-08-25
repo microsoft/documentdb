@@ -123,7 +123,7 @@ SerializeOrderState(MemoryContext aggregateContext,
 	}
 
 
-	/* Copy in the currentValue */
+	/* Copy into the current value variable */
 	char *byteAllocationPointer = (char *) VARDATA(bytes);
 
 	/* Set the number of Aggregation Values */
@@ -332,7 +332,7 @@ BsonOrderTransition(PG_FUNCTION_ARGS, bool invertSort, bool isSingle, bool
 	if (!aggContext)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg(
-							"aggregate function called in non-aggregate context")));
+							"Aggregate function invoked in non-aggregate context")));
 	}
 
 	/* We store input expression in $setWindowFields context for $top(N)/$bottom(N) */
@@ -579,7 +579,7 @@ BsonOrderTransitionOnSorted(PG_FUNCTION_ARGS, bool invertSort, bool isSingle)
 	if (!aggContext)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg(
-							"aggregate function called in non-aggregate context")));
+							"Aggregate function invoked in non-aggregate context")));
 	}
 
 	bool storeInputExpression = false;
@@ -796,7 +796,7 @@ BsonOrderCombine(PG_FUNCTION_ARGS, bool invertSort)
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg(
-							"aggregate function called in non-aggregate context")));
+							"Aggregate function invoked in non-aggregate context")));
 	}
 
 	/* Check if either result is NULL and return Non-NULL */
@@ -973,7 +973,7 @@ BsonOrderFinal(PG_FUNCTION_ARGS, bool isSingle, bool invert)
 	if (!aggContext)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg(
-							"aggregate function called in non-aggregate context")));
+							"Aggregate function invoked in non-aggregate context")));
 	}
 	bool returnNull = false;
 	BsonOrderAggState state = { 0 };
@@ -1173,7 +1173,7 @@ BsonOrderFinalOnSorted(PG_FUNCTION_ARGS, bool isSingle)
 	if (!aggContext)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg(
-							"aggregate function called in non-aggregate context")));
+							"Aggregate function invoked in non-aggregate context")));
 	}
 
 	bool returnNull = false;

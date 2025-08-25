@@ -55,31 +55,31 @@ SELECT insert_one('db','densify','{ "_id": 14, "a": "def", "cost": 9, "quantity"
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": "Not an object" }]}');
 ERROR:  The $densify stage specification must be an object, found string
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { } }]}');
-ERROR:  BSON field '$densify.field' is missing but a required field
+ERROR:  The BSON field '$densify.field' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": [ ] }]}');
 ERROR:  The $densify stage specification must be an object, found array
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": 1 } }]}');
 ERROR:  The BSON field '$densify.field' has an incorrect type 'int'; it should be of type 'string'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a" } }]}');
-ERROR:  BSON field '$densify.range' is missing but a required field
+ERROR:  The BSON field '$densify.range' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": "A" } }]}');
 ERROR:  The BSON field '$densify.range' has an incorrect type 'string'; it should be of type 'object'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { } } }]}');
-ERROR:  BSON field '$densify.range.bounds' is missing but a required field
+ERROR:  The BSON field '$densify.range.bounds' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : 1 } } }]}');
 ERROR:  Range bounds must be 'full', 'partition', or an ascending array of two numbers or two dates.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "na" } } }]}');
 ERROR:  The bounds string value should be either 'full' or 'partition'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full" } } }]}');
-ERROR:  BSON field '$densify.range.step' is missing but a required field
+ERROR:  The BSON field '$densify.range.step' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "partition" } } }]}');
-ERROR:  BSON field '$densify.range.step' is missing but a required field
+ERROR:  The BSON field '$densify.range.step' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1] } } }]}');
 ERROR:  A boundary array used within a range statement is required to contain exactly two elements.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, 2, 3] } } }]}');
 ERROR:  A boundary array used within a range statement is required to contain exactly two elements.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : [1, { "$date": { "$numberLong": "1718841600000" } }] } } }]}');
-ERROR:  BSON field '$densify.range.step' is missing but a required field
+ERROR:  The BSON field '$densify.range.step' is required but was not provided
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "full", "step": "Hello" } } }]}');
 ERROR:  The BSON field '$densify.range.step' has an incorrect type 'string'; it should be one of the following valid types: [int, decimal, double, long]
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "densify", "pipeline":  [{"$densify": { "field": "a", "range": { "bounds" : "partition", "step": "Hello" } } }]}');

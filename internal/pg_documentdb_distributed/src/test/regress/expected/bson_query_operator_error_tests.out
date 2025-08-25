@@ -524,7 +524,7 @@ SELECT documentdb_api.insert_one('db','queryoperator', '{"_id": 26, "a" : [NaN, 
 
 -- these queries are negative tests for $size operator
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$size" : -3 }}' ORDER BY object_id;
-ERROR:  Failed to parse $size. Expected a non-negative number in: $size: -3
+ERROR:  Parsing of operator $size failed. A non-negative value was expected in operator $size: -3
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$size" : 3.1 }}' ORDER BY object_id;
 ERROR:  Failed to parse $size. Expected an integer in: $size: 3.1
 SELECT object_id, document FROM documentdb_api.collection('db', 'queryoperator') WHERE document @@ '{ "a.b": { "$size" : -3.4 }}' ORDER BY object_id;

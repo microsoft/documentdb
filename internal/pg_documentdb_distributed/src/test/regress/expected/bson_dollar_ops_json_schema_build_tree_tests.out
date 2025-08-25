@@ -113,13 +113,13 @@ SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" 
 ERROR:  divisor cannot be NaN
 -- Must not be INF
 SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" : { "age" : { "multipleOf": {"$numberDecimal" : "INF"} } } } }');
-ERROR:  divisor cannot be infinite
+ERROR:  Division by an infinite value is not allowed
 SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" : { "age" : { "multipleOf": {"$numberDecimal" : "-INF"} } } } }');
-ERROR:  divisor cannot be infinite
+ERROR:  Division by an infinite value is not allowed
 SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" : { "age" : { "multipleOf": {"$numberDouble" : "INF"} } } } }');
-ERROR:  divisor cannot be infinite
+ERROR:  Division by an infinite value is not allowed
 SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" : { "age" : { "multipleOf": {"$numberDouble" : "-INF"} } } } }');
-ERROR:  divisor cannot be infinite
+ERROR:  Division by an infinite value is not allowed
 -- Valid Schema
 SELECT bson_dollar_json_schema('{ "age": 6 }', '{ "$jsonSchema": { "properties" : { "age" : { "multipleOf": {"$numberInt": "1"} } } } }');
  bson_dollar_json_schema 

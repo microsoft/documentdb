@@ -45,8 +45,8 @@ typedef struct
 {
 	char *db;
 	int64 collections;              /* total number of collections in db */
-	int64 views;                    /* total number of views in db */
-	int64 objects;                  /* total number of documents in db */
+	int64 views;                    /* Total count of views stored in database */
+	int64 objects;                  /* Total count of documents present in the database */
 	double avgObjSize;              /* "dataSize" divided by "objects" */
 	double dataSize;                /* Total size of the uncompressed data held in the database */
 	double storageSize;             /* does not include index size */

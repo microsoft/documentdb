@@ -24,22 +24,22 @@ SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{ "createI
 set default_transaction_read_only = on;
 -- should fail gracefully.
 SELECT documentdb_api.create_collection_view('db', '{ "create": "collection" }');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 SELECT documentdb_api.insert('db', '{ "insert": "test", "documents": [ { "a": 1 }] }');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 SELECT documentdb_api.update('db', '{ "update": "test", "updates": [ { "q": { "a": 1 }, "u": { "$set": { "b": 1 }} }] }');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 SELECT documentdb_api.delete('db', '{ "delete": "test", "deletes": [ { "q": { "a": 1 } }] }');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 SELECT document FROM  documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test", "pipeline": [ { "$merge": { "into": "test" } } ] }');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 SELECT documentdb_api.drop_collection('db', 'collection');
-ERROR:  cannot execute write operations when the server is in a read-only state.
+ERROR:  Write operations cannot be performed because the server is currently operating in a read-only mode.
 DETAIL:  the default transaction is read-only
 -- same command works when transaction explicitly read-write.
 BEGIN;

@@ -632,7 +632,7 @@ DoMultiInsertWithoutTransactionId(MongoCollection *collection, List *inserts, Oi
 		MemoryContextSwitchTo(oldContext);
 		ErrorData *errorData = CopyErrorDataAndFlush();
 
-		/* Abort the inner transaction */
+		/* Abort inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 		MemoryContextSwitchTo(oldContext);
 		CurrentResourceOwner = oldOwner;
@@ -710,7 +710,7 @@ DoSingleInsert(MongoCollection *collection,
 		MemoryContextSwitchTo(oldContext);
 		ErrorData *errorData = CopyErrorDataAndFlush();
 
-		/* Abort the inner transaction */
+		/* Abort inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 		CurrentResourceOwner = oldOwner;
 

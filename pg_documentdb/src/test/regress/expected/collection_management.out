@@ -196,7 +196,7 @@ EXECUTE qcountNoneExistent('nonexistentdb', 'nonexistent', '{ "a": 1 }', 'count'
 -- SELECT change_stream_response->>'ns' as ns, change_stream_response->>'operationType' as operation_type FROM documentdb_data.changes WHERE change_stream_response @@ '{"ns": { "$eq": {"db": "db_collection_management", "coll": "change_feed_collection2"}}}' order by operation_type;
 -- validate collection name for empty
 SELECT documentdb_api.create_collection('db', '');
-ERROR:  Invalid namespace specified 'db.'
+ERROR:  The specified namespace provided 'db.' is invalid.
 CONTEXT:  SQL statement "INSERT INTO documentdb_api_catalog.collections ( database_name, collection_name, collection_uuid ) VALUES ($1, $2, gen_random_uuid()) RETURNING collection_id"
 SELECT documentdb_api.find_and_modify('', '{"findAndModify": "", "query": {"a": 1000}, "remove": 0.1, "sort": {"b": -1}}');
 ERROR:  An invalid and empty namespace has been specified

@@ -55,7 +55,7 @@ extern int MaxWriteBatchSize;
  */
 typedef struct WriteError
 {
-	/* index in a write batch */
+	/* Index specified within a write operation batch */
 	int index;
 
 	/* error code */
@@ -130,7 +130,7 @@ ThrowIfServerOrTransactionReadOnly(void)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTWRITABLEPRIMARY),
 						errmsg(
-							"cannot execute write operations when the server is in a read-only state."),
+							"Write operations cannot be performed because the server is currently operating in a read-only mode."),
 						errdetail("the default transaction is read-only"),
 						errdetail_log(
 							"cannot execute write operations when default_transaction_read_only is set to true")));

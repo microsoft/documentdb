@@ -458,8 +458,8 @@ CheckUnsupportedViewPipelineStages(const bson_value_t *pipeline)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_OPTIONNOTSUPPORTEDONVIEW),
 							errmsg(
-								"The aggregation stage %s of the pipeline cannot be used "
-								"in the view definition because it writes to disk",
+								"The aggregation stage %s in the pipeline is not permitted "
+								"in the view definition as it performs disk writes",
 								stageElement.path)));
 		}
 	}
@@ -484,7 +484,8 @@ ValidatePipelineForCreateView(Datum databaseDatum, const char *viewName,
 	PG_CATCH();
 	{
 		MemoryContextSwitchTo(savedMemoryContext);
-		RethrowPrependDocumentDBError("Invalid pipeline for view caused by :: ");
+		RethrowPrependDocumentDBError(
+			"Pipeline configuration for the view is invalid");
 	}
 	PG_END_TRY();
 }

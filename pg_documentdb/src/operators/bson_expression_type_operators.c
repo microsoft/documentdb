@@ -1629,7 +1629,7 @@ ProcessDollarToUUID(const bson_value_t *currentValue, bson_value_t *result)
 	if (!ValidateUUIDString(uuidStr))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CONVERSIONFAILURE), errmsg(
-							"Invalid UUID string: '%s'", uuidStr)));
+							"The provided UUID string '%s' is not valid", uuidStr)));
 	}
 
 	PG_TRY();
@@ -1723,7 +1723,7 @@ ProcessDollarToBinData(const bson_value_t *currentValue, const bson_type_t *toTy
 				if (decodedValueLen == -1)
 				{
 					ThrowFailedToParseBinDataError(currentString,
-												   "Input is not a valid base64 string.");
+												   "The provided input does not represent a valid base64-encoded string.");
 				}
 			}
 			else if (strcmp(formatString, "base64url") == 0)
@@ -1748,12 +1748,12 @@ ProcessDollarToBinData(const bson_value_t *currentValue, const bson_type_t *toTy
 					else if (decodedValue[i] == '+')
 					{
 						ThrowFailedToParseBinDataError(currentString,
-													   "Input is not a valid base64 string.");
+													   "The provided input does not represent a valid base64-encoded string.");
 					}
 					else if (decodedValue[i] == '/')
 					{
 						ThrowFailedToParseBinDataError(currentString,
-													   "Input is not a valid base64 string.");
+													   "The provided input does not represent a valid base64-encoded string.");
 					}
 				}
 
@@ -1882,7 +1882,7 @@ ValidateBinDataSubType(const bson_subtype_t toSubtype)
 		ThrowFailedToParseBinDataDeprecatedSubTypeError(toSubtype, BSON_SUBTYPE_BINARY);
 	}
 
-	/* user-defined subtypes (must be between 128 and 255) */
+	/* user-defined subtypes must fall within the valid numeric range of 128 to 255. */
 	if (toSubtype >= 128 && toSubtype <= 255)
 	{
 		return;

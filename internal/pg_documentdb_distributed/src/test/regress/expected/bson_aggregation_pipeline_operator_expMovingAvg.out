@@ -96,7 +96,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 -- negative case
 -- no sortBy
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "N": 2} } } } } ] }');
-ERROR:  $expMovingAvg requires an explicit 'sortBy'
+ERROR:  'sortBy' parameters must be specified for $shift
 -- alpha and N all exist
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "test1", "pipeline": [ { "$setWindowFields": { "partitionBy": "$name", "sortBy": {"date": 1}, "output":{"expMovingAvgForCost": { "$expMovingAvg":{"input": "$cost", "alpha": 0.666, "N": 2} } } } } ] }');
 ERROR:  The $expMovingAvg sub-object must contain exactly two specific fields: one labeled 'input', and the other either labeled 'N' or 'alpha'.

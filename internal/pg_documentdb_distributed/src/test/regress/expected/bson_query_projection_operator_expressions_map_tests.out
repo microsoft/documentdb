@@ -194,9 +194,9 @@ SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ [1, 2
 
 -- isArray expressions: array declaration invalid
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ ] } }') FROM documentdb_api.collection('db', 'mapprojectexprs') ORDER BY object_id;
-ERROR:  Expression $isArray takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $isArray requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$isArray": [ 1, 2 ] } }') FROM documentdb_api.collection('db', 'mapprojectexprs') ORDER BY object_id;
-ERROR:  Expression $isArray takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $isArray requires exactly 1 arguments, but 2 arguments were actually provided.
 -- unsupported operators
 SELECT bson_expression_map(document, 'array', '{ "field" : { "$unknownop": "some literal" } }') FROM documentdb_api.collection('db', 'mapprojectexprs') ORDER BY object_id;
 ERROR:  Unknown expression $unknownop
@@ -260,7 +260,7 @@ SELECT bson_expression_map(document, 'array', '{ "field" : [{"$literal" : 3.12}]
 (1 row)
 
 SELECT bson_expression_map(document, 'array', '{ "field" : [{"$isArray" : [1,2]}] }') FROM documentdb_api.collection('db', 'mapprojectexprs');
-ERROR:  Expression $isArray takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $isArray requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT bson_expression_map(document, 'array', '{ "field" : {"$literal" : 3.12} }') FROM documentdb_api.collection('db', 'mapprojectexprs');
                                                                                                                                                                                                                    bson_expression_map                                                                                                                                                                                                                   
 ---------------------------------------------------------------------
@@ -379,7 +379,7 @@ ERROR:  Missing Input Array for bson_expression_map: 'array'
 SET client_min_messages TO DEBUG3;
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": {"a": [ { "$literal" : "foo" } ] }}');
 DEBUG:  Transforming array expression into fixed constant.
-DEBUG:  Optimizing document expression into constant.
+DEBUG:  Converting document expression into a fixed constant.
           bson_expression_map           
 ---------------------------------------------------------------------
  { "result" : [ { "a" : [ "foo" ] } ] }
@@ -408,21 +408,21 @@ DEBUG:  Transforming array expression into fixed constant.
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"result": {"a": [ { "$literal" : "foo" } ], "a": {"$const": "foo2"} }}');
 DEBUG:  Transforming array expression into fixed constant.
-DEBUG:  Optimizing document expression into constant.
+DEBUG:  Converting document expression into a fixed constant.
          bson_expression_map         
 ---------------------------------------------------------------------
  { "result" : [ { "a" : "foo2" } ] }
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"document": {"a": { "$literal" : {"a": "$$REMOVE" } }, "b": {"$const": "b is 2"} }}');
-DEBUG:  Optimizing document expression into constant.
+DEBUG:  Converting document expression into a fixed constant.
                          bson_expression_map                         
 ---------------------------------------------------------------------
  { "document" : [ { "a" : { "a" : "$$REMOVE" }, "b" : "b is 2" } ] }
 (1 row)
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"document": {"a": { "b" : {"a": "foo", "d": {"$substr": ["hello world", 6, -1]}} }, "c": {"$const": "c is 2"} }}');
-DEBUG:  Optimizing document expression into constant.
+DEBUG:  Converting document expression into a fixed constant.
                                    bson_expression_map                                   
 ---------------------------------------------------------------------
  { "document" : [ { "a" : { "b" : { "a" : "foo", "d" : "world" } }, "c" : "c is 2" } ] }
@@ -430,7 +430,7 @@ DEBUG:  Optimizing document expression into constant.
 
 SELECT bson_expression_map('{"array": [{}]}', 'array', '{"document": {"a": {"d": { "$literal" : {"a": "$$REMOVE" } }, "c": [{"$literal": "$$REMOVE"}, true, false]}, "b": {"$const": "b is 2"}}}');
 DEBUG:  Transforming array expression into fixed constant.
-DEBUG:  Optimizing document expression into constant.
+DEBUG:  Converting document expression into a fixed constant.
                                                bson_expression_map                                                
 ---------------------------------------------------------------------
  { "document" : [ { "a" : { "d" : { "a" : "$$REMOVE" }, "c" : [ "$$REMOVE", true, false ] }, "b" : "b is 2" } ] }

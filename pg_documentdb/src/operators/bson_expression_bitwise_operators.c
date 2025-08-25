@@ -280,10 +280,10 @@ ProcessDollarBit(pgbson *doc, bson_value_t *result, void *arguments,
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH)), errmsg(
-							"%s only supports int and long, not: %s.", operatorName,
+							"%s supports only int and long types, not: %s.", operatorName,
 							BsonTypeName(currentElem.value_type)),
 						errdetail_log(
-							"%s only supports int and long, not: %s.", operatorName,
+							"%s supports only int and long types, not: %s.", operatorName,
 							BsonTypeName(currentElem.value_type)));
 			}
 		}
@@ -349,9 +349,11 @@ ProcessDollarBit(pgbson *doc, bson_value_t *result, void *arguments,
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH)), errmsg(
-							"%s only supports int and long operands.", operatorName),
+							"%s can only be used with int and long type operands.",
+							operatorName),
 						errdetail_log(
-							"%s only supports int and long operands.", operatorName));
+							"%s can only be used with int and long type operands.",
+							operatorName));
 			}
 
 			if (!areArgumentsConstant)

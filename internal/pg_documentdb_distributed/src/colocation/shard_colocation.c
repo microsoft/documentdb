@@ -179,7 +179,7 @@ HandleDistributedColocation(MongoCollection *collection, const
 	if (colocationValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("colocation options must be a document.")));
+						errmsg("Colocation options must be provided as a document.")));
 	}
 
 	char *tableWithNamespace = psprintf("%s.%s", ApiDataSchemaName,

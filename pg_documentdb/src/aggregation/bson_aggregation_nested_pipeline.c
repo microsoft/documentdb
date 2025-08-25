@@ -800,7 +800,7 @@ CreateInverseMatchFromCollectionQuery(InverseMatchArgs *inverseMatchArgs,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NAMESPACENOTFOUND),
 						errmsg(
-							"'from' collection: '%s.%s' doesn't exist.",
+							"The 'from' collection '%s.%s' could not be found.",
 							text_to_cstring(context->databaseNameDatum),
 							inverseMatchArgs->fromCollection.string)));
 	}
@@ -964,7 +964,7 @@ ParseInverseMatchSpec(const bson_value_t *spec, InverseMatchArgs *args)
 
 	if (args->defaultResult.value_type == BSON_TYPE_EOD)
 	{
-		/* if not provided, default to false. */
+		/* If missing, it will automatically default to false. */
 		args->defaultResult.value_type = BSON_TYPE_BOOL;
 		args->defaultResult.value.v_bool = false;
 	}
@@ -1011,10 +1011,11 @@ ParseUnionWith(const bson_value_t *existingValue, StringView *collectionFrom,
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-								errmsg("BSON field '$unionWith.%s' is an unknown field.",
-									   key),
+								errmsg(
+									"The BSON field '$unionWith.%s' is not recognized as a valid field.",
+									key),
 								errdetail_log(
-									"BSON field '$unionWith.%s' is an unknown field.",
+									"The BSON field '$unionWith.%s' is not recognized as a valid field.",
 									key)));
 			}
 		}
@@ -1867,7 +1868,8 @@ ParseLookupStage(const bson_value_t *existingValue, LookupArgs *args)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("unknown argument to $lookup: %s", key)));
+							errmsg("Unrecognized parameter provided to $lookup: %s",
+								   key)));
 		}
 	}
 
@@ -2965,13 +2967,13 @@ ValidateUnionWithPipeline(const bson_value_t *pipeline, bool hasCollection)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31441),
 							errmsg(
-								"$out is not allowed within a $unionWith's sub-pipeline")));
+								"$out is prohibited inside a sub-pipeline of $unionWith")));
 		}
 		else if (strcmp(stageElement.path, "$merge") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31441),
 							errmsg(
-								"$merge is not allowed within a $unionWith's sub-pipeline")));
+								"Using the $merge is prohibited inside a sub-pipeline of $unionWith.")));
 		}
 		else if (strcmp(stageElement.path, "$changeStream") == 0)
 		{
@@ -3063,9 +3065,9 @@ ParseGraphLookupStage(const bson_value_t *existingValue, GraphLookupArgs *args)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
 								errmsg(
-									"connectFromField: FieldPath field names may not start with '$'"),
+									"FieldPath field names cannot begin with symbol such as '$'"),
 								errdetail_log(
-									"connectFromField: FieldPath field names may not start with '$'")));
+									"FieldPath field names cannot begin with symbol such as '$'")));
 			}
 		}
 		else if (strcmp(key, "connectToField") == 0)

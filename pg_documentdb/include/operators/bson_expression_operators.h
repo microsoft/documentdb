@@ -862,7 +862,7 @@ pg_attribute_noreturn()
 ThrowExpressionTakesExactlyNArgs(const char * expression, int requiredArgs, int numArgs)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16020), errmsg(
-						"Expression %s takes exactly %d arguments. %d were passed in.",
+						"The expression %s requires exactly %d arguments, but %d arguments were actually provided.",
 						expression, requiredArgs, numArgs)));
 }
 

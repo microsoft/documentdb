@@ -261,7 +261,7 @@ CreateCursorFile(const char *cursorName)
 	if (!cursor_set_initialized)
 	{
 		ereport(ERROR, (errmsg(
-							"Cursor storage not initialized. Before using cursors, the server must be restarted")));
+							"Cursor storage has not been properly initialized. Before using cursors, the server must be restarted")));
 	}
 
 	if (!UseFileBasedPersistedCursors)
@@ -294,7 +294,7 @@ CreateCursorFile(const char *cursorName)
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
-					 errmsg("could not open file \"%s\": %m",
+					 errmsg("Failed to open file \"%s\": %m",
 							fileState->cursorState.cursorFileName)));
 		}
 	}
@@ -413,7 +413,7 @@ DeleteCursorFile(const char *cursorName)
 {
 	if (!cursor_set_initialized)
 	{
-		ereport(ERROR, (errmsg("Cursor storage not initialized")));
+		ereport(ERROR, (errmsg("Cursor storage has not been properly initialized")));
 	}
 
 	char cursorFileName[MAXPGPATH];
@@ -444,7 +444,7 @@ DeserializeFileState(bytea *cursorFileState)
 {
 	if (!cursor_set_initialized)
 	{
-		ereport(ERROR, (errmsg("Cursor storage not initialized")));
+		ereport(ERROR, (errmsg("Cursor storage has not been properly initialized")));
 	}
 
 	if (!UseFileBasedPersistedCursors)
@@ -468,7 +468,7 @@ DeserializeFileState(bytea *cursorFileState)
 	{
 		ereport(ERROR,
 				(errcode_for_file_access(),
-				 errmsg("could not open file \"%s\": %m",
+				 errmsg("Failed to open file \"%s\": %m",
 						fileState->cursorState.cursorFileName)));
 	}
 

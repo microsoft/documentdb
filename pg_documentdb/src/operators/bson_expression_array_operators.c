@@ -1665,7 +1665,7 @@ ParseDollarMap(const bson_value_t *argument, AggregationExpressionData *data,
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16880), errmsg(
-							"Missing 'input' parameter to $map")));
+							"'input' parameter required for operators $map")));
 	}
 
 	if (in.value_type == BSON_TYPE_EOD)
@@ -1801,7 +1801,7 @@ ParseDollarReduce(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40075), errmsg(
-							"$reduce only supports an object as its argument")));
+							"Expected 'document' type for $reduce")));
 	}
 
 	data->operator.returnType = BSON_TYPE_ARRAY;
@@ -1969,10 +1969,10 @@ ParseDollarSortArray(const bson_value_t *argument, AggregationExpressionData *da
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION2942500), errmsg(
-							"$sortArray requires an object as an argument, found: %s",
+							"Expected 'document' type for $sortArray but found '%s' type",
 							BsonTypeName(argument->value_type)),
 						errdetail_log(
-							"$sortArray requires an object as an argument, found: %s",
+							"Expected 'document' type for $sortArray but found '%s' type",
 							BsonTypeName(argument->value_type))));
 	}
 
@@ -2078,11 +2078,11 @@ ParseDollarZip(const bson_value_t *argument, AggregationExpressionData *data,
 	if (argument->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION34460), errmsg(
-							"$zip only supports an object as an argument, found %s",
+							"Expected 'document' type for $zip but found '%s' type",
 							BsonTypeName(
 								argument->value_type)),
 						errdetail_log(
-							"$zip only supports an object as an argument, found %s",
+							"Expected 'document' type for $zip but found '%s' type",
 							BsonTypeName(
 								argument->value_type))));
 	}
@@ -2359,10 +2359,10 @@ ParseElementFromArrayForArrayToObject(const bson_value_t *element)
 		ereport(ERROR, (errcode(
 							ERRCODE_DOCUMENTDB_DOLLARARRAYTOOBJECTARRAYKEYMUSTBESTRING),
 						errmsg(
-							"$arrayToObject requires an array of key-value pairs, where the key must be of type string. Found key type: %s",
+							"Expected 'string' type for $arrayToObject entries but found '%s' type",
 							BsonTypeName(currentKey->value_type)),
 						errdetail_log(
-							"$arrayToObject requires an array of key-value pairs, where the key must be of type string. Found key type: %s",
+							"Expected 'string' type for $arrayToObject entries but found '%s' type",
 							BsonTypeName(currentKey->value_type))));
 	}
 
@@ -2474,7 +2474,7 @@ ParseDollarMaxMinN(const bson_value_t *argument, AggregationExpressionData *data
 	if (input.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787907), errmsg(
-							"Missing value for 'input'")));
+							"No value provided for 'input'")));
 	}
 
 	if (count.value_type == BSON_TYPE_EOD)
@@ -2824,12 +2824,12 @@ ProcessDollarIn(bson_value_t *targetValue, const bson_value_t *searchArray,
 	if (searchArray->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARINREQUIRESARRAY), errmsg(
-							"$in requires an array as a second argument, found: %s",
+							"Expected 'array' type for $in operator but found '%s' type",
 							searchArray->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(searchArray->value_type)),
 						errdetail_log(
-							"$in requires an array as a second argument, found: %s",
+							"Expected 'array' type for $in operator but found '%s' type",
 							searchArray->value_type == BSON_TYPE_EOD ?
 							MISSING_TYPE_NAME :
 							BsonTypeName(searchArray->value_type))));
@@ -3395,10 +3395,10 @@ ProcessDollarMaxAndMinN(bson_value_t *result, bson_value_t *evaluatedLimit,
 		if (nValue < 1)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5787908), errmsg(
-								"'n' must be greater than 0, found %ld",
+								"'n' cannot be less than 0, but the current value is %ld",
 								nValue),
 							errdetail_log(
-								"'n' must be greater than 0, found %ld",
+								"'n' cannot be less than 0, but the current value is %ld",
 								nValue)));
 		}
 	}
@@ -3425,7 +3425,7 @@ ProcessDollarMaxAndMinN(bson_value_t *result, bson_value_t *evaluatedLimit,
 	if (evaluatedInput->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788200)), errmsg(
-					"Input must be an array"));
+					"Expected 'array' type as input"));
 	}
 
 	bson_iter_t arrayIter;
@@ -3695,7 +3695,7 @@ FillResultForDollarFirstAndLastN(bson_value_t *input,
 	if (input->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788200), errmsg(
-							"Input must be an array")));
+							"Expected 'array' type as input")));
 	}
 	int64_t elements_to_skip = 0;
 
@@ -4043,7 +4043,7 @@ GetIndexValueFromDollarIdxInput(bson_value_t *arg, bool isStartIndex)
 	else if (result < 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40097), errmsg(
-							"$indexOfArray requires a nonnegative %s index, found: %s",
+							"Operator $indexOfArray needs a nonnegative %s index value, but received: %s",
 							isStartIndex ? startingIndexString : endingIndexString,
 							BsonValueToJsonForLogging(arg)),
 						errdetail_log(

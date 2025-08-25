@@ -147,9 +147,9 @@ SELECT * FROM documentdb_api_catalog.bson_dollar_project('{"a": { "b": 3 }}', '{
 -- full expression
 -- field is required
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField": {}}}}');
-ERROR:  $getField requires 'field' to be specified
+ERROR:  $getField requires that the 'field' parameter must be explicitly specified
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField": {"input": {}}}}}');
-ERROR:  $getField requires 'field' to be specified
+ERROR:  $getField requires that the 'field' parameter must be explicitly specified
 -- input is required
 SELECT * FROM documentdb_api_catalog.bson_dollar_project('{}', '{"result": { "fieldValue": {"$getField": {"field": "a"}}}}');
 ERROR:  $getField needs the 'input' parameter to be defined

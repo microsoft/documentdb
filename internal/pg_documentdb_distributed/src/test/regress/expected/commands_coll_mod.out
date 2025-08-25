@@ -59,7 +59,7 @@ ERROR:  The BSON field 'collMod.index.name' has an incorrect type 'int'; it shou
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": 1, "name": "c_1"}}');
 ERROR:  The BSON field 'collMod.index.keyPattern' has an incorrect type 'int'; it should be of type 'object'.
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": {"c": 1}, "name": "c_1"}}');
-ERROR:  Cannot specify both key pattern and name.
+ERROR:  Both name and key pattern cannot be present
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"keyPattern": {"c": 1}}}');
 ERROR:  no expireAfterSeconds or hidden field
 SELECT documentdb_api.coll_mod('commands', 'collModTest', '{"collMod": "collModTest", "index": {"name": 1, "expireAfterSeconds": true}}');

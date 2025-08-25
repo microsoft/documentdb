@@ -32,7 +32,7 @@ SELECT * FROM bson_dollar_project('{"a": { "$timestamp": { "t": 1622431468, "i":
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": "" }}');
 ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: string
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": [1,2] }}');
-ERROR:  Expression $tsSecond takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tsSecond requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": [1] }}');
 ERROR:  The $tsSecond operator needs a valid timestamp argument, but instead received: int
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsSecond": 11 }}');
@@ -115,7 +115,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{"aggregate": "timestampTe
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": "" }}');
 ERROR:  Expected 'timestamp' type for $tsIncrement but found 'string' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": [1,2] }}');
-ERROR:  Expression $tsIncrement takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tsIncrement requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": [1] }}');
 ERROR:  Expected 'timestamp' type for $tsIncrement but found 'int' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tsIncrement": 11 }}');

@@ -1341,17 +1341,17 @@ ERROR:  The $merge operator needs a string or object input, but received int ins
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : {  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  The required BSON field '$merge.into' is missing.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "xman" : 1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  BSON field '$merge.xman' is an unknown field
+ERROR:  The BSON field '$merge.xman' is not recognized as a valid field.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : 1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  $merge 'into' field must contain either a string value or an object, but was given int instead
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : "apple"}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  $merge 'into' field must specify a 'coll' that is not empty, null or undefined
+ERROR:  The 'into' field of $merge must define a collection name that is neither empty, null, nor undefined.
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : 1}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  BSON field 'into.db' has an incorrect type 'object'; the expected data type is 'string'
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : "database", "coll" :  1}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  BSON field 'into.coll' has an incorrect type 'object'; the expected data type is 'string'
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : {"db" : "apple", "haha" : "haha"}  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  BSON field 'into.haha' is an unknown field
+ERROR:  BSON field 'into.haha' is not recognized as a valid field
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "on" :  1  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  The $merge 'on' field is required to be a string or an array containing only strings, but the provided value has an unsupported type: int
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "negInvalidInput", "pipeline": [  {"$merge" : { "into" : "outColl", "on" :  [1]  }} ], "cursor": { "batchSize": 1 } }', 4294967294);
@@ -1485,11 +1485,11 @@ ERROR:  Unable to locate index required to confirm join fields are unique
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["partialTest", "partialTest2"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  Unable to locate index required to confirm join fields are unique
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["a", "a"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  Found a duplicate field a
+ERROR:  Duplicate field a detected
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["a", "b", "b"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  Found a duplicate field b
+ERROR:  Duplicate field b detected
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["c", "a", "c"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
-ERROR:  Found a duplicate field c
+ERROR:  Duplicate field c detected
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["x","y"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);
 ERROR:  Unable to locate index required to confirm join fields are unique
 SELECT * FROM aggregate_cursor_first_page('db', '{ "aggregate": "indexNegColl", "pipeline": [  {"$merge" : { "into": "indexNegOutColl", "on" : ["z","x"] }} ], "cursor": { "batchSize": 1 } }', 4294967294);

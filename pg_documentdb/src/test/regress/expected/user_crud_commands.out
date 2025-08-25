@@ -199,7 +199,7 @@ SELECT documentdb_api.drop_user('{"dropUser":"nonexistent_user"}');
 ERROR:  role "nonexistent_user" does not exist
 --Drop with disallowed parameter
 SELECT documentdb_api.drop_user('{"user":"test_user"}');
-ERROR:  Unsupported field specified: 'user'.
+ERROR:  The specified field 'user' is not supported.
 --Update a user
 SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password"}');
             update_user            
@@ -212,7 +212,7 @@ SELECT documentdb_api.update_user('{"updateUser":"nonexistent_user", "pwd":"new_
 ERROR:  role "nonexistent_user" does not exist
 --Update with disllowed parameter
 SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
-ERROR:  Updating roles is not supported.
+ERROR:  Role updates are currently unsupported.
 --Get non existent user
 SELECT documentdb_api.users_info('{"usersInfo":"nonexistent_user"}');
             users_info             
@@ -339,7 +339,7 @@ ERROR:  permission denied to drop role
 SET documentdb.enableUserCrud TO OFF;
 --All user crud commnads should fail
 SELECT documentdb_api.create_user('{"createUser":"test_user", "pwd":"test_password", "roles":[{"role":"readAnyDatabase","db":"admin"}]}');
-ERROR:  CreateUser command is not supported.
+ERROR:  The CreateUser operation is currently unsupported.
 SELECT documentdb_api.users_info('{"usersInfo":1}');
 ERROR:  UsersInfo command is not supported.
 SELECT documentdb_api.update_user('{"updateUser":"test_user", "pwd":"new_password"}');

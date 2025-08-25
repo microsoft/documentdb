@@ -207,7 +207,7 @@ bson_to_bsonsequence(PG_FUNCTION_ARGS)
 						  currentValue.value.v_doc.data_len))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("Failed to initialize single bson value")));
+						errmsg("Bson value initialization failed")));
 	}
 
 	bson_concat(doc, &currentDoc);

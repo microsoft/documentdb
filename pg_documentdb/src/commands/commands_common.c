@@ -397,7 +397,7 @@ TryGetErrorMessageAndCode(ErrorData *errorData, int *code, char **errmessage)
 {
 	if (errorData->sqlerrcode == ERRCODE_CHECK_VIOLATION)
 	{
-		ereport(LOG, (errmsg("Check constraint error %s", errorData->message)));
+		ereport(LOG, (errmsg("Check constraint violation %s", errorData->message)));
 		*code = ERRCODE_DOCUMENTDB_DUPLICATEKEY;
 		*errmessage =
 			"Invalid write detected. Please validate the collection and/or shard key being written to";

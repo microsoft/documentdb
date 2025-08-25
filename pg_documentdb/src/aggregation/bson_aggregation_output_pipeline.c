@@ -90,7 +90,7 @@ typedef struct MergeArgs
 	/* name of input target Databse */
 	StringView targetDB;
 
-	/* name of input target collection */
+	/* name to the specified input target collection */
 	StringView targetCollection;
 
 	/* input `on` field can be an array or string */
@@ -112,7 +112,7 @@ typedef struct OutArgs
 	/* name of input target Databse */
 	StringView targetDB;
 
-	/* name of input target collection */
+	/* name to the specified input target collection */
 	StringView targetCollection;
 } OutArgs;
 
@@ -694,7 +694,7 @@ HandleMerge(const bson_value_t *existingValue, Query *query,
 	const int targetObjectIdAttrNo = 2;      /* From Target table we are just selecting 3 columns first one is shard_key_value */
 	const int targetDocAttrNo = 3;           /* From Target table we are just selecting 3 columns third one is document */
 
-	/* constant for source collection */
+	/* Constant value assigned for source collection */
 	const int sourceCollectionVarNo = 2;            /* In merge query source table is 2nd table */
 	const int sourceDocAttrNo = 1;                  /* In source table first projector is document */
 	const int sourceShardKeyValueAttrNo = 2;        /* we will append shard_key_value in source query at 2nd position after document column */
@@ -1000,10 +1000,11 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 					else
 					{
 						ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-										errmsg("BSON field 'into.%s' is an unknown field",
-											   innerKey),
+										errmsg(
+											"BSON field 'into.%s' is not recognized as a valid field",
+											innerKey),
 										errdetail_log(
-											"BSON field 'into.%s' is an unknown field",
+											"BSON field 'into.%s' is not recognized as a valid field",
 											innerKey)));
 					}
 				}
@@ -1012,9 +1013,9 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51178),
 									errmsg(
-										"$merge 'into' field must specify a 'coll' that is not empty, null or undefined"),
+										"The 'into' field of $merge must define a collection name that is neither empty, null, nor undefined."),
 									errdetail_log(
-										"$merge 'into' field must specify a 'coll' that is not empty, null or undefined")));
+										"The 'into' field of $merge must define a collection name that is neither empty, null, nor undefined.")));
 				}
 			}
 			else
@@ -1089,8 +1090,9 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 		else if (strcmp(key, "let") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-							errmsg("let option is not supported"),
-							errdetail_log("let option is not supported")));
+							errmsg("The let option is currently unsupported"),
+							errdetail_log(
+								"The let option is currently unsupported")));
 		}
 		else if (strcmp(key, "whenMatched") == 0)
 		{
@@ -1182,9 +1184,12 @@ ParseMergeStage(const bson_value_t *existingValue, const char *currentNameSpace,
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("BSON field '$merge.%s' is an unknown field", key),
-							errdetail_log("BSON field '$merge.%s' is an unknown field",
-										  key)));
+							errmsg(
+								"The BSON field '$merge.%s' is not recognized as a valid field.",
+								key),
+							errdetail_log(
+								"The BSON field '$merge.%s' is not recognized as a valid field.",
+								key)));
 		}
 	}
 
@@ -1741,9 +1746,9 @@ InitHashTableFromStringArray(const bson_value_t *inputKeyArray, int arraySize)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31465),
 							errmsg(
-								"Found a duplicate field %s", value.string),
+								"Duplicate field %s detected", value.string),
 							errdetail_log(
-								"Found a duplicate field %s", value.string)));
+								"Duplicate field %s detected", value.string)));
 		}
 	}
 
@@ -2016,7 +2021,7 @@ HandleOut(const bson_value_t *existingValue, Query *query,
 			targetCollection->schemaValidator.validator);
 	}
 
-	/* constant for source collection */
+	/* Constant value assigned for source collection */
 	const int sourceCollectionVarNo = 2;     /* In merge query source table is 2nd table */
 	const int sourceDocAttrNo = 1;           /* In source table first projector is document */
 	const int sourceShardKeyValueAttrNo = 2; /* we will append shard_key_value in source query at 2nd position after document column */
@@ -2103,7 +2108,7 @@ ParseOutStage(const bson_value_t *existingValue, const char *currentNameSpace,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16990),
 						errmsg(
-							"$out only supports a string or object argument, but found %s",
+							"Expected 'string' or 'document' type but found '%s' type",
 							BsonTypeName(existingValue->value_type))));
 	}
 

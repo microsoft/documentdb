@@ -716,7 +716,8 @@ PgbsonElementWriterWriteSQLValue(pgbson_element_writer *writer,
 			}
 
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED), errmsg(
-								"Type oid not supported %d", fieldTypeId)));
+								"Data type oid is currently unsupported %d",
+								fieldTypeId)));
 		}
 	}
 }

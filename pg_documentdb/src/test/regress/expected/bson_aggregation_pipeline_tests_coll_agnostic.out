@@ -7,11 +7,11 @@ set documentdb_api.current_op_application_name to 'coll_agnostic_tests';
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$currentOp": 1 }] }');
 ERROR:  The BSON field 'pipeline.$currentOp' has an incorrect type 'int'; it should be of type 'object'.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$match": { } }, { "$currentOp": {} }] }');
-ERROR:  {aggregate: 1} is not valid for '$match'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$match'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$currentOp": {} }] }');
-ERROR:  $currentOp must be run against the 'admin' database with {aggregate: 1}
+ERROR:  $currentOp must be executed on the 'admin' database with parameter {aggregate: 1}
 SELECT document FROM bson_aggregation_pipeline('admin', '{ "aggregate": "coll", "pipeline": [ { "$currentOp": {} }] }');
-ERROR:  $currentOp must be run against the 'admin' database with {aggregate: 1}
+ERROR:  $currentOp must be executed on the 'admin' database with parameter {aggregate: 1}
 SELECT document FROM bson_aggregation_pipeline('admin', '{ "aggregate": 1, "pipeline": [ { "$currentOp": {} }, { "$project": { "opid": 0, "op_prefix": 0, "currentOpTime": 0, "secs_running": 0 }}] }');
                                                        document                                                        
 -----------------------------------------------------------------------------------------------------------------------

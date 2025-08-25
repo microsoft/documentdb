@@ -420,7 +420,7 @@ HandleUpdateDollarMul(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 						errmsg(
-							"Cannot multiply with non-numeric argument: { %s : %s }",
+							"Multiplication operation failed due to a non-numeric argument: { %s : %s }",
 							setValueState->relativePath, BsonValueToJsonForLogging(
 								mulFactor)),
 						errdetail_log(
@@ -775,7 +775,7 @@ HandleUpdateDollarAddToSet(const bson_value_t *existingValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Cannot apply $addToSet to non-array field. Field named '%.*s' has non-array type %s",
+							"Expected 'array' type for $addToSet but field '%.*s' has '%s' type",
 							setValueState->fieldPath->length,
 							setValueState->fieldPath->string,
 							BsonTypeName(existingValue->value_type))));
@@ -1239,7 +1239,7 @@ ValidateAddToSetWithDollarEach(const bson_value_t *updateValue,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 							errmsg(
-								"The argument to $each in $addToSet must be an array but it was of type %s",
+								"Expected 'array' type for $each but found '%s' type",
 								BsonTypeName(element.bsonValue.value_type))));
 		}
 		*elementsToAdd = element.bsonValue;

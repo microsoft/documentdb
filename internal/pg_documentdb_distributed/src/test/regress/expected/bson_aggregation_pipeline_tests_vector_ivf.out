@@ -147,7 +147,7 @@ COMMIT;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 10000000 }  } } ], "cursor": {} }');
 ERROR:  The value of $nProbes must not exceed 32768.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": -5 }  } } ], "cursor": {} }');
-ERROR:  $nProbes must be greater than or equal to 1.
+ERROR:  The value of $nProbes should be at least 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": "5" }  } } ], "cursor": {} }');
 ERROR:  $nProbes is required to be an integer value.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 5.5 }  } } ], "cursor": {} }');
@@ -158,7 +158,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 (2 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 0 }  } } ], "cursor": {} }');
-ERROR:  $nProbes must be greater than or equal to 1.
+ERROR:  The value of $nProbes should be at least 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "k": 2, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');
 ERROR:  $vector is required field for using a vector index.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline_vector", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": -1, "path": "v", "nProbes": 1 }  } } ], "cursor": {} }');

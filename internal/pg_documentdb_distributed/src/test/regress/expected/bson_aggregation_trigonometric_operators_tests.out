@@ -137,9 +137,9 @@ ERROR:  $degreesToRadians works exclusively with numeric data types, not with bo
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$degreesToRadians": false }}');
 ERROR:  $degreesToRadians works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$degreesToRadians": [2, "$a"] }}');
-ERROR:  Expression $degreesToRadians takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $degreesToRadians requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$degreesToRadians": ["$a", 5] }}');
-ERROR:  Expression $degreesToRadians takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $degreesToRadians requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $radiansToDegrees operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$radiansToDegrees":  3.141592653589793}}');
              bson_dollar_project              
@@ -231,9 +231,9 @@ ERROR:  $radiansToDegrees works exclusively with numeric data types, not with bo
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$radiansToDegrees": false}}');
 ERROR:  $radiansToDegrees works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$radiansToDegrees": [2, "$a"]}}');
-ERROR:  Expression $radiansToDegrees takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $radiansToDegrees requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$radiansToDegrees": ["$a", 5]}}');
-ERROR:  Expression $radiansToDegrees takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $radiansToDegrees requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $sin operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": 1}}');
@@ -452,9 +452,9 @@ ERROR:  $sin works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sin": false}}');
 ERROR:  $sin works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$sin": [2, "$a"]}}');
-ERROR:  Expression $sin takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $sin requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$sin": ["$a", 5]}}');
-ERROR:  Expression $sin takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $sin requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $cos operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": 1}}');
@@ -673,9 +673,9 @@ ERROR:  $cos works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cos": false}}');
 ERROR:  $cos works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$cos": [2, "$a"]}}');
-ERROR:  Expression $cos takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $cos requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$cos": ["$a", 5]}}');
-ERROR:  Expression $cos takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $cos requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $tan operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": 1}}');
@@ -894,9 +894,9 @@ ERROR:  $tan works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tan": false}}');
 ERROR:  $tan works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$tan": [2, "$a"]}}');
-ERROR:  Expression $tan takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tan requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$tan": ["$a", 5]}}');
-ERROR:  Expression $tan takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tan requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $sinh operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sinh": 1}}');
@@ -1123,9 +1123,9 @@ ERROR:  $sinh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sinh": false}}');
 ERROR:  $sinh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$sinh": [2, "$a"]}}');
-ERROR:  Expression $sinh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $sinh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$sinh": ["$a", 5]}}');
-ERROR:  Expression $sinh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $sinh requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $cosh operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cosh": 1}}');
@@ -1352,9 +1352,9 @@ ERROR:  $cosh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$cosh": false}}');
 ERROR:  $cosh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$cosh": [2, "$a"]}}');
-ERROR:  Expression $cosh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $cosh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$cosh": ["$a", 5]}}');
-ERROR:  Expression $cosh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $cosh requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $tanh operator
 -- Radian argument
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tanh": 1}}');
@@ -1581,9 +1581,9 @@ ERROR:  $tanh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$tanh": false}}');
 ERROR:  $tanh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$tanh": [2, "$a"]}}');
-ERROR:  Expression $tanh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tanh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$tanh": ["$a", 5]}}');
-ERROR:  Expression $tanh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $tanh requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $asin operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": 1 }}');
                      bson_dollar_project                     
@@ -1754,9 +1754,9 @@ ERROR:  $asin works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asin": false}}');
 ERROR:  $asin works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$asin": [2, "$a"]}}');
-ERROR:  Expression $asin takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $asin requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$asin": ["$a", 5]}}');
-ERROR:  Expression $asin takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $asin requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $acos operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": 1 }}');
             bson_dollar_project             
@@ -1927,9 +1927,9 @@ ERROR:  $acos works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acos": false}}');
 ERROR:  $acos works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$acos": [2, "$a"]}}');
-ERROR:  Expression $acos takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $acos requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$acos": ["$a", 5]}}');
-ERROR:  Expression $acos takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $acos requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $atan operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan": 1 }}');
                      bson_dollar_project                     
@@ -2100,9 +2100,9 @@ ERROR:  $atan works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan": false}}');
 ERROR:  $atan works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$atan": [2, "$a"]}}');
-ERROR:  Expression $atan takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $atan requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$atan": ["$a", 5]}}');
-ERROR:  Expression $atan takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $atan requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $atan2 operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": [1, 1] }}');
                      bson_dollar_project                     
@@ -2380,13 +2380,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": ["$a", 1] }}');
 
 -- Should error for wrong number of arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": [1, 1, 1] }}');
-ERROR:  Expression $atan2 takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $atan2 requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": [1] }}');
-ERROR:  Expression $atan2 takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $atan2 requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": [] }}');
-ERROR:  Expression $atan2 takes exactly 2 arguments. 0 were passed in.
+ERROR:  The expression $atan2 requires exactly 2 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atan2": [1, 1, 1] }}');
-ERROR:  Expression $atan2 takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $atan2 requires exactly 2 arguments, but 3 arguments were actually provided.
 -- $asinh operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asinh": 1 }}');
                       bson_dollar_project                      
@@ -2557,9 +2557,9 @@ ERROR:  $asinh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$asinh": false}}');
 ERROR:  $asinh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$asinh": [2, "$a"]}}');
-ERROR:  Expression $asinh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $asinh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$asinh": ["$a", 5]}}');
-ERROR:  Expression $asinh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $asinh requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $acosh operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": 1 }}');
             bson_dollar_project             
@@ -2625,31 +2625,31 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": {"$numberDouble"
 
 -- Should error for values less than 1
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": 0 }}');
-ERROR:  cannot apply $acosh to 0, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on 0 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": { "$subtract": [10, 15] }}}');
-ERROR:  cannot apply $acosh to -5, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -5 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": { "$numberDecimal": "1e-10" }}}');
-ERROR:  cannot apply $acosh to 1E-10, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on 1E-10 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": { "$numberDecimal": "-1e-10" }}}');
-ERROR:  cannot apply $acosh to -1E-10, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -1E-10 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": 0.5 }}');
-ERROR:  cannot apply $acosh to 0.5, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on 0.5 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": -0.5 }}');
-ERROR:  cannot apply $acosh to -0.5, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -0.5 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": -1 }}');
-ERROR:  cannot apply $acosh to -1, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -1 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": -10 }}');
-ERROR:  cannot apply $acosh to -10, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -10 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": 0.9999999999 }}');
-ERROR:  cannot apply $acosh to 1, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on 1 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": -0.9999999999 }}');
-ERROR:  cannot apply $acosh to -1, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -1 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": { "$divide": [1, 2] }}}');
-ERROR:  cannot apply $acosh to 0.5, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on 0.5 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": { "$multiply": [-0.5, 1] }}}');
-ERROR:  cannot apply $acosh to -0.5, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -0.5 as the value must lie within the range [1, infinity]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $acosh to -Infinity, value must be in [1,inf]
+ERROR:  Cannot use operator acosh on -Infinity as the value must lie within the range [1, infinity]
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": "str"}}');
 ERROR:  $acosh works exclusively with numeric data types, not with string
@@ -2660,9 +2660,9 @@ ERROR:  $acosh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$acosh": false}}');
 ERROR:  $acosh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$acosh": [2, "$a"]}}');
-ERROR:  Expression $acosh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $acosh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$acosh": ["$a", 5]}}');
-ERROR:  Expression $acosh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $acosh requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $atanh operator
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": 1 }}');
                bson_dollar_project               
@@ -2764,21 +2764,21 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": NaN}}');
 
 -- Should error for values outside [-1, 1]
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": {"$numberDouble": "Infinity"}}}');
-ERROR:  cannot apply $atanh to Infinity, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on Infinity because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": {"$numberDouble": "-Infinity"}}}');
-ERROR:  cannot apply $atanh to -Infinity, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on -Infinity because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": 1.0000000001 }}');
-ERROR:  cannot apply $atanh to 1, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on 1 because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": -1.0000000001 }}');
-ERROR:  cannot apply $atanh to -1, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on -1 because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": 10 }}');
-ERROR:  cannot apply $atanh to 10, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on 10 because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": -10 }}');
-ERROR:  cannot apply $atanh to -10, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on -10 because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": 100 }}');
-ERROR:  cannot apply $atanh to 100, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on 100 because the value must be within the range [-1, 1].
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": -100 }}');
-ERROR:  cannot apply $atanh to -100, value must be in [-1,1]
+ERROR:  Unable to use operator atanh on -100 because the value must be within the range [-1, 1].
 -- Should error for non-number expressions. 
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": "str"}}');
 ERROR:  $atanh works exclusively with numeric data types, not with string
@@ -2789,6 +2789,6 @@ ERROR:  $atanh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$atanh": false}}');
 ERROR:  $atanh works exclusively with numeric data types, not with bool
 SELECT * FROM bson_dollar_project('{"a": "str"}', '{"result": { "$atanh": [2, "$a"]}}');
-ERROR:  Expression $atanh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $atanh requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": {}}', '{"result": { "$atanh": ["$a", 5]}}');
-ERROR:  Expression $atanh takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $atanh requires exactly 1 arguments, but 2 arguments were actually provided.

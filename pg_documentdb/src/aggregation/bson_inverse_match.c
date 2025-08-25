@@ -292,10 +292,10 @@ ValidateQueryInput(const bson_value_t *value)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$inverseMatch requires that 'input' be a document or an array of documents, found: %s",
+							"The $inverseMatch requires 'input' to be either a single document or an array of documents, but instead received: %s",
 							BsonTypeName(queryInputType)),
 						errdetail_log(
-							"$inverseMatch requires that 'input' be a document or an array of documents, found: %s",
+							"The $inverseMatch requires 'input' to be either a single document or an array of documents, but instead received: %s",
 							BsonTypeName(queryInputType))));
 	}
 

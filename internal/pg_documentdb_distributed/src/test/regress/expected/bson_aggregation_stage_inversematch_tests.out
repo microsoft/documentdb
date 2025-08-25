@@ -625,4 +625,4 @@ ERROR:  'pipeline' argument is required when 'from' is specified in an $inverseM
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"rule": "rule"}} ], "cursor": {} }');
 ERROR:  Unrecognized parameter supplied to $inverseMatch: 'rule'
 SELECT document from bson_aggregation_pipeline('invmatch', '{ "aggregate": "sales", "pipeline": [ { "$inverseMatch": {"path": "rule", "from": "mycoll", "pipeline": []}} ], "cursor": {} }');
-ERROR:  'from' collection: 'invmatch.mycoll' doesn't exist.
+ERROR:  The 'from' collection 'invmatch.mycoll' could not be found.

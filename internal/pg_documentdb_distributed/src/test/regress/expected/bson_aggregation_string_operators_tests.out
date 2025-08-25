@@ -305,7 +305,7 @@ select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : ["\u0022\u00
 
 -- $split operator: Negative test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : "apple"} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : ["apple", ""]} }');
 ERROR:  $split requires a separator that is not empty
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : [1, "test"]} }');
@@ -315,21 +315,21 @@ ERROR:  $split needs a second argument that is an expression evaluating to a str
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : [{"$numberDecimal" : "1.231"}, 1]} }');
 ERROR:  $split needs its first argument to be an expression that results in a string, but received: decimal
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : []} }');
-ERROR:  Expression $split takes exactly 2 arguments. 0 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 0 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : null} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : [null]} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : ["a"]} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : {"$undefined": true}} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : [{"$undefined": true}]} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : ["a","b","c"]} }');
-ERROR:  Expression $split takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 3 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$split" : [1]} }');
-ERROR:  Expression $split takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $split requires exactly 2 arguments, but 1 arguments were actually provided.
 -- $strLenBytes operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ""} }');
                 bson_dollar_project                 
@@ -449,11 +449,11 @@ ERROR:  Expected 'string' type for $strLenBytes but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [1]} }');
 ERROR:  Expected 'string' type for $strLenBytes but found 'int' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ["apple","cat"]} }');
-ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenBytes requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [1,"cat"]} }');
-ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenBytes requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : ["cat",1]} }');
-ERROR:  Expression $strLenBytes takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenBytes requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : null} }');
 ERROR:  Expected 'string' type for $strLenBytes but found 'null' type
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenBytes" : [null]} }');
@@ -583,11 +583,11 @@ ERROR:  $strLenCP needs a string input, but received: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : [1]} }');
 ERROR:  $strLenCP needs a string input, but received: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : ["apple","cat"]} }');
-ERROR:  Expression $strLenCP takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenCP requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : [1,"cat"]} }');
-ERROR:  Expression $strLenCP takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenCP requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : ["cat",1]} }');
-ERROR:  Expression $strLenCP takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $strLenCP requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : null} }');
 ERROR:  $strLenCP needs a string input, but received: null
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strLenCP" : [null]} }');
@@ -1903,9 +1903,9 @@ select bson_dollar_project('{"_id":"2"}', '{"result" : { "$toUpper" : "$test" } 
 
 -- $toUpper operator: negative test cases :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : ["a","b"] } }');
-ERROR:  Expression $toUpper takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $toUpper requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : [1,"b"] } }');
-ERROR:  Expression $toUpper takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $toUpper requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toUpper" : true } }');
 ERROR:  Unable to convert from BSON type bool into a String value
 -- $toLower operator: basic test:
@@ -2113,9 +2113,9 @@ select bson_dollar_project('{"_id":"2"}', '{"result" : { "$toLower" : "$test" } 
 
 -- $toLower operator: negative test cases :
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : ["a","b"] } }');
-ERROR:  Expression $toLower takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $toLower requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : [1,"b"] } }');
-ERROR:  Expression $toLower takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $toLower requires exactly 1 arguments, but 2 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$toLower" : true } }');
 ERROR:  Unable to convert from BSON type bool into a String value
 -- $strcasecmp operator: Unicode representation and escape sequences  test:
@@ -2217,7 +2217,7 @@ select bson_dollar_project('{"_id":"2"}', '{"result" : { "$strcasecmp" : ["$test
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : [ "0906-06-01T08:01:02.023Z", true ] } }');
 ERROR:  Unable to convert from BSON type bool into a String value
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : [ ""] } }');
-ERROR:  Expression $strCaseCmp takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $strCaseCmp requires exactly 2 arguments, but 1 arguments were actually provided.
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : ["", ["a"]] } }');
 ERROR:  Unable to convert from BSON type array into a String value
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : [{"$binary": {"base64": "ww==", "subType": "01"}},"a"] } }');
@@ -2225,7 +2225,7 @@ ERROR:  Unable to convert from BSON type binData into a String value
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : ["", {"$regex": "/ab/cdsd/abc", "$options" : ""}] } }');
 ERROR:  Unable to convert from BSON type regex into a String value
  select bson_dollar_project('{"_id":"1"}', '{"result" : { "$strcasecmp" : [ "" , "a2", 123] } }');
-ERROR:  Expression $strCaseCmp takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $strCaseCmp requires exactly 2 arguments, but 3 arguments were actually provided.
 -- $substr operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["hello", 0 , 0]} }');
       bson_dollar_project       
@@ -2453,11 +2453,11 @@ ERROR:  The starting index for $substrBytes must be of a numeric data type, but 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : ["hello", 1, null] } }');
 ERROR:  $substrBytes: the length must be a numeric value (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : {"a" : "b"} } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substr" : null } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : {"b" : ["hello", 1, 2]}}', '{"result" : { "$substr" : "$a.b" } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 -- $substrBytes operator: basic test:
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["hello", 0 , 0]} }');
       bson_dollar_project       
@@ -2685,11 +2685,11 @@ ERROR:  The starting index for $substrBytes must be of a numeric data type, but 
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : ["hello", 1, null] } }');
 ERROR:  $substrBytes: the length must be a numeric value (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : {"a" : "b"} } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : null } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : {"b" : ["hello", 1, 2]}}', '{"result" : { "$substrBytes" : "$a.b" } }');
-ERROR:  Expression $substrBytes takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrBytes requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrBytes" : [null, 1, null] } }');
 ERROR:  $substrBytes: the length must be a numeric value (currently BSON type null)
 -- $substrCP operator: basic test:
@@ -2935,11 +2935,11 @@ ERROR:  $substrCP: starting index must be provided as a numeric value, but it is
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", 1, null] } }');
 ERROR:  $substrCP: length value must be numeric type (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : {"a" : "b"} } }');
-ERROR:  Expression $substrCP takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrCP requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : null } }');
-ERROR:  Expression $substrCP takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrCP requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1", "a" : {"b" : ["hello", 1, 2]}}', '{"result" : { "$substrCP" : "$a.b" } }');
-ERROR:  Expression $substrCP takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $substrCP requires exactly 3 arguments, but 1 arguments were actually provided.
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : [null, 1, null] } }');
 ERROR:  $substrCP: length value must be numeric type (currently BSON type null)
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$substrCP" : ["hello", 1.1, 1] } }');
@@ -3263,7 +3263,7 @@ ERROR:  $regexMatch requires an object containing named arguments, but encounter
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : 1} }');
 ERROR:  $regexMatch requires an object containing named arguments, but encountered: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
-ERROR:  $regexMatch:  regular expression options cannot contain an embedded null byte
+ERROR:  $regexMatch:  Regular expression options must not include an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
 ERROR:  $regexMatch: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexMatch" : {"input": "string", "regex" :"(m(p)"} } }');
@@ -3557,7 +3557,7 @@ ERROR:  $regexFind requires an object containing named arguments, but encountere
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : 1} }');
 ERROR:  $regexFind requires an object containing named arguments, but encountered: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
-ERROR:  $regexFind:  regular expression options cannot contain an embedded null byte
+ERROR:  $regexFind:  Regular expression options must not include an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
 ERROR:  $regexFind: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFind" : {"input": "string", "regex" :"(m(p)"} } }');
@@ -3887,7 +3887,7 @@ ERROR:  $regexFindAll requires an object containing named arguments, but encount
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : 1} }');
 ERROR:  $regexFindAll requires an object containing named arguments, but encountered: int
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"", "options" : "\u0000"} } }');
-ERROR:  $regexFindAll:  regular expression options cannot contain an embedded null byte
+ERROR:  $regexFindAll:  Regular expression options must not include an embedded null byte
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"\u0000", "options" : "i"} } }');
 ERROR:  $regexFindAll: regular expression cannot include an embedded null character
 select bson_dollar_project('{"_id":"1"}', '{"result" : { "$regexFindAll" : {"input": "string", "regex" :"(m(p)"} } }');

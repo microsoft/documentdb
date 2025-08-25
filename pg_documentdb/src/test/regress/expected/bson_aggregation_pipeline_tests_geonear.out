@@ -65,7 +65,7 @@ SELECT documentdb_api.insert_one('db','agg_geonear','{ "_id": 9, "a": { "b": [ 8
 -- Validations (more validations to follow)
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$match": { "query": {  } } }, { "$geoNear": { "near": [5, 6], "key": "a.b", "distanceField": "dist.calculated" } } ]}');
-ERROR:  $geoNear was not the first stage in the pipeline.
+ERROR:  $geoNear stage must be present before any other stage in the pipeline
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_geonear", "pipeline": [ { "$geoNear": { "near": [5, 6], "distanceField": "dist.calculated" } } ]}');
 ERROR:  There is more than one 2dsphere index; unsure which to use for $geoNear

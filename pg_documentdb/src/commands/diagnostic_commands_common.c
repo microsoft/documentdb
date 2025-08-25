@@ -270,7 +270,7 @@ RunWorkerDiagnosticLogic(pgbson *(*workerFunc)(void *state), void *state)
 		MemoryContextSwitchTo(savedMemoryContext);
 		ErrorData *errorData = CopyErrorDataAndFlush();
 
-		/* Abort the inner transaction */
+		/* Abort inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 
 		/* Rollback changes MemoryContext */

@@ -890,7 +890,7 @@ COMMIT;
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": 10000000 }  } } ], "cursor": {} }');
 ERROR:  The value of $nProbes must not exceed 32768.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": -5 }  } } ], "cursor": {} }');
-ERROR:  $nProbes must be greater than or equal to 1.
+ERROR:  The value of $nProbes should be at least 1.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$search": { "cosmosSearch": { "vector": [ 3.0, 4.9, 1.0 ], "k": 2, "path": "v", "nProbes": "5" }  } } ], "cursor": {} }');
 ERROR:  $nProbes is required to be an integer value.
 -- numLists > data size, pgvector will generate randomized centroids, using original vector data to query
@@ -1402,13 +1402,13 @@ SELECT document FROM bson_aggregation_pipeline('db',
 (7 rows)
 
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$addFields'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$addFields'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$match": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$match'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$match'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$project": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$project'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$project'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$skip": 1 } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$skip'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$skip'; a collection input is necessary.
 -- test sort behavior on sharded/unsharded
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate" : "agg_pipeline_movie_catalog", "pipeline" : [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } }, { "this_predicate_matches_nothing" : true } ] } }, { "$sort" : { "_id" : -1.0 } }, { "$limit" : 1.0 }, { "$project" : { "_id" : 1.0, "b" : { "$round" : "$a" } } } ], "cursor" : {  }, "lsid" : { "id" : { "$binary" : { "base64": "VJmzOaS5R46C4aFkQzrFaQ==", "subType" : "04" } } }, "$db" : "test" }');
                                                                                                                       QUERY PLAN                                                                                                                       

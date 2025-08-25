@@ -198,8 +198,9 @@ command_coll_stats_aggregation(PG_FUNCTION_ARGS)
 			if (!IsBsonValueEmptyDocument(value))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31170),
-								errmsg("expected an empty object, but got %s",
-									   BsonValueToJsonForLogging(value)),
+								errmsg(
+									"An empty object was expected, but instead received %s",
+									BsonValueToJsonForLogging(value)),
 								errdetail_log(
 									"An empty object was expected for `count` within the $collStats.")));
 			}

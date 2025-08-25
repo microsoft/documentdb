@@ -174,14 +174,15 @@ ParseDollarCond(const bson_value_t *argument, AggregationExpressionData *data,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARCONDBADPARAMETER),
 								errmsg(
-									"Unrecognized parameter to $cond: %s", key)));
+									"Unrecognized argument provided to operators $cond: %s",
+									key)));
 			}
 		}
 
 		if (isIfMissing)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARCONDMISSINGIFPARAMETER),
-							errmsg("Missing 'if' parameter to $cond")));
+							errmsg("'if' parameter is missing in the $cond operator")));
 		}
 		else if (isThenMissing)
 		{

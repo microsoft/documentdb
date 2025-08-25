@@ -1105,10 +1105,10 @@ MutateQueryWithPipeline(Query *query, List *aggregationStages,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
 							errmsg(
-								"{aggregate: 1} is not valid for '%s'; a collection is required.",
+								"The value '{aggregate: 1}' is invalid for the '%s'; a collection input is necessary.",
 								stageName),
 							errdetail_log(
-								"{aggregate: 1} is not valid for '%s'; a collection is required.",
+								"The value '{aggregate: 1}' is invalid for the '%s'; a collection input is necessary.",
 								stageName)));
 		}
 
@@ -2604,7 +2604,8 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788002),
-							errmsg("Unknown argument to %s '%s'", opName, key),
+							errmsg("Unrecognized argument passed to %s: '%s'", opName,
+								   key),
 							errdetail_log(
 								"%s found an unknown argument", opName)));
 		}
@@ -2626,9 +2627,9 @@ ParseInputDocumentForTopAndBottom(const bson_value_t *inputDocument, bson_value_
 														 strcmp(opName, "$bottom") == 0))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5788002),
-						errmsg("Unknown argument to %s 'n'", opName),
+						errmsg("Unrecognized argument provided to %s 'n'", opName),
 						errdetail_log(
-							"Unknown argument to %s 'n'", opName)));
+							"Unrecognized argument provided to %s 'n'", opName)));
 	}
 
 	if (output->value_type == BSON_TYPE_EOD)
@@ -2711,7 +2712,7 @@ ParseInputDocumentForMedianAndPercentile(const bson_value_t *inputDocument,
 		}
 	}
 
-	/* check required fields are present */
+	/* Verify that all necessary fields exist */
 	char *keyName;
 	if (((input->value_type == BSON_TYPE_EOD) && (keyName = "input")) ||
 		(!isMedianOp && (p->value_type == BSON_TYPE_EOD) && (keyName = "p")) ||
@@ -2803,7 +2804,7 @@ ValidateElementForNGroupAccumulators(bson_value_t *elementsToFetch, const
 									"The value of 'n' must be strictly greater than 0, but the current value is %s",
 									BsonValueToJsonForLogging(elementsToFetch)),
 								errdetail_log(
-									"'n' must be greater than 0, found %ld",
+									"'n' cannot be less than 0, but the current value is %ld",
 									elementsToFetch->value.v_int64)));
 			}
 			if (elementsToFetch->value.v_int64 > 10)
@@ -3234,7 +3235,7 @@ RewriteFillToSetWindowFieldsSpec(const bson_value_t *fillSpec,
 			}
 			else
 			{
-				/* unsupported field name */
+				/* Field name is not supported */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
 								errmsg(
 									"The BSON field named '$fill.%s' is not recognized as a valid field.",
@@ -4033,7 +4034,9 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 		existingValue->value_type != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31002),
-						errmsg("$unset specification must be a string or an array")));
+						errmsg(
+							"Expected 'string' or 'array' type for $unset but found '%s' type",
+							BsonTypeName(existingValue->value_type))));
 	}
 
 	pgbson_writer writer;
@@ -4050,7 +4053,8 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 		if (existingValue->value.v_utf8.str[0] == '$')
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
-							errmsg("FieldPath field names may not start with '$'")));
+							errmsg(
+								"FieldPath field names cannot begin with the operators symbol '$'.")));
 		}
 
 		/* Add it as an exclude path */
@@ -4069,7 +4073,8 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31120),
 								errmsg(
-									"$unset specification must be a string or an array containing only string values")));
+									"Expected 'string' or 'array' type for $unset but found '%s' type",
+									BsonTypeName(arrayValue->value_type))));
 			}
 
 			if (arrayValue->value.v_utf8.len == 0)
@@ -4082,7 +4087,8 @@ HandleUnset(const bson_value_t *existingValue, Query *query,
 			if (arrayValue->value.v_utf8.str[0] == '$')
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16410),
-								errmsg("FieldPath field names may not start with '$'")));
+								errmsg(
+									"FieldPath field names cannot begin with the operators symbol '$'.")));
 			}
 
 			/* Add it as an exclude path */
@@ -4377,7 +4383,7 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40603),
 						errmsg(
-							"$geoNear was not the first stage in the pipeline.")));
+							"$geoNear stage must be present before any other stage in the pipeline")));
 	}
 
 
@@ -4440,7 +4446,7 @@ HandleGeoNear(const bson_value_t *existingValue, Query *query,
 		if (TargetListContainsGeonearOp(query->targetList))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Too many geoNear expressions")));
+							errmsg("Excessive number of geoNear query expressions")));
 		}
 	}
 
@@ -4531,7 +4537,8 @@ HandleCount(const bson_value_t *existingValue, Query *query,
 	if (countField.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40156),
-						errmsg("the count field must be a non-empty string")));
+						errmsg(
+							"count cannot be empty")));
 	}
 
 	if (StringViewStartsWith(&countField, '$'))
@@ -5673,7 +5680,7 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 	if (idValue.value_type == BSON_TYPE_EOD)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION15955),
-						errmsg("a group specification must include an _id")));
+						errmsg("_id is missing from group specification")));
 	}
 
 	pgbson *groupValue = BsonValueToDocumentPgbson(&idValue);
@@ -5740,8 +5747,9 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 		{
 			/* Paths here cannot be dotted paths */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40235),
-							errmsg("The field name %.*s cannot contain '.'",
-								   keyView.length, keyView.string)));
+							errmsg(
+								"The specified field name %.*s is not allowed to include the '.' character.",
+								keyView.length, keyView.string)));
 		}
 
 		Const *accumulatorText = MakeTextConst(keyView.string, keyView.length);
@@ -5751,8 +5759,9 @@ HandleGroup(const bson_value_t *existingValue, Query *query,
 			!bson_iter_recurse(&groupIter, &accumulatorIterator))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40234),
-							errmsg("The field '%.*s' must be an accumulator object",
-								   keyView.length, keyView.string)));
+							errmsg(
+								"The field '%.*s' is required to be an accumulator-type object",
+								keyView.length, keyView.string)));
 		}
 
 		pgbsonelement accumulatorElement;

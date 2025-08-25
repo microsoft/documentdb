@@ -679,7 +679,7 @@ ProcessUpdateOperatorWithState(pgbson *sourceDoc,
 
 	PgbsonInitIterator(sourceDoc, &docIterator);
 
-	/* Do the update */
+	/* Update */
 	pgbson_writer writer;
 	PgbsonWriterInit(&writer);
 
@@ -905,7 +905,7 @@ ReadUpdateSpecAndUpdateTree(bson_iter_t *updateIterator,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Unknown modifier: %s. Expected a valid update modifier or "
+								"Unknown modifier: %s. Please use a valid update modifier or "
 								"pipeline-style update specified as an array",
 								updateOperator)));
 		}
@@ -1330,7 +1330,7 @@ ValidateNodePathInTree(const StringView *path, const char *relativePath)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"An empty path '%s' contains an empty field name, which is not allowed.",
+							"A path '%s' is empty because it holds a field name with no content, which is not permitted.",
 							relativePath)));
 	}
 }
@@ -1568,7 +1568,7 @@ TraverseDocumentAndApplyUpdate(bson_iter_t *sourceDocIterator,
 			continue;
 		}
 
-		/* Process the current field in the document */
+		/* Process the current field within the document */
 		PgbsonInitObjectElementWriter(writer, &elementWriter, fieldPath.string,
 									  fieldPath.length);
 		bool fieldModified = HandleCurrentIteratorPosition(sourceDocIterator, tree,
@@ -2355,7 +2355,7 @@ BuildExpressionForArrayFilters(const bson_value_t *arrayFilters)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"Cannot use an expression without a top-level field name in"
+								"Expression missing a required top-level field name in"
 								" arrayFilters")));
 		}
 
@@ -2518,7 +2518,7 @@ PostValidateArrayFilters(HTAB *arrayFiltersHash, const bson_value_t *updateSpec)
 			const char *updateSpecStr = FormatBsonValueForShellLogging(updateSpec);
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 							errmsg(
-								"The array filter for identifier \'%.*s\' was not used in the update %s",
+								"The filter array for identifier '%.*s' was ignored during the %s update process",
 								entry->identifier.length, entry->identifier.string,
 								updateSpecStr)));
 		}

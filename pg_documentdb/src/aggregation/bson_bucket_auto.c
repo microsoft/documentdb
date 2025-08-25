@@ -356,7 +356,7 @@ HandleBucketAuto(const bson_value_t *existingValue, Query *query,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40261),
 								errmsg(
-									"The $bucketAuto 'granularity' field must be a string, but found type: %s",
+									"Expected 'string' for 'granularity' field for $bucketAuto but found '%s' type",
 									BsonTypeName(value->value_type))));
 			}
 			granularity = value->value.v_utf8.str;

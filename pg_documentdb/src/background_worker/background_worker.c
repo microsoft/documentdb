@@ -117,7 +117,7 @@ typedef struct
 	/* Last time when job started execution. */
 	TimestampTz lastStartTime;
 
-	/* PG connection instance. */
+	/* PG connection object instance. */
 	PGconn *connection;
 
 	/* SQL command query generated from job command and argument. */

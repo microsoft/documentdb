@@ -119,7 +119,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
 ERROR:  the $setWindowFields stage specification must be an object, found string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "partitionBy": 1, "sortBy": {"a": 1} } }]}');
-ERROR:  BSON field '$setWindowFields.output' is missing but a required field
+ERROR:  The BSON field '$setWindowFields.output' is required but was not provided
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": { "output": { "total": {"$sum": 1} }, "unknownField": {} } }]}');
 ERROR:  The BSON field '$setWindowFields.unknownField' is not recognized as a valid field.
@@ -3574,7 +3574,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 -- Negative tests
 -- unknown argument
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts", "unit": "hour", "unknown": 1 }, "window": { "range": [ -1, 2 ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
-ERROR:  $integral got unexpected argument: unknown
+ERROR:  $integral received an unexpected argument: unknown
 -- $integral (with no 'unit')
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "powerConsumption", "pipeline": [ { "$setWindowFields": { "partitionBy": "$powerMeterID", "sortBy": { "timeStamp": 1 }, "output": { "powerMeterKilowattHours": { "$integral": { "input": "$kilowatts" }, "window": { "range": [ "unbounded", "current" ], "unit": "hour" } } } } }, { "$unset": "_id" } ]}');
 ERROR:  $integral (with no 'unit') expects the sortBy field to be numeric
@@ -3852,7 +3852,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"a
 ERROR:  $derivative requires an 'input' expression
 -- unknown argument
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{"aggregate": "deliveryFleet", "pipeline": [ { "$setWindowFields": { "partitionBy": "$truckID", "sortBy": { "timeStamp": 1 }, "output": { "truckAverageSpeed": { "$derivative": { "input": "$miles", "unit": "hour", "unknown": 1 }, "window": { "range": [ -30, 0 ], "unit": "second" } } } } }, { "$match": { "truckAverageSpeed": { "$gt": 50 } } }, { "$unset": "_id" } ]}');
-ERROR:  $derivative got unexpected argument: unknown
+ERROR:  $derivative received an unexpected argument: unknown
 -- test derivative without timestamp
 -- Validations
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "collNumeric", "pipeline": [ { "$setWindowFields": { "partitionBy": "$partitionID", "sortBy": { "x": 1 }, "output": { "derivative": { "$derivative": { "input": "$y" }, "window": { "range": [ -1, 1 ]} } } } }, { "$unset": "_id" } ]}');
@@ -4343,13 +4343,13 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ---------------------------------------------------------------------
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1 }, "window": {"documents": ["unbounded", "unbounded"]}}}}}]}'); -- window not allowed with $shift
-ERROR:  $shift does not accept a 'window' field
+ERROR:  The $shift operator cannot be used with the 'window' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1 }, "window": {"range": [-1, 1]}}}}}]}'); -- range not allowed with $shift
-ERROR:  $shift does not accept a 'window' field
+ERROR:  The $shift operator cannot be used with the 'window' field
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "output": {"shiftQuantity": { "$shift":  { "output": "$quantity", "by": 1 }}}}}]}'); -- missing sortBy in $setWindowFields
-ERROR:  '$shift' requires a sortBy
+ERROR:  'sortBy' parameters must be specified for $shift
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db',
     '{ "aggregate": "setWindowFields", "pipeline":  [{"$setWindowFields": {"partitionBy": "$a", "sortBy": {"quantity" : 1}, "output": {"shiftQuantity": { "$shift":  { "by": 1 }}}}}]}'); -- missing ouput field in $shift
 ERROR:  $shift requires an 'output' expression.
@@ -5220,7 +5220,7 @@ ERROR:  Missing value for 'output'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "hello", "n": 2}}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$bottomN": {"output": "$quantity", "n": 2, "sortBy": {"quantity": 1}, "fourth": true}}}}} ] }'); -- extra field
-ERROR:  Unknown argument to $bottomN 'fourth'
+ERROR:  Unrecognized argument passed to $bottomN: 'fourth'
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": -2, "sortBy": {"quantity": 1}}}}}} ] }'); -- negative n
 ERROR:  The value of 'n' must be strictly greater than 0, but the current value is -2
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "games", "pipeline": [ {"$setWindowFields": {"partitionBy": "$a", "output": {"lastDate": {"$topN": {"output": "$quantity", "n": 2.2, "sortBy": {"quantity": 1}}}}}} ] }'); -- non-integer n

@@ -18,17 +18,17 @@ ERROR:  Positional projection is not applicable when working with a literal valu
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$numberDecimal": "0"}}', '{}');
 ERROR:  Exclusion is not compatible with positional projection usage
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a": 1, "a.$": 1 }', '{}');
-ERROR:  Path collision at a
+ERROR:  Collision detected in specified path a
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.b": 1, "a.b.$": 1 }', '{}');
-ERROR:  Path collision at a.b
+ERROR:  Collision detected in specified path a.b
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a": 1, "a.b.$": 1 }', '{}');
-ERROR:  Path collision at a.b remaining portion b
+ERROR:  Collision detected in specified path a.b remaining portion b
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": 1, "a": 1 }', '{}');
-ERROR:  Path collision at a
+ERROR:  Collision detected in specified path a
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.b.$": 1, "a.b": 1 }', '{}');
-ERROR:  Path collision at a.b
+ERROR:  Collision detected in specified path a.b
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.b": 1, "a.$": 1 }', '{}');
-ERROR:  Path collision at a
+ERROR:  Collision detected in specified path a
 -- some basic positional projection test
 SELECT * FROM bson_dollar_project_find('{ "a" :[1,2,3] }', '{ "a.$": {"$numberDecimal": "Infinity"}}', '{"a": 1}');
        bson_dollar_project_find       

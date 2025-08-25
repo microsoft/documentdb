@@ -619,7 +619,8 @@ bson_std_dev_pop_samp_combine(PG_FUNCTION_ARGS)
 	MemoryContext aggregateContext;
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	/* Create the aggregate state in the aggregate context. */
@@ -1688,7 +1689,7 @@ CalculateSFuncForCovarianceOrVarianceWithYCAlgr(const bson_value_t *newXValue,
 	ArithmeticOperationFunc(ArithmeticOperation_Add, &bsonN, &intOne,
 							OperationSource_SFuncYCAlgr);
 
-	/* NAN will be handled in later parts */
+	/* NAN will be addressed in subsequent sections */
 	/* focus on infinities first */
 	/* We will check all the infinity values (if any) from Sxy(didn't update yet), X, Y */
 	/* If all the infinity values have the same sign, we will return the infinity value */
@@ -1931,7 +1932,7 @@ ParseInputWeightForExpMovingAvg(const bson_value_t *opValue,
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 									errmsg(
-										"'N' must be greater than zero. Got %d",
+										"'N' cannot be less than or equal to 0. Received %d",
 										BsonValueAsInt32(weightExpression))));
 				}
 			}

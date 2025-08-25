@@ -343,7 +343,7 @@ ParseDollarGetField(const bson_value_t *argument, AggregationExpressionData *dat
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION3041702),
 						errmsg(
-							"$getField requires 'field' to be specified")));
+							"$getField requires that the 'field' parameter must be explicitly specified")));
 	}
 
 	if (input.value_type == BSON_TYPE_EOD)

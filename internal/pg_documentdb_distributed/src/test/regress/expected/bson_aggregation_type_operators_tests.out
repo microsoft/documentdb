@@ -72,11 +72,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$isNumber": "$a"}}');
 
 -- $isNumber: error number of args should be 1
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$isNumber": []}}');
-ERROR:  Expression $isNumber takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $isNumber requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$isNumber": [1, 2]}}');
-ERROR:  Expression $isNumber takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $isNumber requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$isNumber": [[], 2]}}');
-ERROR:  Expression $isNumber takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $isNumber requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $type: returns expected type
 SELECT * from documentdb_api.insert_one('db', 'dollarType', '{"_id": "1", "value": {"$numberDouble": "1.0"}, "expected": "double"}');
 NOTICE:  creating collection
@@ -923,15 +923,15 @@ SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451
 ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
 -- error: $convert to BinData with input-format mismatch
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "123", "to": "binData", "format": "base64"}}}');
-ERROR:  Failed to parse BinData '123' in $convert with no onError value: Input is not a valid base64 string.
+ERROR:  Failed to parse BinData '123' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3uUsMxSE6S0cVkebjm=fg==", "to": {"type": "binData", "subtype": 4}, "format": "base64"}}}');
 ERROR:  Failed to parse BinData 'hn3uUsMxSE6S0cVkebjm=fg==' in $convert with no onError value: Only the UUID subtype (4) is allowed with the 'uuid' format
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "451e4567-e89b-42d3-a456-556642440000", "to": {"type": "binData", "subtype": 0}, "format": "base64"}}}');
-ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: Input is not a valid base64 string.
+ERROR:  Failed to parse BinData '451e4567-e89b-42d3-a456-556642440000' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjmfg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
-ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjmfg==' in $convert with no onError value: Input is not a valid base64 string.
+ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjmfg==' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "hn3u+UsMxSE6S0cVkebjm/fg==", "to": {"type": "binData", "subtype": 0}, "format": "base64url"}}}');
-ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjm/fg==' in $convert with no onError value: Input is not a valid base64 string.
+ERROR:  Failed to parse BinData 'hn3u+UsMxSE6S0cVkebjm/fg==' in $convert with no onError value: The provided input does not represent a valid base64-encoded string.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "äöäöä", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
 ERROR:  Failed to parse BinData 'äöäöä' in $convert with no onError value: Input is not a valid UUID string %s.
 SELECT * from bson_dollar_project('{}', '{"result": {"$convert": { "input": "SGVsbG8gd29ybGQh", "to": {"type": "binData", "subtype": 4}, "format": "uuid"}}}');
@@ -1798,7 +1798,7 @@ SELECT bson_dollar_project(outDoc, '{"result": {"$eq": ["$output", "$expected"]}
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toObjectId": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to objectId in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toObjectId": []}}');
-ERROR:  Expression $toObjectId takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toObjectId requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toObjectId": "this is a string"}}');
 ERROR:  Failed to parse objectId 'this is a string' in $convert with no onError value: Invalid string length for parsing to OID, expected 24 but found 16
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toObjectId": "asdsfsdzzzzsersdfrtghtsz"}}');
@@ -1810,7 +1810,7 @@ ERROR:  Failed to parse objectId '639926cee6bda3127f153bfZ' in $convert with no 
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to int in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": []}}');
-ERROR:  Expression $toInt takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toInt requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": [{"$date": "2022-01-01T00:00:00.000Z"}]}}');
 ERROR:  Unsupported conversion from date to int in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toInt": {"$numberDouble": "2147483648"}}}');
@@ -1850,7 +1850,7 @@ ERROR:  Unable to interpret number '' within $convert, as no onError value was s
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to long in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": []}}');
-ERROR:  Expression $toLong takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toLong requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": {"$numberDouble": "9223372036854775808"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: 9.22337E+18
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toLong": {"$numberDouble": "Infinity"}}}');
@@ -1886,7 +1886,7 @@ ERROR:  Unable to interpret number '' within $convert, as no onError value was s
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to double in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": []}}');
-ERROR:  Expression $toDouble takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toDouble requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"$numberDecimal": "1.8E309"}}}');
 ERROR:  Conversion would overflow target type in $convert with no onError value: 1.8E+309
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDouble": {"$numberDecimal": "-1.8E309"}}}');
@@ -1910,7 +1910,7 @@ ERROR:  Unable to interpret number '' within $convert, as no onError value was s
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to decimal in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": []}}');
-ERROR:  Expression $toDecimal takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toDecimal requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "123423.8E6145" }}');
 ERROR:  Unable to interpret number '123423.8E6145' within $convert, as no onError value was specified: Unable to convert the provided string into a valid decimal format
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDecimal": "-123423.8E6145" }}');
@@ -1930,7 +1930,7 @@ ERROR:  Unable to interpret number '' within $convert, as no onError value was s
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to string in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": []}}');
-ERROR:  Expression $toString takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toString requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": {"$timestamp" : { "t": 1670981326, "i": 1 }}}}');
 ERROR:  Unsupported conversion from timestamp to string in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toString": [[]]}}');
@@ -1941,7 +1941,7 @@ ERROR:  Unsupported conversion from array to string in $convert with no onError 
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"input": ""}}}');
 ERROR:  Unsupported conversion from object to date in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": []}}');
-ERROR:  Expression $toDate takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $toDate requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": [[]]}}');
 ERROR:  Unsupported conversion from array to date in $convert with no onError value
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toDate": {"$numberDouble": "9223372036854775808"}}}');
@@ -2176,10 +2176,10 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$toUUID": ["123e4567-e89b-
 -- negative tests
 -- invalid string
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toUUID": "invalid-uuid-1234" }}');
-ERROR:  Invalid UUID string: 'invalid-uuid-1234'
+ERROR:  The provided UUID string 'invalid-uuid-1234' is not valid
 -- invalid type
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toUUID": 1234 }}');
 ERROR:  Unsupported conversion from int to binData in $convert with no onError value
 -- invalid count number of array input
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$toUUID": ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174000"] }}');
-ERROR:  Expression $toUUID takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $toUUID requires exactly 1 arguments, but 2 arguments were actually provided.

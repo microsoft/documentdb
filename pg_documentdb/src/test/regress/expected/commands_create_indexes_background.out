@@ -20,7 +20,7 @@ SET search_path to documentdb_core,documentdb_api,documentdb_api_catalog,change_
 DELETE from documentdb_api_catalog.documentdb_index_queue;
 ---- createIndexes - top level - parse error ----
 SELECT * FROM documentdb_api.create_indexes_background('db', NULL);
-ERROR:  arg cannot be NULL
+ERROR:  Argument value must not be NULL
 SELECT * FROM documentdb_api.create_indexes_background(NULL, '{}');
 ERROR:  dbName cannot be NULL
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "unknown_field": []}');
@@ -54,15 +54,15 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6"}');
-                                                                                                           retval                                                                                                           | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "BSON field 'createIndexes.indexes' is missing but a required field", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                             retval                                                                                                              | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "The BSON field 'createIndexes.indexes' is required but was not provided", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{}');
-                                                                                                           retval                                                                                                           | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "BSON field 'createIndexes.indexes' is missing but a required field", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                             retval                                                                                                              | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "The BSON field 'createIndexes.indexes' is required but was not provided", "code" : { "$numberInt" : "16777245" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 1}');
@@ -102,15 +102,15 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a": 1}}]}');
-                                                                                                                                    retval                                                                                                                                    | ok | requests 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a\" : 1 } }:The 'name' field is a required property of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                             retval                                                                                                                                              | ok | requests 
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a\" : 1 } }:The 'name' field is mandatory and must be included as part of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"name": "my_idx"}]}');
-                                                                                                                                  retval                                                                                                                                   | ok | requests 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"my_idx\" }:The 'key' field is a required property of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                            retval                                                                                                                                            | ok | requests 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"my_idx\" }:The 'key' field is mandatory and must be included as part of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"unknown_field": "111"}]}');
@@ -145,9 +145,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {".$**": 1}, "name": "my_idx"}]}');
-                                                                                                                                     retval                                                                                                                                      | ok | requests 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \".$**\" : 1 }, \"name\" : \"my_idx\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                 retval                                                                                                                                                 | ok | requests 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \".$**\" : 1 }, \"name\" : \"my_idx\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$**": "bad"}, "name": "my_idx"}]}');
@@ -414,9 +414,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"name": "my_idx"}]}');
-                                                                                                                                  retval                                                                                                                                   | ok | requests 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"my_idx\" }:The 'key' field is a required property of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                            retval                                                                                                                                            | ok | requests 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"name\" : \"my_idx\" }:The 'key' field is mandatory and must be included as part of an index specification", "code" : { "$numberInt" : "50331677" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"$**foo": 1}, "name": "my_idx_13"}]}');
@@ -426,21 +426,21 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"..": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                      retval                                                                                                                                      | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"..\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                 retval                                                                                                                                                  | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"..\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a..b.$**": 1}, "name": "my_idx_10"}]}');
-                                                                                                                                         retval                                                                                                                                         | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a..b.$**\" : 1 }, \"name\" : \"my_idx_10\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                    retval                                                                                                                                                     | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a..b.$**\" : 1 }, \"name\" : \"my_idx_10\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a..b.foo": 1}, "name": "my_idx_11"}]}');
-                                                                                                                                         retval                                                                                                                                         | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a..b.foo\" : 1 }, \"name\" : \"my_idx_11\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                    retval                                                                                                                                                     | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a..b.foo\" : 1 }, \"name\" : \"my_idx_11\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"$a": 1}, "name": "my_idx_12"}]}');
@@ -450,9 +450,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {".": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                     retval                                                                                                                                      | ok | requests 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \".\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                 retval                                                                                                                                                 | ok | requests 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \".\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.$b": 1}, "name": "my_idx_12"}]}');
@@ -468,9 +468,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 (1 row)
 
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"a.": 1}, "name": "my_idx_12"}]}');
-                                                                                                                                      retval                                                                                                                                      | ok | requests 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys cannot contain an empty field.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
+                                                                                                                                                 retval                                                                                                                                                  | ok | requests 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Error in specification { \"key\" : { \"a.\" : 1 }, \"name\" : \"my_idx_12\" }:Index keys are not allowed to include any fields that are empty.", "code" : { "$numberInt" : "503316509" } } }, "ok" : { "$numberInt" : "0" } } | f  | { }
 (1 row)
 
 -- valid index type in the reference implementation, which are not supported yet
@@ -508,9 +508,9 @@ SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": 
 
 -- two index spec one already exists and another is new
 SELECT * FROM documentdb_api.create_indexes_background('db', '{"createIndexes": "collection_6", "indexes": [{"key": {"start_path": 1}, "name": "my_idx_14"}, {"key": {"another_path": 1}, "name": "my_idx_15"}]}');
-                                                                                                                                 retval                                                                                                                                  | ok |                                                   requests                                                   
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+--------------------------------------------------------------------------------------------------------------
- { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "22" }, "numIndexesAfter" : { "$numberInt" : "23" }, "createdCollectionAutomatically" : false, "note" : "index already exists", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t  | { "indexRequest" : { "cmdType" : "C", "ids" : [ { "$numberInt" : "32021" }, { "$numberInt" : "32022" } ] } }
+                                                                                                                                          retval                                                                                                                                           | ok |                                                   requests                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+--------------------------------------------------------------------------------------------------------------
+ { "raw" : { "defaultShard" : { "numIndexesBefore" : { "$numberInt" : "22" }, "numIndexesAfter" : { "$numberInt" : "23" }, "createdCollectionAutomatically" : false, "note" : "An index with this name already exists", "ok" : { "$numberInt" : "1" } } }, "ok" : { "$numberInt" : "1" } } | t  | { "indexRequest" : { "cmdType" : "C", "ids" : [ { "$numberInt" : "32021" }, { "$numberInt" : "32022" } ] } }
 (1 row)
 
 -- Delete all old create index requests submitted so far
@@ -785,9 +785,9 @@ INSERT INTO documentdb_api_catalog.documentdb_index_queue (index_cmd, cmd_type, 
 VALUES ('CREATE INDEX CONCURRENTLY', 'C', 32104, 4, 32000);
 -- this should return finish : 1, ok : 0 and error message due to empty comment of failed request
 SELECT * FROM documentdb_api_internal.check_build_index_status('{"indexRequest" : {"cmdType" : "C", "ids" :[32101,32102,32103,32104,32105,32106]}}');
-                                                                                 retval                                                                                  | ok | complete 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
- { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Index Creation failed", "code" : { "$numberInt" : "29" } } }, "ok" : { "$numberInt" : "0" } } | f  | t
+                                                                                  retval                                                                                  | ok | complete 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----+----------
+ { "raw" : { "defaultShard" : { "ok" : { "$numberInt" : "0" }, "errmsg" : "Failed to create index", "code" : { "$numberInt" : "29" } } }, "ok" : { "$numberInt" : "0" } } | f  | t
 (1 row)
 
 DELETE FROM documentdb_api_catalog.documentdb_index_queue;

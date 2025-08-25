@@ -205,7 +205,7 @@ BuildSchemaTreeCoreOnNode(bson_iter_t *schemaIter, SchemaNode *node)
 			if (IsBsonValueInfinity(value))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("divisor cannot be infinite")));
+								errmsg("Division by an infinite value is not allowed")));
 			}
 			node->validations.numeric->multipleOf = (bson_value_t *) palloc0(
 				sizeof(bson_value_t));

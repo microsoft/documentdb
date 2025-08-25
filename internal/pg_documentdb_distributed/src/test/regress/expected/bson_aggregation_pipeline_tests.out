@@ -478,7 +478,7 @@ SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregatio
 
 -- $group with keys having dotted path
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$group": { "_id": { "$mod": [ { "$toInt": "$_id" }, 2 ] }, "d.e": { "$max": "$_id" }, "e": { "$count": 1 } } }], "cursor": {} }');
-ERROR:  The field name d.e cannot contain '.'
+ERROR:  The specified field name d.e is not allowed to include the '.' character.
 -- $group with first/last
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "aggregation_pipeline", "pipeline": [ { "$group": { "_id": { "$mod": [ { "$toInt": "$_id" }, 2 ] }, "d": { "$first": "$_id" }, "e": { "$last":  "$_id" } } }], "cursor": {} }');
                          document                         
@@ -1493,13 +1493,13 @@ SELECT document FROM bson_aggregation_pipeline('db',
     '{ "aggregate": "agg_pipeline_movie_screenings", "pipeline": [ { "$lookup": { "from": "colldne", "pipeline": [ { "$count": "efe", "$match": { "year": 2018 } } ], "as": "c" } } ], "cursor": {} }');
 ERROR:  A pipeline stage specification object is required to have one and only one field.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$addFields": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$addFields'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$addFields'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$match": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$match'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$match'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$project": { "newField" : "1", "a.y": ["p", "q"] } } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$project'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$project'; a collection input is necessary.
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": 1, "pipeline": [ { "$skip": 1 } ], "cursor": {} }');
-ERROR:  {aggregate: 1} is not valid for '$skip'; a collection is required.
+ERROR:  The value '{aggregate: 1}' is invalid for the '$skip'; a collection input is necessary.
 -- test sort behavior on sharded/unsharded
 SELECT documentdb_distributed_test_helpers.mask_plan_id_from_distributed_subplan($Q$
 EXPLAIN (COSTS OFF) SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate" : "agg_pipeline_movie_catalog", "pipeline" : [ { "$match" : { "$or" : [ { "_id" : { "$lt" : 9999.0 }, "some_other_field" : { "$ne" : 3.0 } }, { "this_predicate_matches_nothing" : true } ] } }, { "$sort" : { "_id" : -1.0 } }, { "$limit" : 1.0 }, { "$project" : { "_id" : 1.0, "b" : { "$round" : "$a" } } } ], "cursor" : {  }, "lsid" : { "id" : { "$binary" : { "base64": "VJmzOaS5R46C4aFkQzrFaQ==", "subType" : "04" } } }, "$db" : "test" }');

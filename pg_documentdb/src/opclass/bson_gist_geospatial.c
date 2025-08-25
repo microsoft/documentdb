@@ -336,7 +336,7 @@ bson_gist_geometry_consistent_2d(PG_FUNCTION_ARGS)
 
 		default:
 		{
-			/* We will never reach here but just in case. */
+			/* This point in the code should never be reached, but it is handled here just in case. */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 							errmsg("unknown geospatial query operator with strategy %d",
 								   strategy)));
@@ -659,7 +659,7 @@ bson_gist_geography_consistent(PG_FUNCTION_ARGS)
 
 		default:
 		{
-			/* We will never reach here but just in case. */
+			/* This point in the code should never be reached, but it is handled here just in case. */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INTERNALERROR),
 							errmsg("unknown geospatial query operator with strategy %d",
 								   strategy)));

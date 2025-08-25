@@ -167,7 +167,8 @@ BsonArrayAggTransitionCore(PG_FUNCTION_ARGS, bool handleSingleValueElement,
 	int aggregationContext = AggCheckCallContext(fcinfo, &aggregateContext);
 	if (aggregationContext == 0)
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	bool isWindowAggregation = aggregationContext == AGG_CONTEXT_WINDOW;
@@ -460,7 +461,8 @@ AggregateObjectsCore(PG_FUNCTION_ARGS)
 	MemoryContext aggregateContext;
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	/* Create the aggregate state in the aggregate context. */
@@ -645,7 +647,8 @@ bson_sum_avg_transition(PG_FUNCTION_ARGS)
 		MemoryContext aggregateContext;
 		if (!AggCheckCallContext(fcinfo, &aggregateContext))
 		{
-			ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+			ereport(ERROR, errmsg(
+						"Aggregate function invoked in non-aggregate context"));
 		}
 
 		/* Create the aggregate state in the aggregate context. */
@@ -923,7 +926,8 @@ bson_sum_avg_combine(PG_FUNCTION_ARGS)
 	MemoryContext aggregateContext;
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	/* Create the aggregate state in the aggregate context. */
@@ -987,7 +991,8 @@ bson_min_combine(PG_FUNCTION_ARGS)
 	MemoryContext aggregateContext;
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	/* Create the aggregate state in the aggregate context. */
@@ -1046,7 +1051,8 @@ bson_max_combine(PG_FUNCTION_ARGS)
 	MemoryContext aggregateContext;
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	/* Create the aggregate state in the aggregate context. */
@@ -1149,7 +1155,8 @@ bson_add_to_set_transition(PG_FUNCTION_ARGS)
 	int aggregationContext = AggCheckCallContext(fcinfo, &aggregateContext);
 	if (aggregationContext == 0)
 	{
-		ereport(ERROR, errmsg("aggregate function called in non-aggregate context"));
+		ereport(ERROR, errmsg(
+					"Aggregate function invoked in non-aggregate context"));
 	}
 
 	bool isWindowAggregation = aggregationContext == AGG_CONTEXT_WINDOW;
@@ -1489,7 +1496,7 @@ bson_maxminn_transition(PG_FUNCTION_ARGS, bool isMaxN)
 	if (!AggCheckCallContext(fcinfo, &aggregateContext))
 	{
 		ereport(ERROR, errmsg(
-					"aggregate function %s transition called in non-aggregate context",
+					"Aggregate function %s transition invoked in non-aggregate context",
 					isMaxN ? "maxN" : "minN"));
 	}
 
@@ -1519,7 +1526,7 @@ bson_maxminn_transition(PG_FUNCTION_ARGS, bool isMaxN)
 		}
 	}
 
-	/* Verify that N is an integer. */
+	/* Ensure that N is a valid integer value. */
 	ValidateElementForNGroupAccumulators(&elementBsonValue, isMaxN == true ? "maxN" :
 										 "minN");
 	bool throwIfFailed = true;

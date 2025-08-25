@@ -350,7 +350,7 @@ BuildBatchDeletionSpec(bson_iter_t *deleteCommandIter, pgbsonsequence *deleteDoc
 		}
 		else if (IsCommonSpecIgnoredField(field))
 		{
-			elog(DEBUG1, "Unrecognized command field: delete.%s", field);
+			elog(DEBUG1, "Command field not recognized: delete.%s", field);
 
 			/*
 			 *  Silently ignore now, so that clients don't break
@@ -662,7 +662,7 @@ ProcessBatchDeletion(MongoCollection *collection, BatchDeletionSpec *batchSpec,
 			MemoryContextSwitchTo(oldContext);
 			ErrorData *errorData = CopyErrorDataAndFlush();
 
-			/* Abort the inner transaction */
+			/* Abort inner transaction */
 			RollbackAndReleaseCurrentSubTransaction();
 			MemoryContextSwitchTo(oldContext);
 			CurrentResourceOwner = oldOwner;
@@ -1788,7 +1788,7 @@ DeleteOneObjectId(MongoCollection *collection, DeleteOneParams *deleteOneParams,
 
 		if (result->isRowDeleted)
 		{
-			/* deleted the document */
+			/* Document has been successfully removed */
 			return;
 		}
 	}

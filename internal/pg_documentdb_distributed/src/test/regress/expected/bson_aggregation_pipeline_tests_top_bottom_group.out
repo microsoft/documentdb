@@ -69,13 +69,13 @@ ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$top": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
-ERROR:  Unknown argument to $top 'n'
+ERROR:  Unrecognized argument provided to $top 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"output": [ "$user", "$points" ]}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }}}}} ] }'); -- missing output
 ERROR:  Missing value for 'output'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$bottom": {"sortBy": { "points": 1 }, "n": 1}}}} ] }'); -- n isn't supported with $top
-ERROR:  Unknown argument to $bottom 'n'
+ERROR:  Unrecognized argument provided to $bottom 'n'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"output": [ "$user", "$points" ], "n": 1}}}} ] }'); -- missing sortBy
 ERROR:  No value provided for 'sortBy'
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "pipeline_group_tests", "pipeline": [ {"$group": {"_id": "$team", "user": {"$topN": {"sortBy": {"points": 1}, "n": 1}}}} ] }'); -- missing output

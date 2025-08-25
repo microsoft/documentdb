@@ -421,7 +421,7 @@ SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "
 ERROR:  Unrecognized option to $bucketAuto: unknown
 -- granularity must be a string
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": 1 } } ] }');
-ERROR:  The $bucketAuto 'granularity' field must be a string, but found type: int
+ERROR:  Expected 'string' for 'granularity' field for $bucketAuto but found 'int' type
 -- unsupported granularity
 SELECT document FROM documentdb_api_catalog.bson_aggregation_pipeline('db', '{ "aggregate": "dollarBucketAuto", "pipeline": [ { "$bucketAuto": { "groupBy": "$price", "buckets": 3, "granularity": "abc" } } ] }');
 ERROR:  Rounding granularity not recognized: abc

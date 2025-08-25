@@ -315,8 +315,9 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("'roles' must be an array, not %s",
-									   BsonTypeName(bson_iter_type(&createRoleIter)))));
+								errmsg(
+									"Expected 'array' type for 'roles' parameter but found '%s' type",
+									BsonTypeName(bson_iter_type(&createRoleIter)))));
 			}
 		}
 		else if (IsCommonSpecIgnoredField(key))
@@ -326,7 +327,7 @@ ParseCreateRoleSpec(pgbson *createRoleBson, CreateRoleSpec *createRoleSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified: '%s'.", key)));
+							errmsg("The specified field '%s' is not supported.", key)));
 		}
 	}
 

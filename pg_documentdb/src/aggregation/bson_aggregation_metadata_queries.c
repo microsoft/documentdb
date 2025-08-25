@@ -263,10 +263,11 @@ GenerateListIndexesQuery(text *databaseDatum, pgbson *listIndexesSpec,
 		else if (!IsCommonSpecIgnoredField(keyView.string))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field listIndexes.%.*s is an unknown field",
-								   keyView.length, keyView.string),
+							errmsg(
+								"The BSON field listIndexes.%.*s is not recognized as a valid field",
+								keyView.length, keyView.string),
 							errdetail_log(
-								"BSON field listIndexes.%.*s is an unknown field",
+								"The BSON field listIndexes.%.*s is not recognized as a valid field",
 								keyView.length, keyView.string)));
 		}
 	}
@@ -312,7 +313,7 @@ HandleCurrentOp(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
 						errmsg(
-							"$currentOp must be run against the 'admin' database with {aggregate: 1}")));
+							"$currentOp must be executed on the 'admin' database with parameter {aggregate: 1}")));
 	}
 
 	/* Any further validation done during processing of the currentOp aggregation */
@@ -618,7 +619,7 @@ HandleCollStats(const bson_value_t *existingValue, Query *query,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40602),
 						errmsg(
-							"$collStats is only valid as the first stage in the pipeline.")));
+							"$collStats can only be used as the initial stage within the processing pipeline.")));
 	}
 
 	/* Skip validate the collStats document: done in the function */

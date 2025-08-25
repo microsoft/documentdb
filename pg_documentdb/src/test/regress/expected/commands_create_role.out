@@ -75,7 +75,7 @@ SELECT documentdb_api.create_role('{"createRole":"invalidInheritRole", "roles":[
 ERROR:  Role 'nonexistent_role' not supported.
 -- Test createRole with invalid roles array type, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidRolesType", "roles":"not_an_array"}');
-ERROR:  'roles' must be an array, not string
+ERROR:  Expected 'array' type for 'roles' parameter but found 'string' type
 -- Test createRole with non-string role names in array, should fail
 SELECT documentdb_api.create_role('{"createRole":"invalidRoleNames", "roles":[123, true]}');
 ERROR:  Invalid inherited from role name provided.
@@ -84,7 +84,7 @@ SELECT documentdb_api.create_role('{"roles":["documentdb_readonly_role"]}');
 ERROR:  'createRole' is a required field.
 -- Test createRole with unsupported field, should fail
 SELECT documentdb_api.create_role('{"createRole":"unsupportedFieldRole", "roles":["documentdb_readonly_role"], "unsupportedField":"value"}');
-ERROR:  Unsupported field specified: 'unsupportedField'.
+ERROR:  The specified field 'unsupportedField' is not supported.
 -- Test creating role with same name as existing role, should fail
 SELECT documentdb_api.create_role('{"createRole":"customReadRole", "roles":["documentdb_readonly_role"]}');
 ERROR:  role "customReadRole" already exists

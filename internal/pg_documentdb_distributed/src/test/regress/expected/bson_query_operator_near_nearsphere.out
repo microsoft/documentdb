@@ -195,43 +195,43 @@ ERROR:  invalid argument in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"x": "a", "y": 1}}}}');
 ERROR:  invalid argument in geo near query: x
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"coordinates": [1,1]}}, "b": { "$nearSphere": {"coordinates": [1,1]}}}}');
-ERROR:  Too many geoNear expressions
+ERROR:  Excessive number of geoNear query expressions
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"coordinates": [1,1]}}, "b": { "$nearSphere": {"coordinates": [1,1]}}}}');
-ERROR:  Too many geoNear expressions
+ERROR:  Excessive number of geoNear query expressions
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"coordinates": [1,1]}}, "b": { "$near": {"coordinates": [1,1]}}}}');
-ERROR:  Too many geoNear expressions
+ERROR:  Excessive number of geoNear query expressions
 SELECT document FROM bson_aggregation_pipeline('db', '{ "aggregate": "near_sphere", "pipeline": [ { "$sort": { "a.b": 1 }}, { "$match": { "a.b": { "$near": {"coordinates": [1,1]}}}} ], "cursor": {} }');
 ERROR:  Operators $geoNear, $near, and $nearSphere cannot be used in this particular context
 -- $near/$nearSphere with invalid distance argument
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$minDistance": -1}}}');
-ERROR:  minDistance must be nonnegative
+ERROR:  minDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$minDistance": {"$numberDouble": "NaN"}}}}');
 ERROR:  minDistance must be positive or zero
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"coordinates": [1, 1]}, "$minDistance": {"$numberDouble": "Infinity"}}}}}');
 ERROR:  The value of minDistance must always be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": {"$geometry": {"coordinates": [1, 1]}, "$maxDistance": {"$numberDouble": "Infinity"}}}}}');
-ERROR:  maxDistance must be non-negative
+ERROR:  maxDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$maxDistance": {"$numberDouble": "-Infinity"}}}}');
-ERROR:  maxDistance must be nonnegative
+ERROR:  maxDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$near": [1, 1], "$maxDistance": {"$numberDouble": "-NaN"}}}}');
 ERROR:  maxDistance must be positive or zero
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$minDistance": -1}}}');
-ERROR:  minDistance must be nonnegative
+ERROR:  minDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$minDistance": {"$numberDouble": "NaN"}}}}');
 ERROR:  minDistance must be positive or zero
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"coordinates": [1, 1]}, "$minDistance": {"$numberDouble": "Infinity"}}}}}');
 ERROR:  The value of minDistance must always be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": {"$geometry": {"coordinates": [1, 1]}, "$maxDistance": {"$numberDouble": "Infinity"}}}}}');
-ERROR:  maxDistance must be non-negative
+ERROR:  maxDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$maxDistance": {"$numberDouble": "-Infinity"}}}}');
-ERROR:  maxDistance must be nonnegative
+ERROR:  maxDistance value must be zero or greater
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": { "a.b": { "$nearSphere": [1, 1], "$maxDistance": {"$numberDouble": "-NaN"}}}}');
 ERROR:  maxDistance must be positive or zero
 -- invalid places to call $near/$nearSphere
 SELECT document FROM documentdb_api.collection('db','near_sphere') WHERE document @@ '{ "a.b": { "$elemMatch" : {"$near": [1,1] }}}';
 ERROR:  $geoNear, $near, and $nearSphere are not allowed in this context, as these operators require sorting geospatial data. If you do not need sort, consider using $geoWithin instead.
 SELECT document FROM documentdb_api.collection('db','near_sphere') WHERE document @@ '{ "$or": [{"a.b": {"$near": [1,1] }},{"t": 1}]}';
-ERROR:  geo $near must be top-level expr
+ERROR:  $geoNear must appear at the top level of the expression
 SELECT document FROM bson_aggregation_find('db', '{ "find": "near_sphere", "filter": {}, "projection": { "p" : {"$elemMatch": {"geo": {"$near": [1,1]}}}}}');
 ERROR:  $geoNear, $near, and $nearSphere are not allowed in this context, as these operators require sorting geospatial data. If you do not need sort, consider using $geoWithin instead.
 SELECT documentdb_api.update('db', '{"update":"near_sphere", "updates":[{"q":{},"u":{"$set": {"a.$[elem].b": 1}},"multi":false,"upsert":true, "arrayFilters": [{"elem.geo": {"$near": [1, 1]}}]}]}');

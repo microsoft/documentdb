@@ -175,7 +175,7 @@ InitializeCollectionsHash(void)
 	if (CollectionsCacheContext == NULL)
 	{
 		CollectionsCacheContext = AllocSetContextCreate(CacheMemoryContext,
-														"Collection cache context",
+														"Cache context for collection",
 														ALLOCSET_DEFAULT_SIZES);
 	}
 
@@ -837,9 +837,11 @@ IsDataTableCreatedWithinCurrentXact(const MongoCollection *collection)
 		SearchSysCache1(RELOID, ObjectIdGetDatum(collection->relationId));
 	if (!HeapTupleIsValid(pgCatalogTuple))
 	{
-		ereport(ERROR, (errmsg("data table for collection with id "
-							   UINT64_FORMAT " doesn't exist",
-							   collection->collectionId)));
+		ereport(ERROR, (errmsg(
+							"The data table associated with the collection identified by "
+							UINT64_FORMAT
+							" cannot be found.",
+							collection->collectionId)));
 	}
 
 	bool dataTableCreatedWithinCurrentXact =
@@ -1621,7 +1623,7 @@ ValidateDatabaseCollection(Datum databaseDatum, Datum collectionDatum)
 	if (collectionView.string == NULL || collectionView.length == 0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDNAMESPACE),
-						errmsg("Invalid namespace specified '%.*s.'",
+						errmsg("The specified namespace provided '%.*s.' is invalid.",
 							   databaseView.length, databaseView.string)));
 	}
 
@@ -1898,10 +1900,10 @@ ParseAndGetValidationActionOption(bson_iter_t *iter, const char *validationActio
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Enumeration value '%s' for field '%s' is not a valid value.",
+							"The enumeration value '%s' provided for the field '%s' is invalid.",
 							validationAction, validationActionName),
 						errdetail_log(
-							"Enumeration value '%s' for field '%s' is not a valid value.",
+							"The enumeration value '%s' provided for the field '%s' is invalid.",
 							validationAction, validationActionName)));
 	}
 }
@@ -1942,10 +1944,10 @@ ParseAndGetValidationLevelOption(bson_iter_t *iter, const char *validationLevelN
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"Enumeration value '%s' for field '%s' is not a valid value.",
+							"The enumeration value '%s' provided for the field '%s' is invalid.",
 							validationLevel, validationLevelName),
 						errdetail_log(
-							"Enumeration value '%s' for field '%s' is not a valid value.",
+							"The enumeration value '%s' provided for the field '%s' is invalid.",
 							validationLevel, validationLevelName)));
 	}
 }

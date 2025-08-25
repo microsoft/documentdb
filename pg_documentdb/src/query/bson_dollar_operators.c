@@ -2127,7 +2127,7 @@ bool
 CompareArrayForBitsAllClear(bson_iter_t *sourceArrayIter, bson_iter_t *filterArrayIter,
 							bool isSignExtended)
 {
-	/* filter or source array is empty */
+	/* The filter or source array has no elements */
 	if (!bson_iter_next(filterArrayIter) || !bson_iter_next(sourceArrayIter))
 	{
 		return true;
@@ -2191,7 +2191,7 @@ CompareArrayForBitsAnyClear(bson_iter_t *sourceArrayIter, bson_iter_t *filterArr
 		return false;
 	}
 
-	/* source array is empty */
+	/* The source array contains no elements */
 	if (!bson_iter_next(sourceArrayIter))
 	{
 		return true;
@@ -2272,7 +2272,7 @@ CompareArrayForBitsAllSet(bson_iter_t *sourceArrayIter, bson_iter_t *filterArray
 		return true;
 	}
 
-	/* source array is empty */
+	/* The source array contains no elements */
 	if (!bson_iter_next(sourceArrayIter))
 	{
 		return false;
@@ -2353,7 +2353,7 @@ CompareArrayForBitsAnySet(bson_iter_t *sourceArrayIter, bson_iter_t *filterArray
 		return false;
 	}
 
-	/* source array is empty */
+	/* The source array contains no elements */
 	if (!bson_iter_next(sourceArrayIter))
 	{
 		return false;
@@ -2555,7 +2555,7 @@ GetRemainderFromModBsonValues(const bson_value_t *dividendValue,
 		if (IsBsonValueInfinity(divisorValue))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"divisor cannot be infinite")));
+								"Division by an infinite value is not allowed")));
 		}
 
 		if (IsBsonValueNaN(divisorValue))
@@ -2569,7 +2569,7 @@ GetRemainderFromModBsonValues(const bson_value_t *dividendValue,
 			(BsonValueAsDouble(divisorValue) == 0.0))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-								"divisor cannot be Zero")));
+								"Division by zero is not permitted")));
 		}
 	}
 

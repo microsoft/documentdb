@@ -190,14 +190,14 @@ SELECT bson_dollar_project(document, '{ "a" : { "b": { "1" : 1 } } }') FROM docu
 
 -- path collsion due to conflicting paths
 SELECT bson_dollar_project(document, '{ "a.b.1": 1, "a.b": 1, "_id": 0 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b
+ERROR:  Collision detected in specified path a.b
 SELECT bson_dollar_project(document, '{ "a.b.1": 1, "a.b": 1 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b
+ERROR:  Collision detected in specified path a.b
 -- path collsion due to conflicting paths
 SELECT bson_dollar_project(document, '{ "a.b": 1, "a.b.1": 1, "_id": 0 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b.1 remaining portion b.1
+ERROR:  Collision detected in specified path a.b.1 remaining portion b.1
 SELECT bson_dollar_project(document, '{ "a.b": 1, "a.b.1": 1 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b.1 remaining portion b.1
+ERROR:  Collision detected in specified path a.b.1 remaining portion b.1
 -- basic a.b, and a.c query with id excluded and included - should be both a.b and a.c
 SELECT bson_dollar_project(document, '{ "a.b": 1, "a.c": 1, "_id": 0 }') FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
                                                                                                                                bson_dollar_project                                                                                                                               
@@ -799,21 +799,21 @@ SELECT bson_dollar_project(document, '{"a" : { "b" : { "c": "1"}}}')  FROM docum
 
 -- path collision tests
 SELECT bson_dollar_project(document, '{"a.b": 1, "a.b.c": 1}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b.c remaining portion b.c
+ERROR:  Collision detected in specified path a.b.c remaining portion b.c
 SELECT bson_dollar_project(document, '{"a.b": 1, "a" : { "b" : { "c": "1"}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at b
+ERROR:  Collision detected in specified path b
 SELECT bson_dollar_project(document, '{"a.b": 1, "a" : { "b" : { "c": "$_id"}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at b
+ERROR:  Collision detected in specified path b
 SELECT bson_dollar_project(document, '{"a.b": 1, "a" : { "b" : { "c": "$_id"}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at b
+ERROR:  Collision detected in specified path b
 SELECT bson_dollar_project(document, '{"a.b": {"c" : 1.0}, "a" : { "b" : { "c": { "d": "$_id"}}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at c
+ERROR:  Collision detected in specified path c
 SELECT bson_dollar_project(document, '{"a.b": {"c" : "$a.b"}, "a" : { "b" : { "c": { "d": "$_id"}}}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at c
+ERROR:  Collision detected in specified path c
 SELECT bson_dollar_project(document, '{"a.b.c": "$_id", "a.b": "1.0"}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at a.b
+ERROR:  Collision detected in specified path a.b
 SELECT bson_dollar_project(document, '{"a" : { "b" : { "c": { "d": "$_id"}}}, "a.b": {"c" : 1.0}}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
-ERROR:  Path collision at c
+ERROR:  Collision detected in specified path c
 -- Invalid key format tests
 SELECT bson_dollar_project(document, '{"$a.b": 1, "a.b.c": 1}')  FROM documentdb_api.collection('db', 'projectops') ORDER BY object_id;
 ERROR:  FieldPath field names may not start with '$'. Consider using $getField or $setField

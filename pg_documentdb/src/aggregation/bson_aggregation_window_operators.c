@@ -1297,7 +1297,7 @@ ThrowInvalidFrameOptions()
 	ereport(ERROR, (
 				errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 				errmsg(
-					"Window bounds can specify either 'documents' or 'unit', not both.")));
+					"Window bounds may only define either 'documents' or 'unit', but never both.")));
 }
 
 
@@ -1608,7 +1608,8 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 	else if (list_length(context->sortOptions) > 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("%s requires a non-compound sortBy", operatorName)));
+						errmsg("%s needs a non-compound sortBy parameter",
+							   operatorName)));
 	}
 	else
 	{
@@ -1663,7 +1664,8 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-								errmsg("%s got unexpected argument: %s", operatorName,
+								errmsg("%s received an unexpected argument: %s",
+									   operatorName,
 									   key)));
 			}
 		}
@@ -1690,7 +1692,8 @@ ParseIntegralDerivativeExpression(const bson_value_t *opValue,
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("%s requires a non-compound sortBy", operatorName)));
+						errmsg("%s needs a non-compound sortBy parameter",
+							   operatorName)));
 	}
 }
 
@@ -2032,7 +2035,7 @@ HandleDollarExpMovingAvgWindowOperator(const bson_value_t *opValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
 						errmsg(
-							"$expMovingAvg requires an explicit 'sortBy'")));
+							"'sortBy' parameters must be specified for $shift")));
 	}
 
 	/* $expMovingAvg is not support window parameter*/
@@ -2225,13 +2228,14 @@ HandleDollarShiftWindowOperator(const bson_value_t *opValue,
 	if (context->isWindowPresent)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("$shift does not accept a 'window' field")));
+						errmsg(
+							"The $shift operator cannot be used with the 'window' field")));
 	}
 
 	if (context->sortOptions == NIL || list_length(context->sortOptions) < 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-						errmsg("'$shift' requires a sortBy")));
+						errmsg("'sortBy' parameters must be specified for $shift")));
 	}
 
 	WindowFunc *windowFunc = makeNode(WindowFunc);

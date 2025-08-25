@@ -754,7 +754,7 @@ ProcessQueryProjectionValue(void *context, const char *path, const bson_value_t 
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_NOTSINGLEVALUEFIELD),
 						errmsg(
-							"cannot infer query fields to set, path '%s' is matched twice",
+							"Unable to determine which query fields to set, as the path '%s' has been matched twice",
 							path)));
 	}
 }

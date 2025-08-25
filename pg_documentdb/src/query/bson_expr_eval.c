@@ -68,7 +68,7 @@ command_evaluate_query_expression(PG_FUNCTION_ARGS)
 	ExprEvalState *evalState = GetExpressionEvalState(&expressionValue,
 													  fcinfo->flinfo->fn_mcxt);
 
-	/* Evaluate the expression */
+	/* Evaluate the given expression */
 	Datum result = ExpressionEval(evalState, &valueElement);
 	PG_RETURN_BOOL(DatumGetBool(result));
 }
@@ -414,7 +414,7 @@ CreateEvalStateFromExpr(Expr *expression, Oid attributeOid)
 	char *attributeName = NULL;
 	int attributeTypeModifier = -1;
 
-	/* Attribute is not an array */
+	/* Attribute does not represent an array */
 	int numDimensions = 0;
 	TupleDescInitEntry(tupleDescriptor, attributeNumber, attributeName,
 					   attributeOid, attributeTypeModifier, numDimensions);

@@ -216,7 +216,7 @@ SELECT * FROM bson_dollar_project_find(
     '{ "a": {"$elemMatch": {"$jsonSchema": {}} } }',
     '{ }'
 );
-ERROR:  $jsonSchema is not allowed in this context
+ERROR:  $jsonSchema usage is not permitted in this specific context
 -- This is a bad place for jsonSchema spec, because $jsonSchema comes at top level field
 SELECT * FROM bson_dollar_project_find(
     '{ "_id": 2, "a": [ 11, 21, 31 ], "b": [41, 51, 61], "d": 71, "e": {"f": "good"} }', 

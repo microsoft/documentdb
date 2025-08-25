@@ -1804,7 +1804,7 @@ SELECT document FROM bson_aggregation_pipeline('db', $$
     "let": { "pointRef": [5, 6], "dist1": 0, "dist2": 2}
 }
 $$);
-ERROR:  $geoNear requires $minDistance to evaluate to a constant number
+ERROR:  The $geoNear needs the $minDistance to resolve to a fixed numerical value
 SELECT document FROM bson_aggregation_pipeline('db', $$ 
 {
     "aggregate": "agg_geonear_let", 

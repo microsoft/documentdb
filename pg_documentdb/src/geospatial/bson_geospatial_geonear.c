@@ -524,7 +524,7 @@ ParseGeonearRequest(const pgbson *geoNearQuery)
 		{
 			ereport(ERROR, (
 						errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("invalid argument in geo near query: coordinates")));
+						errmsg("Invalid parameter found in geo-near query coordinates")));
 		}
 		else
 		{
@@ -690,7 +690,8 @@ GetGeonearSpecFromNearQuery(bson_iter_t *operatorDocIterator, const char *path,
 						if (IsBsonValueInfinity(distValue))
 						{
 							ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-											errmsg("maxDistance must be non-negative")));
+											errmsg(
+												"maxDistance value must be zero or greater")));
 						}
 
 						PgbsonWriterAppendValue(&writer, "maxDistance", 11, distValue);
@@ -1046,7 +1047,7 @@ EvaluateGeoNearConstExpression(const bson_value_t *geoNearSpecValue, Expr *varia
 					ereport(ERROR, (
 								errcode(ERRCODE_DOCUMENTDB_LOCATION7555701),
 								errmsg(
-									"$geoNear requires $minDistance to evaluate to a constant number")));
+									"The $geoNear needs the $minDistance to resolve to a fixed numerical value")));
 				}
 				else
 				{
@@ -1288,8 +1289,8 @@ GetDoubleValueForDistance(const bson_value_t *value, const char *opName)
 	else if (distValue < 0.0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("%s must be nonnegative", opName),
-						errdetail_log("%s must be nonnegative", opName)));
+						errmsg("%s value must be zero or greater", opName),
+						errdetail_log("%s value must be zero or greater", opName)));
 	}
 
 	return distValue;

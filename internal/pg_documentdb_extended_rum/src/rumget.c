@@ -3802,7 +3802,7 @@ scanGetItemOrdered(IndexScanDesc scan, RumItem *advancePast,
 
 	if (so->orderByScanData->orderByEntry->isFinished)
 	{
-		/* See if we can move forward to the next entry */
+		/* Check if we can move forward to the next entry */
 		if (so->orderByScanData->orderStack == NULL)
 		{
 			return false;

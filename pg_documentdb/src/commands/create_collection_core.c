@@ -158,7 +158,7 @@ InsertMetadataIntoCollections(text *databaseDatum, text *collectionDatum,
 		MemoryContextSwitchTo(savedMemoryContext);
 		ErrorData *errorData = CopyErrorDataAndFlush();
 
-		/* Abort the inner transaction */
+		/* Abort inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 
 		/* Rollback changes MemoryContext */

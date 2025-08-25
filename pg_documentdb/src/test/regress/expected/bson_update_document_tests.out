@@ -91,7 +91,7 @@ SELECT documentdb_api_internal.bson_update_document('{}', '{ "": { "$setOnInsert
 ERROR:  Modifying the path '_id.b' will result in a conflict occurring at '_id'
 -- _id specified twice, failure for update.
 SELECT documentdb_api_internal.bson_update_document('{}', '{ "": { "_id": 3, "b": 2 } }', '{"$and": [ { "a": 1 }, {"_id": 2.0 }, { "_id": 3.0 }]}');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 -- update scenario tests: $set
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{"_id": 1, "a": 1 }', '{ "": { "$set": { "a": 2 } } }', '{}');
                        bson_update_document                       
@@ -556,11 +556,11 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 5, "a": "b" }', '{ 
 ERROR:  Cannot apply $inc to a value of non-numeric type. { _id: 5 } has the field 'a' of non-numeric type string
 -- update scenario negative tests: $addToSet
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "colors": "blue, green, red" }', '{ "": { "$addToSet": { "colors": "mauve" } }}', '{}');
-ERROR:  Cannot apply $addToSet to non-array field. Field named 'colors' has non-array type string
+ERROR:  Expected 'array' type for $addToSet but field 'colors' has 'string' type
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "letters": ["a","b"] }', '{ "": { "$addToSet": { "letters": { "$each": "c"}}} }', '{}');
-ERROR:  The argument to $each in $addToSet must be an array but it was of type string
+ERROR:  Expected 'array' type for $each but found 'string' type
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "letters": ["a","b"] }', '{ "": { "$addToSet": { "letters": { "$each" : {} }}} }', '{}');
-ERROR:  The argument to $each in $addToSet must be an array but it was of type object
+ERROR:  Expected 'array' type for $each but found 'object' type
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "letters": ["a","b"] }', '{ "": { "$addToSet": { "letters": { "$ach": ["c"]}}} }', '{}');
                                           bson_update_document                                           
 ---------------------------------------------------------------------------------------------------------
@@ -896,7 +896,7 @@ SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": {"$n
 ERROR:  Unable to perform $mul on the existing ((NumberLong)-9223372036854775807) value for the document with _id: 1
 -- update scenario error tests: $mul
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": 2 } }','{ "": { "$mul": { "a.b": "Hello" } } }', '{}');
-ERROR:  Cannot multiply with non-numeric argument: { a.b : "Hello" }
+ERROR:  Multiplication operation failed due to a non-numeric argument: { a.b : "Hello" }
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": "Text" } }','{ "": { "$mul": { "a.b": 2 } } }', '{}');
 ERROR:  Unable to use the $mul operator on values that are not numeric. The document { _id: 1 } contains the field 'b', which has a non-numeric type string.
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": { "b": [1,2,3] } }','{ "": { "$mul": { "a.b": 2 } } }', '{}');
@@ -1177,13 +1177,13 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 -- upsert querySpec with implicit AND - Invalid cases
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "_id": 1, "a": 1} } }', '{"b": { "$eq": 2, "$all": [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path 'b' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'b' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "_id": 1, "a": 1} } }', '{"b": { "$eq": 2, "$all": [ 2 ], "$in" : [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path 'b' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'b' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "_id": 1, "a": 1} } }', '{"b": { "$all": [ 2, 1 ], "$in": [ 1, 2 ] } }');
-ERROR:  cannot infer query fields to set, path 'b' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'b' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "_id": 1, "a": 1} } }', '{"b": { "$all": [ 2, 1 ], "$in": [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path 'b' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'b' has been matched twice
 -- upsert querySpec with implicit AND on "_id" - valid cases
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 1} } }', '{"_id": { "$eq": 2, "$in": [ 1, 2 ] } }'); 
                        bson_update_document                       
@@ -1211,13 +1211,13 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 -- upsert querySpec with implicit AND on "_id" - Invalid cases
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 1} } }', '{"_id": { "$eq": 2, "$all": [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 1} } }', '{"_id": { "$eq": 2, "$all": [ 2 ], "$in" : [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 1} } }', '{"_id": { "$all": [ 2, 1 ], "$in": [ 1, 2 ] } }');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 1} } }', '{"_id": { "$all": [ 2, 1 ], "$in": [ 2 ] } }');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 -- cannot modify id cases
 SELECT documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 2, "_id": 2 } } }', '{ "_id": 1 }');
 ERROR:  Performing an update on the path '_id' would modify the immutable field '_id'
@@ -1469,7 +1469,7 @@ ERROR:  The source field of a rename cannot be an array element
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": [ { "b": 2 } ] }', '{ "": { "$rename": { "a.0.b": "a.1.c" } } }', '{}');
 ERROR:  The source field of a rename cannot be an array element
 SELECT documentdb_api_internal.bson_update_document('{}', '{ "": { "$set": { "a": 2, "h": 6 } } }', '{ "_id": { "$eq": 1 }, "c": 3, "$and": [ { "c": 4 } ] }');
-ERROR:  cannot infer query fields to set, path 'c' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'c' has been matched twice
 SELECT documentdb_api_internal.bson_update_document('{"a": [1], "b": {"c": [2]}, "d": [{"e": 3}], "f": 4}', '{ "": { "$rename" :{"f":"d.e"}} }', '{}');
 ERROR:  Invalid array index path e
 SELECT documentdb_api_internal.bson_update_document('{"a": [1], "b": {"c": [2]}, "d": [{"e": 3}], "f": 4}', '{ "": { "$rename" :{"f":"d.e"}} }', '{}');
@@ -2584,9 +2584,9 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set":{"x":17}}}','{"_id": { "$all" : [[13]]}}');
 ERROR:  The '_id' field value must not be a type of array
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set":{"_id":18}}}','{"x": { "$all" : [1,2,3]}}');
-ERROR:  cannot infer query fields to set, path 'x' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'x' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set":{"x":19}}}','{"_id": { "$all" : [15,16,17]}}');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {}}','{"_id": { "$all" : [[15]]}}');
 ERROR:  Cannot modify '_id' field to an array or array descendent as part of the operation.
 --upsert when querySpec has $in
@@ -2667,7 +2667,7 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 
 --miscellaneous tests with multiple fields in queySpec
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {} }','{"$and": [{"_id": 1}, {"_id": 1}]}');
-ERROR:  cannot infer query fields to set, path '_id' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path '_id' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set": {"a": 1}} }','{"_id.x": 1 , "_id.y": 2}');
                                            bson_update_document                                           
 ----------------------------------------------------------------------------------------------------------
@@ -2675,11 +2675,11 @@ SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_upd
 (1 row)
 
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set": {"a": 1}} }','{"$and": [{"x": 1}, {"x": 1}]}');
-ERROR:  cannot infer query fields to set, path 'x' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'x' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set": {"a": 1}} }','{"x": 1, "x.x": 1}');
-ERROR:  cannot infer query fields to set, path 'x.x' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'x.x' has been matched twice
 SELECT newDocument as bson_update_document FROM documentdb_api_internal.bson_update_document('{}', '{ "": {"$set": {"a": 1}} }','{"x.x": 1, "x": 1}');
-ERROR:  cannot infer query fields to set, path 'x' is matched twice
+ERROR:  Unable to determine which query fields to set, as the path 'x' has been matched twice
 -- show that we never crash due to passing one of the arguments as NULL
 SELECT documentdb_api_internal.bson_update_document('{"_id": 1, "a": 1}', '{"": {"a": 2}}', null);
 ERROR:  sourceDocument / updateSpec / querySpec cannot be NULL

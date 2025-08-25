@@ -1257,7 +1257,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 	/* Validation for missing fields or invalid combinations */
 	if (arguments->densifyType == DENSIFY_TYPE_INVALID)
 	{
-		/* No bounds provided */
+		/* Bounds were not specified */
 		ThrowTopLevelMissingFieldErrorWithCode("$densify.range.bounds",
 											   ERRCODE_DOCUMENTDB_LOCATION40414);
 	}
@@ -1291,7 +1291,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 				 arguments->timeUnit != DateUnit_Invalid)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION5733409),
-							errmsg("numeric bounds may not have unit parameter")));
+							errmsg("Numeric bounds cannot include a unit parameter")));
 		}
 		else if (BsonValueIsNumber(&arguments->lowerBound) &&
 				 arguments->upperBound.value_type == BSON_TYPE_DATE_TIME)
@@ -1312,7 +1312,7 @@ PopulateDensifyArgs(DensifyArguments *arguments, const pgbson *densifySpec)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION6586400),
 							errmsg(
-								"The step parameter in a range satement must be a whole number when densifying a date range")));
+								"The step parameter in a range statement must always be an integer value when performing date range densify")));
 		}
 		else if (arguments->timeUnit == DateUnit_Invalid &&
 				 !(arguments->step.value_type == arguments->lowerBound.value_type &&

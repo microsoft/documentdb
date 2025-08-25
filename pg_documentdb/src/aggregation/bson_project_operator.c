@@ -714,7 +714,7 @@ ValidateFindProjectionSpecAndSetNodeContext(BsonLeafPathNode *child,
 				 */
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_QUERYFEATURENOTALLOWED),
 								errmsg(
-									"$jsonSchema is not allowed in this context")));
+									"$jsonSchema usage is not permitted in this specific context")));
 			}
 
 			ProjectionOpHandlerContext *projectionOpHandlerContext = palloc0(
@@ -906,7 +906,8 @@ ValidatePositionalCollisions(BsonPathNode *positionalLeaf,
 	{
 		/* If the current postional leaf node already exists, error */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31250),
-						errmsg("Path collision at %.*s", relativePath->length,
+						errmsg("Collision detected in specified path %.*s",
+							   relativePath->length,
 							   relativePath->string)));
 	}
 
@@ -923,7 +924,8 @@ ValidatePositionalCollisions(BsonPathNode *positionalLeaf,
 
 		/* Exisiting leaf node is replaced: error */
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31250),
-						errmsg("Path collision at %.*s", relativePath->length,
+						errmsg("Collision detected in specified path %.*s",
+							   relativePath->length,
 							   relativePath->string)));
 	}
 }
@@ -1090,7 +1092,7 @@ HandleSliceInputData(const bson_value_t *sliceOperatorValue,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARSLICEINVALIDINPUT),
 								errmsg(
-									"First argument to $slice must be an number, but is of type: %s",
+									"Expected numeric value for first parameter of $slice but found '%s' type",
 									BsonTypeName(numToSkipBsonVal->value_type))));
 			}
 
@@ -1155,7 +1157,7 @@ HandleSliceInputData(const bson_value_t *sliceOperatorValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_RANGEARGUMENTEXPRESSIONARGSOUTOFRANGE),
 						errmsg(
-							"First argument to $slice must be an number, but is of type: %s",
+							"Expected numeric value for first parameter of $slice but found '%s' type",
 							BsonTypeName(sliceOperatorValue->value_type))));
 	}
 }

@@ -98,7 +98,7 @@ command_rename_collection(PG_FUNCTION_ARGS)
 	}
 
 	/*
-	 * Update the collection name.
+	 * Update the specified collection name.
 	 */
 	UpdateMongoCollectionName(
 		TextDatumGetCString(database_datum),
@@ -110,7 +110,7 @@ command_rename_collection(PG_FUNCTION_ARGS)
 
 
 /*
- * Drops a collection from a database.
+ * Drops a collection
  */
 static void
 DropMongoCollection(char *database_name, char *target_collection_name)

@@ -466,7 +466,7 @@ struct Tuplesortstate
 	 * These variables are specific to the IndexTuple case; they are set by
 	 * tuplesort_begin_index_xxx and used only by the IndexTuple routines.
 	 */
-	Relation heapRel;           /* table the index is being built on */
+	Relation heapRel;           /* The table on which the index is currently being built */
 	Relation indexRel;          /* index being built */
 
 	/* These are specific to the index_btree subcase: */
@@ -2279,7 +2279,7 @@ puttuple_common(Tuplesortstate *state, SortTuple *tuple)
 
 		default:
 		{
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			break;
 		}
 	}
@@ -2424,7 +2424,7 @@ tuplesort_performsort(Tuplesortstate *state)
 
 		default:
 		{
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			break;
 		}
 	}
@@ -2715,7 +2715,7 @@ tuplesort_gettuple_common(Tuplesortstate *state, bool forward,
 		}
 
 		default:
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			return false;       /* keep compiler quiet */
 	}
 }
@@ -2945,7 +2945,7 @@ tuplesort_skiptuples(Tuplesortstate *state, int64 ntuples, bool forward)
 		}
 
 		default:
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			return false;       /* keep compiler quiet */
 	}
 }
@@ -3669,7 +3669,7 @@ tuplesort_rescan(Tuplesortstate *state)
 
 		default:
 		{
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			break;
 		}
 	}
@@ -3708,7 +3708,7 @@ tuplesort_markpos(Tuplesortstate *state)
 
 		default:
 		{
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			break;
 		}
 	}
@@ -3748,7 +3748,7 @@ tuplesort_restorepos(Tuplesortstate *state)
 
 		default:
 		{
-			elog(ERROR, "invalid tuplesort state");
+			elog(ERROR, "Tuplesort state is not valid");
 			break;
 		}
 	}
@@ -4926,7 +4926,7 @@ static void
 copytup_index(Tuplesortstate *state, SortTuple *stup, void *tup)
 {
 	/* Not currently needed */
-	elog(ERROR, "copytup_index() should not be called");
+	elog(ERROR, "unexpected call to copytup_index() function");
 }
 
 

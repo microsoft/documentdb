@@ -164,9 +164,10 @@ GetShapeOperatorByValue(const bson_value_t *shapeValue, bson_value_t *shapePoint
 		if (shapeOperator->op == GeospatialShapeOperator_UNKNOWN)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("unknown geo specifier: %s: %s",
-								   shapeOperatorName,
-								   BsonValueToJsonForLogging(shapeOperatorValue)),
+							errmsg(
+								"Unrecognized geographic specifier encountered: %s: %s",
+								shapeOperatorName,
+								BsonValueToJsonForLogging(shapeOperatorValue)),
 							errdetail_log(
 								"unknown geo specifier operator %s with argument of type %s",
 								shapeOperatorName,
@@ -506,7 +507,8 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 				IsBsonValueNaN(value))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("radius must be a non-negative number")));
+								errmsg(
+									"radius value must be zero or greater")));
 			}
 			else if (IsBsonValueInfinity(value))
 			{
@@ -540,7 +542,8 @@ BsonValueGetCenter(const bson_value_t *shapeValue, ShapeOperatorInfo *opInfo)
 	else if (index == 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("radius must be a non-negative number")));
+						errmsg(
+							"radius value must be zero or greater")));
 	}
 
 	DollarCenterOperatorState *state = palloc0(sizeof(DollarCenterOperatorState));
@@ -729,7 +732,8 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 				IsBsonValueNaN(value))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("radius must be a non-negative number")));
+								errmsg(
+									"radius value must be zero or greater")));
 			}
 			else if (IsBsonValueInfinity(value))
 			{
@@ -756,7 +760,8 @@ BsonValueGetCenterSphere(const bson_value_t *shapeValue, ShapeOperatorInfo *opIn
 	else if (index == 1)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("radius must be a non-negative number")));
+						errmsg(
+							"radius value must be zero or greater")));
 	}
 
 	DollarCenterOperatorState *state = palloc0(sizeof(DollarCenterOperatorState));

@@ -907,7 +907,7 @@ ProcessDollarAcosh(const bson_value_t *currentValue, bson_value_t *result)
 	if (BsonValueAsDouble(currentValue) < 1.0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $acosh to %s, value must be in [1,inf]",
+							"Cannot use operator acosh on %s as the value must lie within the range [1, infinity]",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}
@@ -931,7 +931,7 @@ ProcessDollarAtanh(const bson_value_t *currentValue, bson_value_t *result)
 	if (BsonValueAsDouble(currentValue) < -1.0 || BsonValueAsDouble(currentValue) > 1.0)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION50989), errmsg(
-							"cannot apply $atanh to %s, value must be in [-1,1]",
+							"Unable to use operator atanh on %s because the value must be within the range [-1, 1].",
 							BsonValueToJsonForLogging(currentValue)
 							)));
 	}

@@ -191,7 +191,7 @@ static inline void
 ThrowTopLevelMissingFieldError(const char *fieldName)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-					errmsg("BSON field '%s' is missing but a required field",
+					errmsg("The BSON field '%s' is required but was not provided",
 						   fieldName)));
 }
 
@@ -200,9 +200,9 @@ static inline void
 ThrowTopLevelMissingFieldErrorWithCode(const char *fieldName, int code)
 {
 	ereport(ERROR, (errcode(code),
-					errmsg("BSON field '%s' is missing but a required field",
+					errmsg("The BSON field '%s' is required but was not provided",
 						   fieldName),
-					errdetail_log("BSON field '%s' is missing but a required field",
+					errdetail_log("The BSON field '%s' is required but was not provided",
 								  fieldName)));
 }
 

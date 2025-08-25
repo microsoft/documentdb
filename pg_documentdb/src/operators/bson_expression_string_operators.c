@@ -2862,7 +2862,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (BsonValueStringHasNullCharcter(options))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51110), errmsg(
-									"%s:  regular expression options cannot contain an embedded null byte",
+									"%s:  Regular expression options must not include an embedded null byte",
 									opName)));
 			}
 
@@ -2905,7 +2905,7 @@ ValidateEvaluatedRegexInput(bson_value_t *input, bson_value_t *regex,
 			if (BsonValueStringHasNullCharcter(options))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION51110), errmsg(
-									"%s:  regular expression options cannot contain an embedded null byte",
+									"%s:  Regular expression options must not include an embedded null byte",
 									opName)));
 			}
 		}

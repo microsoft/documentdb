@@ -160,9 +160,10 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 		if (!BsonValueIsNumber(&currentValueElement.bsonValue))
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-							errmsg(" Value to be filled must be numeric or nullish"),
+							errmsg(
+								" The value provided must be either a numeric type or explicitly null"),
 							errdetail_log(
-								"Value to be filled must be numeric or nullish")));
+								"The value provided must be either a numeric type or explicitly null")));
 		}
 		stateData->hasPre = true;
 
@@ -239,8 +240,10 @@ bson_linear_fill(PG_FUNCTION_ARGS)
 	if (!BsonValueIsNumber(&stateData->nextValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg(" Value to be filled must be numeric or nullish"),
-						errdetail_log("Value to be filled must be numeric or nullish")));
+						errmsg(
+							" The value provided must be either a numeric type or explicitly null"),
+						errdetail_log(
+							"The value provided must be either a numeric type or explicitly null")));
 	}
 
 	/**
@@ -419,10 +422,11 @@ CheckSortKeyBsonValue(bool isnull, pgbsonelement *sortKeyElement)
 		sortKeyElement->bsonValue.value_type != BSON_TYPE_DATE_TIME)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
-						errmsg("sortBy value must be numeric or a date, but found %s",
-							   BsonTypeName(sortKeyElement->bsonValue.value_type)),
+						errmsg(
+							"The sortBy parameter must contain either a numeric value or a date, but instead received %s",
+							BsonTypeName(sortKeyElement->bsonValue.value_type)),
 						errdetail_log(
-							"sortBy value must be numeric or a date, but found %s",
+							"The sortBy parameter must contain either a numeric value or a date, but instead received %s",
 							BsonTypeName(
 								sortKeyElement->bsonValue.value_type))));
 	}

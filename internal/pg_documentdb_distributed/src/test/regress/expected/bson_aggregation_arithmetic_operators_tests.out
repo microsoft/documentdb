@@ -391,17 +391,17 @@ SELECT * FROM bson_dollar_project('{"a":{"$date": {"$numberLong": "0"}}}', '{"re
 ERROR:  can't $subtract bool from date
 -- Should error if wrong number of args is provided
 SELECT * FROM bson_dollar_project('{"a":{ }}', '{"result": { "$subtract": "$a" }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a":{ }}', '{"result": { "$subtract": [] }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 0 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a":{ }}', '{"result": { "$subtract": [{"$subtract": [1, 2, 3]}, 2, 4, 5] }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 4 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 4 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$subtract": ["$a", 1, 3] }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": 1, "b": 2, "c": "string"}', '{"result": { "$subtract": ["$a", "$b", "$c"] }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": 1, "b": 2, "c": "string"}', '{"result": { "$subtract": ["$a", "$b", "$c", 2, 3, 3, 3, 3] }}');
-ERROR:  Expression $subtract takes exactly 2 arguments. 8 were passed in.
+ERROR:  The expression $subtract requires exactly 2 arguments, but 8 arguments were actually provided.
 -- $multiply operator
 -- Returns expected result
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$multiply": []}}');
@@ -691,17 +691,17 @@ SELECT * FROM bson_dollar_project('{"a": 0.0}', '{"result": { "$divide": [2, "$a
 ERROR:  $divide by zero is not allowed
 -- Number or args should be 2
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": {}}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": 1}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1]}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1, 2, 3, 4, 5, 6]}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 6 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 6 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1, 2, 3]}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [{"$divide": [1, 0]}]}}');
-ERROR:  Expression $divide takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $divide requires exactly 2 arguments, but 1 arguments were actually provided.
 -- Only numbers should be allowed
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$divide": [1, "str"]}}');
 ERROR:  $divide only supports numeric types, not int and string
@@ -1100,11 +1100,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": [{}]}}');
 ERROR:  $abs operator only accepts numeric data types, not object
 -- $abs: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": []}}');
-ERROR:  Expression $abs takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $abs requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": [1, 2]}}');
-ERROR:  Expression $abs takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $abs requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$abs": [1, 2, 3, 4]}}');
-ERROR:  Expression $abs takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $abs requires exactly 1 arguments, but 4 arguments were actually provided.
 -- $ceil: returns expected value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": -1}}');
           bson_dollar_project           
@@ -1208,11 +1208,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": [{}]}}');
 ERROR:  $ceil can only handle numeric data types, not object
 -- $ceil: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": []}}');
-ERROR:  Expression $ceil takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $ceil requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": [1, 2]}}');
-ERROR:  Expression $ceil takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $ceil requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ceil": [1, 2, 3, 4]}}');
-ERROR:  Expression $ceil takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $ceil requires exactly 1 arguments, but 4 arguments were actually provided.
 -- $exp: returns expected result
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": -1}}');
                       bson_dollar_project                      
@@ -1284,11 +1284,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": [[]]}}');
 ERROR:  $exp only supports numeric types, not array
 -- $exp: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": ["str", 1]}}');
-ERROR:  Expression $exp takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $exp requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{"a": true}', '{"result": { "$exp": ["$a", 2 ,2, 3]}}');
-ERROR:  Expression $exp takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $exp requires exactly 1 arguments, but 4 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$exp": []}}');
-ERROR:  Expression $exp takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $exp requires exactly 1 arguments, but 0 arguments were actually provided.
 -- $floor: returns expected value
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": -1}}');
           bson_dollar_project           
@@ -1383,20 +1383,20 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": null}}');
 
 -- $floor: supports only numerics
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": "str"}}');
-ERROR:  $floor only supports numeric types, not string
+ERROR:  Expected numberic type for $floor but found 'string' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": true}}');
-ERROR:  $floor only supports numeric types, not bool
+ERROR:  Expected numberic type for $floor but found 'bool' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": [false]}}');
-ERROR:  $floor only supports numeric types, not bool
+ERROR:  Expected numberic type for $floor but found 'bool' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": [{}]}}');
-ERROR:  $floor only supports numeric types, not object
+ERROR:  Expected numberic type for $floor but found 'object' type
 -- $floor: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": []}}');
-ERROR:  Expression $floor takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $floor requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": [1, 2]}}');
-ERROR:  Expression $floor takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $floor requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$floor": [1, 2, 3, 4]}}');
-ERROR:  Expression $floor takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $floor requires exactly 1 arguments, but 4 arguments were actually provided.
 -- $ln: expected results
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": {"$numberDouble": "2.718281828459045"}}}');
             bson_dollar_project             
@@ -1485,11 +1485,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": -100}}');
 ERROR:  The argument provided to the $ln operator must be a positive numeric value, but received -100 instead.
 -- $ln: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": []}}');
-ERROR:  Expression $ln takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $ln requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": [1, 2]}}');
-ERROR:  Expression $ln takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $ln requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$ln": [1, 2, 3, 4]}}');
-ERROR:  Expression $ln takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $ln requires exactly 1 arguments, but 4 arguments were actually provided.
 -- $log: expected results
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [10, 10]}}');
             bson_dollar_project             
@@ -1597,13 +1597,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [2, "str"]}}');
 ERROR:  The base value for the $log operator must be numeric, not string
 -- $log: takes exactly 2 arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": []}}');
-ERROR:  Expression $log takes exactly 2 arguments. 0 were passed in.
+ERROR:  The expression $log requires exactly 2 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": {}}}');
-ERROR:  Expression $log takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $log requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [1, 2, 3]}}');
-ERROR:  Expression $log takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $log requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log": [1]}}');
-ERROR:  Expression $log takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $log requires exactly 2 arguments, but 1 arguments were actually provided.
 -- $log10: expected results
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": 10}}');
             bson_dollar_project             
@@ -1686,13 +1686,13 @@ SELECT * FROM bson_dollar_project('{"a": null}', '{"result": { "$log10": "$a"}}'
 
 -- $log10: argument must be numeric
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": "str"}}');
-ERROR:  $log10 only supports numeric types, not string
+ERROR:  Expected numeric type for $log10 but found 'string' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": true}}');
-ERROR:  $log10 only supports numeric types, not bool
+ERROR:  Expected numeric type for $log10 but found 'bool' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [[]]}}');
-ERROR:  $log10 only supports numeric types, not array
+ERROR:  Expected numeric type for $log10 but found 'array' type
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [{}]}}');
-ERROR:  $log10 only supports numeric types, not object
+ERROR:  Expected numeric type for $log10 but found 'object' type
 -- $log10: argument must be positive number
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": 0}}');
 ERROR:  The argument provided to $log10 must be a positive number, but the given value is 0.
@@ -1706,11 +1706,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": {"$numberDouble"
 ERROR:  The argument provided to $log10 must be a positive number, but the given value is 0.
 -- $log10: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [1, 2]}}');
-ERROR:  Expression $log10 takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $log10 requires exactly 1 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": [1, 2, 3]}}');
-ERROR:  Expression $log10 takes exactly 1 arguments. 3 were passed in.
+ERROR:  The expression $log10 requires exactly 1 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$log10": []}}');
-ERROR:  Expression $log10 takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $log10 requires exactly 1 arguments, but 0 arguments were actually provided.
 -- $pow: returns expected
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [2, 2]}}');
           bson_dollar_project          
@@ -1925,13 +1925,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, {"$numberDecim
 ERROR:  A base of 0 and a negative exponent can't be taken by $pow
 -- $pow: takes exactly 2 arguments
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0, -31, 3]}}');
-ERROR:  Expression $pow takes exactly 2 arguments. 3 were passed in.
+ERROR:  The expression $pow requires exactly 2 arguments, but 3 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [0]}}');
-ERROR:  Expression $pow takes exactly 2 arguments. 1 were passed in.
+ERROR:  The expression $pow requires exactly 2 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": []}}');
-ERROR:  Expression $pow takes exactly 2 arguments. 0 were passed in.
+ERROR:  The expression $pow requires exactly 2 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$pow": [1,2,3,4,5,6]}}');
-ERROR:  Expression $pow takes exactly 2 arguments. 6 were passed in.
+ERROR:  The expression $pow requires exactly 2 arguments, but 6 arguments were actually provided.
 -- $sqrt: returns expected
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": 4}}');
             bson_dollar_project             
@@ -2018,11 +2018,11 @@ SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": { "$numberDecimal
 ERROR:  $sqrt's argument must be greater than or equal to 0
 -- $sqrt: takes exactly 1 arg
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": []}}');
-ERROR:  Expression $sqrt takes exactly 1 arguments. 0 were passed in.
+ERROR:  The expression $sqrt requires exactly 1 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": [1, 2, 3, 4]}}');
-ERROR:  Expression $sqrt takes exactly 1 arguments. 4 were passed in.
+ERROR:  The expression $sqrt requires exactly 1 arguments, but 4 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$sqrt": [1, 2]}}');
-ERROR:  Expression $sqrt takes exactly 1 arguments. 2 were passed in.
+ERROR:  The expression $sqrt requires exactly 1 arguments, but 2 arguments were actually provided.
 -- $round: defaults to 0 if 1 arg is provided
 SELECT * FROM bson_dollar_project('{}', '{"result": { "$round": { "$numberDouble": "1.3" }}}');
             bson_dollar_project             

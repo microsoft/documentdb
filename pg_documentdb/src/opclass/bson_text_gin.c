@@ -497,7 +497,7 @@ BsonTextGenerateTSQueryCore(const bson_value_t *queryValue, bytea *indexOptions,
 	if (queryValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$text expects an object")));
+						errmsg("Expected 'document' type for $text")));
 	}
 
 	bson_iter_t queryIterator;
@@ -907,7 +907,7 @@ BsonValidateAndExtractTextQuery(const bson_value_t *queryValue,
 	if (queryValue->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$text expects an object")));
+						errmsg("Expected 'document' type for $text")));
 	}
 
 	bson_iter_t queryIterator;
@@ -956,8 +956,9 @@ BsonValidateAndExtractTextQuery(const bson_value_t *queryValue,
 		languageValue.value_type != BSON_TYPE_UTF8)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("$language had the wrong type. Expected string, found %s",
-							   BsonTypeName(languageValue.value_type))));
+						errmsg(
+							"Expected 'string' type for $language but found '%s' type",
+							BsonTypeName(languageValue.value_type))));
 	}
 
 	if (caseSensitive->value_type != BSON_TYPE_EOD &&
@@ -974,7 +975,7 @@ BsonValidateAndExtractTextQuery(const bson_value_t *queryValue,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"$diacriticSensitive had the wrong type. Expected bool, found %s",
+							"Expected 'bool' type for $diacriticSensitivebut found '%s' type",
 							BsonTypeName(diacriticSensitive->value_type))));
 	}
 

@@ -59,7 +59,7 @@ static IndexOptionsEquivalency GetOptionsEquivalencyFromIndexOptions(
 	rightIndexSpec);
 
 
-/* Different types of indexes supported
+/* Supported index types
  */
 static const MongoIndexSupport MongoIndexSupportedList[] =
 {

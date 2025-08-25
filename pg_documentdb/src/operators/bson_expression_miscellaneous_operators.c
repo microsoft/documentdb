@@ -46,7 +46,8 @@ ParseDollarRand(const bson_value_t *argument, AggregationExpressionData *data,
 			  !IsBsonValueEmptyArray(argument)))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_DOLLARRANDNONEMPTYARGUMENT),
-						errmsg("$rand does not currently accept arguments")));
+						errmsg(
+							"Expected 0 arguments to be present for $rand")));
 	}
 
 	/* The random value will be generated in HandlePreParsedDollarRand to avoid caching a constant value. */

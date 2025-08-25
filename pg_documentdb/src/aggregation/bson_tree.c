@@ -550,7 +550,8 @@ ValidateAndSetLeafNodeData(BsonPathNode *childNode, const bson_value_t *value,
 	if (childNode->nodeType == NodeType_Intermediate)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31250),
-						errmsg("Path collision at %.*s", relativePath->length,
+						errmsg("Collision detected in specified path %.*s",
+							   relativePath->length,
 							   relativePath->string)));
 	}
 

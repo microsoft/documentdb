@@ -506,31 +506,31 @@ SELECT * FROM bson_dollar_project('{ }', '{"isoWeek": {"$isoWeek": {"timezone": 
 ERROR:  missing 'date' argument to $isoWeek, provided: $isoWeek: { "timezone" : true }
 -- date part operators: object with date and timezone arguments.
 SELECT * FROM bson_dollar_project('{ }', '{"year": {"$year": {"random": true}}}');
-ERROR:  unrecognized option to $year: "random"
+ERROR:  Unrecognized $year option provided: "random"
 SELECT * FROM bson_dollar_project('{ }', '{"month": {"$month": {"foo": 1}}}');
-ERROR:  unrecognized option to $month: "foo"
+ERROR:  Unrecognized $month option provided: "foo"
 SELECT * FROM bson_dollar_project('{ }', '{"dayOfMonth": {"$dayOfMonth": {"timezone": [], "date": 1, "time": 1}}}');
-ERROR:  unrecognized option to $dayOfMonth: "time"
+ERROR:  Unrecognized $dayOfMonth option provided: "time"
 SELECT * FROM bson_dollar_project('{ }', '{"dayOfYear": {"$dayOfYear": {"timezone": 1, "dat": 2}}}');
-ERROR:  unrecognized option to $dayOfYear: "dat"
+ERROR:  Unrecognized $dayOfYear option provided: "dat"
 SELECT * FROM bson_dollar_project('{ }', '{"dayOfWeek": {"$dayOfWeek": {"timezon": {}}}}');
-ERROR:  unrecognized option to $dayOfWeek: "timezon"
+ERROR:  Unrecognized $dayOfWeek option provided: "timezon"
 SELECT * FROM bson_dollar_project('{ }', '{"hour": {"$hour": {"datetime": 1}}}');
-ERROR:  unrecognized option to $hour: "datetime"
+ERROR:  Unrecognized $hour option provided: "datetime"
 SELECT * FROM bson_dollar_project('{ }', '{"minute": {"$minute": {"timeZone": [[[]]]}}}');
-ERROR:  unrecognized option to $minute: "timeZone"
+ERROR:  Unrecognized $minute option provided: "timeZone"
 SELECT * FROM bson_dollar_project('{ }', '{"second": {"$second": {"Timezone": {}}}}');
-ERROR:  unrecognized option to $second: "Timezone"
+ERROR:  Unrecognized $second option provided: "Timezone"
 SELECT * FROM bson_dollar_project('{ }', '{"millisecond": {"$millisecond": {"unknown": "1"}}}');
-ERROR:  unrecognized option to $millisecond: "unknown"
+ERROR:  Unrecognized $millisecond option provided: "unknown"
 SELECT * FROM bson_dollar_project('{ }', '{"week": {"$week": {"location": {"$date": {"$numberLong": "0"}}}}}');
-ERROR:  unrecognized option to $week: "location"
+ERROR:  Unrecognized $week option provided: "location"
 SELECT * FROM bson_dollar_project('{ }', '{"isoWeekYear": {"$isoWeekYear": {"timezonE": {"$oid": "639926cee6bda3127f153bf1"}}}}');
-ERROR:  unrecognized option to $isoWeekYear: "timezonE"
+ERROR:  Unrecognized $isoWeekYear option provided: "timezonE"
 SELECT * FROM bson_dollar_project('{ }', '{"isoDayOfWeek": {"$isoDayOfWeek": {"timezone": true, "foo": 1}}}');
-ERROR:  unrecognized option to $isoDayOfWeek: "foo"
+ERROR:  Unrecognized $isoDayOfWeek option provided: "foo"
 SELECT * FROM bson_dollar_project('{ }', '{"isoWeek": {"$isoWeek": {"date": 1, "info": ""}}}');
-ERROR:  unrecognized option to $isoWeek: "info"
+ERROR:  Unrecognized $isoWeek option provided: "info"
 -- date part operators: array argument, should be single element array.
 SELECT * FROM bson_dollar_project('{ }', '{"year": {"$year": [1, 2, 3]}}');
 ERROR:  $year requires exactly one argument when an array is provided, but received 3

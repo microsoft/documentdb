@@ -93,7 +93,7 @@ BsonDocumentValueCountKeys(const bson_value_t *value)
 	if (value->value_type != BSON_TYPE_ARRAY && value->value_type != BSON_TYPE_DOCUMENT)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-						errmsg("Expected value of type array or document")));
+						errmsg("Value must be either an array type or a document type")));
 	}
 	bson_t bson;
 	if (!bson_init_static(&bson, value->value.v_doc.data,

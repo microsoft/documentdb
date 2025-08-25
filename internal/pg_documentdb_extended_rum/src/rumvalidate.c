@@ -126,7 +126,7 @@ rumvalidate(Oid opclassoid)
 			continue;
 		}
 
-		/* Check procedure numbers and function signatures */
+		/* Verify procedure numbers and review function signatures */
 		switch (procform->amprocnum)
 		{
 			case GIN_COMPARE_PROC:

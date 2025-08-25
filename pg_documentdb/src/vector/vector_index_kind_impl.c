@@ -49,7 +49,7 @@ typedef struct PgVectorIvfflatOptions
 typedef struct PgVectorHnswOptions
 {
 	int32 vl_len_;              /* varlena header (do not touch directly!) */
-	int m;                      /* number of connections */
+	int m;                      /* Total number of active connections */
 	int efConstruction;         /* size of dynamic candidate list */
 } PgVectorHnswOptions;
 
@@ -372,10 +372,11 @@ ParseHNSWCreationSpec(bson_iter_t *vectorOptionsIter,
 			if (vectorIndexOptions->m > HNSW_MAX_M)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("%s must be less than or equal to %d not %d",
-									   VECTOR_PARAMETER_NAME_HNSW_M,
-									   HNSW_MAX_M,
-									   vectorIndexOptions->m)));
+								errmsg(
+									"%s should not exceed %d, but received %d",
+									VECTOR_PARAMETER_NAME_HNSW_M,
+									HNSW_MAX_M,
+									vectorIndexOptions->m)));
 			}
 		}
 		else if (strcmp(optionsIterKey,
@@ -406,7 +407,7 @@ ParseHNSWCreationSpec(bson_iter_t *vectorOptionsIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 								errmsg(
-									"%s must be less than or equal to %d not %d",
+									"%s should not exceed %d, but received %d",
 									VECTOR_PARAMETER_NAME_HNSW_EF_CONSTRUCTION,
 									HNSW_MAX_EF_CONSTRUCTION,
 									vectorIndexOptions->efConstruction)));
@@ -507,7 +508,7 @@ ParseIVFIndexSearchSpec(const VectorSearchOptions *vectorSearchOptions)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"$nProbes must be greater than or equal to %d.",
+									"The value of $nProbes should be at least %d.",
 									IVFFLAT_MIN_NPROBES)));
 			}
 

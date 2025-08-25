@@ -775,6 +775,11 @@ BsonValueAsDateTime(const bson_value_t *value)
 
 		default:
 		{
+			/*
+			 * Compatibility Notice: The text in this error string is copied verbatim from MongoDB output
+			 * to maintain compatibility with existing tools and scripts that rely on specific error message formats.
+			 * Modifying this text may cause unexpected behavior in dependent systems.
+			 */
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION16006), errmsg(
 								"can't convert from BSON type %s to Date",
 								BsonTypeName(value->value_type))));

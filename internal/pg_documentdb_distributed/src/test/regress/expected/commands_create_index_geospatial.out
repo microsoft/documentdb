@@ -28,11 +28,11 @@ ERROR:  Error in specification { "key" : { "b" : 1, "a" : "2d" }, "name" : "my_2
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a.$**": "2d"}, "name": "my_2d_a_idx" }]}', true); -- 2d with wildcard
 ERROR:  Error in specification { "key" : { "a.$**" : "2d" }, "name" : "my_2d_a_idx" }:Index key contains an illegal field name: field name starts with '$'.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "max": -190 } ]}', true); -- 2d with max -170 and min -180 (default)
-ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "max" : -190 }:region for hash must be valid and have positive area, but [-180, -190] was specified
+ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "max" : -190 }:The specified region for hash must be valid with a positive area, but the provided coordinates [-180, -190] are invalid.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "min": 190 } ]}', true); -- 2d with min 190 and max 180 (default)
-ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "min" : 190 }:region for hash must be valid and have positive area, but [190, 180] was specified
+ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "min" : 190 }:The specified region for hash must be valid with a positive area, but the provided coordinates [190, 180] are invalid.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "max": 180, "min": 180} ]}', true); -- 2d with min and max equal to 180
-ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "max" : 180, "min" : 180 }:region for hash must be valid and have positive area, but [180, 180] was specified
+ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "max" : 180, "min" : 180 }:The specified region for hash must be valid with a positive area, but the provided coordinates [180, 180] are invalid.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "expireAfterSeconds": 20 } ]}', true); -- With TTL
 ERROR:  Creating a 2d index as ttl index is not supported.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d", "b": "text"}, "name": "my_2d_a_idx" } ]}', true); -- 2d with text
@@ -40,9 +40,9 @@ ERROR:  Error in specification { "key" : { "a" : "2d", "b" : "text" }, "name" : 
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d", "b.$**": 1}, "name": "my_2d_a_idx" } ]}', true); -- 2d followed by wildcard
 ERROR:  Error in specification { "key" : { "a" : "2d", "b.$**" : 1 }, "name" : "my_2d_a_idx" }:wildcard indexes do not allow compounding
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "bits": 0 } ]}', true); -- bits 0
-ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "bits" : 0 }:bits for hash must be > 0 and <= 32, but 0 bits were specified
+ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "bits" : 0 }:The number of bits for the hash must be greater than 0 and no more than 32, but 0 bits were provided instead.
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dindextest", "indexes": [{"key": {"a": "2d"}, "name": "my_2d_a_idx", "bits": 33 } ]}', true); -- bits more than 32
-ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "bits" : 33 }:bits for hash must be > 0 and <= 32, but 33 bits were specified
+ERROR:  Error in specification { "key" : { "a" : "2d" }, "name" : "my_2d_a_idx", "bits" : 33 }:The number of bits for the hash must be greater than 0 and no more than 32, but 33 bits were provided instead.
 -- Test invalid 2dsphere index creation scenarios
 SELECT documentdb_api_internal.create_indexes_non_concurrently('db', '{"createIndexes": "2dsphereindextest", "indexes": [{"key": {"a": "2dsphere"}, "name": "my_2ds_a_idx", "unique": true }]}', true); -- 2dsphere with unique
 ERROR:  Error in specification { "key" : { "a" : "2dsphere" }, "name" : "my_2ds_a_idx", "unique" : true }:Index type '2dsphere' does not support the unique option
@@ -451,9 +451,9 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [] } }', NULL);
-                                                                                                                     insert_one                                                                                                                     
+                                                                                                                            insert_one                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Polygon has no loops." } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Polygon Failed to retrieve geo keys { _id: 1 }  does not contain any loops." } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": "non-array" } }', NULL);
@@ -475,9 +475,9 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2]]] } }', NULL);
-                                                                                                                                       insert_one                                                                                                                                        
+                                                                                                                                              insert_one                                                                                                                                              
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Loop must have at least 3 different vertices: [ [ 1, 2 ] ]" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "A Failed to retrieve geo keys { _id: 1 } Loop must contain no fewer than three distinct vertices: [ [ 1, 2 ] ]" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2], [1, 2], [1,3]]] } }', NULL);
@@ -487,9 +487,9 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 2], [1, 2], [1,3], [1,2]]] } }', NULL);
-                                                                                                                                                      insert_one                                                                                                                                                       
+                                                                                                                                                             insert_one                                                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Loop must have at least 3 different vertices: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ], [ 1, 2 ] ]" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "A Failed to retrieve geo keys { _id: 1 } Loop must contain no fewer than three distinct vertices: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ], [ 1, 2 ] ]" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "Polygon", "coordinates": [[[1, 1], [1, 5], [3, 4], [0, 3], [1, 1]]] } }', NULL);
@@ -583,9 +583,9 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"ty
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPolygon", "coordinates": [[[[1, 2], [1, 2], [1,3], [1,2]]]] } }', NULL);
-                                                                                                                                                      insert_one                                                                                                                                                       
+                                                                                                                                                             insert_one                                                                                                                                                             
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } Loop must have at least 3 different vertices: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ], [ 1, 2 ] ]" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "A Failed to retrieve geo keys { _id: 1 } Loop must contain no fewer than three distinct vertices: [ [ 1, 2 ], [ 1, 2 ], [ 1, 3 ], [ 1, 2 ] ]" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : {"type": "MultiPolygon", "coordinates": [[[[1, 1], [1, 5], [3, 4], [0, 3], [1, 1]]]] } }', NULL);
@@ -613,9 +613,9 @@ SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "t
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "type": "GeometryCollection", "geometries": [] } }', NULL);
-                                                                                                                                       insert_one                                                                                                                                        
+                                                                                                                                           insert_one                                                                                                                                           
 ---------------------------------------------------------------------
- { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeometryCollection geometries must have at least 1 element" } ] }
+ { "n" : { "$numberInt" : "0" }, "ok" : { "$numberDouble" : "1.0" }, "writeErrors" : [ { "index" : { "$numberInt" : "0" }, "code" : { "$numberInt" : "302514205" }, "errmsg" : "Failed to retrieve geo keys { _id: 1 } GeometryCollection must contain a minimum of one geometry element" } ] }
 (1 row)
 
 SELECT documentdb_api.insert_one('db','2dsphereindextest','{"_id": 1, "a" : { "type": "GeometryCollection", "coordinates": [] } }', NULL);

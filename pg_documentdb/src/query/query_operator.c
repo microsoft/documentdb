@@ -1015,7 +1015,7 @@ ExpandBsonQueryOperator(OpExpr *queryOpExpr, Node *queryNode,
 			bool hasShardKeyFilters = false;
 			if (collection->shardKey != NULL)
 			{
-				/* extract the shard_key_value filter for the given collection */
+				/* Retrieve the shard_key_value filter applicable to the specified collection */
 				bson_value_t queryDocValue = ConvertPgbsonToBsonValue(queryDocument);
 				bool areShardKeysCollationAware = false;
 				Expr *shardKeyFilters =
@@ -1487,7 +1487,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 	if (bson_iter_type(queryDocIterator) != BSON_TYPE_ARRAY)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"%s must be an array",
+							"Expected 'array' type for %s",
 							mongoOperatorName)));
 	}
 
@@ -1588,7 +1588,7 @@ CreateBoolExprFromLogicalExpression(bson_iter_t *queryDocIterator,
 		TargetListContainsGeonearOp(context->targetEntries))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-							"geo $near must be top-level expr")));
+							"$geoNear must appear at the top level of the expression")));
 	}
 
 	return (Expr *) logicalExpr;
@@ -1804,7 +1804,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 										bool *regexFound,
 										bson_value_t **options)
 {
-	/* get query operator type */
+	/* Retrieve query operator category */
 	const char *mongoOperatorName = bson_iter_key(operatorDocIterator);
 	const MongoQueryOperator *operator =
 		GetMongoQueryOperatorByMongoOpName(mongoOperatorName, context->inputType);
@@ -2003,7 +2003,7 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 				else if (doubleValue < 0)
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE), errmsg(
-										"Failed to parse $size. Expected a non-negative number in: $size: %s",
+										"Parsing of operator $size failed. A non-negative value was expected in operator $size: %s",
 										BsonValueToJsonForLogging(value))));
 				}
 			}
@@ -2421,7 +2421,6 @@ CreateOpExprFromOperatorDocIteratorCore(bson_iter_t *operatorDocIterator,
 												  mongoOperatorName)));
 				}
 
-				/*a special case for DBRef */
 				/*If queryDoc is a string like {'$id': '', '$ref': ''}, treat it as a DBRef as well */
 				if ((isRef && strcmp(bson_iter_key(&refIterator), "$id") == 0) ||
 					(!isRef && strcmp(bson_iter_key(&refIterator), "$ref") == 0))
@@ -4429,7 +4428,7 @@ ParseBsonValueForNearAndCreateOpExpr(bson_iter_t *operatorDocIterator,
 		if (isGeonear)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Too many geoNear expressions")));
+							errmsg("Excessive number of geoNear query expressions")));
 		}
 	}
 

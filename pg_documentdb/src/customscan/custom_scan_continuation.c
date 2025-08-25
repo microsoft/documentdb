@@ -767,7 +767,8 @@ UpdatePathsWithExtensionStreamingCursorPlans(PlannerInfo *root, RelOptInfo *rel,
 			!IsValidScanPath(inputPath))
 		{
 			/* For now just break if it's not a seq scan or bitmap scan */
-			elog(INFO, "Skipping unsupported path type %d", inputPath->pathtype);
+			elog(INFO, "Path type %d is unsupported in this flow. Skipping it.",
+				 inputPath->pathtype);
 			continue;
 		}
 
@@ -1099,7 +1100,7 @@ ExtensionScanPlanCustomPath(PlannerInfo *root,
 	Plan *nestedPlan = linitial(custom_plans);
 
 	/* TODO: clear the filters in the nested plan (so we don't load the document in the nested plan) */
-	/* This is the output of the scan */
+	/* Scan output */
 	if (tlist != NIL)
 	{
 		cscan->scan.plan.targetlist = tlist;

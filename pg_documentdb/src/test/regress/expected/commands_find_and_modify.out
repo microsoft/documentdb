@@ -8,7 +8,7 @@ SELECT documentdb_api.find_and_modify('db', NULL);
 ERROR:  p_message cannot be NULL
 -- missing params
 SELECT documentdb_api.find_and_modify('fam', '{}');
-ERROR:  BSON field 'findAndModify.findAndModify' is missing but a required field
+ERROR:  The BSON field 'findAndModify.findAndModify' is required but was not provided
 SELECT documentdb_api.find_and_modify('fam', '{"findAndModify": "remove_or_update"}');
 ERROR:  Either an update or remove=true must be specified
 -- no such collection, upsert=false

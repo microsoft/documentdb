@@ -160,7 +160,7 @@ command_coll_mod(PG_FUNCTION_ARGS)
 	if (collModOptions.collectionName == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE), (errmsg(
-																		"collMod must be specified"))));
+																		"Collection name of collMod options must be specified"))));
 	}
 
 	if (!PG_ARGISNULL(1))
@@ -391,7 +391,8 @@ ParseIndexSpecSetCollModOptions(bson_iter_t *indexSpecIter,
 			if (*specFlags & HAS_INDEX_OPTION_NAME)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
-								errmsg("Cannot specify both key pattern and name.")));
+								errmsg(
+									"Both name and key pattern cannot be present")));
 			}
 			collModIndexOptions->keyPattern = PgbsonInitFromDocumentBsonValue(value);
 			*specFlags |= HAS_INDEX_OPTION_KEYPATTERN;
@@ -402,7 +403,8 @@ ParseIndexSpecSetCollModOptions(bson_iter_t *indexSpecIter,
 			if (*specFlags & HAS_INDEX_OPTION_KEYPATTERN)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
-								errmsg("Cannot specify both key pattern and name.")));
+								errmsg(
+									"Both name and key pattern cannot be present")));
 			}
 			collModIndexOptions->name = palloc(value->value.v_utf8.len + 1);
 			strcpy(collModIndexOptions->name, value->value.v_utf8.str);

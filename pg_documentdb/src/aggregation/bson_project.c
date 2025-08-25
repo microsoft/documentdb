@@ -1891,7 +1891,7 @@ BsonLookUpGetFilterExpression(pgbson *sourceDocument,
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 						errmsg(
-							"FieldPath field names may not start with '$'")));
+							"FieldPath field names cannot begin with the operators symbol '$'.")));
 	}
 
 	/* Start the iterator at the provided path */
@@ -2204,14 +2204,15 @@ BuildBsonUnsetPathTree(const bson_value_t *pathSpecification)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31120),
 								errmsg(
-									"$unset specification must be a string or an array containing only string values")));
+									"$unset require a string or an array containing exclusively string values")));
 			}
 		}
 	}
 	else
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION31002),
-						errmsg("$unset specification must be a string or an array")));
+						errmsg(
+							"$unset requires specification as either a string or an array")));
 	}
 
 	return tree;
@@ -2448,7 +2449,7 @@ ProjectCurrentIteratorFieldToWriter(bson_iter_t *documentIterator,
 
 			default:
 			{
-				ereport(ERROR, (errmsg("Unexpected node type %d",
+				ereport(ERROR, (errmsg("Node type %d is not recognized",
 									   child->nodeType)));
 			}
 		}

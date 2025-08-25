@@ -1792,7 +1792,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_TYPEMISMATCH),
 								errmsg(
-									"The field 'bits' must be a number, but got %s.",
+									"The 'bits' field requires a numeric value, but a different type was provided: %s.",
 									BsonIterTypeName(&indexDefDocIter))));
 			}
 
@@ -1802,7 +1802,7 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_INVALIDOPTIONS),
 								errmsg(
-									"bits for hash must be > 0 and <= 32, but %d bits were specified",
+									"The number of bits for the hash must be greater than 0 and no more than 32, but %d bits were provided instead.",
 									bits)));
 			}
 
@@ -2184,8 +2184,9 @@ ParseIndexDefDocumentInternal(const bson_iter_t *indexesArrayIter,
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
 							errmsg(
-								"region for hash must be valid and have positive area, but [%g, %g] was specified",
-								minBound, maxBound)));
+								"The specified region for hash must be valid with a positive area, but the provided coordinates [%g, %g] are invalid.",
+								minBound,
+								maxBound)));
 		}
 	}
 
@@ -2475,7 +2476,7 @@ static void
 ThrowIndexDefDocMissingFieldError(const char *fieldName)
 {
 	ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-					errmsg("The '%s' field is a required property of "
+					errmsg("The '%s' field is mandatory and must be included as part of "
 						   "an index specification", fieldName)));
 }
 
@@ -2535,14 +2536,16 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			if (indexDefKeyKey[0] == '.')
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("Index keys cannot contain an empty field.")));
+								errmsg(
+									"Index keys are not allowed to include any fields that are empty.")));
 			}
 
 			/* Case 3: Index keyPath should not have double dots in the path */
 			if (strstr(indexDefKeyKey, DOUBLE_DOT_IN_INDEX_PATH) != NULL)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("Index keys cannot contain an empty field.")));
+								errmsg(
+									"Index keys are not allowed to include any fields that are empty.")));
 			}
 
 			/* wildcard index on a path ? */
@@ -2566,7 +2569,8 @@ ParseIndexDefKeyDocument(const bson_iter_t *indexDefDocIter)
 			if (StringViewEndsWith(&indexPath, '.'))
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-								errmsg("Index keys cannot contain an empty field.")));
+								errmsg(
+									"Index keys are not allowed to include any fields that are empty.")));
 			}
 
 			/* Case 6: Iterate through the dotted path and make sure the field should not start with '$' */
@@ -3368,11 +3372,12 @@ CheckWildcardProjectionTreeInternal(const BsonIntermediatePathNode *treeParentNo
 					CreateIndexesLeafPathNodeData *leafPathNode =
 						(CreateIndexesLeafPathNodeData *) treeNode;
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-									errmsg("Cannot do %s on field %s in %s projection",
-										   WPFieldInclusionModeString(nodeInclusionMode),
-										   leafPathNode->relativePath,
-										   WPFieldInclusionModeString(
-											   expectedWPInclusionMode))));
+									errmsg(
+										"Unable to perform %s on the field %s within the %s projection",
+										WPFieldInclusionModeString(nodeInclusionMode),
+										leafPathNode->relativePath,
+										WPFieldInclusionModeString(
+											expectedWPInclusionMode))));
 				}
 
 				break;
@@ -6231,7 +6236,7 @@ ValidateIndexName(const bson_value_t *indexName)
 	if (indexName->value.v_utf8.len == 0)
 	{
 		ereport(ERROR, errcode(ERRCODE_DOCUMENTDB_CANNOTCREATEINDEX),
-				errmsg("The index name cannot be empty"));
+				errmsg("Cannot specify an empty index name"));
 	}
 
 	/* index names with embedded nulls not allowed */

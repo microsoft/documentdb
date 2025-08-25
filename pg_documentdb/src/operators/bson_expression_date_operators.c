@@ -2016,7 +2016,7 @@ ParseDatePartOperatorArgument(const bson_value_t *operatorValue, const char *ope
 				else
 				{
 					ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION40535), errmsg(
-										"unrecognized option to %s: \"%s\"",
+										"Unrecognized %s option provided: \"%s\"",
 										operatorName, key),
 									errdetail_log(
 										"unrecognized option to operator %s, Unexpected key in input",
@@ -6995,7 +6995,7 @@ VerifyAndParseFormatStringToParts(bson_value_t *dateString, char *format,
 																			  parts[i].
 																			  rawString),
 																		  errdetail_log(
-																			  "you cannot pass in a date/time string with time zone information together with a timezone argument"))));
+																			  "A date/time string containing time zone data cannot be used together with a separate timezone argument."))));
 				}
 
 				*isInputValid = false;

@@ -1196,7 +1196,7 @@ ShardCollectionCore(ShardCollectionArgs *args)
 							errmsg("Collection %s.%s is not sharded",
 								   args->databaseName, args->collectionName),
 							errdetail_log(
-								"Can not re/unshard collection that doesn't exist: %s.%s",
+								"Unable to perform re/unshard operation on a collection that is missing: %s.%s",
 								args->databaseName, args->collectionName)));
 		}
 

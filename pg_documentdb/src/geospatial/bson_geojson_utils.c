@@ -222,9 +222,9 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 				RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 					shouldThrowError, (
 						errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
-						errmsg("%sPolygon has no loops.",
+						errmsg("Polygon %s does not contain any loops.",
 							   GEO_ERROR_PREFIX(parseState->errorCtxt)),
-						errdetail_log("%sPolygon has no loops.",
+						errdetail_log("Polygon %s does not contain any loops.",
 									  GEO_HINT_PREFIX(parseState->errorCtxt))));
 			}
 
@@ -435,10 +435,10 @@ WriteBufferGeoJsonCoordinates(const bson_value_t *coordinatesValue,
 					shouldThrowError, (
 						errcode(GEO_ERROR_CODE(parseState->errorCtxt)),
 						errmsg(
-							"%sGeometryCollection geometries must have at least 1 element",
+							"%sGeometryCollection must contain a minimum of one geometry element",
 							GEO_ERROR_PREFIX(parseState->errorCtxt)),
 						errdetail_log(
-							"%sGeometryCollection geometries must have at least 1 element",
+							"%sGeometryCollection must contain a minimum of one geometry element",
 							GEO_HINT_PREFIX(parseState->errorCtxt))));
 			}
 			insideGeometryCollection = true;
@@ -700,11 +700,13 @@ WriteBufferGeoJsonMultiPoints(const bson_value_t *multiPointValue, const GeoJson
 			RETURN_FALSE_IF_ERROR_NOT_EXPECTED(
 				shouldThrowError, (
 					errcode(GEO_ERROR_CODE(state->errorCtxt)),
-					errmsg("%sLoop must have at least 3 different vertices: %s",
-						   GEO_ERROR_PREFIX(state->errorCtxt),
-						   BsonValueToJsonForLogging(multiPointValue)),
-					errdetail_log("%sLoop must have at least 3 different vertices.",
-								  GEO_HINT_PREFIX(state->errorCtxt))));
+					errmsg(
+						"A %sLoop must contain no fewer than three distinct vertices: %s",
+						GEO_ERROR_PREFIX(state->errorCtxt),
+						BsonValueToJsonForLogging(multiPointValue)),
+					errdetail_log(
+						"A %s loop requires a minimum of three distinct vertices.",
+						GEO_HINT_PREFIX(state->errorCtxt))));
 		}
 	}
 
@@ -1275,7 +1277,7 @@ IsHoleFullyCoveredByOuterRing(char *currPtr, int32 numPoints,
 							polygonValidationState->previousRingPointsStart,
 							polygonValidationState->previousRingNumPoints)),
 					errdetail_log(
-						"%s Secondary loops not contained by first exterior loop - secondary loops must be holes",
+						"%s Secondary loops are not enclosed within the primary outer loop — all secondary loops must function as holes.",
 						GEO_HINT_PREFIX(polygonValidationState->errorCtxt)
 						)));
 		}
@@ -1305,7 +1307,7 @@ IsHoleFullyCoveredByOuterRing(char *currPtr, int32 numPoints,
 								polygonValidationState->previousRingPointsStart,
 								polygonValidationState->previousRingNumPoints)),
 						errdetail_log(
-							"%s Secondary loops not contained by first exterior loop - secondary loops must be holes",
+							"%s Secondary loops are not enclosed within the primary outer loop — all secondary loops must function as holes.",
 							GEO_HINT_PREFIX(polygonValidationState->errorCtxt)
 							)));
 			}

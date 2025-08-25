@@ -1359,7 +1359,7 @@ Decimal128MathematicalOperation1Operand(const bson_value_t *value, bson_value_t 
 	if (!IsOperationSuccess(exceptionFlag))
 	{
 		/* Log and ignore all exceptions */
-		LogWith1Operand("Decimal128 math operation signaled exception", &valueBid,
+		LogWith1Operand("Decimal128 arithmetic process triggered exception", &valueBid,
 						&exceptionFlag);
 	}
 

@@ -818,8 +818,9 @@ BuildBatchUpdateSpec(bson_iter_t *updateCommandIter, pgbsonsequence *updateDocs)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_UNKNOWNBSONFIELD),
-							errmsg("BSON field 'update.%s' is an unknown field",
-								   field)));
+							errmsg(
+								"The BSON field 'update.%s' is not recognized as a valid field",
+								field)));
 		}
 	}
 
@@ -1541,8 +1542,8 @@ ProcessUpdate(MongoCollection *collection, UpdateSpec *updateSpec,
 		if (DetermineUpdateType(update) == UpdateType_ReplaceDocument)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_FAILEDTOPARSE),
-							errmsg("multi update is not supported for "
-								   "replacement-style update")));
+							errmsg(
+								"multi=true and replace-style updates cannot be used together.")));
 		}
 
 

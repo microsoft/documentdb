@@ -78,7 +78,7 @@ ERROR:  collection name has invalid type array
 select documentdb_api.update('db', '{"update":"updateme", "updates":{"q":{},"u":{"$set":{"b":0}},"multi":true}}');
 ERROR:  The BSON field 'update.updates' has an incorrect type 'object'; it should be of type 'array'.
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}], "extra":1}');
-ERROR:  BSON field 'update.extra' is an unknown field
+ERROR:  The BSON field 'update.extra' is not recognized as a valid field
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{}}]}');
 ERROR:  The required field 'update.updates.u' is missing
 CONTEXT:  SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $3, $4::documentdb_core.bson, $5::documentdb_core.bsonsequence, $6) FROM documentdb_data.documents_6490 WHERE shard_key_value = 6490"
@@ -106,9 +106,9 @@ CONTEXT:  SQL statement " SELECT documentdb_api_internal.update_worker($1, $2, $
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"multi":true}],"ordered":1}');
 ERROR:  The BSON field 'update.ordered' has an incorrect type 'int'; it should be of type 'bool'.
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$bork":{"b":0}},"multi":true}]}');
-                                                                                                                                                                                    update                                                                                                                                                                                     
+                                                                                                                                                                                     update                                                                                                                                                                                      
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""Unknown modifier: $bork. Expected a valid update modifier or pipeline-style update specified as an array"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""Unknown modifier: $bork. Please use a valid update modifier or pipeline-style update specified as an array"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{},"u":{"$set":{"b":0}},"upsert":[]}]}');
@@ -151,9 +151,9 @@ rollback;
 -- update multi with a replace is not supported
 begin;
 select documentdb_api.update('db', '{"update":"updateme", "updates":[{"q":{"a":{"$lte":3}},"u":{"b":0},"multi":true}]}');
-                                                                                                                                                             update                                                                                                                                                              
+                                                                                                                                                                    update                                                                                                                                                                     
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""multi update is not supported for replacement-style update"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""50331677"" }, ""errmsg"" : ""multi=true and replace-style updates cannot be used together."" } ] }",f)
 (1 row)
 
 rollback;
@@ -1461,15 +1461,15 @@ select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_i
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id": 2},"u":{},"upsert":true}]}');
-                                                                                                                                                               update                                                                                                                                                                
+                                                                                                                                                                            update                                                                                                                                                                             
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""cannot infer query fields to set, path '_id' is matched twice"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""Unable to determine which query fields to set, as the path '_id' has been matched twice"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"x": 1, "x": 5},"u":{"$set" : {"x":10}},"upsert":true}]}');
-                                                                                                                                                              update                                                                                                                                                               
+                                                                                                                                                                           update                                                                                                                                                                            
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""cannot infer query fields to set, path 'x' is matched twice"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""Unable to determine which query fields to set, as the path 'x' has been matched twice"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id.b": 2},"u":{"_id":3, "a":4},"upsert":true}]}');
@@ -1491,15 +1491,15 @@ select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_i
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id": 2},"u":{"_id":3},"upsert":true}]}');
-                                                                                                                                                               update                                                                                                                                                                
+                                                                                                                                                                            update                                                                                                                                                                             
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""cannot infer query fields to set, path '_id' is matched twice"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""Unable to determine which query fields to set, as the path '_id' has been matched twice"" } ] }",f)
 (1 row)
 
 select documentdb_api.update('update', '{"update":"single", "updates":[{"q":{"_id": 1, "_id": 2},"u":{"$set" : {"_id":3} },"upsert":true}]}');
-                                                                                                                                                               update                                                                                                                                                                
+                                                                                                                                                                            update                                                                                                                                                                             
 ---------------------------------------------------------------------
- ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""cannot infer query fields to set, path '_id' is matched twice"" } ] }",f)
+ ("{ ""ok"" : { ""$numberDouble"" : ""1.0"" }, ""nModified"" : { ""$numberInt"" : ""0"" }, ""n"" : { ""$numberInt"" : ""0"" }, ""writeErrors"" : [ { ""index"" : { ""$numberInt"" : ""0"" }, ""code"" : { ""$numberInt"" : ""419430429"" }, ""errmsg"" : ""Unable to determine which query fields to set, as the path '_id' has been matched twice"" } ] }",f)
 (1 row)
 
 -- array filters sent to final update command.

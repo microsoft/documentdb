@@ -250,13 +250,13 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"if": {"$gt": [3,
 
 -- $cond: if is required
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"then": "then", "else": "$a"}}}');
-ERROR:  Missing 'if' parameter to $cond
+ERROR:  'if' parameter is missing in the $cond operator
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"else": "else", "then": "$a"}}}');
-ERROR:  Missing 'if' parameter to $cond
+ERROR:  'if' parameter is missing in the $cond operator
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"else": "else"}}}');
-ERROR:  Missing 'if' parameter to $cond
+ERROR:  'if' parameter is missing in the $cond operator
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {}}}');
-ERROR:  Missing 'if' parameter to $cond
+ERROR:  'if' parameter is missing in the $cond operator
 -- $cond: then is required
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"if": "if", "else": "$a"}}}');
 ERROR:  'then' parameter is missing in the $cond operator
@@ -271,20 +271,20 @@ SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"then": "then", "
 ERROR:  'else' parameter is missing in the $cond operator
 -- $cond: unknown argument
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"if": false, "then": "then", "else": "$a", "foo": "blah"}}}');
-ERROR:  Unrecognized parameter to $cond: foo
+ERROR:  Unrecognized argument provided to operators $cond: foo
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": {"foo": "blah"}}}');
-ERROR:  Unrecognized parameter to $cond: foo
+ERROR:  Unrecognized argument provided to operators $cond: foo
 -- $cond: requires 3 arguments error
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [false, "else"]}}');
-ERROR:  Expression $cond takes exactly 3 arguments. 2 were passed in.
+ERROR:  The expression $cond requires exactly 3 arguments, but 2 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": []}}');
-ERROR:  Expression $cond takes exactly 3 arguments. 0 were passed in.
+ERROR:  The expression $cond requires exactly 3 arguments, but 0 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [true, true, true, true, true]}}');
-ERROR:  Expression $cond takes exactly 3 arguments. 5 were passed in.
+ERROR:  The expression $cond requires exactly 3 arguments, but 5 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": "str"}}');
-ERROR:  Expression $cond takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $cond requires exactly 3 arguments, but 1 arguments were actually provided.
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": true}}');
-ERROR:  Expression $cond takes exactly 3 arguments. 1 were passed in.
+ERROR:  The expression $cond requires exactly 3 arguments, but 1 arguments were actually provided.
 -- $cond: nested expression errors honored even if result is not affected by it
 SELECT * FROM bson_dollar_project('{}', '{"result": {"$cond": [false, {"$divide": [1, 0]}, "else"]}}');
 ERROR:  $divide by zero is not allowed

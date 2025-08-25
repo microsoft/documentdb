@@ -2009,7 +2009,7 @@ EvaluateAggregationExpressionData(const AggregationExpressionData *expressionDat
 
 		default:
 		{
-			ereport(ERROR, (errmsg("Unexpected aggregation expression kind %d",
+			ereport(ERROR, (errmsg("Unexpected type of aggregation expression %d",
 								   expressionData->kind)));
 		}
 	}
@@ -2139,7 +2139,7 @@ EvaluateAggregationExpressionDataToWriter(const AggregationExpressionData *expre
 
 		default:
 		{
-			ereport(ERROR, (errmsg("Unexpected aggregation expression kind %d",
+			ereport(ERROR, (errmsg("Unexpected type of aggregation expression %d",
 								   expressionData->kind)));
 		}
 	}
@@ -2551,7 +2551,8 @@ ParseDocumentAggregationExpressionData(const bson_value_t *value,
 	}
 	else
 	{
-		ereport(DEBUG3, (errmsg("Optimizing document expression into constant.")));
+		ereport(DEBUG3, (errmsg(
+							 "Converting document expression into a fixed constant.")));
 
 		/* We write the tree instead of just copying the input value for 2 reasons:
 		 * 1. Document keys need to be deduplicated for compatibility. Since we've built the tree already and that deduplicates keys, we use it.
@@ -2747,7 +2748,7 @@ ParseRangeArgumentsForExpression(const bson_value_t *argumentValue,
 
 
 /* --------------------------------------------------------- */
-/* Operator implementation functions */
+/* Functions for implementing operators */
 /* --------------------------------------------------------- */
 
 /*

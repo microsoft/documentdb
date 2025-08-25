@@ -448,7 +448,7 @@ GetFullVectorOperatorId(VectorIndexDistanceMetric distanceMetric)
 		default:
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("unsupported vector search distance type")));
+							errmsg("Vector search distance type not supported")));
 		}
 	}
 

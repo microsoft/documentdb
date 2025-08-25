@@ -383,8 +383,9 @@ documentdb_extension_create_user(PG_FUNCTION_ARGS)
 	if (!EnableUserCrud)
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_COMMANDNOTSUPPORTED),
-						errmsg("CreateUser command is not supported."),
-						errdetail_log("CreateUser command is not supported.")));
+						errmsg("The CreateUser operation is currently unsupported."),
+						errdetail_log(
+							"The CreateUser operation is currently unsupported.")));
 	}
 
 	if (PG_ARGISNULL(0))
@@ -580,7 +581,7 @@ ParseCreateUserSpec(pgbson *createSpec, CreateUserSpec *spec)
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
 								errmsg(
-									"'roles' is a required field.")));
+									"The 'roles' field is mandatory.")));
 			}
 
 			/* Check if it's in the right format */
@@ -736,10 +737,10 @@ ValidateAndObtainUserRole(const bson_value_t *rolesDocument)
 			else
 			{
 				ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-								errmsg("Unsupported field specified: '%s'.",
+								errmsg("The specified field '%s' is not supported.",
 									   key),
 								errdetail_log(
-									"Unsupported field specified: '%s'.",
+									"The specified field '%s' is not supported.",
 									key)));
 			}
 		}
@@ -919,7 +920,7 @@ ParseDropUserSpec(pgbson *dropSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified: '%s'.", key)));
+							errmsg("The specified field '%s' is not supported.", key)));
 		}
 	}
 
@@ -1080,7 +1081,7 @@ ParseUpdateUserSpec(pgbson *updateSpec, UpdateUserSpec *spec)
 		else if (strcmp(key, "roles") == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Updating roles is not supported.")));
+							errmsg("Role updates are currently unsupported.")));
 		}
 		else
 		{
@@ -1333,7 +1334,7 @@ ParseGetUserSpec(pgbson *getSpec, GetUserSpec *spec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified: '%s'.", key)));
+							errmsg("The specified field '%s' is not supported.", key)));
 		}
 	}
 
@@ -1479,7 +1480,7 @@ ParseConnectionStatusSpec(pgbson *connectionStatusSpec)
 		else
 		{
 			ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_BADVALUE),
-							errmsg("Unsupported field specified: '%s'.", key)));
+							errmsg("The specified field '%s' is not supported.", key)));
 		}
 	}
 

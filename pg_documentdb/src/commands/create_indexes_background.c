@@ -604,7 +604,7 @@ command_create_indexes_background(PG_FUNCTION_ARGS)
 
 	if (PG_ARGISNULL(1))
 	{
-		ereport(ERROR, (errmsg("arg cannot be NULL")));
+		ereport(ERROR, (errmsg("Argument value must not be NULL")));
 	}
 
 	text *databaseDatum = PG_GETARG_TEXT_P(0);
@@ -713,7 +713,7 @@ command_create_indexes_background_internal(PG_FUNCTION_ARGS)
 			PopActiveSnapshot();
 		}
 
-		/* Abort the inner transaction */
+		/* Abort inner transaction */
 		RollbackAndReleaseCurrentSubTransaction();
 
 		/* Rollback changes MemoryContext */
@@ -1028,7 +1028,7 @@ SubmitCreateIndexesRequest(Datum dbNameDatum,
 	else if (indexCount < nindexesRequested)
 	{
 		/* then not all but some indexes already exist */
-		result.note = "index already exists";
+		result.note = "An index with this name already exists";
 	}
 
 	result.numIndexesAfter = result.numIndexesBefore + indexCount;
@@ -1327,7 +1327,7 @@ CheckForIndexCmdToFinish(const List *indexIdList, char cmdType)
 			/* index failed but empty comment in queue. */
 			elog(LOG, "Index creation failed with empty comment in queue, status %d",
 				 maxCmdStatus);
-			result->errmsg = "Index Creation failed";
+			result->errmsg = "Failed to create index";
 			result->errcode = ERRCODE_DOCUMENTDB_INTERNALERROR;
 		}
 

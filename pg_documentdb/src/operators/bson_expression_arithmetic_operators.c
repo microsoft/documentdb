@@ -1301,7 +1301,7 @@ ProcessDollarFloor(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$floor only supports numeric types, not %s",
+							"Expected numberic type for $floor but found '%s' type",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1413,7 +1413,7 @@ ProcessDollarLog10(const bson_value_t *currentValue, bson_value_t *result)
 	if (!BsonValueIsNumber(currentValue))
 	{
 		ereport(ERROR, (errcode(ERRCODE_DOCUMENTDB_LOCATION28765), errmsg(
-							"$log10 only supports numeric types, not %s",
+							"Expected numeric type for $log10 but found '%s' type",
 							BsonTypeName(currentValue->value_type))));
 	}
 
@@ -1705,7 +1705,7 @@ ProcessDollarPow(void *state, bson_value_t *result)
 			return;
 		}
 
-		/* We should return long. */
+		/* return long */
 		result->value_type = BSON_TYPE_INT64;
 		result->value.v_int64 = GetBsonDecimal128AsInt64(&decimalPowResult,
 														 ConversionRoundingMode_NearestEven);
