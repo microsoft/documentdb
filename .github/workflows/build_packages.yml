@@ -27,7 +27,7 @@ permissions:
 jobs:
   build-deb-packages:
     runs-on: ${{ matrix.runner }}
-    name: ${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}
+    name: Deb packages for ${{ matrix.os }}-${{ matrix.arch }}-pg${{ matrix.pg_version }}
     strategy:
       fail-fast: false
       matrix:
