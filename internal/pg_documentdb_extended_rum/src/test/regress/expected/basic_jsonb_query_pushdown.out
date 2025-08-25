@@ -1,0 +1,113 @@
+set search_path to documentdb_extended_rum_jsonb_ops,public;
+CREATE TABLE public.jsonb_basic_query (val jsonb);
+INSERT INTO public.jsonb_basic_query VALUES ('{ "a": { "b": 1, "c": 3 }}'), ('{ "a": { "b": 2, "c": 4 }}');
+-- can query as runtime can use the new jsonpath operator
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b == 2';
+           val           
+-------------------------
+ {"a": {"b": 2, "c": 4}}
+(1 row)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b == 1';
+           val           
+-------------------------
+ {"a": {"b": 1, "c": 3}}
+(1 row)
+
+-- it's a seqscan that executes it
+EXPLAIN (COSTS OFF) SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b == 2';
+                    QUERY PLAN                    
+--------------------------------------------------
+ Seq Scan on jsonb_basic_query
+   Filter: (val @@@ '($."a"."b" == 2)'::jsonpath)
+(2 rows)
+
+-- now create an extended_rum index on the jsonb
+set client_min_messages to DEBUG1;
+CREATE INDEX my_idx_ab ON public.jsonb_basic_query USING documentdb_extended_rum(val jsonb_path_extended_rum_ops(pathspec='$.a.b',wildcard=true));
+DEBUG:  building index "my_idx_ab" on table "jsonb_basic_query" serially
+DEBUG:  First term {"$": 1}
+DEBUG:  First term {"$": 2}
+CREATE INDEX my_idx_ac ON public.jsonb_basic_query USING documentdb_extended_rum(val jsonb_path_extended_rum_ops(pathspec='$.a.c'));
+DEBUG:  building index "my_idx_ac" on table "jsonb_basic_query" serially
+DEBUG:  First term 3
+DEBUG:  First term 4
+reset client_min_messages;
+-- now each query gets pushed to the appropriate index.
+set enable_seqscan to off;
+EXPLAIN (COSTS OFF) SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b == 2';
+                                                QUERY PLAN                                                 
+-----------------------------------------------------------------------------------------------------------
+ Index Scan using my_idx_ab on jsonb_basic_query
+   Index Cond: (val OPERATOR(documentdb_extended_rum_jsonb_ops_internal.#@@) '($."a"."b" == 2)'::jsonpath)
+   Filter: (val @@@ '($."a"."b" == 2)'::jsonpath)
+(3 rows)
+
+EXPLAIN (COSTS OFF) SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b.c == 2';
+                      QUERY PLAN                      
+------------------------------------------------------
+ Seq Scan on jsonb_basic_query
+   Filter: (val @@@ '($."a"."b"."c" == 2)'::jsonpath)
+(2 rows)
+
+EXPLAIN (COSTS OFF) SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c == 2';
+                                                QUERY PLAN                                                 
+-----------------------------------------------------------------------------------------------------------
+ Index Scan using my_idx_ac on jsonb_basic_query
+   Index Cond: (val OPERATOR(documentdb_extended_rum_jsonb_ops_internal.#@@) '($."a"."c" == 2)'::jsonpath)
+   Filter: (val @@@ '($."a"."c" == 2)'::jsonpath)
+(3 rows)
+
+-- but this one can't be pushed (since a.c is not a wildcard)
+EXPLAIN (COSTS OFF) SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c.d == 2';
+                      QUERY PLAN                      
+------------------------------------------------------
+ Seq Scan on jsonb_basic_query
+   Filter: (val @@@ '($."a"."c"."d" == 2)'::jsonpath)
+(2 rows)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b == 2';
+           val           
+-------------------------
+ {"a": {"b": 2, "c": 4}}
+(1 row)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.b.c == 2';
+ val 
+-----
+(0 rows)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c == 2';
+ val 
+-----
+(0 rows)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c == 4';
+           val           
+-------------------------
+ {"a": {"b": 2, "c": 4}}
+(1 row)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c > 3';
+           val           
+-------------------------
+ {"a": {"b": 2, "c": 4}}
+(1 row)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c > 4';
+ val 
+-----
+(0 rows)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c < 2';
+ val 
+-----
+(0 rows)
+
+SELECT * FROM public.jsonb_basic_query WHERE val @@@ '$.a.c < 5';
+           val           
+-------------------------
+ {"a": {"b": 1, "c": 3}}
+ {"a": {"b": 2, "c": 4}}
+(2 rows)
+

@@ -13,8 +13,9 @@ forceCleanup="false"
 help="false"
 stop="false"
 distributed="false"
+includeDocumentdbRum="false"
 allowExternalAccess="false"
-while getopts "d:p:hcsxe" opt; do
+while getopts "d:p:hcsxre" opt; do
   case $opt in
     d) postgresDirectory="$OPTARG"
     ;;
@@ -26,7 +27,9 @@ while getopts "d:p:hcsxe" opt; do
     s) stop="true"
     ;;
     x) distributed="true"
-    ;;    
+    ;;
+    r) includeDocumentdbRum="true"
+    ;;
     e) allowExternalAccess="true"
     ;;
     p) coordinatorPort="$OPTARG"
@@ -53,6 +56,7 @@ if [ "$help" == "true" ]; then
     echo "${green}[-c] - optional argument. FORCE cleanup - removes all existing data and reinitializes"
     echo "${green}[-s] - optional argument. Stops all servers and exits"
     echo "${green}[-x] - start oss server with documentdb_distributed extension"
+    echo "${green}[-r] - start oss server with documentdb_extended_rum extension"
     echo "${green}[-e] - optional argument. Allows PostgreSQL access from any IP address"
     echo "${green}[-p <port>] - optional argument. specifies the port for the coordinator"
     echo "${green}if postgresDir not specified assumed to be /data"
@@ -80,6 +84,10 @@ preloadLibraries="pg_documentdb_core, pg_documentdb"
 
 if [ "$distributed" == "true" ]; then
   preloadLibraries="citus, $preloadLibraries, pg_documentdb_distributed"
+fi
+
+if [ "$includeDocumentdbRum" == "true" ]; then
+  preloadLibraries="$preloadLibraries, pg_documentdb_extended_rum"
 fi
 
 source="${BASH_SOURCE[0]}"
@@ -159,6 +167,11 @@ StartServer $postgresDirectory $coordinatorPort
 
 if [ "$initSetup" == "true" ]; then
   SetupPostgresServerExtensions "$userName" $coordinatorPort $extensionName
+fi
+
+if [ "$includeDocumentdbRum" == "true" ]; then
+  echo "Installing documentdb_extended_rum"
+  psql -p $coordinatorPort -d postgres -c "CREATE EXTENSION documentdb_extended_rum"
 fi
 
 if [ "$distributed" == "true" ]; then
