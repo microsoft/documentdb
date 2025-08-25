@@ -47,7 +47,7 @@ Commits of any form require a DCO, including revert commits.
 
 ## Technical Steering Committee and Maintainers
 
-DocumentDB is governed by the Technical Steering Committee, where all decisions are conducted in the open, documented, and voted upon. All code that is checked in is managed by the Maintainers. The list of TSC members and the project's maintainers are listed in the MAINTAINERS.md file. 
+DocumentDB is governed by the Technical Steering Committee, where all decisions are conducted in the open, documented, and voted upon. All code that is checked in is managed by the Maintainers. The list of TSC members and the project's maintainers are listed in the [MAINTAINERS.md](./MAINTAINERS.md) file. 
 
 ## Discussion Etiquette
 
