@@ -1,4 +1,4 @@
-name: SQL Tests
+name: DocumentDB sql tests
 run-name: ${{ github.event.pull_request.title || '' }}
 concurrency:
   group: sql-tests-${{ github.event.pull_request.number || github.ref }}
@@ -23,7 +23,7 @@ on:
 jobs:
   test-run-in-Ubuntu:
     runs-on: ${{ matrix.runner }}
-    name: ${{ matrix.runner }} with PG ${{ matrix.pg_version }}
+    name: Run sql tests on ${{ matrix.runner }} with pg ${{ matrix.pg_version }}
     strategy:
       fail-fast: false
       matrix:
