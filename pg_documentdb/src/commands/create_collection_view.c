@@ -355,8 +355,10 @@ ParseCreateSpec(Datum databaseDatum, pgbson *createSpec, bool *hasSchemaValidati
 		}
 		else if (strcmp(key, "validator") == 0)
 		{
-			spec->validator = ParseAndGetValidatorSpec(&createIter, "create.validator",
-													   hasSchemaValidationSpec);
+			bson_value_t *validator = palloc0(sizeof(bson_value_t));
+			*validator = *(ParseAndGetValidatorSpec(&createIter, "create.validator",
+													hasSchemaValidationSpec));
+			spec->validator = validator;
 		}
 		else if (strcmp(key, "validationLevel") == 0)
 		{
