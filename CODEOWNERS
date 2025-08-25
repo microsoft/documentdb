@@ -1,11 +1,11 @@
-* @safern @visridha @sivethe @shuaitian-git @lichoil
+* @safern @documentdb/documentdb-maintainers
 
 /.pipelines/ @safern @visridha @shuaitian-git @lichoil
 /.github/workflows/ @safern @visridha @shuaitian-git @lichoil
 
-*.csv @safern @visridha @sivethe
-*.sql @safern @visridha @sivethe
-Make* @safern @visridha @sivethe
-/internal/ @safern @visridha @sivethe
-/pg_documentdb/ @safern @visridha @sivethe
-/pg_documentdb_core/ @safern @visridha @sivethe
+*.csv @documentdb/documentdb-maintainers
+*.sql @documentdb/documentdb-maintainers
+Make* @documentdb/documentdb-maintainers
+/internal/ @documentdb/documentdb-maintainers
+/pg_documentdb/ @documentdb/documentdb-maintainers
+/pg_documentdb_core/ @documentdb/documentdb-maintainers
