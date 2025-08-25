@@ -1,7 +1,7 @@
 * @safern @visridha @sivethe @shuaitian-git @lichoil
 
-/.pipelines/ @shuaitian-git @lichoil
-/.github/workflows/ @shuaitian-git @lichoil
+/.pipelines/ @safern @visridha @shuaitian-git @lichoil
+/.github/workflows/ @safern @visridha @shuaitian-git @lichoil
 
 *.csv @safern @visridha @sivethe
 *.sql @safern @visridha @sivethe
