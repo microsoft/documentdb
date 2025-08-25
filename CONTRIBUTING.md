@@ -35,7 +35,7 @@ For those looking to contribute code, whether for bug fixes or new features, ple
 
 ## Pull Requests
 
-We want to ensure all contributions made by the developer community are correctly licensed. To achieve this, DocumentDB uses a Developer Certificate of Origin (DCO). The DCO is a declaration attached to each commit to the project. A message that simply adds a Signed-off-by statement to every commit to DocmentDB is all that is needed and this confirms that the committer agrees to the DCO, which can be located at https://developercertificate.org/.
+We want to ensure all contributions made by the developer community are correctly licensed. To achieve this, DocumentDB uses a Developer Certificate of Origin (DCO). The DCO is a declaration attached to each commit to the project. A message that simply adds a Signed-off-by statement to every commit to DocumentDB is all that is needed and this confirms that the committer agrees to the DCO, which can be located at https://developercertificate.org/.
 
 DocumentDB requires every contribution to be signed with a DCO through a known identity. Anonymous names or pseudonyms cannot be used. An example of a DCO signed commit message is:
 
@@ -47,7 +47,7 @@ Commits of any form require a DCO, including revert commits.
 
 ## Technical Steering Committee and Maintainers
 
-DocumentDB is governed by the Technical Steering Committee, where all decisions are conducted in the open, documented, and voted upon. All code that is checked in is managed by the Maintainers. The list of TSC members and the project's maintainers are listed in the Maintainers.md file. 
+DocumentDB is governed by the Technical Steering Committee, where all decisions are conducted in the open, documented, and voted upon. All code that is checked in is managed by the Maintainers. The list of TSC members and the project's maintainers are listed in the MAINTAINERS.md file. 
 
 ## Discussion Etiquette
 
