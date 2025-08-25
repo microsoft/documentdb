@@ -74,92 +74,105 @@ Step 3. Setup DocumentDB using Docker
    > 
    > **Port Note:** Port `10260` is used by default in these instructions to avoid conflicts with other local database services. You can use port `27017` (the standard MongoDB port) or any other available port if you prefer. If you do, be sure to update the port number in both your `docker run` command and your connection string accordingly.
 
-Step 4: Initialize the pymongo client with the credentials from the previous step
+Step 4: Create and run the sample Python script
+
+Create a file named `quickstart.py` with the following contents. The script is organized into steps with comments and demonstrates connecting, creating a collection, inserting documents, reading them, and running an aggregation.
 
 ```python
+#!/usr/bin/env python3
+"""
+Quickstart for DocumentDB via PyMongo.
 
-import pymongo
+This script demonstrates:
+- Connecting to DocumentDB
+- Creating a database and collection
+- Inserting documents (one and many)
+- Reading documents (all and filtered)
+- Running an aggregation pipeline
+"""
 
 from pymongo import MongoClient
 
-# Create a MongoDB client and open a connection to DocumentDB
-client = pymongo.MongoClient(
-    'mongodb://<YOUR_USERNAME>:<YOUR_PASSWORD>@localhost:10260/?tls=true&tlsAllowInvalidCertificates=true'
-)
 
+def main():
+    # Step 1: Connect to DocumentDB
+    # Replace <YOUR_USERNAME> and <YOUR_PASSWORD> with the credentials used when starting the container.
+    username = "<YOUR_USERNAME>"
+    password = "<YOUR_PASSWORD>"
+    uri = (
+        f"mongodb://{username}:{password}"
+        "@localhost:10260/?tls=true&tlsAllowInvalidCertificates=true"
+    )
+    client = MongoClient(uri)
+
+    try:
+        # Step 1: Create database and collection handles
+        db = client["quickStartDatabase"]
+
+        # Create the collection if it doesn't already exist
+        if "quickStartCollection" not in db.list_collection_names():
+            db.create_collection("quickStartCollection")
+        coll = db["quickStartCollection"]
+        print("Using collection quickStartDatabase.quickStartCollection")
+
+        # Step 2: Insert documents
+        # 3a. Insert one
+        coll.insert_one({
+            "name": "John Doe",
+            "email": "john@email.com",
+            "address": "123 Main St, Anytown, USA",
+            "phone": "555-1234",
+        })
+
+        # 3b. Insert many
+        coll.insert_many([
+            {
+                "name": "Jane Smith",
+                "email": "jane@email.com",
+                "address": "456 Elm St, Othertown, USA",
+                "phone": "555-5678",
+            },
+            {
+                "name": "Alice Johnson",
+                "email": "alice@email.com",
+                "address": "789 Oak St, Sometown, USA",
+                "phone": "555-8765",
+            },
+        ])
+        print("Inserted sample documents.")
+
+        # Step 3: Read documents
+        print("\nAll documents:")
+        for doc in coll.find():
+            print(doc)
+
+        print("\nSingle document (name == 'John Doe'):")
+        single = coll.find_one({"name": "John Doe"})
+        print(single)
+
+        # Step 4: Run an aggregation pipeline query
+        pipeline = [
+            {"$match": {"name": "Alice Johnson"}},
+            {"$project": {"_id": 0, "name": 1, "email": 1}},
+        ]
+        print("\nAggregation results:")
+        for doc in coll.aggregate(pipeline):
+            print(doc)
+
+    finally:
+        # Step 5: Clean up client
+        client.close()
+        print("\nConnection closed.")
+
+
+if __name__ == "__main__":
+    main()
 ```
 
-Step 5: Create a database and collection
+Run the script:
 
-```python
-
-quickStartDatabase = client["quickStartDatabase"]
-quickStartCollection = quickStartDatabase.create_collection("quickStartCollection")
-
-```
-
-Step 6: Insert documents
-
-```python
-
-# Insert a single document
-quickStartCollection.insert_one({
-       'name': 'John Doe',
-       'email': 'john@email.com',
-       'address': '123 Main St, Anytown, USA',
-       'phone': '555-1234'
-   })
-
-# Insert multiple documents
-quickStartCollection.insert_many([
-    {
-        'name': 'Jane Smith',
-        'email': 'jane@email.com',
-        'address': '456 Elm St, Othertown, USA',
-        'phone': '555-5678'
-    },
-    {
-        'name': 'Alice Johnson',
-        'email': 'alice@email.com',
-        'address': '789 Oak St, Sometown, USA',
-        'phone': '555-8765'
-    }
-])
-
-```
-
-Step 7: Read documents
-
-```python
-
-# Read all documents
-for document in quickStartCollection.find():
-    print(document)
-
-# Read a specific document
-singleDocumentReadResult = quickStartCollection.find_one({'name': 'John Doe'})
-    print(singleDocumentReadResult)
-
-```
-
-Step 8: Run aggregation pipeline query
-
-```python
-
-pipeline = [
-    {'$match': {'name': 'Alice Johnson'}},
-    {'$project': {
-        '_id': 0,
-        'name': 1,
-        'email': 1
-    }}
-]
-
-results = quickStartCollection.aggregate(pipeline)
-print("Aggregation results:")
-for eachDocument in results:
-    print(eachDocument)
-
+```bash
+python quickstart.py
 ```
 
 ## To interact directly with the PostgreSQL layer
