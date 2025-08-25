@@ -112,6 +112,7 @@ jsonb_rum_ops_extract_query(PG_FUNCTION_ARGS)
 	int32 *nentries = (int32 *) PG_GETARG_POINTER(1);
 	bool **partialmatch = (bool **) PG_GETARG_POINTER(3);
 	Pointer **extra_data = (Pointer **) PG_GETARG_POINTER(4);
+
 	/* int32_t *searchMode = (int32_t *) PG_GETARG_POINTER(6); */
 
 	if (!PG_HAS_OPCLASS_OPTIONS())
@@ -261,10 +262,9 @@ compareJsonbValues(JsonbValue *left, JsonbValue *right)
 		}
 
 		default:
-        {
+		{
 			elog(ERROR, "unsupported type for comparison");
-        }
-			
+		}
 	}
 	return 0;
 }
@@ -274,6 +274,7 @@ PGDLLEXPORT Datum
 jsonb_rum_ops_compare_partial(PG_FUNCTION_ARGS)
 {
 	Jsonb *compareValue = PG_GETARG_JSONB_P(1);
+
 	/* StrategyNumber strategy = PG_GETARG_UINT16(2); */
 	Pointer extraData = PG_GETARG_POINTER(3);
 
